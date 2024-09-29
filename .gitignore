@@ -1,0 +1,6 @@
+.DS_Store
+.env
+*.tsbuildinfo
+bun.lockb
+dist
+node_modules/

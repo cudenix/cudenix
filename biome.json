@@ -1,0 +1,48 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"files": {
+		"ignoreUnknown": true,
+		"include": [
+			".github/**/*.yml",
+			".vscode/**/*.json",
+			"*.json",
+			"src/**/*.ts"
+		]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab"
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double"
+		},
+		"globals": ["Bun"]
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"all": true,
+			"correctness": {
+				"noNodejsModules": "off"
+			},
+			"style": {
+				"noNonNullAssertion": "warn",
+				"useForOf": "off"
+			},
+			"suspicious": {
+				"noConfusingVoidType": "warn",
+				"noExplicitAny": "warn",
+				"noShadowRestrictedNames": "warn"
+			}
+		}
+	},
+	"organizeImports": {
+		"enabled": true
+	},
+	"vcs": {
+		"clientKind": "git",
+		"enabled": true,
+		"useIgnoreFile": true
+	}
+}

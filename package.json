@@ -1,0 +1,74 @@
+{
+	"author": "cudenix <contact@cudenix.com> (https://cudenix.com)",
+	"bugs": {
+		"email": "security@cudenix.com",
+		"url": "https://github.com/cudenix/cudenix/issues"
+	},
+	"description": "cudenix",
+	"devDependencies": {
+		"@biomejs/biome": "1.9.2",
+		"@types/bun": "1.1.10",
+		"tsc-alias": "1.8.10",
+		"typescript": "5.6.2"
+	},
+	"exports": {
+		"./package.json": "./package.json",
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./client": {
+			"types": "./dist/ecosystem/client/index.d.ts",
+			"import": "./dist/ecosystem/client/index.js"
+		},
+		"./cluster": {
+			"types": "./dist/ecosystem/cluster/index.d.ts",
+			"import": "./dist/ecosystem/cluster/index.js"
+		},
+		"./events": {
+			"types": "./dist/ecosystem/events/index.d.ts",
+			"import": "./dist/ecosystem/events/index.js"
+		},
+		"./i18n": {
+			"types": "./dist/ecosystem/i18n/index.d.ts",
+			"import": "./dist/ecosystem/i18n/index.js"
+		}
+	},
+	"files": ["dist"],
+	"homepage": "https://github.com/cudenix/cudenix",
+	"keywords": [
+		"api",
+		"bun",
+		"framework",
+		"http",
+		"server",
+		"sse",
+		"typescript",
+		"web",
+		"websocket"
+	],
+	"license": "MIT",
+	"main": "dist/index.js",
+	"module": "dist/index.js",
+	"name": "@cudenix/cudenix",
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/cudenix/cudenix.git"
+	},
+	"scripts": {
+		"build": "bun clear:build && bun format && bun lint && tsc && tsc-alias",
+		"clear": "bun clear:build && bun clear:install",
+		"clear:build": "rm -rf dist",
+		"clear:install": "rm -rf node_modules && rm -rf bun.lockb",
+		"format": "biome format --fix",
+		"lint": "biome lint --diagnostic-level=error",
+		"reinstall": "bun clear:install && bun install"
+	},
+	"sideEffects": false,
+	"type": "module",
+	"types": "dist/index.d.ts",
+	"version": "0.0.1"
+}

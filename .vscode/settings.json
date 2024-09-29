@@ -1,0 +1,11 @@
+{
+	"editor.codeActionsOnSave": {
+		"source.organizeImports.biome": "explicit"
+	},
+	"editor.defaultFormatter": "biomejs.biome",
+	"files.exclude": {
+		"**/bun.lockb": true,
+		"**/node_modules": false
+	},
+	"typescript.inlayHints.parameterNames.enabled": "literals"
+}
