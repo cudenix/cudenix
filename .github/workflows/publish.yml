@@ -14,10 +14,12 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+          registry-url: https://registry.npmjs.org
 
       - uses: actions/setup-node@v4
         with:
           node-version: latest
+          registry-url: https://registry.npmjs.org
 
       - run: bun install
 
