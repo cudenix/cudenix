@@ -118,7 +118,7 @@ const createProxy = (
 
 					if (
 						isFile(mergedOptions.body[key]) ||
-						(mergedOptions.body[key].pop &&
+						(mergedOptions.body[key]?.pop &&
 							(mergedOptions.body[key] as Blob[]).some(isFile))
 					) {
 						hasFile = true;
