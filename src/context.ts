@@ -24,6 +24,8 @@ export interface DeveloperContext<
 	store: Stores;
 }
 
+export type AnyDeveloperContext = DeveloperContext<any, any>;
+
 export interface ContextResponse {
 	content?: AnyError | AnySuccess | ReadableStream;
 	cookies: Record<string, string>;
