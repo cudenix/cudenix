@@ -47,7 +47,7 @@ export interface App {
 	fetch(request: Request): Promise<Response>;
 	listen(options?: ListenOptions): Promise<App>;
 	memory: Map<string, unknown>;
-	regexs: Map<string, RegExp>;
+	regexps: Map<string, RegExp>;
 	response(context: Context): Promise<Response>;
 	server?: Server | undefined;
 }
@@ -57,7 +57,7 @@ type Constructor = new (module: AnyModule) => App;
 const App = function (this: App, module: AnyModule) {
 	this.endpoints = new Map();
 	this.memory = new Map();
-	this.regexs = new Map();
+	this.regexps = new Map();
 
 	this.memory.set("module", module);
 } as unknown as Constructor;
@@ -221,15 +221,15 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 
 	for (let i = 0; i < methods.length; i++) {
 		const endpoints = this.endpoints.get(methods[i])!;
-		const regexs = [] as string[];
+		const regexps = [] as string[];
 
 		for (let j = 0; j < endpoints.length; j++) {
-			regexs.push(pathToRegexp(endpoints[j].path));
+			regexps.push(pathToRegexp(endpoints[j].path));
 		}
 
-		this.regexs.set(
+		this.regexps.set(
 			methods[i],
-			new RegExp(`^(https?:\\/\\/)[^\\s\\/]+(${regexs.join("|")})(?![^?#])`),
+			new RegExp(`^(https?:\\/\\/)[^\\s\\/]+(${regexps.join("|")})(?![^?#])`),
 		);
 	}
 
@@ -237,7 +237,7 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 };
 
 App.prototype.fetch = async function (this: App, request: Request) {
-	const match = this.regexs.get(request.method)?.exec(request.url);
+	const match = this.regexps.get(request.method)?.exec(request.url);
 
 	if (!match) {
 		return new Response(undefined, {

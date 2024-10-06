@@ -166,8 +166,8 @@ Context.prototype.loadRequestHeaders = function (this: Context) {
 };
 
 Context.prototype.loadRequestParams = function (this: Context) {
-	const regex = new RegExp(`^${pathToRegexp(this.endpoint.path, true)}$`);
-	const match = regex.exec(this.request.path);
+	const regexp = new RegExp(`^${pathToRegexp(this.endpoint.path, true)}$`);
+	const match = regexp.exec(this.request.path);
 
 	if (!match) {
 		return;
