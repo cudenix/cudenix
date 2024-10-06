@@ -15,11 +15,7 @@ export interface DeveloperContext<
 	request: {
 		raw: Request;
 	} & Validators;
-	response: {
-		cookies: Record<string, string>;
-		headers: Record<string, string>;
-		status: number;
-	};
+	response: ContextResponse;
 	server: Server;
 	store: Stores;
 }
@@ -28,9 +24,8 @@ export type AnyDeveloperContext = DeveloperContext<any, any>;
 
 export interface ContextResponse {
 	content?: AnyError | AnySuccess | ReadableStream;
-	cookies: Record<string, string>;
-	headers: Record<string, string>;
-	status: number;
+	cookies: Map<string, string>;
+	headers: Headers;
 }
 
 export interface ContextRequest {
@@ -81,7 +76,8 @@ export const Context = function (
 		raw: request,
 	};
 	this.response = {
-		status: 200,
+		cookies: new Map(),
+		headers: new Headers(),
 	} as ContextResponse;
 	this.server = server;
 	this.store = new Empty();
@@ -156,7 +152,7 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 Context.prototype.loadRequestCookies = function (this: Context) {
 	const cookies = getCookies(this.request.raw.headers);
 
-	this.request.cookies = Object.keys(cookies).length ? cookies : undefined;
+	this.request.cookies = Object.keys(cookies).length > 0 ? cookies : undefined;
 };
 
 Context.prototype.loadRequestHeaders = function (this: Context) {
@@ -166,7 +162,7 @@ Context.prototype.loadRequestHeaders = function (this: Context) {
 		headers[key] = value;
 	});
 
-	this.request.headers = Object.keys(headers).length ? headers : undefined;
+	this.request.headers = Object.keys(headers).length > 0 ? headers : undefined;
 };
 
 Context.prototype.loadRequestParams = function (this: Context) {
@@ -205,7 +201,7 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 		// biome-ignore lint/suspicious/noAssignInExpressions:
 		(match = getUrlQueryRegexp.exec(decodeURIComponent(this.request.raw.url)))
 	) {
-		if (!match[1] || !match[2]) {
+		if (!(match[1] && match[2])) {
 			continue;
 		}
 
@@ -226,7 +222,7 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 		params[match[1]] = [params[match[1]], ...match[2].split(",")];
 	}
 
-	this.request.query = Object.keys(params).length ? params : undefined;
+	this.request.query = Object.keys(params).length > 0 ? params : undefined;
 };
 
 export const context = (
