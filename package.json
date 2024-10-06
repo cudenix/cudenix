@@ -25,6 +25,10 @@
 			"types": "./dist/ecosystem/cluster/index.d.ts",
 			"import": "./dist/ecosystem/cluster/index.js"
 		},
+		"./cors": {
+			"types": "./dist/ecosystem/cors/index.d.ts",
+			"import": "./dist/ecosystem/cors/index.js"
+		},
 		"./events": {
 			"types": "./dist/ecosystem/events/index.d.ts",
 			"import": "./dist/ecosystem/events/index.js"
