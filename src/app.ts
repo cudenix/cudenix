@@ -23,16 +23,13 @@ import {
 } from "@/utils/regexp";
 import type {
 	AnyValidator,
-	ValidatorConfigValidator,
+	ValidatorAddon,
 	ValidatorRequest,
-	validatorConfig,
 } from "@/validator";
 
-type Addon = (...options: any[]) => string;
+type Addon = (...options: any[]) => string | Promise<string>;
 
 type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
-
-type Config = ReturnType<typeof validatorConfig>;
 
 export interface Endpoint {
 	chain: Chain;
@@ -44,12 +41,11 @@ export interface Endpoint {
 type ListenOptions = Omit<TLSServeOptions, "fetch">;
 
 export interface App {
-	addons(addons: Addon[]): Pick<App, "addons" | "configs" | "listen">;
-	compile(module: AnyModule): void;
-	configs(configs: Config[]): Pick<App, "addons" | "configs" | "listen">;
+	addon(addon: Addon | Addon[]): App;
+	compile(module: AnyModule): Promise<void>;
 	endpoints: Map<string, Endpoint[]>;
 	fetch(request: Request): Promise<Response>;
-	listen(options?: ListenOptions): App;
+	listen(options?: ListenOptions): Promise<App>;
 	memory: Map<string, unknown>;
 	regexs: Map<string, RegExp>;
 	response(context: Context): Promise<Response>;
@@ -63,18 +59,32 @@ const App = function (this: App, module: AnyModule) {
 	this.memory = new Map();
 	this.regexs = new Map();
 
-	this.compile(module);
+	this.memory.set("module", module);
 } as unknown as Constructor;
 
-App.prototype.addons = function (this: App, addons: Addon[]) {
-	for (let i = 0; i < addons.length; i++) {
-		addons[i].call(this);
+App.prototype.addon = function (this: App, addon: Addon | Addon[]) {
+	if (!this.memory.has("addons")) {
+		this.memory.set("addons", []);
 	}
+
+	(this.memory.get("addons")! as Addon[]).push(
+		...(typeof addon === "function" ? [addon] : addon),
+	);
 
 	return this;
 };
 
-App.prototype.compile = function (this: App, module: AnyModule) {
+App.prototype.compile = async function (this: App, module: AnyModule) {
+	if (this.memory.has("addons")) {
+		const addons = this.memory.get("addons") as Addon[];
+
+		for (let i = 0; i < addons.length; i++) {
+			await addons[i].call(this);
+		}
+
+		this.memory.delete("addons");
+	}
+
 	const stack = [{ module, parentChain: [] as Chain, parentPath: "" }];
 
 	const useRegexps = [
@@ -223,15 +233,7 @@ App.prototype.compile = function (this: App, module: AnyModule) {
 		);
 	}
 
-	return this;
-};
-
-App.prototype.configs = function (this: App, configs: Config[]) {
-	for (let i = 0; i < configs.length; i++) {
-		configs[i].call(this);
-	}
-
-	return this;
+	this.memory.delete("module");
 };
 
 App.prototype.fetch = async function (this: App, request: Request) {
@@ -307,7 +309,7 @@ App.prototype.fetch = async function (this: App, request: Request) {
 				continue;
 			}
 
-			if (!this.memory.has("validator") || !link.request) {
+			if (!(this.memory.has("validator") && link.request)) {
 				continue;
 			}
 
@@ -322,7 +324,7 @@ App.prototype.fetch = async function (this: App, request: Request) {
 				const schema = link.request[key];
 
 				const validated = await (
-					this.memory.get("validator") as ValidatorConfigValidator
+					this.memory.get("validator") as ValidatorAddon
 				)(
 					schema,
 					context.request[key as keyof typeof context.request],
@@ -461,7 +463,9 @@ App.prototype.fetch = async function (this: App, request: Request) {
 	return await this.response(context);
 };
 
-App.prototype.listen = function (this: App, options?: ListenOptions) {
+App.prototype.listen = async function (this: App, options?: ListenOptions) {
+	await this.compile(this.memory.get("module") as AnyModule);
+
 	this.server = Bun.serve({
 		...options,
 		fetch: (request) => this.fetch(request),
@@ -495,7 +499,7 @@ App.prototype.listen = function (this: App, options?: ListenOptions) {
 
 App.prototype.response = async function (
 	this: App,
-	{ response: { content: response, headers, status } }: Context,
+	{ response: { content: response, headers } }: Context,
 ) {
 	if (!response) {
 		return new Response(undefined, {
@@ -506,12 +510,11 @@ App.prototype.response = async function (
 	if (response instanceof ReadableStream) {
 		return new Response(response, {
 			headers: {
-				...headers,
+				...headers.toJSON(),
 				"cache-control": "no-cache",
 				"content-type": "text/event-stream",
 				connection: "keep-alive",
 			},
-			status,
 		});
 	}
 
@@ -525,9 +528,8 @@ App.prototype.response = async function (
 
 	return Response.json(response, {
 		headers,
-		status,
+		status: response.status,
 	});
 };
 
-export const app = (module: AnyModule) =>
-	new App(module) as Pick<App, "addons" | "configs" | "listen">;
+export const app = (module: AnyModule) => new App(module) as App;
