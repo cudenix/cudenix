@@ -34,19 +34,19 @@ export interface Success<Content, Status extends number> {
 
 export type AnySuccess = Success<any, any>;
 
-type Constructor = new (content: unknown, status: number) => AnySuccess;
+type Constructor = new (content: unknown, status?: number) => AnySuccess;
 
 export const Success = function (
 	this: AnySuccess,
 	content: unknown,
-	status: number,
+	status = 200,
 ) {
 	this.content = content;
 	this.status = status;
 	this.success = true;
 } as unknown as Constructor;
 
-export const success = <const Content, const Status extends number>(
+export const success = <const Content, const Status extends number = 200>(
 	content: Content,
-	status: Status,
+	status?: Status,
 ) => new Success(content, status) as Success<Content, Status>;

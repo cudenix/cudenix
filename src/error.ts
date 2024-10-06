@@ -36,19 +36,15 @@ export interface Error<Content, Status extends number> {
 
 export type AnyError = Error<any, any>;
 
-type Constructor = new (content: unknown, status: number) => AnyError;
+type Constructor = new (content: unknown, status?: number) => AnyError;
 
-export const Error = function (
-	this: AnyError,
-	content: unknown,
-	status: number,
-) {
+export const Error = function (this: AnyError, content: unknown, status = 400) {
 	this.content = content;
 	this.status = status;
 	this.success = false;
 } as unknown as Constructor;
 
-export const error = <const Content, const Status extends number>(
+export const error = <const Content, const Status extends number = 400>(
 	content: Content,
-	status: Status,
+	status?: Status,
 ) => new Error(content, status) as Error<Content, Status>;
