@@ -7,7 +7,7 @@ import type {
 	InferValidatorOutput,
 } from "@cudenix/cudenix";
 
-export type ValidatorConfigValidator = (
+export type ValidatorAddon = (
 	schema: any,
 	input: unknown,
 	type: keyof ValidatorRequest,
@@ -97,8 +97,10 @@ export const validator = <const Request extends Partial<ValidatorRequest>>(
 	options: ValidatorOptions<Request>,
 ) => new Validator(options) as Validator<Request>;
 
-export function validatorConfig(validator: ValidatorConfigValidator) {
+export function validatorAddon(validator: ValidatorAddon) {
 	return function (this: App) {
 		this.memory.set("validator", validator);
+
+		return "validator";
 	};
 }
