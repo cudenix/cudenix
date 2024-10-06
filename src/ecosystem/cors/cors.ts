@@ -60,7 +60,7 @@ export const cors = {
 					);
 				}
 
-				if (context.request.raw.method === "OPTIONS") {
+				if (request.raw.method === "OPTIONS") {
 					response.headers.set(
 						"Access-Control-Allow-Methods",
 						allowMethods.join(","),
