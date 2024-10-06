@@ -1,10 +1,8 @@
 import _cluster from "node:cluster";
 import { availableParallelism } from "node:os";
 
-import type { App } from "@/app";
-
 export const cluster = async (
-	initialize: () => App | Promise<App>,
+	app: () => unknown | Promise<unknown>,
 ): Promise<typeof _cluster> => {
 	let sigint = false;
 
@@ -36,12 +34,7 @@ export const cluster = async (
 		return _cluster;
 	}
 
-	const app = await initialize();
-
-	app.memory.set("cluster", {
-		id: _cluster.worker?.id,
-		pid: _cluster.worker?.process.pid,
-	});
+	await app();
 
 	return _cluster;
 };
