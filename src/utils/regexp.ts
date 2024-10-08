@@ -2,11 +2,11 @@ export const endsWithQuestionMarkRegexp = /\?$/;
 export const getUrlQueryRegexp = /[?&]([^=#]+)=([^&#]*)/g;
 export const startsWithColonRegexp = /^:/;
 export const startsWithEllipsisRegexp = /^\.{3}/;
-export const useContextBodyRegexp = /\{[^}]*\bbody\b[^}]*\}|\.body\b/m;
-export const useContextCookiesRegexp = /\{[^}]*\bcookies\b[^}]*\}|\.cookies\b/m;
-export const useContextHeadersRegexp = /\{[^}]*\bheaders\b[^}]*\}|\.headers\b/m;
-export const useContextParamsRegexp = /\{[^}]*\bparams\b[^}]*\}|\.params\b/m;
-export const useContextQueryRegexp = /\{[^}]*\bquery\b[^}]*\}|\.query\b/m;
+export const useContextBodyRegexp = /\bbody\b/m;
+export const useContextCookiesRegexp = /\bcookies\b/m;
+export const useContextHeadersRegexp = /\bheaders\b/m;
+export const useContextParamsRegexp = /\bparams\b/m;
+export const useContextQueryRegexp = /\bquery\b/m;
 
 export const pathToRegexp = (path: string, captureParamGroups = false) => {
 	let pattern = "()";
