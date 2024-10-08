@@ -26,7 +26,7 @@ export const cors = {
 		exposeHeaders,
 		maxAge,
 		origin = "*",
-	}: CorsOptions) {
+	}: CorsOptions = {}) {
 		return module()
 
 			.middleware(async (context, next) => {
