@@ -29,6 +29,15 @@ import type {
 
 type Addon = (...options: any[]) => string | Promise<string>;
 
+interface AddonOptions {
+	afterCompile?: boolean;
+}
+
+interface MemoryAddon {
+	addon: Addon;
+	options?: AddonOptions | undefined;
+}
+
 type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
 export interface Endpoint {
@@ -41,7 +50,7 @@ export interface Endpoint {
 type ListenOptions = Omit<TLSServeOptions, "fetch">;
 
 export interface App {
-	addon(addon: Addon | Addon[]): App;
+	addon(addon: Addon | Addon[], options?: AddonOptions): App;
 	compile(module: AnyModule): Promise<void>;
 	endpoints: Map<string, Endpoint[]>;
 	fetch(request: Request): Promise<Response>;
@@ -62,27 +71,49 @@ const App = function (this: App, module: AnyModule) {
 	this.memory.set("module", module);
 } as unknown as Constructor;
 
-App.prototype.addon = function (this: App, addon: Addon | Addon[]) {
+App.prototype.addon = function (
+	this: App,
+	addon: Addon | Addon[],
+	options?: AddonOptions,
+) {
 	if (!this.memory.has("addons")) {
 		this.memory.set("addons", []);
 	}
 
-	(this.memory.get("addons")! as Addon[]).push(
-		...(typeof addon === "function" ? [addon] : addon),
-	);
+	if (typeof addon === "function") {
+		(this.memory.get("addons") as MemoryAddon[])!.push({
+			addon,
+			options,
+		});
+
+		return this;
+	}
+
+	for (let i = 0; i < addon.length; i++) {
+		(this.memory.get("addons")! as MemoryAddon[]).push({
+			addon: addon[i],
+			options,
+		});
+	}
 
 	return this;
 };
 
 App.prototype.compile = async function (this: App, module: AnyModule) {
+	const addonsAfterCompile = [] as Addon[];
+
 	if (this.memory.has("addons")) {
-		const addons = this.memory.get("addons") as Addon[];
+		const addons = this.memory.get("addons") as MemoryAddon[];
 
 		for (let i = 0; i < addons.length; i++) {
-			await addons[i].call(this);
-		}
+			if (addons[i].options?.afterCompile) {
+				addonsAfterCompile.push(addons[i].addon);
 
-		this.memory.delete("addons");
+				continue;
+			}
+
+			await addons[i].addon.call(this);
+		}
 	}
 
 	const stack = [{ module, parentChain: [] as Chain, parentPath: "" }];
@@ -196,7 +227,7 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 			}
 
 			this.endpoints.get(method)?.push({
-				chain: _chain,
+				chain: link.validator ? [..._chain, link.validator] : _chain,
 				path:
 					`${parentPath}${path}${link.path === "/" ? "" : (link.path as string)}` ||
 					"/",
@@ -234,6 +265,12 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 	}
 
 	this.memory.delete("module");
+
+	for (let i = 0; i < addonsAfterCompile.length; i++) {
+		await addonsAfterCompile[i].call(this);
+	}
+
+	this.memory.delete("addons");
 };
 
 App.prototype.fetch = async function (this: App, request: Request) {
@@ -273,7 +310,7 @@ App.prototype.fetch = async function (this: App, request: Request) {
 
 	await context.loadRequest();
 
-	const step = async (chain: Chain, index: number, onlyChain: boolean) => {
+	const step = async (chain: Chain, index: number) => {
 		for (let i = index; i < chain.length; i++) {
 			if (context.response.content) {
 				return;
@@ -287,7 +324,7 @@ App.prototype.fetch = async function (this: App, request: Request) {
 
 			if (link.type === "MIDDLEWARE") {
 				const middleware = await link.middleware(context, () =>
-					step(chain, i + 1, false),
+					step(chain, i + 1),
 				);
 
 				if (middleware) {
@@ -361,16 +398,8 @@ App.prototype.fetch = async function (this: App, request: Request) {
 			}
 		}
 
-		if (onlyChain || context.response.content) {
+		if (context.response.content) {
 			return;
-		}
-
-		if (this.memory.has("validator") && endpoint.route.validator) {
-			await step([endpoint.route.validator], 0, true);
-
-			if (context.response.content as unknown) {
-				return;
-			}
 		}
 
 		if (
@@ -457,7 +486,7 @@ App.prototype.fetch = async function (this: App, request: Request) {
 	};
 
 	await asyncLocalStorage.run(context, async () => {
-		await step(endpoint.chain, 0, false);
+		await step(endpoint.chain, 0);
 	});
 
 	return await this.response(context);
@@ -524,6 +553,13 @@ App.prototype.response = async function (
 
 	if (response.content instanceof Promise) {
 		response.content = await response.content;
+	}
+
+	if (headers.has("content-type")) {
+		return new Response(response.content, {
+			headers,
+			status: response.status,
+		});
 	}
 
 	return Response.json(response, {
