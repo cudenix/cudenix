@@ -36,6 +36,10 @@
 		"./i18n": {
 			"types": "./dist/ecosystem/i18n/index.d.ts",
 			"import": "./dist/ecosystem/i18n/index.js"
+		},
+		"./openapi": {
+			"types": "./dist/ecosystem/openapi/index.d.ts",
+			"import": "./dist/ecosystem/openapi/index.js"
 		}
 	},
 	"files": ["dist"],
