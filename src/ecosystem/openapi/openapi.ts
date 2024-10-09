@@ -18,7 +18,14 @@ interface ModuleOptions {
 const endWithSRegexp = /s$/;
 
 export const openapi = {
-	addon(toJsonSchema: AddonToJsonSchema, options?: AddonOptions) {
+	addon(
+		toJsonSchema: AddonToJsonSchema,
+		{
+			description = "Cudenix Documentation",
+			title = "Cudenix Documentation",
+			version = "0.0.1",
+		}: AddonOptions = {},
+	) {
 		return function (this: App) {
 			const paths = new Empty();
 			const methods = Array.from(this.endpoints.keys());
@@ -150,9 +157,9 @@ export const openapi = {
 			this.memory.set("openapi", {
 				paths,
 				info: {
-					title: options?.title ?? "Cudenix Documentation",
-					description: options?.description ?? "Cudenix Documentation",
-					version: options?.version ?? "1.0.0",
+					title,
+					description,
+					version,
 				},
 				openapi: "3.1.0",
 			});
@@ -178,7 +185,7 @@ export const openapi = {
 			})
 
 			.route("GET", `${url}/json`, ({ memory }) => {
-				return success(JSON.stringify(memory.get("openapi")));
+				return success(memory.get("openapi"));
 			});
 	},
 };
