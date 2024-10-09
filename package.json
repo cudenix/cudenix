@@ -40,6 +40,10 @@
     "./openapi": {
       "types": "./dist/ecosystem/openapi/index.d.ts",
       "import": "./dist/ecosystem/openapi/index.js"
+    },
+    "./trycatch": {
+      "types": "./dist/ecosystem/trycatch/index.d.ts",
+      "import": "./dist/ecosystem/trycatch/index.js"
     }
   },
   "files": [
