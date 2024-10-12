@@ -48,8 +48,16 @@ export type MergeInferValidatorRequest<
 > = ConditionallyOmit<
 	{
 		body: ExtendsType<SecondType["body"], unknown, FirstType["body"]>;
-		cookies: ExtendsType<SecondType["cookies"], unknown, FirstType["cookies"]>;
-		headers: ExtendsType<SecondType["headers"], unknown, FirstType["headers"]>;
+		cookies: ExtendsType<
+			SecondType["cookies"],
+			unknown,
+			FirstType["cookies"]
+		>;
+		headers: ExtendsType<
+			SecondType["headers"],
+			unknown,
+			FirstType["headers"]
+		>;
 		params: ExtendsType<SecondType["params"], unknown, FirstType["params"]>;
 		query: ExtendsType<SecondType["query"], unknown, FirstType["query"]>;
 	},

@@ -126,7 +126,11 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 		["query", useContextQueryRegexp],
 	] as const;
 
-	const step = (module: AnyModule, parentChain: Chain, parentPath: string) => {
+	const step = (
+		module: AnyModule,
+		parentChain: Chain,
+		parentPath: string,
+	) => {
 		const chain = [] as Chain;
 
 		let path = module.prefix;
@@ -260,7 +264,9 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 
 		this.regexps.set(
 			methods[i],
-			new RegExp(`^(https?:\\/\\/)[^\\s\\/]+(${regexps.join("|")})(?![^?#])`),
+			new RegExp(
+				`^(https?:\\/\\/)[^\\s\\/]+(${regexps.join("|")})(?![^?#])`,
+			),
 		);
 	}
 
@@ -403,7 +409,9 @@ App.prototype.fetch = async function (this: App, request: Request) {
 		}
 
 		if (
-			endpoint.route.route.constructor.name.indexOf("GeneratorFunction") !== -1
+			endpoint.route.route.constructor.name.indexOf(
+				"GeneratorFunction",
+			) !== -1
 		) {
 			context.response.content = new ReadableStream({
 				async start(controller) {
@@ -433,10 +441,14 @@ App.prototype.fetch = async function (this: App, request: Request) {
 						}
 
 						if (chunk.retry) {
-							controller.enqueue(`retry: ${chunk.retry.toString()}\n`);
+							controller.enqueue(
+								`retry: ${chunk.retry.toString()}\n`,
+							);
 						}
 
-						controller.enqueue(`data: ${JSON.stringify(chunk.data)}\n\n`);
+						controller.enqueue(
+							`data: ${JSON.stringify(chunk.data)}\n\n`,
+						);
 					}
 				},
 			});
@@ -454,27 +466,27 @@ App.prototype.fetch = async function (this: App, request: Request) {
 						code: number,
 						reason: string,
 					) => {
-						await (returned as RouteFnReturnWS<unknown> | undefined)?.close?.(
-							ws,
-							code,
-							reason,
-						);
+						await (
+							returned as RouteFnReturnWS<unknown> | undefined
+						)?.close?.(ws, code, reason);
 					},
 					drain: async (ws: ServerWebSocket<unknown>) => {
-						await (returned as RouteFnReturnWS<unknown> | undefined)?.drain?.(
-							ws,
-						);
+						await (
+							returned as RouteFnReturnWS<unknown> | undefined
+						)?.drain?.(ws);
 					},
-					message: async (ws: ServerWebSocket<unknown>, message: string) => {
-						await (returned as RouteFnReturnWS<unknown> | undefined)?.message(
-							ws,
-							message,
-						);
+					message: async (
+						ws: ServerWebSocket<unknown>,
+						message: string,
+					) => {
+						await (
+							returned as RouteFnReturnWS<unknown> | undefined
+						)?.message(ws, message);
 					},
 					open: async (ws: ServerWebSocket<unknown>) => {
-						await (returned as RouteFnReturnWS<unknown> | undefined)?.open?.(
-							ws,
-						);
+						await (
+							returned as RouteFnReturnWS<unknown> | undefined
+						)?.open?.(ws);
 					},
 				},
 			});

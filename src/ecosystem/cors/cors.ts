@@ -21,7 +21,15 @@ const requestHeadersSplitRegexp = /\s*,\s*/;
 export const cors = {
 	module({
 		allowHeaders,
-		allowMethods = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"],
+		allowMethods = [
+			"DELETE",
+			"GET",
+			"HEAD",
+			"OPTIONS",
+			"PATCH",
+			"POST",
+			"PUT",
+		],
 		credentials,
 		exposeHeaders,
 		maxAge,
@@ -42,7 +50,9 @@ export const cors = {
 							) ?? "*"),
 				);
 
-				if (response.headers.get("Access-Control-Allow-Origin") !== "*") {
+				if (
+					response.headers.get("Access-Control-Allow-Origin") !== "*"
+				) {
 					response.headers.set(
 						"Vary",
 						request.raw.headers.get("Vary") || "Origin",
@@ -50,7 +60,10 @@ export const cors = {
 				}
 
 				if (credentials) {
-					response.headers.set("Access-Control-Allow-Credentials", "true");
+					response.headers.set(
+						"Access-Control-Allow-Credentials",
+						"true",
+					);
 				}
 
 				if (exposeHeaders) {
@@ -67,7 +80,10 @@ export const cors = {
 					);
 
 					if (maxAge) {
-						response.headers.set("Access-Control-Max-Age", maxAge.toString());
+						response.headers.set(
+							"Access-Control-Max-Age",
+							maxAge.toString(),
+						);
 					}
 
 					if (!allowHeaders) {
@@ -76,7 +92,9 @@ export const cors = {
 						);
 
 						if (requestHeaders) {
-							allowHeaders = requestHeaders.split(requestHeadersSplitRegexp);
+							allowHeaders = requestHeaders.split(
+								requestHeadersSplitRegexp,
+							);
 						}
 					}
 
@@ -86,7 +104,10 @@ export const cors = {
 							allowHeaders.join(","),
 						);
 
-						response.headers.append("Vary", "Access-Control-Request-Headers");
+						response.headers.append(
+							"Vary",
+							"Access-Control-Request-Headers",
+						);
 					}
 				}
 

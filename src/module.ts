@@ -154,7 +154,11 @@ export interface Module<
 			AnyError | AnySuccess | void
 		> = void,
 	>(
-		middleware: MiddlewareFn<MiddlewareReturn, Stores, Validators["outputs"]>,
+		middleware: MiddlewareFn<
+			MiddlewareReturn,
+			Stores,
+			Validators["outputs"]
+		>,
 	): Module<
 		MergeErrors<Errors, TransformError<FilterError<MiddlewareReturn>>>,
 		Prefix,
@@ -180,11 +184,15 @@ export interface Module<
 								NonNullable<unknown>,
 								MergeInferValidatorRequest<
 									Validators["outputs"],
-									DeepInferValidatorOutput<RouteValidatorOptions["request"]>
+									DeepInferValidatorOutput<
+										RouteValidatorOptions["request"]
+									>
 								>,
 								MergeInferValidatorRequest<
 									Validators["outputs"],
-									DeepInferValidatorOutput<RouteValidatorOptions["request"]>
+									DeepInferValidatorOutput<
+										RouteValidatorOptions["request"]
+									>
 								> &
 									ConditionallyOmit<
 										{
@@ -234,8 +242,14 @@ export interface Module<
 							params: RequiredKeys<
 								ExtractUrlParams<MergePaths<Prefix, RoutePath>>
 							> extends never
-								? ExtractUrlParams<MergePaths<Prefix, RoutePath>> | undefined
-								: ExtractUrlParams<MergePaths<Prefix, RoutePath>>;
+								?
+										| ExtractUrlParams<
+												MergePaths<Prefix, RoutePath>
+										  >
+										| undefined
+								: ExtractUrlParams<
+										MergePaths<Prefix, RoutePath>
+									>;
 						}
 					>,
 				| Awaited<
@@ -247,7 +261,9 @@ export interface Module<
 								Stores,
 								MergeInferValidatorRequest<
 									Validators["outputs"],
-									DeepInferValidatorOutput<RouteValidatorOptions["request"]>
+									DeepInferValidatorOutput<
+										RouteValidatorOptions["request"]
+									>
 								>
 							>
 						>

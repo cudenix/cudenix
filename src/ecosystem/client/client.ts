@@ -136,10 +136,14 @@ const createProxy = (
 						if (mergedOptions.body[key].pop) {
 							for (
 								let j = 0;
-								j < (mergedOptions.body[key] as unknown[]).length;
+								j <
+								(mergedOptions.body[key] as unknown[]).length;
 								j++
 							) {
-								formData.append(key, (mergedOptions.body[key] as unknown[])[j]);
+								formData.append(
+									key,
+									(mergedOptions.body[key] as unknown[])[j],
+								);
 							}
 
 							continue;
@@ -189,9 +193,9 @@ const createProxy = (
 
 			if (/\/:(\w+\??)/g.test(_url)) {
 				_url = _url.replaceAll(/\/:(\w+\??)/g, (_, key: string) => {
-					const param = mergedOptions.params?.[key.replaceAll("?", "")] as
-						| string
-						| undefined;
+					const param = mergedOptions.params?.[
+						key.replaceAll("?", "")
+					] as string | undefined;
 
 					return param ? `/${param}` : "";
 				});
@@ -199,9 +203,9 @@ const createProxy = (
 
 			if (/\/\.{3}(\w+\??)/g.test(_url)) {
 				_url = _url.replaceAll(/\/\.{3}(\w+\??)/g, (_, key: string) => {
-					const params = mergedOptions.params?.[key.replaceAll("?", "")] as
-						| string[]
-						| undefined;
+					const params = mergedOptions.params?.[
+						key.replaceAll("?", "")
+					] as string[] | undefined;
 
 					return params ? `/${params.join("/")}` : "";
 				});
@@ -229,9 +233,12 @@ const createProxy = (
 				}
 
 				if (contentType === "text/event-stream") {
-					return (await import("@/ecosystem/client/sse")).sse(response.url, {
-						withCredentials: true,
-					});
+					return (await import("@/ecosystem/client/sse")).sse(
+						response.url,
+						{
+							withCredentials: true,
+						},
+					);
 				}
 
 				return transform(await response.text());

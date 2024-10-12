@@ -52,7 +52,10 @@ export type ParseRoute<
 export type RouteFnReturnWS<Context> = WebSocketHandler<Context>;
 
 export type RouteFnReturnGenerator =
-	| Generator<GeneratorSSE<AnyError | AnySuccess>, AnyError | AnySuccess | void>
+	| Generator<
+			GeneratorSSE<AnyError | AnySuccess>,
+			AnyError | AnySuccess | void
+	  >
 	| AsyncGenerator<
 			GeneratorSSE<AnyError | AnySuccess>,
 			AnyError | AnySuccess | void
@@ -118,11 +121,15 @@ export interface Route<
 							NonNullable<unknown>,
 							MergeInferValidatorRequest<
 								Validators,
-								DeepInferValidatorOutput<_ValidatorOptions["request"]>
+								DeepInferValidatorOutput<
+									_ValidatorOptions["request"]
+								>
 							>,
 							MergeInferValidatorRequest<
 								Validators,
-								DeepInferValidatorOutput<_ValidatorOptions["request"]>
+								DeepInferValidatorOutput<
+									_ValidatorOptions["request"]
+								>
 							> &
 								ConditionallyOmit<
 									{
@@ -187,7 +194,9 @@ export const Route = function (
 
 	if (validator) {
 		this.validator =
-			validator instanceof Validator ? validator : new Validator(validator);
+			validator instanceof Validator
+				? validator
+				: new Validator(validator);
 	}
 } as unknown as Constructor;
 
@@ -204,11 +213,15 @@ export const route = <
 							NonNullable<unknown>,
 							MergeInferValidatorRequest<
 								Validators,
-								DeepInferValidatorOutput<_ValidatorOptions["request"]>
+								DeepInferValidatorOutput<
+									_ValidatorOptions["request"]
+								>
 							>,
 							MergeInferValidatorRequest<
 								Validators,
-								DeepInferValidatorOutput<_ValidatorOptions["request"]>
+								DeepInferValidatorOutput<
+									_ValidatorOptions["request"]
+								>
 							> &
 								ConditionallyOmit<
 									{

@@ -12,18 +12,27 @@ type ParamEntry<Param extends string, Type extends string | string[]> = {
 
 export type ExtractUrlParams<
 	Path extends string,
-	Accumulated extends Record<string, string | string[]> = NonNullable<unknown>,
+	Accumulated extends Record<
+		string,
+		string | string[]
+	> = NonNullable<unknown>,
 > = Path extends `${infer First}/${infer Rest}`
 	? // biome-ignore lint/suspicious/noRedeclare:
 		First extends `:${infer Param}` | `...${infer Param}`
 		? ExtractUrlParams<
 				Rest,
 				Accumulated &
-					ParamEntry<Param, First extends `...${string}` ? string[] : string>
+					ParamEntry<
+						Param,
+						First extends `...${string}` ? string[] : string
+					>
 			>
 		: ExtractUrlParams<Rest, Accumulated>
 	: // biome-ignore lint/suspicious/noRedeclare:
 		Path extends `:${infer Param}` | `...${infer Param}`
 		? Accumulated &
-				ParamEntry<Param, Path extends `...${string}` ? string[] : string>
+				ParamEntry<
+					Param,
+					Path extends `...${string}` ? string[] : string
+				>
 		: Accumulated;

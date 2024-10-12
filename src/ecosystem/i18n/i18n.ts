@@ -42,7 +42,9 @@ export const i18n = {
 
 			for (let i = 0; i < languages.length; i++) {
 				(this.memory.get("i18n") as I18n).translations[languages[i]] =
-					await Bun.file(`${path}/${languages[i]}/${languages[i]}.json`).json();
+					await Bun.file(
+						`${path}/${languages[i]}/${languages[i]}.json`,
+					).json();
 			}
 
 			await Bun.write(
@@ -56,7 +58,9 @@ export const i18n = {
 
 	get language() {
 		return (
-			getRequestContext()?.store.i18n as Pick<I18n, "language"> | undefined
+			getRequestContext()?.store.i18n as
+				| Pick<I18n, "language">
+				| undefined
 		)?.language;
 	},
 
@@ -97,7 +101,8 @@ export const i18n = {
 		const context = getRequestContext();
 
 		return (context?.memory.get("i18n") as I18n | undefined)?.translations[
-			(context?.store as Record<"i18n", Pick<I18n, "language">>).i18n.language
+			(context?.store as Record<"i18n", Pick<I18n, "language">>).i18n
+				.language
 		] as I18nTranslations;
 	},
 };

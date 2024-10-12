@@ -152,7 +152,8 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 Context.prototype.loadRequestCookies = function (this: Context) {
 	const cookies = getCookies(this.request.raw.headers);
 
-	this.request.cookies = Object.keys(cookies).length > 0 ? cookies : undefined;
+	this.request.cookies =
+		Object.keys(cookies).length > 0 ? cookies : undefined;
 };
 
 Context.prototype.loadRequestHeaders = function (this: Context) {
@@ -162,7 +163,8 @@ Context.prototype.loadRequestHeaders = function (this: Context) {
 		headers[key] = value;
 	});
 
-	this.request.headers = Object.keys(headers).length > 0 ? headers : undefined;
+	this.request.headers =
+		Object.keys(headers).length > 0 ? headers : undefined;
 };
 
 Context.prototype.loadRequestParams = function (this: Context) {
@@ -173,7 +175,9 @@ Context.prototype.loadRequestParams = function (this: Context) {
 		return;
 	}
 
-	const groups = match.groups as Record<string, string | string[]> | undefined;
+	const groups = match.groups as
+		| Record<string, string | string[]>
+		| undefined;
 
 	if (!groups) {
 		return;
@@ -184,7 +188,10 @@ Context.prototype.loadRequestParams = function (this: Context) {
 	for (let i = 0; i < keys.length; i++) {
 		const key = keys[i];
 
-		if (typeof groups[key] === "string" && groups[key].indexOf("/") !== -1) {
+		if (
+			typeof groups[key] === "string" &&
+			groups[key].indexOf("/") !== -1
+		) {
 			groups[key] = (groups[key] as unknown as string).split("/");
 		}
 	}
@@ -199,7 +206,9 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 
 	while (
 		// biome-ignore lint/suspicious/noAssignInExpressions:
-		(match = getUrlQueryRegexp.exec(decodeURIComponent(this.request.raw.url)))
+		(match = getUrlQueryRegexp.exec(
+			decodeURIComponent(this.request.raw.url),
+		))
 	) {
 		if (!(match[1] && match[2])) {
 			continue;
