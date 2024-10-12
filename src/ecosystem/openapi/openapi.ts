@@ -29,6 +29,7 @@ export const openapi = {
 		return function (this: App) {
 			const paths = new Empty();
 			const methods = Array.from(this.endpoints.keys());
+			const tags = new Set<string>();
 
 			for (let i = 0; i < methods.length; i++) {
 				const endpoints = this.endpoints.get(methods[i])!;
@@ -64,29 +65,47 @@ export const openapi = {
 
 								if (schema.type === "object") {
 									const keys = Object.keys(
-										schema.properties as Record<string, unknown>,
+										schema.properties as Record<
+											string,
+											unknown
+										>,
 									);
 
 									for (let m = 0; m < keys.length; m++) {
 										const property = (
-											schema.properties as Record<string, unknown>
+											schema.properties as Record<
+												string,
+												unknown
+											>
 										)[keys[m]];
 
-										(operation.parameters as Record<string, unknown>[]).push({
+										(
+											operation.parameters as Record<
+												string,
+												unknown
+											>[]
+										).push({
 											in: _in,
 											name: keys[m],
 											schema: property,
 											required:
-												(schema.required as string[] | undefined)?.includes(
-													keys[m],
-												) ?? false,
+												(
+													schema.required as
+														| string[]
+														| undefined
+												)?.includes(keys[m]) ?? false,
 										});
 									}
 
 									continue;
 								}
 
-								(operation.parameters as Record<string, unknown>[]).push({
+								(
+									operation.parameters as Record<
+										string,
+										unknown
+									>[]
+								).push({
 									in: _in,
 									schema,
 								});
@@ -106,8 +125,12 @@ export const openapi = {
 
 							for (let m = 0; m < contentType.length; m++) {
 								(
-									(operation.requestBody as Record<string, unknown>)
-										.content as Record<string, unknown>
+									(
+										operation.requestBody as Record<
+											string,
+											unknown
+										>
+									).content as Record<string, unknown>
 								)[contentType[m]] = {
 									schema: toJsonSchema(link.request[key]),
 								};
@@ -120,14 +143,19 @@ export const openapi = {
 					if (params) {
 						for (let k = 0; k < params.length; k++) {
 							const param = params[k];
-							const name = param.replace(/^[:.]*/g, "").replace("?", "");
+							const name = param
+								.replace(/^[:.]*/g, "")
+								.replace("?", "");
 
 							if (
 								(
-									operation.parameters as Record<string, unknown>[] | undefined
+									operation.parameters as
+										| Record<string, unknown>[]
+										| undefined
 								)?.some(
 									(parameter) =>
-										parameter.in === "path" && parameter.name === name,
+										parameter.in === "path" &&
+										parameter.name === name,
 								)
 							) {
 								continue;
@@ -135,33 +163,52 @@ export const openapi = {
 
 							operation.parameters ??= [];
 
-							(operation.parameters as Record<string, unknown>[]).push({
+							(
+								operation.parameters as Record<
+									string,
+									unknown
+								>[]
+							).push({
 								in: "path",
 								name,
 								required: !param.endsWith("?"),
 								schema: {
-									pattern: param.startsWith("...") ? ".*" : undefined,
+									pattern: param.startsWith("...")
+										? ".*"
+										: undefined,
 									type: "string",
 								},
 							});
 						}
 					}
 
+					if (!path.startsWith("/{")) {
+						const tag = path.split("/")[1];
+
+						operation.tags = [tag];
+
+						tags.add(tag);
+					}
+
 					paths[path] ??= {};
 
-					(paths[path] as Record<string, unknown>)[methods[i].toLowerCase()] =
-						operation;
+					(paths[path] as Record<string, unknown>)[
+						methods[i].toLowerCase()
+					] = operation;
 				}
 			}
 
 			this.memory.set("openapi", {
-				paths,
 				info: {
 					title,
 					description,
 					version,
 				},
 				openapi: "3.1.0",
+				paths,
+				tags: Array.from(tags).map((tag) => ({
+					name: tag,
+				})),
 			});
 
 			return "openapi";
