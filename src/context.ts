@@ -7,6 +7,8 @@ import { Empty } from "@/utils/empty";
 import { getCookies } from "@/utils/get-cookies";
 import { getUrlQueryRegexp, pathToRegexp } from "@/utils/regexp";
 
+const endsWithBracketsRegexp = /\[\]$/;
+
 export interface DeveloperContext<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
@@ -210,25 +212,29 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 			decodeURIComponent(this.request.raw.url),
 		))
 	) {
-		if (!(match[1] && match[2])) {
+		let [, key, value] = match;
+
+		if (!(key && value)) {
 			continue;
 		}
 
-		if (!params[match[1]]) {
-			params[match[1]] = match[1].endsWith("[]")
-				? match[2].split(",")
-				: match[2];
+		value = value.replaceAll("+", " ");
+
+		if (!params[key]) {
+			params[key] = endsWithBracketsRegexp.test(key)
+				? value.split(",")
+				: value;
 
 			continue;
 		}
 
-		if ((params[match[1]] as any).pop) {
-			(params[match[1]] as string[]).push(...match[2].split(","));
+		if ((params[key] as any).pop) {
+			(params[key] as string[]).push(...value.split(","));
 
 			continue;
 		}
 
-		params[match[1]] = [params[match[1]], ...match[2].split(",")];
+		params[key] = [params[key], ...value.split(",")];
 	}
 
 	this.request.query = Object.keys(params).length > 0 ? params : undefined;
