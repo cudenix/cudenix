@@ -255,7 +255,8 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 	const methods = Array.from(this.endpoints.keys());
 
 	for (let i = 0; i < methods.length; i++) {
-		const endpoints = this.endpoints.get(methods[i])!;
+		const endpoints = this.endpoints.get(methods[i])!.reverse();
+
 		const regexps = [] as string[];
 
 		for (let j = 0; j < endpoints.length; j++) {
