@@ -53,11 +53,11 @@ export type RouteFnReturnWS<Context> = WebSocketHandler<Context>;
 
 export type RouteFnReturnGenerator =
 	| Generator<
-			GeneratorSSE<AnyError | AnySuccess>,
+			GeneratorSSE<AnyError | AnySuccess, string>,
 			AnyError | AnySuccess | void
 	  >
 	| AsyncGenerator<
-			GeneratorSSE<AnyError | AnySuccess>,
+			GeneratorSSE<AnyError | AnySuccess, string>,
 			AnyError | AnySuccess | void
 	  >;
 

@@ -1,7 +1,7 @@
 import type { SSE } from "@/ecosystem/client/sse";
 import type { WS } from "@/ecosystem/client/ws";
 import type { AnyModule } from "@/module";
-import type { ConditionallyOptional, GeneratorSSE, Merge } from "@/types";
+import type { AnyGeneratorSSE, ConditionallyOptional, Merge } from "@/types";
 import { Empty } from "@/utils/empty";
 import { isFile } from "@/utils/file";
 
@@ -17,9 +17,9 @@ type RequestOptions<Request> = Merge<
 type ParseResponse<Method, Request, Response> = Method extends "WS"
 	? WS<Request, Response>
 	: Response extends Generator<infer Yield>
-		? SSE<Yield extends GeneratorSSE<any> ? Yield["data"] : never>
+		? SSE<Yield extends AnyGeneratorSSE ? Yield : never>
 		: Response extends AsyncGenerator<infer Yield>
-			? SSE<Yield extends GeneratorSSE<any> ? Yield["data"] : never>
+			? SSE<Yield extends AnyGeneratorSSE ? Yield : never>
 			: Response;
 
 type RouteHandler<Method, Request, Response> = (
@@ -41,24 +41,12 @@ type Chain<Routes extends Record<PropertyKey, unknown>> = {
 		: never;
 };
 
-export type InferRouteOptions<
-	Route,
-	Option extends string = "*",
-> = Route extends (...options: any[]) => any
-	? Option extends "*"
-		? NonNullable<Parameters<Route>[0]>
-		: NonNullable<Parameters<Route>[0]>[Option]
+export type InferRouteOptions<Route> = Route extends (...options: any[]) => any
+	? NonNullable<Parameters<Route>[0]>
 	: never;
 
-export type InferRouteResponse<
-	Route,
-	Option extends string = "*",
-> = Route extends (...options: any[]) => any
-	? Option extends "*"
-		? Awaited<ReturnType<Route>>
-		: Awaited<ReturnType<Route>> extends Record<PropertyKey, unknown>
-			? Awaited<ReturnType<Route>>[Option]
-			: never
+export type InferRouteResponse<Route> = Route extends (...options: any[]) => any
+	? Awaited<ReturnType<Route>>
 	: never;
 
 const transform = (value: unknown) => {

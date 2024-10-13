@@ -15,7 +15,10 @@ interface ModuleOptions {
 	path?: `/${string}`;
 }
 
-const endWithSRegexp = /s$/;
+const endsWithQuestionMarkRegexp = /\?$/;
+const endsWithSRegexp = /s$/;
+const startsWithEllipsisRegexp = /^\.{3}/;
+const startsWithSlashRegexp = /^\/{/;
 
 export const openapi = {
 	addon(
@@ -58,7 +61,7 @@ export const openapi = {
 							}
 
 							if (key !== "body") {
-								const _in = key.replace(endWithSRegexp, "");
+								const _in = key.replace(endsWithSRegexp, "");
 								const schema = toJsonSchema(link.request[key]);
 
 								operation.parameters ??= [];
@@ -171,9 +174,12 @@ export const openapi = {
 							).push({
 								in: "path",
 								name,
-								required: !param.endsWith("?"),
+								required:
+									!endsWithQuestionMarkRegexp.test(param),
 								schema: {
-									pattern: param.startsWith("...")
+									pattern: startsWithEllipsisRegexp.test(
+										param,
+									)
 										? ".*"
 										: undefined,
 									type: "string",
@@ -182,7 +188,7 @@ export const openapi = {
 						}
 					}
 
-					if (!path.startsWith("/{")) {
+					if (!startsWithSlashRegexp.test(path)) {
 						const tag = path.split("/")[1];
 
 						operation.tags = [tag];
