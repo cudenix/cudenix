@@ -10,12 +10,17 @@ export type SSE<Generator extends AnyGeneratorSSE> = Omit<
 		Generator["event"],
 		"message" | undefined
 	> as `on${string & Event}`]: (
-		event: MessageEvent<Extract<Generator, { event: Event }>["data"]>,
+		event: MessageEvent<
+			Extract<Generator, { data: any; event: Event }>["data"]
+		>,
 	) => any;
 } & {
 	onmessage: (
 		event: MessageEvent<
-			Extract<Generator, { event?: "message" | undefined }>["data"]
+			Extract<
+				Generator,
+				{ data: any; event?: "message" | undefined }
+			>["data"]
 		>,
 	) => any;
 };
