@@ -5,6 +5,8 @@ import type { AnyGeneratorSSE, ConditionallyOptional, Merge } from "@/types";
 import { Empty } from "@/utils/empty";
 import { isFile } from "@/utils/file";
 
+const endsWithBracketsRegexp = /\[\]$/;
+
 type RequestOptions<Request> = Merge<
 	Omit<RequestInit, "method"> & {
 		headers?: Record<string, string | readonly string[]>;
@@ -161,6 +163,14 @@ const createProxy = (
 
 					if (mergedOptions.query[key] === undefined) {
 						delete mergedOptions.query[key];
+
+						continue;
+					}
+
+					if (endsWithBracketsRegexp.test(key)) {
+						mergedOptions.query[key] = JSON.stringify(
+							mergedOptions.query[key],
+						);
 					}
 				}
 

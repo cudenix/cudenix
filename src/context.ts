@@ -220,21 +220,9 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 
 		value = value.replaceAll("+", " ");
 
-		if (!params[key]) {
-			params[key] = endsWithBracketsRegexp.test(key)
-				? value.split(",")
-				: value;
-
-			continue;
-		}
-
-		if ((params[key] as any).pop) {
-			(params[key] as string[]).push(...value.split(","));
-
-			continue;
-		}
-
-		params[key] = [params[key], ...value.split(",")];
+		params[key] = endsWithBracketsRegexp.test(key)
+			? JSON.parse(value)
+			: value;
 	}
 
 	this.request.query = Object.keys(params).length > 0 ? params : undefined;
