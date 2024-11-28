@@ -40,8 +40,8 @@ export const openapi = {
 				for (let j = 0; j < endpoints.length; j++) {
 					const endpoint = endpoints[j];
 					const path = endpoint.path
-						.replace(/:(\w+)/g, "{$1}")
-						.replace(/\.{3}(\w+)/g, "{$1}");
+						.replaceAll(/:(\w+)/g, "{$1}")
+						.replaceAll(/\.{3}(\w+)/g, "{$1}");
 					const operation = new Empty();
 
 					for (let k = 0; k < endpoint.chain.length; k++) {
@@ -147,7 +147,7 @@ export const openapi = {
 						for (let k = 0; k < params.length; k++) {
 							const param = params[k];
 							const name = param
-								.replace(/^[:.]*/g, "")
+								.replaceAll(/^[:.]*/g, "")
 								.replace("?", "");
 
 							if (
