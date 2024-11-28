@@ -7,7 +7,7 @@ export const trycatch = {
 			try {
 				return await next();
 			} catch (exception) {
-				return error(exception);
+				return error(exception || "An unknown error has occurred", 500);
 			}
 		});
 	},
