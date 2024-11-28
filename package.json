@@ -74,8 +74,8 @@
 	"scripts": {
 		"build": "bun clear:build && bun format && bun lint && tsc && tsc-alias",
 		"clear": "bun clear:build && bun clear:install",
-		"clear:build": "echo 'await Bun.$`rm -rf dist`;' | bun run -",
-		"clear:install": "echo 'await Bun.$`rm -rf node_modules && rm -rf bun.lockb`;' | bun run -",
+		"clear:build": "echo 'await Bun.$`rm -rf dist`.nothrow();' | bun run -",
+		"clear:install": "echo 'await Bun.$`rm -rf node_modules && rm -rf bun.lockb`.nothrow();' | bun run -",
 		"format": "biome format --fix",
 		"lint": "biome lint --diagnostic-level=error",
 		"reinstall": "bun clear:install && bun install"
