@@ -72,6 +72,10 @@ export type ModuleChain = (
 	| AnyValidator
 )[];
 
+export interface ModuleExtendsOptions {
+	execute?: boolean;
+}
+
 export interface Module<
 	Errors extends Record<PropertyKey, unknown>,
 	Prefix extends `/${string}`,
@@ -103,6 +107,7 @@ export interface Module<
 			ModuleSuccesses,
 			ModuleValidators
 		>,
+		options?: ModuleExtendsOptions,
 	): Module<
 		MergeErrors<Errors, ModuleErrors>,
 		MergePaths<Prefix, ModulePrefix>,
@@ -330,8 +335,14 @@ export const Module = function (
 	this.type = "MODULE";
 } as unknown as Constructor;
 
-Module.prototype.extends = function (this: AnyModule, module: AnyModule) {
-	this.chain.push(module);
+Module.prototype.extends = function (
+	this: AnyModule,
+	module: AnyModule,
+	options?: ModuleExtendsOptions,
+) {
+	if (options?.execute !== false) {
+		this.chain.push(module);
+	}
 
 	return this;
 };
