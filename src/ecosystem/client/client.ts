@@ -1,6 +1,8 @@
 import type { SSE } from "@/ecosystem/client/sse";
 import type { WS } from "@/ecosystem/client/ws";
+import type { AnyError } from "@/error";
 import type { AnyModule } from "@/module";
+import type { AnySuccess } from "@/success";
 import type { AnyGeneratorSSE, ConditionallyOptional, Merge } from "@/types";
 import { Empty } from "@/utils/empty";
 import { isFile } from "@/utils/file";
@@ -22,7 +24,11 @@ type ParseResponse<Method, Request, Response> = Method extends "WS"
 		? SSE<Yield extends AnyGeneratorSSE ? Yield : never>
 		: Response extends AsyncGenerator<infer Yield>
 			? SSE<Yield extends AnyGeneratorSSE ? Yield : never>
-			: Response;
+			: Response extends AnyError | AnySuccess
+				? Response["transform"] extends true
+					? Response["content"]
+					: Response
+				: Response;
 
 type RouteHandler<Method, Request, Response> = (
 	options?: RequestOptions<Request>,

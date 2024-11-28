@@ -28,23 +28,43 @@ export type MergeErrors<Errors, Error> = {
 			: never;
 };
 
-export interface Error<Content, Status extends number> {
+export interface Error<
+	Content,
+	Status extends number,
+	Transform extends boolean,
+> {
 	content: ExtractContent<Content>;
 	status: Status;
 	success: false;
+	transform: Transform;
 }
 
-export type AnyError = Error<any, any>;
+export type AnyError = Error<any, any, any>;
 
-type Constructor = new (content: unknown, status?: number) => AnyError;
+type Constructor = new (
+	content: unknown,
+	status?: number,
+	transform?: boolean,
+) => AnyError;
 
-export const Error = function (this: AnyError, content: unknown, status = 400) {
+export const Error = function (
+	this: AnyError,
+	content: unknown,
+	status = 400,
+	transform = true,
+) {
 	this.content = content;
 	this.status = status;
 	this.success = false;
+	this.transform = transform;
 } as unknown as Constructor;
 
-export const error = <const Content, const Status extends number = 400>(
+export const error = <
+	const Content,
+	const Status extends number = 400,
+	const Transform extends boolean = true,
+>(
 	content: Content,
 	status?: Status,
-) => new Error(content, status) as Error<Content, Status>;
+	transform?: Transform,
+) => new Error(content, status, transform) as Error<Content, Status, Transform>;
