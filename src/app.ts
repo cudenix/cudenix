@@ -30,7 +30,7 @@ import type {
 type Addon = (...options: any[]) => string | Promise<string>;
 
 interface AddonOptions {
-	afterCompile?: boolean;
+	compile?: "AFTER" | "BEFORE";
 }
 
 interface MemoryAddon {
@@ -106,7 +106,7 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 		const addons = this.memory.get("addons") as MemoryAddon[];
 
 		for (let i = 0; i < addons.length; i++) {
-			if (addons[i].options?.afterCompile) {
+			if (addons[i].options?.compile === "AFTER") {
 				addonsAfterCompile.push(addons[i].addon);
 
 				continue;
@@ -568,14 +568,16 @@ App.prototype.response = async function (
 		response.content = await response.content;
 	}
 
-	if (headers.has("content-type")) {
-		return new Response(response.content, {
+	if (response.transform) {
+		const { transform, ...rest } = response;
+
+		return Response.json(rest, {
 			headers,
 			status: response.status,
 		});
 	}
 
-	return Response.json(response, {
+	return new Response(response.content, {
 		headers,
 		status: response.status,
 	});
