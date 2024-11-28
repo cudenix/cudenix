@@ -234,6 +234,8 @@ export const openapi = {
 						JSON.stringify(memory.get("openapi")),
 						JSON.stringify({}),
 					),
+					200,
+					false,
 				);
 			})
 
