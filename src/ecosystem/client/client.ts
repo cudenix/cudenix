@@ -26,8 +26,8 @@ type ParseResponse<Method, Request, Response> = Method extends "WS"
 			? SSE<Yield extends AnyGeneratorSSE ? Yield : never>
 			: Response extends AnyError | AnySuccess
 				? Response["transform"] extends true
-					? Response["content"]
-					: Response
+					? Response
+					: Response["content"]
 				: Response;
 
 type RouteHandler<Method, Request, Response> = (
