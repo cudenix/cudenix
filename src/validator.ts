@@ -39,7 +39,11 @@ export type ValidatorErrorDetails<Type> = {
 export interface TransformValidatorError<
 	ValidatorError extends Record<PropertyKey, unknown>,
 > {
-	422: Error<[{ details: [ValidatorErrorDetails<ValidatorError>] }], 422, true>;
+	422: Error<
+		[{ details: [ValidatorErrorDetails<ValidatorError>] }],
+		422,
+		true
+	>;
 }
 
 export type MergeInferValidatorRequest<
