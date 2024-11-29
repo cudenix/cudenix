@@ -358,7 +358,7 @@ App.prototype.fetch = async function (this: App, request: Request) {
 				continue;
 			}
 
-			if (!(this.memory.has("validator") && link.request)) {
+			if (!link.request) {
 				continue;
 			}
 
