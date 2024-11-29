@@ -1,11 +1,6 @@
 import type { App } from "@/app";
 import type { Error } from "@/error";
 import type { ConditionallyOmit, ExtendsType, MaybePromise } from "@/types";
-import type {
-	InferValidatorError,
-	InferValidatorInput,
-	InferValidatorOutput,
-} from "@cudenix/cudenix";
 
 export type ValidatorAddon = (
 	schema: any,
@@ -18,18 +13,18 @@ export type ValidatorAddon = (
 
 export type DeepInferValidatorError<Type extends Record<PropertyKey, unknown>> =
 	{
-		[Key in keyof Type]: InferValidatorError<Type[Key]>;
+		[Key in keyof Type]: Cudenix.InferValidatorError<Type[Key]>;
 	};
 
 export type DeepInferValidatorInput<Type extends Record<PropertyKey, unknown>> =
 	{
-		[Key in keyof Type]: InferValidatorInput<Type[Key]>;
+		[Key in keyof Type]: Cudenix.InferValidatorInput<Type[Key]>;
 	};
 
 export type DeepInferValidatorOutput<
 	Type extends Record<PropertyKey, unknown>,
 > = {
-	[Key in keyof Type]: InferValidatorOutput<Type[Key]>;
+	[Key in keyof Type]: Cudenix.InferValidatorOutput<Type[Key]>;
 };
 
 export type ValidatorErrorDetails<Type> = {

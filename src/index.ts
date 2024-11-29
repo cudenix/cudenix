@@ -1,6 +1,7 @@
 export * from "@/app";
 export * from "@/context";
 export * from "@/error";
+export * from "@/global";
 export * from "@/group";
 export * from "@/middleware";
 export * from "@/module";
