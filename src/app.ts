@@ -21,6 +21,7 @@ import {
 	useContextParamsRegexp,
 	useContextQueryRegexp,
 } from "@/utils/regexp";
+import { validateStandardSchema } from "@/utils/standard-schema";
 import type {
 	AnyValidator,
 	ValidatorAddon,
@@ -114,6 +115,10 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 
 			await addons[i].addon.call(this);
 		}
+	}
+
+	if (!this.memory.has("validator")) {
+		this.memory.set("validator", validateStandardSchema);
 	}
 
 	const stack = [{ module, parentChain: [] as Chain, parentPath: "" }];
