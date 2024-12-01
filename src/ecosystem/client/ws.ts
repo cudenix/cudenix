@@ -37,6 +37,7 @@ export const WS = function (this: AnyWS, url: string | URL) {
 
 	Object.defineProperty(webSocket, "send", {
 		value(data: any, options = new Empty()) {
+			// @ts-expect-error
 			send.call(webSocket, JSON.stringify(data), options);
 		},
 	});
