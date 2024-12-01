@@ -5,7 +5,6 @@ import type { App } from "@/app";
 import { getRequestContext } from "@/storage";
 import { Empty } from "@/utils/empty";
 import { getCookies } from "@/utils/get-cookies";
-import type { I18nTranslations } from "@cudenix/cudenix/i18n";
 
 interface Translation {
 	[key: string]: string | Translation | (string | Translation)[];
@@ -48,8 +47,8 @@ export const i18n = {
 			}
 
 			await Bun.write(
-				`${path}/types.d.ts`,
-				`import '@cudenix/cudenix/i18n'; declare module '@cudenix/cudenix/i18n' { export interface I18nTranslations ${JSON.stringify((this.memory.get("i18n") as I18n).translations[language])}; };`,
+				`${path}/cudenix.d.ts`,
+				`namespace Cudenix { interface I18nTranslations ${JSON.stringify((this.memory.get("i18n") as I18n).translations[language])}; };`,
 			);
 
 			return "i18n";
@@ -103,6 +102,6 @@ export const i18n = {
 		return (context?.memory.get("i18n") as I18n | undefined)?.translations[
 			(context?.store as Record<"i18n", Pick<I18n, "language">>).i18n
 				.language
-		] as I18nTranslations;
+		] as Cudenix.I18nTranslations;
 	},
 };
