@@ -5,7 +5,7 @@
 	"editor.defaultFormatter": "biomejs.biome",
 	"files.exclude": {
 		"**/bun.lockb": true,
-		"**/node_modules": false
+		"**/node_modules": true
 	},
 	"typescript.inlayHints.parameterNames.enabled": "literals"
 }
