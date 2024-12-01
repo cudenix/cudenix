@@ -273,7 +273,16 @@ export interface Module<
 							>
 						>
 				  >
-				| ValueOf<Errors>
+				| ValueOf<
+						MergeErrors<
+							Errors,
+							TransformValidatorError<
+								DeepInferValidatorError<
+									RouteValidatorOptions["request"]
+								>
+							>
+						>
+				  >
 				| ValueOf<Successes>
 			>,
 		Stores,
