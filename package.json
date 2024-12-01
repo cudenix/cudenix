@@ -6,10 +6,10 @@
 	},
 	"description": "cudenix",
 	"devDependencies": {
-		"@biomejs/biome": "1.9.3",
-		"@types/bun": "1.1.11",
+		"@biomejs/biome": "1.9.4",
+		"@types/bun": "1.1.14",
 		"tsc-alias": "1.8.10",
-		"typescript": "5.6.3"
+		"typescript": "5.7.2"
 	},
 	"exports": {
 		"./package.json": "./package.json",
