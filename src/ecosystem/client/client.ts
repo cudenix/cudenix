@@ -138,7 +138,7 @@ const createProxy = (
 							) {
 								formData.append(
 									key,
-									(mergedOptions.body[key] as unknown[])[j],
+									(mergedOptions.body[key] as any[])[j],
 								);
 							}
 
