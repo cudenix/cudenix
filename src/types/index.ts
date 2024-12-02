@@ -9,5 +9,6 @@ export type * from "@/types/maybe-promise";
 export type * from "@/types/merge";
 export type * from "@/types/merge-paths";
 export type * from "@/types/required-keys";
+export type * from "@/types/standard-schema";
 export type * from "@/types/value-of";
 export type * from "@/types/ws";
