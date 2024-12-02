@@ -47,8 +47,8 @@ export const i18n = {
 			}
 
 			await Bun.write(
-				`${path}/cudenix.d.ts`,
-				`namespace Cudenix { interface I18nTranslations ${JSON.stringify((this.memory.get("i18n") as I18n).translations[language])}; };`,
+				`${path}/types.d.ts`,
+				`namespace Cudenix.i18n { interface Translations ${JSON.stringify((this.memory.get("i18n") as I18n).translations[language])}; };`,
 			);
 
 			return "i18n";
@@ -102,6 +102,6 @@ export const i18n = {
 		return (context?.memory.get("i18n") as I18n | undefined)?.translations[
 			(context?.store as Record<"i18n", Pick<I18n, "language">>).i18n
 				.language
-		] as Cudenix.I18nTranslations;
+		] as Cudenix.i18n.Translations;
 	},
 };

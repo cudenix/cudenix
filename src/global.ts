@@ -8,10 +8,6 @@ import type {
 declare global {
 	// biome-ignore lint/style/noNamespace:
 	namespace Cudenix {
-		type EventsList = Record<PropertyKey, unknown[]>;
-
-		type I18nTranslations = unknown;
-
 		type InferValidatorError<Type> = Type extends StandardSchemaV1
 			? Issue[]
 			: Type;
