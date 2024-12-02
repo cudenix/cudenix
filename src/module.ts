@@ -62,6 +62,7 @@ import {
 	type ValidatorOptions,
 	type ValidatorRequest,
 } from "@/validator";
+import type { AllPropertiesAreUnknown } from "./types/all-properties-are-unknown";
 
 export type ModuleChain = (
 	| AnyGroup
@@ -273,16 +274,20 @@ export interface Module<
 							>
 						>
 				  >
-				| ValueOf<
-						MergeErrors<
-							Errors,
-							TransformValidatorError<
-								DeepInferValidatorError<
-									RouteValidatorOptions["request"]
+				| (AllPropertiesAreUnknown<
+						RouteValidatorOptions["request"]
+				  > extends true
+						? ValueOf<Errors>
+						: ValueOf<
+								MergeErrors<
+									Errors,
+									TransformValidatorError<
+										DeepInferValidatorError<
+											RouteValidatorOptions["request"]
+										>
+									>
 								>
-							>
-						>
-				  >
+							>)
 				| ValueOf<Successes>
 			>,
 		Stores,
