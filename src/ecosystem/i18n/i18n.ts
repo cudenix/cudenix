@@ -6,6 +6,11 @@ import { getRequestContext } from "@/storage";
 import { Empty } from "@/utils/empty";
 import { getCookies } from "@/utils/get-cookies";
 
+type ExtractPlaceholders<String extends string> =
+	String extends `${infer _Start}\${${infer Param}}${infer Rest}`
+		? Param | ExtractPlaceholders<Rest>
+		: never;
+
 interface Translation {
 	[key: string]: string | Translation | (string | Translation)[];
 }
@@ -96,12 +101,45 @@ export const i18n = {
 		);
 	},
 
-	get translate() {
+	translate<String extends keyof Cudenix.i18n.Translations>(
+		text: String,
+		options?: {
+			language?: string;
+			repalce?: {
+				[Key in ExtractPlaceholders<String>]?: string;
+			};
+		},
+	): Cudenix.i18n.Translations[String] {
 		const context = getRequestContext();
 
-		return (context?.memory.get("i18n") as I18n | undefined)?.translations[
-			(context?.store as Record<"i18n", Pick<I18n, "language">>).i18n
-				.language
-		] as Cudenix.i18n.Translations;
+		const translations = (context?.memory.get("i18n") as I18n | undefined)
+			?.translations[
+			options?.language ??
+				(context?.store as Record<"i18n", Pick<I18n, "language">>).i18n
+					.language
+		];
+
+		if (!translations) {
+			return text;
+		}
+
+		let translation = translations[text] as string;
+
+		if (options?.repalce) {
+			const keys = Object.keys(options.repalce);
+
+			for (let i = 0; i < keys.length; i++) {
+				const key = keys[i] as keyof NonNullable<
+					typeof options
+				>["repalce"];
+
+				translation = translation.replaceAll(
+					`$\{${key}}`,
+					options.repalce[key],
+				);
+			}
+		}
+
+		return translation;
 	},
 };
