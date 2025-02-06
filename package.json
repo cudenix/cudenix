@@ -7,9 +7,9 @@
 	"description": "cudenix",
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
-		"@types/bun": "1.1.14",
+		"@types/bun": "1.2.2",
 		"tsc-alias": "1.8.10",
-		"typescript": "5.7.2"
+		"typescript": "5.7.3"
 	},
 	"exports": {
 		"./package.json": "./package.json",
@@ -75,7 +75,7 @@
 		"build": "bun clear:build && bun format && bun lint && tsc && tsc-alias",
 		"clear": "bun clear:build && bun clear:install",
 		"clear:build": "echo 'await Bun.$`rm -rf dist`.nothrow();' | bun run -",
-		"clear:install": "echo 'await Bun.$`rm -rf node_modules && rm -rf bun.lockb`.nothrow();' | bun run -",
+		"clear:install": "echo 'await Bun.$`rm -rf node_modules && rm -rf bun.lock`.nothrow();' | bun run -",
 		"format": "biome format --fix",
 		"lint": "biome lint --diagnostic-level=error",
 		"reinstall": "bun clear:install && bun install"
