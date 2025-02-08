@@ -6,7 +6,6 @@ import type {
 } from "@/types/standard-schema";
 
 declare global {
-	// biome-ignore lint/style/noNamespace:
 	namespace Cudenix {
 		type InferValidatorError<Type> = Type extends StandardSchemaV1
 			? Issue[]
