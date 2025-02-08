@@ -40,6 +40,7 @@ import type {
 	TransformSuccess,
 } from "@/success";
 import type {
+	AllPropertiesAreUnknown,
 	ConditionallyOmit,
 	ExtendsType,
 	ExtractUrlParams,
@@ -62,7 +63,6 @@ import {
 	type ValidatorOptions,
 	type ValidatorRequest,
 } from "@/validator";
-import type { AllPropertiesAreUnknown } from "./types/all-properties-are-unknown";
 
 export type ModuleChain = (
 	| AnyGroup
