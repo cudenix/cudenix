@@ -34,7 +34,7 @@ type ExtractPlaceholders<String extends string> =
 
 interface TranslateOptions<Key extends string> {
 	language?: string;
-	repalce?: {
+	replace?: {
 		[_Key in ExtractPlaceholders<Key>]?: string;
 	};
 }
@@ -167,15 +167,15 @@ function translate(...args: any[]): any {
 		translation = (translation as Translation)[path[i]];
 	}
 
-	if (options?.repalce) {
-		const keys = Object.keys(options.repalce);
+	if (options?.replace) {
+		const keys = Object.keys(options.replace);
 
 		for (let i = 0; i < keys.length; i++) {
-			const key = keys[i] as keyof NonNullable<typeof options>["repalce"];
+			const key = keys[i] as keyof NonNullable<typeof options>["replace"];
 
 			translation = (translation as string).replaceAll(
 				`\${${key}}`,
-				options.repalce[key],
+				options.replace[key],
 			);
 		}
 	}
