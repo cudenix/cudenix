@@ -1,6 +1,6 @@
-export type StandardSchemaV1<Input = unknown, Output = Input> = {
+export interface StandardSchemaV1<Input = unknown, Output = Input> {
 	readonly "~standard": Props<Input, Output>;
-};
+}
 
 export interface Props<Input = unknown, Output = Input> {
 	readonly version: 1;
