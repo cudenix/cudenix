@@ -28,6 +28,7 @@
 				"noNodejsModules": "off"
 			},
 			"style": {
+				"noNamespace": "off",
 				"noNonNullAssertion": "warn",
 				"useForOf": "off"
 			},
