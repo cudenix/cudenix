@@ -1,5 +1,5 @@
 import _cluster from "node:cluster";
-import { availableParallelism } from "node:os";
+import { cpus } from "node:os";
 
 export const cluster = async (
 	app: () => unknown | Promise<unknown>,
@@ -19,7 +19,7 @@ export const cluster = async (
 	});
 
 	if (_cluster.isPrimary) {
-		for (let i = 0; i < availableParallelism(); i++) {
+		for (let i = 0; i < cpus().length; i++) {
 			_cluster.fork();
 		}
 
@@ -30,11 +30,9 @@ export const cluster = async (
 
 			_cluster.fork();
 		});
-
-		return _cluster;
+	} else {
+		await app();
 	}
-
-	await app();
 
 	return _cluster;
 };
