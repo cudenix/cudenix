@@ -1,3 +1,4 @@
+export type * from "@/types/all-properties-are-unknown";
 export type * from "@/types/conditionally-omit";
 export type * from "@/types/conditionally-optional";
 export type * from "@/types/extends-type";
