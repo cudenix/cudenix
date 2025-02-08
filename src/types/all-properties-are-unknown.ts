@@ -1,9 +1,9 @@
-export type AllPropertiesAreUnknown<T> = {
-	[K in keyof T]: T[K] extends unknown
-		? unknown extends T[K]
+export type AllPropertiesAreUnknown<Type> = {
+	[Key in keyof Type]: Type[Key] extends unknown
+		? unknown extends Type[Key]
 			? true
 			: false
 		: false;
-}[keyof T] extends true | undefined
+}[keyof Type] extends true | undefined
 	? true
 	: false;
