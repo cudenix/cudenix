@@ -50,6 +50,10 @@ export interface Endpoint {
 
 type ListenOptions = Omit<TLSServeOptions, "fetch">;
 
+interface AppOptions {
+	globalContext?: boolean;
+}
+
 export interface App {
 	addon(addon: Addon | Addon[], options?: AddonOptions): App;
 	compile(module: AnyModule): Promise<void>;
@@ -57,16 +61,18 @@ export interface App {
 	fetch(request: Request): Promise<Response>;
 	listen(options?: ListenOptions): Promise<App>;
 	memory: Map<string, unknown>;
+	options?: AppOptions | undefined;
 	regexps: Map<string, RegExp>;
 	response(context: Context): Promise<Response>;
 	server?: Server | undefined;
 }
 
-type Constructor = new (module: AnyModule) => App;
+type Constructor = new (module: AnyModule, options?: AppOptions) => App;
 
-const App = function (this: App, module: AnyModule) {
+const App = function (this: App, module: AnyModule, options?: AppOptions) {
 	this.endpoints = new Map();
 	this.memory = new Map();
+	this.options = options;
 	this.regexps = new Map();
 
 	this.memory.set("module", module);
@@ -503,9 +509,13 @@ App.prototype.fetch = async function (this: App, request: Request) {
 		context.response.content = returned;
 	};
 
-	await asyncLocalStorage.run(context, async () => {
+	if (this.options?.globalContext) {
+		await asyncLocalStorage.run(context, async () => {
+			await step(endpoint.chain, 0);
+		});
+	} else {
 		await step(endpoint.chain, 0);
-	});
+	}
 
 	return await this.response(context);
 };
@@ -588,4 +598,5 @@ App.prototype.response = async function (
 	});
 };
 
-export const app = (module: AnyModule) => new App(module) as App;
+export const app = (module: AnyModule, options?: AppOptions) =>
+	new App(module, options) as App;
