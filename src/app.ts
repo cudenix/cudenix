@@ -592,6 +592,10 @@ App.prototype.response = async function (
 		});
 	}
 
+	if (response.content instanceof Response) {
+		return response.content;
+	}
+
 	return new Response(response.content, {
 		headers,
 		status: response.status,
