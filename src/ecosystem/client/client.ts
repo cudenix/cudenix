@@ -260,5 +260,7 @@ const createProxy = (
 
 export const client = <const App extends AnyModule>(
 	url: string,
-	options?: Omit<RequestInit, "method">,
+	options?:
+		| Omit<RequestInit, "method">
+		| (() => MaybePromise<Omit<RequestInit, "method">>),
 ) => createProxy(url, options) as Chain<App["routes"]>;
