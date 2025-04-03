@@ -524,8 +524,11 @@ App.prototype.listen = async function (this: App, options?: ListenOptions) {
 	await this.compile(this.memory.get("module") as AnyModule);
 
 	this.server = Bun.serve({
+		development: false,
+		reusePort: true,
 		...options,
 		fetch: (request) => this.fetch(request),
+		// @ts-expect-error
 		websocket: {
 			close: (ws, code, reason) => {
 				(ws.data as WSData)?.close?.(ws, code, reason);
