@@ -3,7 +3,12 @@ import type { WS } from "@/ecosystem/client/ws";
 import type { AnyError } from "@/error";
 import type { AnyModule } from "@/module";
 import type { AnySuccess } from "@/success";
-import type { AnyGeneratorSSE, ConditionallyOptional, Merge } from "@/types";
+import type {
+	AnyGeneratorSSE,
+	ConditionallyOptional,
+	MaybePromise,
+	Merge,
+} from "@/types";
 import { Empty } from "@/utils/empty";
 import { isFile } from "@/utils/file";
 
@@ -85,7 +90,9 @@ const transform = (value: unknown) => {
 
 const createProxy = (
 	url: string,
-	options: Omit<RequestInit, "method"> = new Empty(),
+	options:
+		| Omit<RequestInit, "method">
+		| (() => MaybePromise<Omit<RequestInit, "method">>) = new Empty(),
 	paths: string[] = [],
 ): unknown => {
 	return new Proxy(() => {}, {
@@ -96,9 +103,9 @@ const createProxy = (
 				path === "index" ? paths : [...paths, path],
 			);
 		},
-		apply(_target, _thisArg, [requestOptions = new Empty()]) {
+		async apply(_target, _thisArg, [requestOptions = new Empty()]) {
 			const mergedOptions = {
-				...options,
+				...(typeof options === "function" ? await options() : options),
 				...requestOptions,
 			};
 
