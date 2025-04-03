@@ -25,10 +25,14 @@ export const WS = function (this: AnyWS, url: string | URL) {
 	Object.defineProperty(webSocket, "onmessage", {
 		set(listener: (event: MessageEvent) => any) {
 			onmessageSetter.call(webSocket, (event: MessageEvent) => {
-				listener.call(webSocket, {
-					...event,
-					data: JSON.parse(String(event.data)),
-				});
+				listener.call(
+					webSocket,
+					new MessageEvent(event.type, {
+						...event,
+						data: JSON.parse(String(event.data)),
+						ports: [...event.ports],
+					}),
+				);
 			});
 		},
 	});

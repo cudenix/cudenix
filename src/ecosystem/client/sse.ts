@@ -48,10 +48,14 @@ export const SSE = function (
 	Object.defineProperty(eventSource, "onmessage", {
 		set(listener: (event: MessageEvent) => any) {
 			onmessageSetter.call(eventSource, (event: MessageEvent) => {
-				listener.call(eventSource, {
-					...event,
-					data: JSON.parse(String(event.data)),
-				});
+				listener.call(
+					eventSource,
+					new MessageEvent(event.type, {
+						...event,
+						data: JSON.parse(String(event.data)),
+						ports: [...event.ports],
+					}),
+				);
 			});
 		},
 	});
