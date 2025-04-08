@@ -1,4 +1,6 @@
 export const endsWithQuestionMarkRegexp = /\?$/;
+export const getUrlPathnameRegexp =
+	/^(?:[a-zA-Z][a-zA-Z\d+\-.]*:\/\/)?[^\/?#]*(\/[^?#]*)?/;
 export const getUrlQueryRegexp = /[?&]([^=#]+)=([^&#]*)/g;
 export const startsWithColonRegexp = /^:/;
 export const startsWithEllipsisRegexp = /^\.{3}/;

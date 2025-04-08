@@ -1,4 +1,12 @@
-import type { Server, ServerWebSocket, TLSServeOptions } from "bun";
+import type {
+	BunRequest,
+	RouterTypes,
+	ServeFunctionOptions,
+	Server,
+	ServerWebSocket,
+	TLSServeOptions,
+	TLSWebSocketServeOptions,
+} from "bun";
 
 import { Context } from "@/context";
 import { Error } from "@/error";
@@ -14,6 +22,7 @@ import type { AnyStore } from "@/store";
 import type { WSData } from "@/types";
 import { merge } from "@/utils/merge";
 import {
+	getUrlPathnameRegexp,
 	pathToRegexp,
 	useContextBodyRegexp,
 	useContextCookiesRegexp,
@@ -48,8 +57,6 @@ export interface Endpoint {
 	use: Set<"body" | "cookies" | "headers" | "params" | "query">;
 }
 
-type ListenOptions = Omit<TLSServeOptions, "fetch">;
-
 interface AppOptions {
 	globalContext?: boolean;
 }
@@ -57,13 +64,19 @@ interface AppOptions {
 export interface App {
 	addon(addon: Addon | Addon[], options?: AddonOptions): App;
 	compile(module: AnyModule): Promise<void>;
+	endpoint(
+		request: Request,
+		endpoint: Endpoint,
+		path: string,
+	): Promise<Response>;
 	endpoints: Map<string, Endpoint[]>;
 	fetch(request: Request): Promise<Response>;
-	listen(options?: ListenOptions): Promise<App>;
+	listen(options?: TLSServeOptions): Promise<App>;
 	memory: Map<string, unknown>;
 	options?: AppOptions | undefined;
 	regexps: Map<string, RegExp>;
 	response(context: Context): Promise<Response>;
+	routes?: Record<string, RouterTypes.RouteHandlerObject<string>>;
 	server?: Server | undefined;
 }
 
@@ -151,7 +164,7 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 
 			if (link.type === "GROUP") {
 				const _module = new Module({
-					prefix: `${parentPath}${path === "/" ? "" : path}${link.prefix === "/" ? "" : (link.prefix as string)}`,
+					prefix: `${parentPath}${path === "/" ? "" : path}${link.prefix === "/" ? "" : link.prefix}`,
 				});
 
 				_module.chain = [...parentChain, ...chain];
@@ -244,7 +257,7 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 			this.endpoints.get(method)?.push({
 				chain: link.validator ? [..._chain, link.validator] : _chain,
 				path:
-					`${parentPath}${path}${link.path === "/" ? "" : (link.path as string)}` ||
+					`${parentPath}${path}${link.path === "/" ? "" : link.path}` ||
 					"/",
 				route: link,
 				use,
@@ -271,7 +284,30 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 		const regexps = [] as string[];
 
 		for (let j = 0; j < endpoints.length; j++) {
-			regexps.push(pathToRegexp(endpoints[j].path));
+			const endpoint = endpoints[j];
+
+			if (
+				endpoint.path.indexOf("?") !== -1 ||
+				endpoint.path.indexOf("...") !== -1
+			) {
+				regexps.push(pathToRegexp(endpoint.path));
+
+				continue;
+			}
+
+			this.routes ??= {};
+
+			this.routes[endpoint.path] = {
+				...this.routes[endpoint.path],
+				[endpoint.route.method]: async (request: BunRequest) => {
+					return await this.endpoint(
+						request,
+						endpoint,
+						getUrlPathnameRegexp.exec(request.url)?.[1] ||
+							request.url,
+					);
+				},
+			};
 		}
 
 		this.regexps.set(
@@ -282,46 +318,25 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 		);
 	}
 
-	this.memory.delete("module");
-
 	for (let i = 0; i < addonsAfterCompile.length; i++) {
 		await addonsAfterCompile[i].call(this);
 	}
 
+	this.memory.delete("module");
+
 	this.memory.delete("addons");
 };
 
-App.prototype.fetch = async function (this: App, request: Request) {
-	const match = this.regexps.get(request.method)?.exec(request.url);
-
-	if (!match) {
-		return new Response(undefined, {
-			status: 404,
-		});
-	}
-
-	let index = 0;
-
-	for (let i = 3; i < match.length; i++) {
-		if (match[i] === "") {
-			index = i - 3;
-
-			break;
-		}
-	}
-
-	const endpoint = this.endpoints.get(request.method)?.[index];
-
-	if (!endpoint) {
-		return new Response(undefined, {
-			status: 404,
-		});
-	}
-
+App.prototype.endpoint = async function (
+	this: App,
+	request: Request,
+	endpoint: Endpoint,
+	path: string,
+) {
 	const context = new Context(
 		endpoint,
 		this.memory,
-		match[2],
+		path,
 		request,
 		this.server!,
 	);
@@ -520,15 +535,51 @@ App.prototype.fetch = async function (this: App, request: Request) {
 	return await this.response(context);
 };
 
-App.prototype.listen = async function (this: App, options?: ListenOptions) {
+App.prototype.fetch = async function (this: App, request: Request) {
+	const match = this.regexps.get(request.method)?.exec(request.url);
+
+	if (!match) {
+		return new Response(undefined, {
+			status: 404,
+		});
+	}
+
+	let index = 0;
+
+	for (let i = 3; i < match.length; i++) {
+		if (match[i] === "") {
+			index = i - 3;
+
+			break;
+		}
+	}
+
+	const endpoint = this.endpoints.get(request.method)?.[index];
+
+	if (!endpoint) {
+		return new Response(undefined, {
+			status: 404,
+		});
+	}
+
+	return await this.endpoint(request, endpoint, match[2]);
+};
+
+App.prototype.listen = async function (
+	this: App,
+	options?: Omit<
+		ServeFunctionOptions<undefined, NonNullable<unknown>>,
+		"fetch"
+	>,
+) {
 	await this.compile(this.memory.get("module") as AnyModule);
 
 	this.server = Bun.serve({
 		development: false,
 		reusePort: true,
 		...options,
+		routes: this.routes,
 		fetch: (request) => this.fetch(request),
-		// @ts-expect-error
 		websocket: {
 			close: (ws, code, reason) => {
 				(ws.data as WSData)?.close?.(ws, code, reason);
