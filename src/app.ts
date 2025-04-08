@@ -5,7 +5,6 @@ import type {
 	Server,
 	ServerWebSocket,
 	TLSServeOptions,
-	TLSWebSocketServeOptions,
 } from "bun";
 
 import { Context } from "@/context";
@@ -71,7 +70,7 @@ export interface App {
 	): Promise<Response>;
 	endpoints: Map<string, Endpoint[]>;
 	fetch(request: Request): Promise<Response>;
-	listen(options?: TLSServeOptions): Promise<App>;
+	listen(options?: Omit<TLSServeOptions, "fetch">): Promise<App>;
 	memory: Map<string, unknown>;
 	options?: AppOptions | undefined;
 	regexps: Map<string, RegExp>;
@@ -296,17 +295,16 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 			}
 
 			this.routes ??= {};
+			this.routes[endpoint.path] ??= {};
 
-			this.routes[endpoint.path] = {
-				...this.routes[endpoint.path],
-				[endpoint.route.method]: async (request: BunRequest) => {
-					return await this.endpoint(
-						request,
-						endpoint,
-						getUrlPathnameRegexp.exec(request.url)?.[1] ||
-							request.url,
-					);
-				},
+			this.routes[endpoint.path][
+				endpoint.route.method as keyof (typeof this.routes)[string]
+			] = async (request: BunRequest) => {
+				return await this.endpoint(
+					request,
+					endpoint,
+					getUrlPathnameRegexp.exec(request.url)?.[1] || request.url,
+				);
 			};
 		}
 
