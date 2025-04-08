@@ -1,4 +1,3 @@
-import type { App } from "@/app";
 import type { Error } from "@/error";
 import type { ConditionallyOmit, ExtendsType, MaybePromise } from "@/types";
 
@@ -103,11 +102,3 @@ export const Validator = function (
 export const validator = <const Request extends Partial<ValidatorRequest>>(
 	options: ValidatorOptions<Request>,
 ) => new Validator(options) as Validator<Request>;
-
-export function validatorAddon(validator: ValidatorAddon) {
-	return function (this: App) {
-		this.memory.set("validator", validator);
-
-		return "validator";
-	};
-}
