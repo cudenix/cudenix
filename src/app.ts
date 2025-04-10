@@ -285,12 +285,12 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 		for (let j = 0; j < endpoints.length; j++) {
 			const endpoint = endpoints[j];
 
+			regexps.push(pathToRegexp(endpoint.path));
+
 			if (
 				endpoint.path.indexOf("?") !== -1 ||
 				endpoint.path.indexOf("...") !== -1
 			) {
-				regexps.push(pathToRegexp(endpoint.path));
-
 				continue;
 			}
 
