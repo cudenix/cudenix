@@ -1,5 +1,5 @@
 export const cluster = (command: string) => {
-	if (process.env.WORKER_ID || process.argv.indexOf("--worker") !== -1) {
+	if (process.argv.indexOf("--worker") !== -1) {
 		return;
 	}
 
@@ -9,10 +9,6 @@ export const cluster = (command: string) => {
 	for (let i = 0; i < cpus; i++) {
 		buns[i] = Bun.spawn({
 			cmd: [...command.split(" "), "--worker"],
-			env: {
-				...process.env,
-				WORKER_ID: (i + 1).toString(),
-			},
 			stderr: "inherit",
 			stdin: "inherit",
 			stdout: "inherit",
