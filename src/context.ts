@@ -7,7 +7,8 @@ import { Empty } from "@/utils/empty";
 import { getCookies } from "@/utils/get-cookies";
 import { getUrlQueryRegexp, pathToRegexp } from "@/utils/regexp";
 
-const endsWithBracketsRegexp = /\[\]$/;
+const isSerializedArray = /^sas-(.*?)\-eas$/;
+const isSerializedObject = /^sos-(.*?)\-eos$/;
 
 export interface DeveloperContext<
 	Stores extends Record<PropertyKey, unknown>,
@@ -220,9 +221,21 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 
 		value = value.replaceAll("+", " ");
 
-		params[key] = endsWithBracketsRegexp.test(key)
-			? JSON.parse(value)
-			: value;
+		if (isSerializedObject.test(value)) {
+			const parsed = value.match(isSerializedObject);
+
+			if (parsed) {
+				value = JSON.parse(parsed[1]);
+			}
+		} else if (isSerializedArray.test(value)) {
+			const parsed = value.match(isSerializedArray);
+
+			if (parsed) {
+				value = JSON.parse(parsed[1]);
+			}
+		}
+
+		params[key] = value;
 	}
 
 	this.request.query = Object.keys(params).length > 0 ? params : undefined;

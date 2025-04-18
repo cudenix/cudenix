@@ -12,8 +12,6 @@ import type {
 import { Empty } from "@/utils/empty";
 import { isFile } from "@/utils/file";
 
-const endsWithBracketsRegexp = /\[\]$/;
-
 type RequestOptions<Request> = Merge<
 	Omit<RequestInit, "method"> & {
 		headers?: Record<string, string | readonly string[]>;
@@ -173,17 +171,24 @@ const createProxy = (
 
 				for (let i = 0; i < keys.length; i++) {
 					const key = keys[i];
+					const value = mergedOptions.query[key];
 
-					if (mergedOptions.query[key] === undefined) {
+					if (value === undefined) {
 						delete mergedOptions.query[key];
 
 						continue;
 					}
 
-					if (endsWithBracketsRegexp.test(key)) {
-						mergedOptions.query[key] = JSON.stringify(
-							mergedOptions.query[key],
-						);
+					if (Array.isArray(value)) {
+						mergedOptions.query[key] =
+							`sas-${JSON.stringify(value)}-eas`;
+
+						continue;
+					}
+
+					if (typeof value === "object" && value) {
+						mergedOptions.query[key] =
+							`sos-${JSON.stringify(value)}-eos`;
 					}
 				}
 
