@@ -619,7 +619,7 @@ App.prototype.response = async function (
 	if (response instanceof ReadableStream) {
 		return new Response(response, {
 			headers: {
-				...headers.toJSON(),
+				...(headers.toJSON() as Record<string, string>),
 				"cache-control": "no-cache",
 				"content-type": "text/event-stream",
 				connection: "keep-alive",
