@@ -40,22 +40,28 @@ export const cors = {
 			.middleware(async (context, next) => {
 				const { request, response } = context;
 
+				const requestOrigin = request.raw.headers.get("Origin") ?? "";
+
+				let resolvedOrigin: string;
+
+				if (typeof origin === "string") {
+					resolvedOrigin =
+						credentials && origin === "*" ? requestOrigin : origin;
+				} else {
+					resolvedOrigin = origin(requestOrigin, context) ?? "*";
+				}
+
 				response.headers.set(
 					"Access-Control-Allow-Origin",
-					typeof origin === "string"
-						? origin
-						: (origin(
-								request.raw.headers.get("Origin") ?? undefined,
-								context,
-							) ?? "*"),
+					resolvedOrigin,
 				);
 
-				if (
-					response.headers.get("Access-Control-Allow-Origin") !== "*"
-				) {
+				if (resolvedOrigin !== "*") {
+					const vary = response.headers.get("Vary");
+
 					response.headers.set(
 						"Vary",
-						request.raw.headers.get("Vary") || "Origin",
+						vary ? `${vary}, Origin` : "Origin",
 					);
 				}
 
@@ -79,34 +85,40 @@ export const cors = {
 						allowMethods.join(","),
 					);
 
-					if (maxAge) {
+					if (maxAge !== undefined) {
 						response.headers.set(
 							"Access-Control-Max-Age",
 							maxAge.toString(),
 						);
 					}
 
-					if (!allowHeaders) {
+					let resolvedAllowHeaders = allowHeaders;
+
+					if (!resolvedAllowHeaders) {
 						const requestHeaders = request.raw.headers.get(
 							"Access-Control-Request-Headers",
 						);
 
 						if (requestHeaders) {
-							allowHeaders = requestHeaders.split(
+							resolvedAllowHeaders = requestHeaders.split(
 								requestHeadersSplitRegexp,
 							);
 						}
 					}
 
-					if (allowHeaders) {
+					if (resolvedAllowHeaders) {
 						response.headers.set(
 							"Access-Control-Allow-Headers",
-							allowHeaders.join(","),
+							resolvedAllowHeaders.join(","),
 						);
 
-						response.headers.append(
+						const vary = response.headers.get("Vary");
+
+						response.headers.set(
 							"Vary",
-							"Access-Control-Request-Headers",
+							vary
+								? `${vary}, Access-Control-Request-Headers`
+								: "Access-Control-Request-Headers",
 						);
 					}
 				}
