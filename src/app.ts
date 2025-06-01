@@ -610,12 +610,6 @@ App.prototype.response = async function (
 	this: App,
 	{ response: { content: response, headers } }: Context,
 ) {
-	if (!response) {
-		return new Response(undefined, {
-			status: 404,
-		});
-	}
-
 	if (response instanceof ReadableStream) {
 		return new Response(response, {
 			headers: {
@@ -627,15 +621,15 @@ App.prototype.response = async function (
 		});
 	}
 
-	if (typeof response.content === "function") {
+	if (typeof response?.content === "function") {
 		response.content = (response.content as (...options: any[]) => any)();
 	}
 
-	if (response.content instanceof Promise) {
+	if (response?.content instanceof Promise) {
 		response.content = await response.content;
 	}
 
-	if (response.transform) {
+	if (response?.transform) {
 		const { transform, ...rest } = response;
 
 		return Response.json(rest, {
@@ -644,13 +638,13 @@ App.prototype.response = async function (
 		});
 	}
 
-	if (response.content instanceof Response) {
+	if (response?.content instanceof Response) {
 		return response.content;
 	}
 
-	return new Response(response.content, {
+	return new Response(response?.content, {
 		headers,
-		status: response.status,
+		status: response?.status,
 	});
 };
 

@@ -129,7 +129,7 @@ export const cors = {
 			})
 
 			.route("OPTIONS", "/...path?", () => {
-				return success(new Response(), 204);
+				return success(undefined, 204, false);
 			});
 	},
 };
