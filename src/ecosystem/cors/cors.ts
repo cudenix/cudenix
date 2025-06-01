@@ -121,13 +121,15 @@ export const cors = {
 								: "Access-Control-Request-Headers",
 						);
 					}
+
+					response.headers.set("Content-Length", "0");
 				}
 
 				return await next();
 			})
 
 			.route("OPTIONS", "/...path?", () => {
-				return success(undefined, 204);
+				return success(new Response(), 204);
 			});
 	},
 };
