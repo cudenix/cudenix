@@ -576,8 +576,8 @@ App.prototype.listen = async function (
 		development: false,
 		reusePort: true,
 		...options,
-		routes: this.routes,
 		fetch: (request) => this.fetch(request),
+		routes: this.routes,
 		websocket: {
 			close: (ws, code, reason) => {
 				(ws.data as WSData)?.close?.(ws, code, reason);
@@ -615,8 +615,8 @@ App.prototype.response = async function (
 			headers: {
 				...(headers.toJSON() as Record<string, string>),
 				"cache-control": "no-cache",
-				"content-type": "text/event-stream",
 				connection: "keep-alive",
+				"content-type": "text/event-stream",
 			},
 		});
 	}
