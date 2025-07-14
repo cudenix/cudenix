@@ -1,13 +1,18 @@
 {
 	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on",
+				"useSortedAttributes": "on",
+				"useSortedKeys": "on",
+				"useSortedProperties": "on"
+			}
+		}
+	},
 	"files": {
 		"ignoreUnknown": true,
-		"include": [
-			".github/**/*.yml",
-			".vscode/**/*.json",
-			"*.json",
-			"src/**/*.ts"
-		]
+		"includes": ["**/*.json", "**/src/**/*.ts*"]
 	},
 	"formatter": {
 		"enabled": true,
@@ -23,24 +28,32 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"all": true,
+			"a11y": {
+				"recommended": true
+			},
+			"complexity": {
+				"recommended": true
+			},
 			"correctness": {
-				"noNodejsModules": "off"
+				"recommended": true
+			},
+			"nursery": {
+				"recommended": true
+			},
+			"performance": {
+				"recommended": true
+			},
+			"security": {
+				"recommended": true
 			},
 			"style": {
-				"noNamespace": "off",
-				"noNonNullAssertion": "warn",
-				"useForOf": "off"
+				"recommended": true
 			},
 			"suspicious": {
-				"noConfusingVoidType": "warn",
-				"noExplicitAny": "warn",
-				"noShadowRestrictedNames": "warn"
+				"noShadowRestrictedNames": "warn",
+				"recommended": true
 			}
 		}
-	},
-	"organizeImports": {
-		"enabled": true
 	},
 	"vcs": {
 		"clientKind": "git",
