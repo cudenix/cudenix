@@ -3,12 +3,8 @@ import type { WS } from "@/ecosystem/client/ws";
 import type { AnyError } from "@/error";
 import type { AnyModule } from "@/module";
 import type { AnySuccess } from "@/success";
-import type {
-	AnyGeneratorSSE,
-	ConditionallyOptional,
-	MaybePromise,
-	Merge,
-} from "@/types";
+import type { AnyGeneratorSSE, ConditionallyOptional, Merge } from "@/types";
+import type { MaybeFunction } from "@/types/maybe-function";
 import { Empty } from "@/utils/empty";
 import { isFile } from "@/utils/file";
 
@@ -60,6 +56,12 @@ export type InferRouteResponse<Route> = Route extends (...options: any[]) => any
 	? Awaited<ReturnType<Route>>
 	: never;
 
+export type ClientOptions = MaybeFunction<
+	{
+		url: string;
+	} & Omit<RequestInit, "method">
+>;
+
 const transform = (value: unknown) => {
 	try {
 		return JSON.parse(value as string) as Record<string, unknown>;
@@ -86,28 +88,17 @@ const transform = (value: unknown) => {
 	return value;
 };
 
-const createProxy = (
-	url: string,
-	options:
-		| Omit<RequestInit, "method">
-		| (() => MaybePromise<Omit<RequestInit, "method">>) = new Empty(),
-	paths: string[] = [],
-): unknown => {
+const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 	return new Proxy(() => {}, {
-		get(_target, path: string) {
-			return createProxy(
-				url,
-				options,
-				path === "index" ? paths : [...paths, path],
-			);
-		},
 		async apply(_target, _thisArg, [requestOptions = new Empty()]) {
 			const mergedOptions = {
 				...(typeof options === "function" ? await options() : options),
 				...requestOptions,
 			};
 
-			let _url = `${url}/${paths.slice(0, -1).join("/")}`;
+			let _url = `${mergedOptions.url}/${paths.slice(0, -1).join("/")}`;
+
+			mergedOptions.url = undefined;
 
 			if (mergedOptions.body) {
 				const keys = Object.keys(mergedOptions.body);
@@ -260,12 +251,15 @@ const createProxy = (
 				return transform(await response.text());
 			})();
 		},
+		get(_target, path: string) {
+			return createProxy(
+				options,
+				path === "index" ? paths : [...paths, path],
+			);
+		},
 	});
 };
 
-export const client = <const App extends AnyModule>(
-	url: string,
-	options?:
-		| Omit<RequestInit, "method">
-		| (() => MaybePromise<Omit<RequestInit, "method">>),
-) => createProxy(url, options) as Chain<App["routes"]>;
+export const client = <const App extends AnyModule>(options: ClientOptions) => {
+	return createProxy(options) as Chain<App["routes"]>;
+};

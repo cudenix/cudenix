@@ -17,8 +17,12 @@ export type ExtractUrlParams<
 		string | string[]
 	> = NonNullable<unknown>,
 > = Path extends `${infer First}/${infer Rest}`
-	? // biome-ignore lint/suspicious/noRedeclare:
-		First extends `:${infer Param}` | `...${infer Param}`
+	? First extends
+			| `:${infer Param}`
+			| `...${
+					// biome-ignore lint/suspicious/noRedeclare: Infer Param
+					infer Param
+			  }`
 		? ExtractUrlParams<
 				Rest,
 				Accumulated &
@@ -28,8 +32,12 @@ export type ExtractUrlParams<
 					>
 			>
 		: ExtractUrlParams<Rest, Accumulated>
-	: // biome-ignore lint/suspicious/noRedeclare:
-		Path extends `:${infer Param}` | `...${infer Param}`
+	: Path extends
+				| `:${infer Param}`
+				| `...${
+						// biome-ignore lint/suspicious/noRedeclare: Infer Param
+						infer Param
+				  }`
 		? Accumulated &
 				ParamEntry<
 					Param,
