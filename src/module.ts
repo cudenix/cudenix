@@ -422,8 +422,8 @@ export const module = <
 	},
 >(
 	options: ModuleOptions<Prefix> = new Empty(),
-) =>
-	new Module(options) as Module<
+) => {
+	return new Module(options) as Module<
 		Errors,
 		Prefix,
 		Routes,
@@ -431,3 +431,4 @@ export const module = <
 		Successes,
 		Validators
 	>;
+};

@@ -52,5 +52,6 @@ export const WS = function (this: AnyWS, url: string | URL) {
 WS.prototype = Object.create(WebSocket.prototype);
 WS.prototype.constructor = WS;
 
-export const ws = <const Request, const Response>(url: string | URL) =>
-	new WS(url) as WS<Request, Response>;
+export const ws = <const Request, const Response>(url: string | URL) => {
+	return new WS(url) as WS<Request, Response>;
+};

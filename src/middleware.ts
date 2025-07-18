@@ -41,4 +41,6 @@ export const middleware = <
 	const Validators extends Record<PropertyKey, unknown>,
 >(
 	middleware: MiddlewareFn<Return, Stores, Validators>,
-) => new Middleware(middleware) as Middleware<Return, Stores, Validators>;
+) => {
+	return new Middleware(middleware) as Middleware<Return, Stores, Validators>;
+};

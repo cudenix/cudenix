@@ -89,13 +89,13 @@ const addon = (
 									).push({
 										in: _in,
 										name: keys[m],
-										schema: property,
 										required:
 											(
 												schema.required as
 													| string[]
 													| undefined
 											)?.includes(keys[m]) ?? false,
+										schema: property,
 									});
 								}
 
@@ -199,8 +199,8 @@ const addon = (
 
 		this.memory.set("openapi", {
 			info: {
-				title,
 				description,
+				title,
 				version,
 			},
 			openapi: "3.1.0",

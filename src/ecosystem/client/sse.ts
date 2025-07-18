@@ -109,4 +109,6 @@ SSE.prototype.constructor = SSE;
 export const sse = <const Generator extends AnyGeneratorSSE>(
 	url: string | URL,
 	options?: EventSourceInit,
-) => new SSE(url, options) as SSE<Generator>;
+) => {
+	return new SSE(url, options) as SSE<Generator>;
+};

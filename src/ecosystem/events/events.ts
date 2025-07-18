@@ -16,6 +16,8 @@ Event.prototype.constructor = Event;
 
 export const event = <
 	const Events extends Record<keyof Events, unknown[]> = Cudenix.Events.List,
->() => new Event() as Event<Events>;
+>() => {
+	return new Event() as Event<Events>;
+};
 
 export const events = event();

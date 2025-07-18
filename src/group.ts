@@ -47,4 +47,6 @@ export const group = <
 >(
 	group: GroupFn<Module, Return>,
 	options: GroupOptions<Prefix> = new Empty(),
-) => new Group(group, options) as Group<Module, Prefix, Return>;
+) => {
+	return new Group(group, options) as Group<Module, Prefix, Return>;
+};

@@ -65,9 +65,10 @@ export const success = <
 	content: Content,
 	status?: Status,
 	transform?: Transform,
-) =>
-	new Success(content, status, transform) as Success<
+) => {
+	return new Success(content, status, transform) as Success<
 		Content,
 		Status,
 		Transform
 	>;
+};

@@ -208,7 +208,7 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 	let match: RegExpExecArray | null;
 
 	while (
-		// biome-ignore lint/suspicious/noAssignInExpressions:
+		// biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
 		(match = getUrlQueryRegexp.exec(
 			decodeURIComponent(this.request.raw.url),
 		))
@@ -247,4 +247,6 @@ export const context = (
 	path: string,
 	request: Request,
 	server: Server,
-) => new Context(endpoint, memory, path, request, server);
+) => {
+	return new Context(endpoint, memory, path, request, server);
+};

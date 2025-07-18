@@ -67,4 +67,10 @@ export const error = <
 	content: Content,
 	status?: Status,
 	transform?: Transform,
-) => new Error(content, status, transform) as Error<Content, Status, Transform>;
+) => {
+	return new Error(content, status, transform) as Error<
+		Content,
+		Status,
+		Transform
+	>;
+};

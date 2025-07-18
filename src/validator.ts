@@ -101,4 +101,6 @@ export const Validator = function (
 
 export const validator = <const Request extends Partial<ValidatorRequest>>(
 	options: ValidatorOptions<Request>,
-) => new Validator(options) as Validator<Request>;
+) => {
+	return new Validator(options) as Validator<Request>;
+};

@@ -1,8 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { module as _module } from "@/module";
-
 import type { App } from "@/app";
+import { module as _module } from "@/module";
 import { getRequestContext } from "@/storage";
 import { Empty } from "@/utils/empty";
 import { getCookies } from "@/utils/get-cookies";
@@ -96,8 +95,8 @@ const addon = (path: string, language: string, options?: I18nAddonOptions) => {
 		this.memory.set("i18n", {
 			...options,
 			language,
-			path,
 			languages,
+			path,
 			translations: new Empty() as Translation,
 		});
 

@@ -648,5 +648,6 @@ App.prototype.response = async function (
 	});
 };
 
-export const app = (module: AnyModule, options?: AppOptions) =>
-	new App(module, options) as App;
+export const app = (module: AnyModule, options?: AppOptions) => {
+	return new App(module, options) as App;
+};

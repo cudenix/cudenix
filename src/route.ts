@@ -252,8 +252,8 @@ export const route = <
 		>
 	>,
 	options: RouteOptions<_ValidatorOptions> = new Empty(),
-) =>
-	new Route(method, path, route, options) as Route<
+) => {
+	return new Route(method, path, route, options) as Route<
 		Method,
 		Path,
 		Return,
@@ -261,3 +261,4 @@ export const route = <
 		_ValidatorOptions,
 		Validators
 	>;
+};
