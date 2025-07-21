@@ -171,8 +171,7 @@ Context.prototype.loadRequestHeaders = function (this: Context) {
 };
 
 Context.prototype.loadRequestParams = function (this: Context) {
-	const regexp = new RegExp(`^${pathToRegexp(this.endpoint.path, true)}$`);
-	const match = regexp.exec(this.request.path);
+	const match = this.endpoint.paramsRegexp.exec(this.request.path);
 
 	if (!match) {
 		return;
@@ -205,13 +204,15 @@ Context.prototype.loadRequestParams = function (this: Context) {
 Context.prototype.loadRequestQuery = function (this: Context) {
 	const params = new Empty();
 
+	const url = decodeURIComponent(this.request.raw.url);
+
 	let match: RegExpExecArray | null;
+
+	getUrlQueryRegexp.lastIndex = 0;
 
 	while (
 		// biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
-		(match = getUrlQueryRegexp.exec(
-			decodeURIComponent(this.request.raw.url),
-		))
+		(match = getUrlQueryRegexp.exec(url))
 	) {
 		let [, key, value] = match;
 

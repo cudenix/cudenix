@@ -51,6 +51,8 @@ type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
 export interface Endpoint {
 	chain: Chain;
+	generator: boolean;
+	paramsRegexp: RegExp;
 	path: string;
 	route: AnyRoute;
 	use: Set<"body" | "cookies" | "headers" | "params" | "query">;
@@ -100,7 +102,7 @@ App.prototype.addon = function (
 	}
 
 	if (typeof addon === "function") {
-		(this.memory.get("addons") as MemoryAddon[])!.push({
+		(this.memory.get("addons") as MemoryAddon[]).push({
 			addon,
 			options,
 		});
@@ -109,7 +111,7 @@ App.prototype.addon = function (
 	}
 
 	for (let i = 0; i < addon.length; i++) {
-		(this.memory.get("addons")! as MemoryAddon[]).push({
+		(this.memory.get("addons") as MemoryAddon[]).push({
 			addon: addon[i],
 			options,
 		});
@@ -253,11 +255,17 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 				this.endpoints.set(method, []);
 			}
 
+			const finalPath =
+				`${parentPath}${path}${link.path === "/" ? "" : link.path}` ||
+				"/";
+
 			this.endpoints.get(method)?.push({
 				chain: link.validator ? [..._chain, link.validator] : _chain,
-				path:
-					`${parentPath}${path}${link.path === "/" ? "" : link.path}` ||
-					"/",
+				generator:
+					link.route.constructor.name.indexOf("GeneratorFunction") !==
+					-1,
+				paramsRegexp: new RegExp(`^${pathToRegexp(finalPath, true)}$`),
+				path: finalPath,
 				route: link,
 				use,
 			});
@@ -381,19 +389,20 @@ App.prototype.endpoint = async function (
 				continue;
 			}
 
-			const keys = Object.keys(link.request);
-			const errors = [] as {
-				details: unknown[];
-				type: keyof ValidatorRequest;
-			}[];
+			const validatorAddon = this.memory.get(
+				"validator",
+			) as ValidatorAddon;
 
-			for (let i = 0; i < keys.length; i++) {
-				const key = keys[i] as keyof typeof link.request;
+			const errors = new Map<
+				keyof ValidatorRequest,
+				{ details: unknown[]; type: keyof ValidatorRequest }
+			>();
+
+			for (let i = 0; i < link.keys.length; i++) {
+				const key = link.keys[i] as keyof ValidatorRequest;
 				const schema = link.request[key];
 
-				const validated = await (
-					this.memory.get("validator") as ValidatorAddon
-				)(
+				const validated = await validatorAddon(
 					schema,
 					context.request[key as keyof typeof context.request],
 					key as any,
@@ -406,26 +415,27 @@ App.prototype.endpoint = async function (
 					continue;
 				}
 
-				const error = errors.find((error) => error.type === key);
-
 				const content = (validated.content as any).pop
 					? (validated.content as unknown[])
 					: [validated.content];
 
-				if (error) {
-					error.details.push(...content);
+				if (errors.has(key)) {
+					errors.get(key)?.details.push(...content);
 
 					continue;
 				}
 
-				errors.push({
+				errors.set(key, {
 					details: content,
-					type: key as any,
+					type: key,
 				});
 			}
 
-			if (errors.length > 0) {
-				context.response.content = new Error(errors, 422);
+			if (errors.size > 0) {
+				context.response.content = new Error(
+					Array.from(errors.values()),
+					422,
+				);
 			}
 		}
 
@@ -433,11 +443,7 @@ App.prototype.endpoint = async function (
 			return;
 		}
 
-		if (
-			endpoint.route.route.constructor.name.indexOf(
-				"GeneratorFunction",
-			) !== -1
-		) {
+		if (endpoint.generator) {
 			context.response.content = new ReadableStream({
 				async start(controller) {
 					let closed = false as boolean;

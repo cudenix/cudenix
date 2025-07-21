@@ -79,6 +79,7 @@ export interface ValidatorRequest<
 export interface Validator<Request extends Partial<ValidatorRequest>> {
 	request: Request;
 	type: "VALIDATOR";
+	keys: (keyof ValidatorRequest)[];
 }
 
 export type AnyValidator = Validator<any>;
@@ -97,6 +98,7 @@ export const Validator = function (
 ) {
 	this.request = request;
 	this.type = "VALIDATOR";
+	this.keys = Object.keys(request) as (keyof ValidatorRequest)[];
 } as unknown as Constructor;
 
 export const validator = <const Request extends Partial<ValidatorRequest>>(
