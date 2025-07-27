@@ -88,9 +88,14 @@ const addon = (path: string, language: string, options?: I18nAddonOptions) => {
 		const directories = await readdir(path, {
 			withFileTypes: true,
 		});
+
 		const languages = directories
-			.filter((directory) => directory.isDirectory())
-			.map((directory) => directory.name);
+			.filter((directory) => {
+				return directory.isDirectory();
+			})
+			.map((directory) => {
+				return directory.name;
+			});
 
 		this.memory.set("i18n", {
 			...options,
