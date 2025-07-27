@@ -96,7 +96,7 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				...requestOptions,
 			};
 
-			let _url = `${mergedOptions.url}/${paths.slice(0, -1).join("/")}`;
+			let url = `${mergedOptions.url}/${paths.slice(0, -1).join("/")}`;
 
 			mergedOptions.url = undefined;
 
@@ -170,7 +170,7 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 						continue;
 					}
 
-					if (Array.isArray(value)) {
+					if (value?.pop) {
 						mergedOptions.query[key] =
 							`sas-${JSON.stringify(value)}-eas`;
 
@@ -183,7 +183,7 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 					}
 				}
 
-				_url = `${_url}?${new URLSearchParams(mergedOptions.query).toString()}`;
+				url = `${url}?${new URLSearchParams(mergedOptions.query).toString()}`;
 			}
 
 			if (mergedOptions.headers) {
@@ -198,8 +198,8 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				}
 			}
 
-			if (/\/:(\w+\??)/g.test(_url)) {
-				_url = _url.replaceAll(/\/:(\w+\??)/g, (_, key: string) => {
+			if (/\/:(\w+\??)/g.test(url)) {
+				url = url.replaceAll(/\/:(\w+\??)/g, (_, key: string) => {
 					const param = mergedOptions.params?.[
 						key.replaceAll("?", "")
 					] as string | undefined;
@@ -208,8 +208,8 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				});
 			}
 
-			if (/\/\.{3}(\w+\??)/g.test(_url)) {
-				_url = _url.replaceAll(/\/\.{3}(\w+\??)/g, (_, key: string) => {
+			if (/\/\.{3}(\w+\??)/g.test(url)) {
+				url = url.replaceAll(/\/\.{3}(\w+\??)/g, (_, key: string) => {
 					const params = mergedOptions.params?.[
 						key.replaceAll("?", "")
 					] as string[] | undefined;
@@ -222,14 +222,15 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 
 			return (async () => {
 				if (mergedOptions.method === "ws") {
-					_url = _url.startsWith("https://")
-						? _url.replace("https://", "wss://")
-						: _url.replace("http://", "ws://");
+					url = url.startsWith("https://")
+						? url.replace("https://", "wss://")
+						: url.replace("http://", "ws://");
 
-					return (await import("@/ecosystem/client/ws")).ws(_url);
+					return (await import("@/ecosystem/client/ws")).ws(url);
 				}
 
-				const response = await fetch(_url, mergedOptions);
+				const response = await fetch(url, mergedOptions);
+
 				const contentType = response.headers
 					.get("Content-Type")
 					?.toLowerCase()
