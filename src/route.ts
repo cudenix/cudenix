@@ -160,7 +160,7 @@ export interface Route<
 	method: Method;
 	path: Path;
 	type: "ROUTE";
-	validator?: AnyValidator;
+	validator?: AnyValidator | undefined;
 }
 
 export type AnyRoute = Route<any, any, any, any, any, any>;
@@ -191,13 +191,7 @@ export const Route = function (
 	this.path = path;
 	this.route = route;
 	this.type = "ROUTE";
-
-	if (validator) {
-		this.validator =
-			validator instanceof Validator
-				? validator
-				: new Validator(validator);
-	}
+	this.validator = validator ? new Validator(validator) : undefined;
 } as unknown as Constructor;
 
 export const route = <

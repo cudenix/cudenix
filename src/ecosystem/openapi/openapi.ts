@@ -154,11 +154,12 @@ const addon = (
 								operation.parameters as
 									| Record<string, unknown>[]
 									| undefined
-							)?.some(
-								(parameter) =>
+							)?.some((parameter) => {
+								return (
 									parameter.in === "path" &&
-									parameter.name === name,
-							)
+									parameter.name === name
+								);
+							})
 						) {
 							continue;
 						}
