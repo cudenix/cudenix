@@ -39,7 +39,7 @@ import type {
 type Addon = (...options: any[]) => string | Promise<string>;
 
 interface AddonOptions {
-	compile?: "AFTER" | "BEFORE";
+	compile?: "AFTER" | "BEFORE" | false;
 }
 
 interface MemoryAddon {
@@ -127,6 +127,10 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 		const addons = this.memory.get("addons") as MemoryAddon[];
 
 		for (let i = 0; i < addons.length; i++) {
+			if (addons[i].options?.compile === false) {
+				continue;
+			}
+
 			if (addons[i].options?.compile === "AFTER") {
 				addonsAfterCompile.push(addons[i].addon);
 
@@ -362,9 +366,9 @@ App.prototype.endpoint = async function (
 			}
 
 			if (link.type === "MIDDLEWARE") {
-				const middleware = await link.middleware(context, () =>
-					step(chain, i + 1),
-				);
+				const middleware = await link.middleware(context, () => {
+					return step(chain, i + 1);
+				});
 
 				if (middleware) {
 					context.response.content = middleware;
@@ -582,7 +586,9 @@ App.prototype.listen = async function (
 		development: false,
 		reusePort: true,
 		...options,
-		fetch: (request) => this.fetch(request),
+		fetch: (request) => {
+			return this.fetch(request);
+		},
 		routes: this.routes,
 		websocket: {
 			close: (ws, code, reason) => {
@@ -636,12 +642,16 @@ App.prototype.response = async function (
 	}
 
 	if (response?.transform) {
-		const { transform, ...rest } = response;
-
-		return Response.json(rest, {
-			headers,
-			status: response.status,
-		});
+		return Response.json(
+			{
+				...response,
+				transform: undefined,
+			},
+			{
+				headers,
+				status: response.status,
+			},
+		);
 	}
 
 	if (response?.content instanceof Response) {
