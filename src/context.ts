@@ -5,7 +5,6 @@ import type { AnyError } from "@/error";
 import type { AnySuccess } from "@/success";
 import { Empty } from "@/utils/empty";
 import { getCookies } from "@/utils/get-cookies";
-import { getUrlQueryRegexp, pathToRegexp } from "@/utils/regexp";
 
 const isSerializedArray = /^sas-(.*?)\-eas$/;
 const isSerializedObject = /^sos-(.*?)\-eos$/;
@@ -208,11 +207,11 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 
 	let match: RegExpExecArray | null;
 
-	getUrlQueryRegexp.lastIndex = 0;
+	const queryRegexp = /[?&]([^=#]+)=([^&#]*)/g;
 
 	while (
-		// biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
-		(match = getUrlQueryRegexp.exec(url))
+		// biome-ignore lint/suspicious/noAssignInExpressions: Is necessary for the loop
+		(match = queryRegexp.exec(url))
 	) {
 		let [, key, value] = match;
 
