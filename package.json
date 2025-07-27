@@ -7,7 +7,7 @@
 	"description": "cudenix",
 	"devDependencies": {
 		"@biomejs/biome": "2.1.2",
-		"@types/bun": "1.2.18",
+		"@types/bun": "1.2.19",
 		"tsc-alias": "1.8.16",
 		"typescript": "5.8.3"
 	},
