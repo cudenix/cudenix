@@ -19,7 +19,7 @@ interface CorsOptions {
 const requestHeadersSplitRegexp = /\s*,\s*/;
 
 export const cors = {
-	module({
+	module: ({
 		allowHeaders,
 		allowMethods = [
 			"DELETE",
@@ -34,7 +34,7 @@ export const cors = {
 		exposeHeaders,
 		maxAge,
 		origin = "*",
-	}: CorsOptions = {}) {
+	}: CorsOptions = {}) => {
 		return module()
 
 			.middleware(async (context, next) => {

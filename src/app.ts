@@ -94,25 +94,31 @@ const App = function (this: App, module: AnyModule, options?: AppOptions) {
 
 App.prototype.addon = function (
 	this: App,
-	addon: Addon | Addon[],
+	addons: Addon | Addon[],
 	options?: AddonOptions,
 ) {
 	if (!this.memory.has("addons")) {
 		this.memory.set("addons", []);
 	}
 
-	if (typeof addon === "function") {
+	if (typeof addons === "function") {
 		(this.memory.get("addons") as MemoryAddon[]).push({
-			addon,
+			addon: addons,
 			options,
 		});
 
 		return this;
 	}
 
-	for (let i = 0; i < addon.length; i++) {
+	for (let i = 0; i < addons.length; i++) {
+		const addon = addons[i];
+
+		if (!addon) {
+			continue;
+		}
+
 		(this.memory.get("addons") as MemoryAddon[]).push({
-			addon: addon[i],
+			addon,
 			options,
 		});
 	}
@@ -127,17 +133,23 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 		const addons = this.memory.get("addons") as MemoryAddon[];
 
 		for (let i = 0; i < addons.length; i++) {
-			if (addons[i].options?.compile === false) {
+			const addon = addons[i];
+
+			if (!addon) {
 				continue;
 			}
 
-			if (addons[i].options?.compile === "AFTER") {
-				addonsAfterCompile.push(addons[i].addon);
+			if (addon.options?.compile === false) {
+				continue;
+			}
+
+			if (addon.options?.compile === "AFTER") {
+				addonsAfterCompile.push(addon.addon);
 
 				continue;
 			}
 
-			await addons[i].addon.call(this);
+			await addon.addon.call(this);
 		}
 	}
 
@@ -166,6 +178,10 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 
 		for (let i = 0; i < module.chain.length; i++) {
 			const link = module.chain[i];
+
+			if (!link) {
+				continue;
+			}
 
 			if (link.type === "GROUP") {
 				const _module = new Module({
@@ -219,6 +235,10 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 
 				const link = _chain[j];
 
+				if (!link) {
+					continue;
+				}
+
 				const text =
 					link.type === "MIDDLEWARE"
 						? link.middleware.toString()
@@ -233,11 +253,17 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 				}
 
 				for (let i = 0; i < useRegexps.length; i++) {
-					if (!useRegexps[i][1].test(text)) {
+					const regexp = useRegexps[i];
+
+					if (!regexp) {
 						continue;
 					}
 
-					use.add(useRegexps[i][0]);
+					if (!regexp[1].test(text)) {
+						continue;
+					}
+
+					use.add(regexp[0]);
 				}
 			}
 
@@ -245,11 +271,17 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 				const text = link.route.toString();
 
 				for (let i = 0; i < useRegexps.length; i++) {
-					if (!useRegexps[i][1].test(text)) {
+					const regexp = useRegexps[i];
+
+					if (!regexp) {
 						continue;
 					}
 
-					use.add(useRegexps[i][0]);
+					if (!regexp[1].test(text)) {
+						continue;
+					}
+
+					use.add(regexp[0]);
 				}
 			}
 
@@ -290,12 +322,22 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 	const methods = Array.from(this.endpoints.keys());
 
 	for (let i = 0; i < methods.length; i++) {
-		const endpoints = this.endpoints.get(methods[i])!.reverse();
+		const method = methods[i];
+
+		if (!method) {
+			continue;
+		}
+
+		const endpoints = this.endpoints.get(method)!.reverse();
 
 		const regexps = [] as string[];
 
 		for (let j = 0; j < endpoints.length; j++) {
 			const endpoint = endpoints[j];
+
+			if (!endpoint) {
+				continue;
+			}
 
 			regexps.push(pathToRegexp(endpoint.path));
 
@@ -309,7 +351,7 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 			this.routes ??= {};
 			this.routes[endpoint.path] ??= {};
 
-			this.routes[endpoint.path][
+			this.routes[endpoint.path]![
 				endpoint.route.method as keyof (typeof this.routes)[string]
 			] = async (request: BunRequest) => {
 				return await this.endpoint(
@@ -321,7 +363,7 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 		}
 
 		this.regexps.set(
-			methods[i],
+			method,
 			new RegExp(
 				`^(https?:\\/\\/)[^\\s\\/]+(${regexps.join("|")})(?![^?#])`,
 			),
@@ -329,7 +371,7 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 	}
 
 	for (let i = 0; i < addonsAfterCompile.length; i++) {
-		await addonsAfterCompile[i].call(this);
+		await addonsAfterCompile[i]?.call(this);
 	}
 
 	this.memory.delete("module");
@@ -360,6 +402,10 @@ App.prototype.endpoint = async function (
 			}
 
 			const link = chain[i];
+
+			if (!link) {
+				continue;
+			}
 
 			if (link.type === "ROUTE") {
 				continue;
@@ -564,7 +610,7 @@ App.prototype.fetch = async function (this: App, request: Request) {
 
 	const endpoint = this.endpoints.get(request.method)?.[index];
 
-	if (!endpoint) {
+	if (!endpoint || !match[2]) {
 		return new Response(undefined, {
 			status: 404,
 		});

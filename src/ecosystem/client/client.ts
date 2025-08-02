@@ -108,6 +108,10 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				for (let i = 0; i < keys.length; i++) {
 					const key = keys[i];
 
+					if (!key) {
+						continue;
+					}
+
 					if (
 						isFile(mergedOptions.body[key]) ||
 						(mergedOptions.body[key]?.pop &&
@@ -124,6 +128,10 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 
 					for (let i = 0; i < keys.length; i++) {
 						const key = keys[i];
+
+						if (!key) {
+							continue;
+						}
 
 						if (mergedOptions.body[key].pop) {
 							for (
@@ -162,6 +170,11 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 
 				for (let i = 0; i < keys.length; i++) {
 					const key = keys[i];
+
+					if (!key) {
+						continue;
+					}
+
 					const value = mergedOptions.query[key];
 
 					if (value === undefined) {
@@ -191,6 +204,10 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 
 				for (let i = 0; i < keys.length; i++) {
 					const key = keys[i];
+
+					if (!key) {
+						continue;
+					}
 
 					if (mergedOptions.headers[key] === undefined) {
 						delete mergedOptions.headers[key];

@@ -1,7 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { App } from "@/app";
-import { module as _module } from "@/module";
+import { module } from "@/module";
 import { getRequestContext } from "@/storage";
 import { Empty } from "@/utils/empty";
 import { getCookies } from "@/utils/get-cookies";
@@ -83,143 +83,53 @@ const loadTranslations = async (directory: string) => {
 	return result;
 };
 
-const addon = (path: string, language: string, options?: I18nAddonOptions) => {
-	return async function (this: App) {
-		const directories = await readdir(path, {
-			withFileTypes: true,
-		});
-
-		const languages = directories
-			.filter((directory) => {
-				return directory.isDirectory();
-			})
-			.map((directory) => {
-				return directory.name;
+export const i18n = {
+	addon: (path: string, language: string, options?: I18nAddonOptions) => {
+		return async function (this: App) {
+			const directories = await readdir(path, {
+				withFileTypes: true,
 			});
 
-		this.memory.set("i18n", {
-			...options,
-			language,
-			languages,
-			path,
-			translations: new Empty() as Translation,
-		});
+			const languages = directories
+				.filter((directory) => {
+					return directory.isDirectory();
+				})
+				.map((directory) => {
+					return directory.name;
+				});
 
-		const i18n = this.memory.get("i18n") as I18n;
+			this.memory.set("i18n", {
+				...options,
+				language,
+				languages,
+				path,
+				translations: new Empty() as Translation,
+			});
 
-		for (let i = 0; i < languages.length; i++) {
-			const lang = languages[i];
+			const i18n = this.memory.get("i18n") as I18n;
 
-			i18n.translations[lang] = await loadTranslations(join(path, lang));
-		}
+			for (let i = 0; i < languages.length; i++) {
+				const lang = languages[i];
 
-		await Bun.write(
-			join(path, "types.d.ts"),
-			`namespace Cudenix.i18n { interface Translations ${JSON.stringify(
-				i18n.translations[language],
-			)}; };`,
-		);
+				if (!lang) {
+					continue;
+				}
 
-		return "i18n";
-	};
-};
-
-const module = () => {
-	return _module().middleware(
-		(
-			{
-				memory,
-				request: {
-					raw: { headers },
-				},
-				store,
-			},
-			next,
-		) => {
-			const i18n = memory.get("i18n") as I18n | undefined;
-
-			if (!i18n) {
-				return next();
+				i18n.translations[lang] = await loadTranslations(
+					join(path, lang),
+				);
 			}
 
-			const language =
-				getCookies(headers)[i18n.cookie ?? "Accept-Language"] ??
-				headers.get(i18n.header ?? "Accept-Language");
-
-			(store as Record<"i18n", Pick<I18n, "language">>).i18n = {
-				language: i18n.languages.includes(language)
-					? language
-					: i18n.language,
-			};
-
-			return next();
-		},
-	);
-};
-
-const replace = <Translation extends string>(
-	translation: Translation,
-	replace: {
-		[Key in ExtractPlaceholders<Translation>]?: string;
-	},
-): Translation => {
-	const keys = Object.keys(replace);
-
-	let replaced = translation as string;
-
-	for (let i = 0; i < keys.length; i++) {
-		const key = keys[i];
-
-		// @ts-expect-error
-		replaced = replaced.replaceAll(`\${${key}}`, replace[key]);
-	}
-
-	return replaced as Translation;
-};
-
-const translate = <const Path extends DeepPaths<Cudenix.i18n.Translations>>(
-	path: Path,
-	options?: TranslateOptions<DeepValue<Cudenix.i18n.Translations, Path>>,
-): DeepValue<Cudenix.i18n.Translations, Path> => {
-	const context = getRequestContext();
-
-	const translations = (context?.memory.get("i18n") as I18n | undefined)
-		?.translations[
-		options?.language ??
-			(context?.store as Record<"i18n", Pick<I18n, "language">>).i18n
-				.language
-	];
-
-	if (!translations) {
-		return path as DeepValue<Cudenix.i18n.Translations, Path>;
-	}
-
-	const split = path.split(".");
-
-	let translation = translations as Translation[string];
-
-	for (let i = 0; i < split.length; i++) {
-		translation = (translation as Translation)[split[i]];
-	}
-
-	if (options?.replace) {
-		const keys = Object.keys(options.replace);
-
-		for (let i = 0; i < keys.length; i++) {
-			const key = keys[i] as keyof NonNullable<typeof options>["replace"];
-
-			translation = (translation as string).replaceAll(
-				`\${${key}}`,
-				options.replace[key],
+			await Bun.write(
+				join(path, "types.d.ts"),
+				`namespace Cudenix.i18n { interface Translations ${JSON.stringify(
+					i18n.translations[language],
+				)}; };`,
 			);
-		}
-	}
 
-	return translation as DeepValue<Cudenix.i18n.Translations, Path>;
-};
-
-export const i18n = {
-	addon,
+			return "i18n";
+		};
+	},
 
 	get language() {
 		return (
@@ -229,9 +139,107 @@ export const i18n = {
 		)?.language;
 	},
 
-	module,
+	module: () => {
+		return module().middleware(
+			(
+				{
+					memory,
+					request: {
+						raw: { headers },
+					},
+					store,
+				},
+				next,
+			) => {
+				const i18n = memory.get("i18n") as I18n | undefined;
 
-	replace,
+				if (!i18n) {
+					return next();
+				}
 
-	translate,
+				const language =
+					getCookies(headers)[i18n.cookie ?? "Accept-Language"] ??
+					headers.get(i18n.header ?? "Accept-Language");
+
+				if (language) {
+					(store as Record<"i18n", Pick<I18n, "language">>).i18n = {
+						language: i18n.languages.includes(language)
+							? language
+							: i18n.language,
+					};
+				}
+
+				return next();
+			},
+		);
+	},
+
+	replace: <Translation extends string>(
+		translation: Translation,
+		replace: {
+			[Key in ExtractPlaceholders<Translation>]?: string;
+		},
+	): Translation => {
+		const keys = Object.keys(replace);
+
+		let replaced = translation as string;
+
+		for (let i = 0; i < keys.length; i++) {
+			const key = keys[i];
+
+			// @ts-expect-error
+			replaced = replaced.replaceAll(`\${${key}}`, replace[key]);
+		}
+
+		return replaced as Translation;
+	},
+
+	translate: <const Path extends DeepPaths<Cudenix.i18n.Translations>>(
+		path: Path,
+		options?: TranslateOptions<DeepValue<Cudenix.i18n.Translations, Path>>,
+	): DeepValue<Cudenix.i18n.Translations, Path> => {
+		const context = getRequestContext();
+
+		const translations = (context?.memory.get("i18n") as I18n | undefined)
+			?.translations[
+			options?.language ??
+				(context?.store as Record<"i18n", Pick<I18n, "language">>).i18n
+					.language
+		];
+
+		if (!translations) {
+			return path as DeepValue<Cudenix.i18n.Translations, Path>;
+		}
+
+		const split = path.split(".");
+
+		let translation = translations as Translation[string];
+
+		for (let i = 0; i < split.length; i++) {
+			const key = split[i];
+
+			if (!key) {
+				continue;
+			}
+
+			translation = (translation as Translation)[key] ?? "";
+		}
+
+		if (options?.replace) {
+			const keys = Object.keys(options.replace);
+
+			for (let i = 0; i < keys.length; i++) {
+				const key = keys[i] as keyof NonNullable<
+					typeof options
+				>["replace"];
+
+				translation = (translation as string).replaceAll(
+					`\${${key}}`,
+					options.replace[key],
+				);
+			}
+		}
+
+		return translation as DeepValue<Cudenix.i18n.Translations, Path>;
+	},
 };

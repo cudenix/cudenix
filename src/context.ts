@@ -189,6 +189,10 @@ Context.prototype.loadRequestParams = function (this: Context) {
 	for (let i = 0; i < keys.length; i++) {
 		const key = keys[i];
 
+		if (!key) {
+			continue;
+		}
+
 		if (
 			typeof groups[key] === "string" &&
 			groups[key].indexOf("/") !== -1
@@ -225,13 +229,13 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 			const parsed = value.match(isSerializedObject);
 
 			if (parsed) {
-				value = JSON.parse(parsed[1]);
+				value = JSON.parse(parsed[1] ?? "");
 			}
 		} else if (isSerializedArray.test(value)) {
 			const parsed = value.match(isSerializedArray);
 
 			if (parsed) {
-				value = JSON.parse(parsed[1]);
+				value = JSON.parse(parsed[1] ?? "");
 			}
 		}
 

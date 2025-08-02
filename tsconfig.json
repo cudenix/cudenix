@@ -12,6 +12,8 @@
 		"moduleDetection": "force",
 		"moduleResolution": "Bundler",
 		"noEmit": false,
+		"noUncheckedIndexedAccess": true,
+		"noUncheckedSideEffectImports": true,
 		"outDir": "dist",
 		"paths": {
 			"@/*": ["./src/*"]
