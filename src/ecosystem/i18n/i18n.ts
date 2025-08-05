@@ -57,26 +57,37 @@ interface I18n {
 type I18nAddonOptions = Pick<I18n, "cookie" | "header">;
 
 const loadTranslations = async (directory: string) => {
-	const result = {} as Translation;
+	const result = new Empty() as Translation;
+
 	const entries = await readdir(directory, {
 		withFileTypes: true,
 	});
 
-	for (const entry of entries) {
+	for (let i = 0; i < entries.length; i++) {
+		const entry = entries[i];
+
+		if (!entry) {
+			continue;
+		}
+
 		const fullPath = join(directory, entry.name);
 
 		if (entry.isDirectory()) {
 			result[entry.name] = await loadTranslations(fullPath);
-		} else if (entry.isFile() && entry.name.endsWith(".json")) {
+
+			continue;
+		}
+
+		if (entry.isFile() && entry.name.endsWith(".json")) {
 			const data = await Bun.file(fullPath).json();
 
 			if (entry.name === "index.json") {
 				Object.assign(result, data);
-			} else {
-				const key = entry.name.slice(0, -5);
 
-				result[key] = data;
+				continue;
 			}
+
+			result[entry.name.slice(0, -5)] = data;
 		}
 	}
 
@@ -109,14 +120,14 @@ export const i18n = {
 			const i18n = this.memory.get("i18n") as I18n;
 
 			for (let i = 0; i < languages.length; i++) {
-				const lang = languages[i];
+				const language = languages[i];
 
-				if (!lang) {
+				if (!language) {
 					continue;
 				}
 
-				i18n.translations[lang] = await loadTranslations(
-					join(path, lang),
+				i18n.translations[language] = await loadTranslations(
+					join(path, language),
 				);
 			}
 
@@ -141,16 +152,7 @@ export const i18n = {
 
 	module: () => {
 		return module().middleware(
-			(
-				{
-					memory,
-					request: {
-						raw: { headers },
-					},
-					store,
-				},
-				next,
-			) => {
+			({ memory, request: { raw }, store }, next) => {
 				const i18n = memory.get("i18n") as I18n | undefined;
 
 				if (!i18n) {
@@ -158,16 +160,16 @@ export const i18n = {
 				}
 
 				const language =
-					getCookies(headers)[i18n.cookie ?? "Accept-Language"] ??
-					headers.get(i18n.header ?? "Accept-Language");
+					getCookies(raw.headers)[i18n.cookie ?? "Accept-Language"] ??
+					raw.headers.get(i18n.header ?? "Accept-Language") ??
+					i18n.language;
 
-				if (language) {
-					(store as Record<"i18n", Pick<I18n, "language">>).i18n = {
-						language: i18n.languages.includes(language)
+				(store as Record<"i18n", Pick<I18n, "language">>).i18n = {
+					language:
+						i18n.languages.indexOf(language) !== -1
 							? language
 							: i18n.language,
-					};
-				}
+				};
 
 				return next();
 			},
@@ -179,7 +181,7 @@ export const i18n = {
 		replace: {
 			[Key in ExtractPlaceholders<Translation>]?: string;
 		},
-	): Translation => {
+	) => {
 		const keys = Object.keys(replace);
 
 		let replaced = translation as string;
@@ -187,8 +189,14 @@ export const i18n = {
 		for (let i = 0; i < keys.length; i++) {
 			const key = keys[i];
 
-			// @ts-expect-error
-			replaced = replaced.replaceAll(`\${${key}}`, replace[key]);
+			if (!key) {
+				continue;
+			}
+
+			replaced = replaced.replaceAll(
+				`\${${key}}`,
+				replace[key as keyof typeof replace] ?? "",
+			);
 		}
 
 		return replaced as Translation;
@@ -196,13 +204,18 @@ export const i18n = {
 
 	translate: <const Path extends DeepPaths<Cudenix.i18n.Translations>>(
 		path: Path,
-		options?: TranslateOptions<DeepValue<Cudenix.i18n.Translations, Path>>,
+		{
+			language,
+			replace,
+		}: TranslateOptions<
+			DeepValue<Cudenix.i18n.Translations, Path>
+		> = new Empty(),
 	): DeepValue<Cudenix.i18n.Translations, Path> => {
 		const context = getRequestContext();
 
 		const translations = (context?.memory.get("i18n") as I18n | undefined)
 			?.translations[
-			options?.language ??
+			language ??
 				(context?.store as Record<"i18n", Pick<I18n, "language">>).i18n
 					.language
 		];
@@ -225,17 +238,19 @@ export const i18n = {
 			translation = (translation as Translation)[key] ?? "";
 		}
 
-		if (options?.replace) {
-			const keys = Object.keys(options.replace);
+		if (replace) {
+			const keys = Object.keys(replace);
 
 			for (let i = 0; i < keys.length; i++) {
-				const key = keys[i] as keyof NonNullable<
-					typeof options
-				>["replace"];
+				const key = keys[i];
+
+				if (!key) {
+					continue;
+				}
 
 				translation = (translation as string).replaceAll(
 					`\${${key}}`,
-					options.replace[key],
+					replace[key as keyof typeof replace] ?? "",
 				);
 			}
 		}

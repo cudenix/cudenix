@@ -1,7 +1,7 @@
 import { Empty } from "@/utils/empty";
 
 export const getCookies = (headers: Request["headers"]) => {
-	const splittedCookies = headers.get("cookie")?.split(";");
+	const splittedCookies = headers.get("Cookie")?.split(";");
 	const cookies = new Empty() as Record<string, string>;
 
 	for (let i = 0; i < (splittedCookies?.length ?? 0); i++) {

@@ -20,6 +20,12 @@ const endsWithSRegexp = /s$/;
 const startsWithEllipsisRegexp = /^\.{3}/;
 const startsWithSlashRegexp = /^\/{/;
 
+const contentTypes = [
+	"application/json",
+	"multipart/form-data",
+	"text/plain",
+] as const;
+
 export const openapi = {
 	addon: (
 		toJsonSchema: AddonToJsonSchema,
@@ -27,7 +33,7 @@ export const openapi = {
 			description = "Cudenix Documentation",
 			title = "Cudenix Documentation",
 			version = "0.0.1",
-		}: AddonOptions = {},
+		}: AddonOptions = new Empty(),
 	) => {
 		return function (this: App) {
 			const paths = new Empty();
@@ -57,6 +63,7 @@ export const openapi = {
 					const path = endpoint.path
 						.replaceAll(/:(\w+)/g, "{$1}")
 						.replaceAll(/\.{3}(\w+)/g, "{$1}");
+
 					const operation = new Empty();
 
 					for (let k = 0; k < endpoint.chain.length; k++) {
@@ -140,12 +147,6 @@ export const openapi = {
 							operation.requestBody ??= {
 								content: new Empty(),
 							};
-
-							const contentTypes = [
-								"application/json",
-								"multipart/form-data",
-								"text/plain",
-							];
 
 							for (let m = 0; m < contentTypes.length; m++) {
 								const contentType = contentTypes[m];
@@ -233,7 +234,7 @@ export const openapi = {
 						tags.add(tag);
 					}
 
-					paths[path] ??= {};
+					paths[path] ??= new Empty();
 
 					(paths[path] as Record<string, unknown>)[
 						method.toLowerCase()
@@ -264,7 +265,7 @@ export const openapi = {
 		return module()
 
 			.route("GET", url, ({ memory, response: { headers } }) => {
-				headers.set("content-type", "text/html");
+				headers.set("Content-Type", "text/html");
 
 				return success(
 					scalar(

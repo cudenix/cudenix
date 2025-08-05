@@ -1,6 +1,7 @@
 import type { AnyDeveloperContext } from "@/context";
 import { module } from "@/module";
 import { success } from "@/success";
+import { Empty } from "@/utils/empty";
 
 interface CorsOptions {
 	allowHeaders?: string[];
@@ -19,28 +20,33 @@ interface CorsOptions {
 const requestHeadersSplitRegexp = /\s*,\s*/;
 
 export const cors = {
-	module: ({
-		allowHeaders,
-		allowMethods = [
-			"DELETE",
-			"GET",
-			"HEAD",
-			"OPTIONS",
-			"PATCH",
-			"POST",
-			"PUT",
-		],
-		credentials,
-		exposeHeaders,
-		maxAge,
-		origin = "*",
-	}: CorsOptions = {}) => {
+	module: (
+		{
+			allowHeaders,
+			allowMethods = [
+				"DELETE",
+				"GET",
+				"HEAD",
+				"OPTIONS",
+				"PATCH",
+				"POST",
+				"PUT",
+			],
+			credentials,
+			exposeHeaders,
+			maxAge,
+			origin = "*",
+		}: CorsOptions = new Empty(),
+	) => {
 		return module()
 
 			.middleware(async (context, next) => {
-				const { request, response } = context;
+				const {
+					request: { raw },
+					response: { headers },
+				} = context;
 
-				const requestOrigin = request.raw.headers.get("Origin") ?? "";
+				const requestOrigin = raw.headers.get("Origin") ?? "";
 
 				let resolvedOrigin: string;
 
@@ -51,42 +57,33 @@ export const cors = {
 					resolvedOrigin = origin(requestOrigin, context) ?? "*";
 				}
 
-				response.headers.set(
-					"Access-Control-Allow-Origin",
-					resolvedOrigin,
-				);
+				headers.set("Access-Control-Allow-Origin", resolvedOrigin);
 
 				if (resolvedOrigin !== "*") {
-					const vary = response.headers.get("Vary");
+					const vary = headers.get("Vary");
 
-					response.headers.set(
-						"Vary",
-						vary ? `${vary}, Origin` : "Origin",
-					);
+					headers.set("Vary", vary ? `${vary}, Origin` : "Origin");
 				}
 
 				if (credentials) {
-					response.headers.set(
-						"Access-Control-Allow-Credentials",
-						"true",
-					);
+					headers.set("Access-Control-Allow-Credentials", "true");
 				}
 
 				if (exposeHeaders) {
-					response.headers.set(
+					headers.set(
 						"Access-Control-Expose-Headers",
 						exposeHeaders.join(","),
 					);
 				}
 
-				if (request.raw.method === "OPTIONS") {
-					response.headers.set(
+				if (raw.method === "OPTIONS") {
+					headers.set(
 						"Access-Control-Allow-Methods",
 						allowMethods.join(","),
 					);
 
 					if (maxAge !== undefined) {
-						response.headers.set(
+						headers.set(
 							"Access-Control-Max-Age",
 							maxAge.toString(),
 						);
@@ -95,7 +92,7 @@ export const cors = {
 					let resolvedAllowHeaders = allowHeaders;
 
 					if (!resolvedAllowHeaders) {
-						const requestHeaders = request.raw.headers.get(
+						const requestHeaders = raw.headers.get(
 							"Access-Control-Request-Headers",
 						);
 
@@ -107,14 +104,14 @@ export const cors = {
 					}
 
 					if (resolvedAllowHeaders) {
-						response.headers.set(
+						headers.set(
 							"Access-Control-Allow-Headers",
 							resolvedAllowHeaders.join(","),
 						);
 
-						const vary = response.headers.get("Vary");
+						const vary = headers.get("Vary");
 
-						response.headers.set(
+						headers.set(
 							"Vary",
 							vary
 								? `${vary}, Access-Control-Request-Headers`
@@ -122,7 +119,7 @@ export const cors = {
 						);
 					}
 
-					response.headers.set("Content-Length", "0");
+					headers.set("Content-Length", "0");
 				}
 
 				return await next();
