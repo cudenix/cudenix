@@ -29,7 +29,7 @@ export const processResponse = async ({
 	if (content?.transform) {
 		return Response.json(
 			{
-				content,
+				...content,
 				transform: undefined,
 			},
 			{
