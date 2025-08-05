@@ -18,13 +18,8 @@ export class CompressionStream {
 	readable: ReadableStream;
 	writable: WritableStream;
 
-	constructor(
-		format: keyof typeof transformMap,
-		level: ZlibOptions["level"],
-	) {
-		const handle = transformMap[format]({
-			level,
-		});
+	constructor(method: keyof typeof transformMap, options: ZlibOptions = {}) {
+		const handle = transformMap[method](options);
 
 		this.readable = Readable.toWeb(handle) as unknown as ReadableStream;
 		this.writable = Writable.toWeb(handle);

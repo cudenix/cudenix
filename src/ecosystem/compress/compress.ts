@@ -56,7 +56,13 @@ export const compress = {
 				}
 
 				if (response.content instanceof ReadableStream) {
-					const stream = new CompressionStream(encoding, level);
+					const stream = new CompressionStream(encoding, {
+						flush:
+							encoding === "br"
+								? constants.BROTLI_OPERATION_FLUSH
+								: constants.Z_SYNC_FLUSH,
+						level,
+					});
 
 					response.content = response.content.pipeThrough(stream);
 
