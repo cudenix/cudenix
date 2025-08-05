@@ -78,13 +78,9 @@
 		"url": "git+https://github.com/cudenix/cudenix.git"
 	},
 	"scripts": {
-		"build": "bun clear:build && bun format && bun lint && tsc && tsc-alias",
-		"clear": "bun clear:build && bun clear:install",
-		"clear:build": "echo 'await Bun.$`rm -rf dist`.nothrow();' | bun run -",
-		"clear:install": "echo 'await Bun.$`rm -rf node_modules && rm -rf bun.lock`.nothrow();' | bun run -",
+		"build": "bun format && bun lint && rm -rf dist && tsc && tsc-alias",
 		"format": "biome format --fix",
-		"lint": "biome lint --diagnostic-level=error",
-		"reinstall": "bun clear:install && bun install"
+		"lint": "biome lint --diagnostic-level=error"
 	},
 	"sideEffects": false,
 	"type": "module",
