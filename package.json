@@ -12,38 +12,42 @@
 		"typescript": "5.9.2"
 	},
 	"exports": {
-		"./package.json": "./package.json",
 		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
 		},
 		"./client": {
-			"types": "./dist/ecosystem/client/index.d.ts",
-			"import": "./dist/ecosystem/client/index.js"
+			"import": "./dist/ecosystem/client/index.js",
+			"types": "./dist/ecosystem/client/index.d.ts"
 		},
 		"./cluster": {
-			"types": "./dist/ecosystem/cluster/index.d.ts",
-			"import": "./dist/ecosystem/cluster/index.js"
+			"import": "./dist/ecosystem/cluster/index.js",
+			"types": "./dist/ecosystem/cluster/index.d.ts"
+		},
+		"./compress": {
+			"import": "./dist/ecosystem/compress/index.js",
+			"types": "./dist/ecosystem/compress/index.d.ts"
 		},
 		"./cors": {
-			"types": "./dist/ecosystem/cors/index.d.ts",
-			"import": "./dist/ecosystem/cors/index.js"
+			"import": "./dist/ecosystem/cors/index.js",
+			"types": "./dist/ecosystem/cors/index.d.ts"
 		},
 		"./events": {
-			"types": "./dist/ecosystem/events/index.d.ts",
-			"import": "./dist/ecosystem/events/index.js"
+			"import": "./dist/ecosystem/events/index.js",
+			"types": "./dist/ecosystem/events/index.d.ts"
 		},
 		"./i18n": {
-			"types": "./dist/ecosystem/i18n/index.d.ts",
-			"import": "./dist/ecosystem/i18n/index.js"
+			"import": "./dist/ecosystem/i18n/index.js",
+			"types": "./dist/ecosystem/i18n/index.d.ts"
 		},
 		"./openapi": {
-			"types": "./dist/ecosystem/openapi/index.d.ts",
-			"import": "./dist/ecosystem/openapi/index.js"
+			"import": "./dist/ecosystem/openapi/index.js",
+			"types": "./dist/ecosystem/openapi/index.d.ts"
 		},
+		"./package.json": "./package.json",
 		"./trycatch": {
-			"types": "./dist/ecosystem/trycatch/index.d.ts",
-			"import": "./dist/ecosystem/trycatch/index.js"
+			"import": "./dist/ecosystem/trycatch/index.js",
+			"types": "./dist/ecosystem/trycatch/index.d.ts"
 		}
 	},
 	"files": [
