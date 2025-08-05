@@ -12,7 +12,7 @@
 	},
 	"files": {
 		"ignoreUnknown": true,
-		"includes": ["**/*.json", "**/src/**/*.ts*"]
+		"includes": ["**/*.json", "**/*.ts*"]
 	},
 	"formatter": {
 		"enabled": true,
