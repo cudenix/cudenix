@@ -101,14 +101,16 @@ const step = (
 			continue;
 		}
 
+		const mergedChain = [...previous.chain, ...chain];
+
 		const use = new Set<string>() as Endpoint["use"];
 
-		for (let j = 0; j < chain.length; j++) {
+		for (let j = 0; j < mergedChain.length; j++) {
 			if (use.size === 5) {
 				break;
 			}
 
-			const link = chain[j];
+			const link = mergedChain[j];
 
 			if (!link) {
 				continue;
@@ -157,8 +159,8 @@ const step = (
 
 		endpoints.get(method)?.push({
 			chain: link.validator
-				? [...previous.chain, ...chain, link.validator]
-				: [...previous.chain, ...chain],
+				? [...mergedChain, link.validator]
+				: mergedChain,
 			generator:
 				link.route.constructor.name.indexOf("GeneratorFunction") !== -1,
 			paramsRegexp: new RegExp(`^${pathToRegexp(finalPath, true)}$`),
