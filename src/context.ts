@@ -6,8 +6,8 @@ import type { AnySuccess } from "@/success";
 import { Empty } from "@/utils/empty";
 import { getCookies } from "@/utils/get-cookies";
 
-const isSerializedArray = /^sas-(.*?)\-eas$/;
-const isSerializedObject = /^sos-(.*?)\-eos$/;
+const isSerializedArray = /^sas-(.*?)-eas$/;
+const isSerializedObject = /^sos-(.*?)-eos$/;
 
 export interface DeveloperContext<
 	Stores extends Record<PropertyKey, unknown>,
@@ -129,6 +129,7 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 
 	if (contentType === "multipart/form-data") {
 		const formData = await this.request.raw.formData();
+
 		const result = new Empty();
 
 		formData.forEach((value, key) => {

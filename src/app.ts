@@ -1,5 +1,4 @@
 import type {
-	BunRequest,
 	RouterTypes,
 	ServeFunctionOptions,
 	Server,
@@ -7,10 +6,13 @@ import type {
 	TLSServeOptions,
 } from "bun";
 
+import type { Addon, AddonOptions } from "@/addon";
+import { compile } from "@/compile";
 import { Context } from "@/context";
 import { Error } from "@/error";
 import type { AnyMiddleware } from "@/middleware";
-import { type AnyModule, Module } from "@/module";
+import type { AnyModule } from "@/module";
+import { processResponse } from "@/response";
 import type {
 	AnyRoute,
 	RouteFnReturnGenerator,
@@ -20,34 +22,18 @@ import { asyncLocalStorage } from "@/storage";
 import type { AnyStore } from "@/store";
 import type { WSData } from "@/types";
 import { merge } from "@/utils/merge";
-import {
-	getUrlPathnameRegexp,
-	pathToRegexp,
-	useContextBodyRegexp,
-	useContextCookiesRegexp,
-	useContextHeadersRegexp,
-	useContextParamsRegexp,
-	useContextQueryRegexp,
-} from "@/utils/regexp";
-import { validateStandardSchema } from "@/utils/standard-schema";
 import type {
 	AnyValidator,
 	ValidatorAddon,
 	ValidatorRequest,
 } from "@/validator";
 
-type Addon = (...options: any[]) => string | Promise<string>;
-
-interface AddonOptions {
-	compile?: "AFTER" | "BEFORE" | false;
-}
-
-interface MemoryAddon {
+export interface MemoryAddon {
 	addon: Addon;
 	options?: AddonOptions | undefined;
 }
 
-type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
+export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
 export interface Endpoint {
 	chain: Chain;
@@ -64,7 +50,7 @@ interface AppOptions {
 
 export interface App {
 	addon(addon: Addon | Addon[], options?: AddonOptions): App;
-	compile(module: AnyModule): Promise<void>;
+	compile(): Promise<void>;
 	endpoint(
 		request: Request,
 		endpoint: Endpoint,
@@ -76,7 +62,6 @@ export interface App {
 	memory: Map<string, unknown>;
 	options?: AppOptions | undefined;
 	regexps: Map<string, RegExp>;
-	response(context: Context): Promise<Response>;
 	routes?: Record<string, RouterTypes.RouteHandlerObject<string>>;
 	server?: Server | undefined;
 }
@@ -126,7 +111,7 @@ App.prototype.addon = function (
 	return this;
 };
 
-App.prototype.compile = async function (this: App, module: AnyModule) {
+App.prototype.compile = async function (this: App) {
 	const addonsAfterCompile = [] as Addon[];
 
 	if (this.memory.has("addons")) {
@@ -153,229 +138,13 @@ App.prototype.compile = async function (this: App, module: AnyModule) {
 		}
 	}
 
-	if (!this.memory.has("validator")) {
-		this.memory.set("validator", validateStandardSchema);
-	}
-
-	const stack = [{ module, parentChain: [] as Chain, parentPath: "" }];
-
-	const useRegexps = [
-		["body", useContextBodyRegexp],
-		["cookies", useContextCookiesRegexp],
-		["headers", useContextHeadersRegexp],
-		["params", useContextParamsRegexp],
-		["query", useContextQueryRegexp],
-	] as const;
-
-	const step = (
-		module: AnyModule,
-		parentChain: Chain,
-		parentPath: string,
-	) => {
-		const chain = [] as Chain;
-
-		let path = module.prefix;
-
-		for (let i = 0; i < module.chain.length; i++) {
-			const link = module.chain[i];
-
-			if (!link) {
-				continue;
-			}
-
-			if (link.type === "GROUP") {
-				const _module = new Module({
-					prefix: `${parentPath}${path === "/" ? "" : path}${link.prefix === "/" ? "" : link.prefix}`,
-				});
-
-				_module.chain = [...parentChain, ...chain];
-
-				stack.push({
-					module: link.group(_module),
-					parentChain: [],
-					parentPath: "",
-				});
-
-				continue;
-			}
-
-			if (
-				link.type === "MIDDLEWARE" ||
-				link.type === "STORE" ||
-				link.type === "VALIDATOR"
-			) {
-				chain.push(link);
-
-				continue;
-			}
-
-			if (link.type === "MODULE") {
-				const compiled = step(
-					link,
-					[...parentChain, ...chain],
-					`${parentPath}${path === "/" ? "" : path}`,
-				);
-
-				chain.push(...compiled.chain);
-
-				if (compiled.path !== "/") {
-					path = `${path}${compiled.path}`;
-				}
-
-				continue;
-			}
-
-			const _chain = [...parentChain, ...chain];
-			const use = new Set<string>() as Endpoint["use"];
-
-			for (let j = 0; j < _chain.length; j++) {
-				if (use.size === 5) {
-					break;
-				}
-
-				const link = _chain[j];
-
-				if (!link) {
-					continue;
-				}
-
-				const text =
-					link.type === "MIDDLEWARE"
-						? link.middleware.toString()
-						: link.type === "ROUTE"
-							? link.route.toString()
-							: link.type === "STORE"
-								? link.store.toString()
-								: "";
-
-				if (!text) {
-					continue;
-				}
-
-				for (let i = 0; i < useRegexps.length; i++) {
-					const regexp = useRegexps[i];
-
-					if (!regexp) {
-						continue;
-					}
-
-					if (!regexp[1].test(text)) {
-						continue;
-					}
-
-					use.add(regexp[0]);
-				}
-			}
-
-			if (use.size !== useRegexps.length) {
-				const text = link.route.toString();
-
-				for (let i = 0; i < useRegexps.length; i++) {
-					const regexp = useRegexps[i];
-
-					if (!regexp) {
-						continue;
-					}
-
-					if (!regexp[1].test(text)) {
-						continue;
-					}
-
-					use.add(regexp[0]);
-				}
-			}
-
-			const method = link.method === "WS" ? "GET" : link.method;
-
-			if (!this.endpoints.has(method)) {
-				this.endpoints.set(method, []);
-			}
-
-			const finalPath =
-				`${parentPath}${path}${link.path === "/" ? "" : link.path}` ||
-				"/";
-
-			this.endpoints.get(method)?.push({
-				chain: link.validator ? [..._chain, link.validator] : _chain,
-				generator:
-					link.route.constructor.name.indexOf("GeneratorFunction") !==
-					-1,
-				paramsRegexp: new RegExp(`^${pathToRegexp(finalPath, true)}$`),
-				path: finalPath,
-				route: link,
-				use,
-			});
-		}
-
-		return {
-			chain,
-			path,
-		};
-	};
-
-	while (stack.length > 0) {
-		const { module, parentChain, parentPath } = stack.pop()!;
-
-		step(module, parentChain, parentPath);
-	}
-
-	const methods = Array.from(this.endpoints.keys());
-
-	for (let i = 0; i < methods.length; i++) {
-		const method = methods[i];
-
-		if (!method) {
-			continue;
-		}
-
-		const endpoints = this.endpoints.get(method)!.reverse();
-
-		const regexps = [] as string[];
-
-		for (let j = 0; j < endpoints.length; j++) {
-			const endpoint = endpoints[j];
-
-			if (!endpoint) {
-				continue;
-			}
-
-			regexps.push(pathToRegexp(endpoint.path));
-
-			if (
-				endpoint.path.indexOf("?") !== -1 ||
-				endpoint.path.indexOf("...") !== -1
-			) {
-				continue;
-			}
-
-			this.routes ??= {};
-			this.routes[endpoint.path] ??= {};
-
-			this.routes[endpoint.path]![
-				endpoint.route.method as keyof (typeof this.routes)[string]
-			] = async (request: BunRequest) => {
-				return await this.endpoint(
-					request,
-					endpoint,
-					getUrlPathnameRegexp.exec(request.url)?.[1] || request.url,
-				);
-			};
-		}
-
-		this.regexps.set(
-			method,
-			new RegExp(
-				`^(https?:\\/\\/)[^\\s\\/]+(${regexps.join("|")})(?![^?#])`,
-			),
-		);
-	}
+	await compile(this, this.memory.get("module") as AnyModule);
 
 	for (let i = 0; i < addonsAfterCompile.length; i++) {
 		await addonsAfterCompile[i]?.call(this);
 	}
 
 	this.memory.delete("module");
-
 	this.memory.delete("addons");
 };
 
@@ -578,15 +347,13 @@ App.prototype.endpoint = async function (
 		context.response.content = returned;
 	};
 
-	if (this.options?.globalContext) {
-		await asyncLocalStorage.run(context, async () => {
-			await step(endpoint.chain, 0);
-		});
-	} else {
-		await step(endpoint.chain, 0);
-	}
+	this.options?.globalContext
+		? await asyncLocalStorage.run(context, async () => {
+				await step(endpoint.chain, 0);
+			})
+		: await step(endpoint.chain, 0);
 
-	return await this.response(context);
+	return await processResponse(context.response);
 };
 
 App.prototype.fetch = async function (this: App, request: Request) {
@@ -626,7 +393,7 @@ App.prototype.listen = async function (
 		"fetch"
 	>,
 ) {
-	await this.compile(this.memory.get("module") as AnyModule);
+	await this.compile();
 
 	this.server = Bun.serve({
 		development: false,
@@ -662,52 +429,6 @@ App.prototype.listen = async function (
 	Bun.gc(false);
 
 	return this;
-};
-
-App.prototype.response = async function (
-	this: App,
-	{ response: { content: response, headers } }: Context,
-) {
-	if (response instanceof ReadableStream) {
-		return new Response(response, {
-			headers: {
-				...(headers.toJSON() as Record<string, string>),
-				"cache-control": "no-cache",
-				connection: "keep-alive",
-				"content-type": "text/event-stream",
-			},
-		});
-	}
-
-	if (typeof response?.content === "function") {
-		response.content = (response.content as (...options: any[]) => any)();
-	}
-
-	if (response?.content instanceof Promise) {
-		response.content = await response.content;
-	}
-
-	if (response?.transform) {
-		return Response.json(
-			{
-				...response,
-				transform: undefined,
-			},
-			{
-				headers,
-				status: response.status,
-			},
-		);
-	}
-
-	if (response?.content instanceof Response) {
-		return response.content;
-	}
-
-	return new Response(response?.content, {
-		headers,
-		status: response?.status,
-	});
 };
 
 export const app = (module: AnyModule, options?: AppOptions) => {
