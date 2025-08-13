@@ -347,11 +347,13 @@ App.prototype.endpoint = async function (
 		context.response.content = returned;
 	};
 
-	this.options?.globalContext
-		? await asyncLocalStorage.run(context, async () => {
-				await step(endpoint.chain, 0);
-			})
-		: await step(endpoint.chain, 0);
+	if (this.options?.globalContext) {
+		await asyncLocalStorage.run(context, async () => {
+			await step(endpoint.chain, 0);
+		});
+	} else {
+		await step(endpoint.chain, 0);
+	}
 
 	return await processResponse(context.response);
 };
