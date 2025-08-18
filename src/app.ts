@@ -296,9 +296,13 @@ App.prototype.endpoint = async function (
 							);
 						}
 
-						controller.enqueue(
-							`data: ${JSON.stringify(chunk.data)}\n\n`,
-						);
+						if (chunk.data.transform) {
+							controller.enqueue(
+								`data: ${JSON.stringify(chunk.data)}\n\n`,
+							);
+						} else {
+							controller.enqueue(chunk.data.content);
+						}
 					}
 				},
 			});
