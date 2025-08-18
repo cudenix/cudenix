@@ -23,7 +23,10 @@ export const processResponse = async ({
 	if (content instanceof ReadableStream) {
 		headers.set("Cache-Control", "no-cache");
 		headers.set("Connection", "keep-alive");
-		headers.set("Content-Type", "text/event-stream");
+
+		if (!headers.has("Content-Type")) {
+			headers.set("Content-Type", "text/event-stream");
+		}
 
 		return new Response(content, {
 			headers,
