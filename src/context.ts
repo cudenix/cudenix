@@ -88,24 +88,28 @@ export const Context = function (
 Context.prototype.loadRequest = async function (this: Context) {
 	const { use } = this.endpoint;
 
-	if (use.has("body")) {
-		await this.loadRequestBody();
-	}
+	try {
+		if (use.has("body")) {
+			await this.loadRequestBody();
+		}
 
-	if (use.has("headers") || use.has("cookies")) {
-		this.loadRequestHeaders();
-	}
+		if (use.has("headers") || use.has("cookies")) {
+			this.loadRequestHeaders();
+		}
 
-	if (use.has("cookies")) {
-		this.loadRequestCookies();
-	}
+		if (use.has("cookies")) {
+			this.loadRequestCookies();
+		}
 
-	if (use.has("params")) {
-		this.loadRequestParams();
-	}
+		if (use.has("params")) {
+			this.loadRequestParams();
+		}
 
-	if (use.has("query")) {
-		this.loadRequestQuery();
+		if (use.has("query")) {
+			this.loadRequestQuery();
+		}
+	} catch (error) {
+		console.error("[Cudenix] Failed to load request data:", error);
 	}
 };
 
