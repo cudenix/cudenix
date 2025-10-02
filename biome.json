@@ -51,7 +51,7 @@
 				"recommended": true
 			},
 			"suspicious": {
-				"noShadowRestrictedNames": "info",
+				"noShadowRestrictedNames": "warn",
 				"recommended": true
 			}
 		}
