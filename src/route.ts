@@ -147,6 +147,7 @@ export interface Route<
 	_ValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
+	generator: boolean;
 	route: RouteFn<
 		Method,
 		Path,
@@ -161,7 +162,6 @@ export interface Route<
 	path: Path;
 	type: "ROUTE";
 	validator?: AnyValidator | undefined;
-	generator: boolean;
 }
 
 export type AnyRoute = Route<any, any, any, any, any, any>;
@@ -188,12 +188,12 @@ export const Route = function (
 	route: AnyRouteFn,
 	{ validator }: AnyRouteOptions = new Empty(),
 ) {
+	this.generator = route.constructor.name.indexOf("GeneratorFunction") !== -1;
 	this.method = method;
 	this.path = path;
 	this.route = route;
 	this.type = "ROUTE";
 	this.validator = validator ? new Validator(validator) : undefined;
-	this.generator = route.constructor.name.indexOf("GeneratorFunction") !== -1;
 } as unknown as Constructor;
 
 export const route = <
