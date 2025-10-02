@@ -35,6 +35,7 @@
 				"recommended": true
 			},
 			"correctness": {
+				"noUnusedImports": "error",
 				"recommended": true
 			},
 			"nursery": {
@@ -50,7 +51,7 @@
 				"recommended": true
 			},
 			"suspicious": {
-				"noShadowRestrictedNames": "warn",
+				"noShadowRestrictedNames": "info",
 				"recommended": true
 			}
 		}

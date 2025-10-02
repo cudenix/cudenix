@@ -164,9 +164,7 @@ App.prototype.endpoint = async function (
 
 	await context.loadRequest();
 
-	const validatorAddon = this.memory.get(
-		"validator",
-	) as ValidatorAddon;
+	const validatorAddon = this.memory.get("validator") as ValidatorAddon;
 
 	const step = async (chain: Chain, index: number) => {
 		for (let i = index; i < chain.length; i++) {
