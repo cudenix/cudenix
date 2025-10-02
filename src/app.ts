@@ -164,6 +164,10 @@ App.prototype.endpoint = async function (
 
 	await context.loadRequest();
 
+	const validatorAddon = this.memory.get(
+		"validator",
+	) as ValidatorAddon;
+
 	const step = async (chain: Chain, index: number) => {
 		for (let i = index; i < chain.length; i++) {
 			if (context.response.content) {
@@ -207,10 +211,6 @@ App.prototype.endpoint = async function (
 			if (!link.request) {
 				continue;
 			}
-
-			const validatorAddon = this.memory.get(
-				"validator",
-			) as ValidatorAddon;
 
 			const errors = new Map<
 				keyof ValidatorRequest,

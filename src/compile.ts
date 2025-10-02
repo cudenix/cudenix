@@ -161,8 +161,7 @@ const step = (
 			chain: link.validator
 				? [...mergedChain, link.validator]
 				: mergedChain,
-			generator:
-				link.route.constructor.name.indexOf("GeneratorFunction") !== -1,
+			generator: link.generator,
 			paramsRegexp: new RegExp(`^${pathToRegexp(finalPath, true)}$`),
 			path: finalPath,
 			route: link,
