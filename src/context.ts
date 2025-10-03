@@ -108,9 +108,7 @@ Context.prototype.loadRequest = async function (this: Context) {
 		if (use.has("query")) {
 			this.loadRequestQuery();
 		}
-	} catch (error) {
-		console.error("[Cudenix] Failed to load request data:", error);
-	}
+	} catch {}
 };
 
 Context.prototype.loadRequestBody = async function (this: Context) {
