@@ -269,44 +269,55 @@ App.prototype.endpoint = async function (
 				async start(controller) {
 					let closed = false as boolean;
 
-					request.signal.addEventListener("abort", () => {
+					const onAbort = () => {
 						closed = true;
 
 						try {
 							controller.close();
 						} catch {}
-					});
+					};
 
-					for await (const chunk of endpoint.route.route(
-						context,
-					) as RouteFnReturnGenerator) {
-						if (closed) {
-							break;
-						}
+					request.signal.addEventListener("abort", onAbort);
 
-						if (chunk.data.transform) {
-							if (chunk.id) {
-								controller.enqueue(`id: ${chunk.id}\n`);
+					try {
+						for await (const chunk of endpoint.route.route(
+							context,
+						) as RouteFnReturnGenerator) {
+							if (closed) {
+								break;
 							}
 
-							if (chunk.event) {
-								controller.enqueue(`event: ${chunk.event}\n`);
-							}
+							if (chunk.data.transform) {
+								if (chunk.id) {
+									controller.enqueue(`id: ${chunk.id}\n`);
+								}
 
-							if (chunk.retry) {
+								if (chunk.event) {
+									controller.enqueue(
+										`event: ${chunk.event}\n`,
+									);
+								}
+
+								if (chunk.retry) {
+									controller.enqueue(
+										`retry: ${chunk.retry.toString()}\n`,
+									);
+								}
+
 								controller.enqueue(
-									`retry: ${chunk.retry.toString()}\n`,
+									`data: ${JSON.stringify(chunk.data)}\n\n`,
 								);
+
+								continue;
 							}
 
-							controller.enqueue(
-								`data: ${JSON.stringify(chunk.data)}\n\n`,
-							);
-
-							continue;
+							controller.enqueue(chunk.data.content);
 						}
+					} catch {
+					} finally {
+						request.signal.removeEventListener("abort", onAbort);
 
-						controller.enqueue(chunk.data.content);
+						onAbort();
 					}
 				},
 			});
