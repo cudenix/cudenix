@@ -23,7 +23,7 @@ export const cluster = (command: string) => {
 		}
 	};
 
-	process.on("SIGINT", kill);
+	process.once("SIGINT", kill);
 
-	process.on("exit", kill);
+	process.once("exit", kill);
 };
