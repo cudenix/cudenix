@@ -114,6 +114,10 @@ App.prototype.addon = function (
 App.prototype.compile = async function (this: App) {
 	const addonsAfterCompile = [] as Addon[];
 
+	this.endpoints.clear();
+	this.regexps.clear();
+	this.routes = {};
+
 	if (this.memory.has("addons")) {
 		const addons = this.memory.get("addons") as MemoryAddon[];
 
@@ -425,14 +429,14 @@ App.prototype.listen = async function (
 		},
 	});
 
-	process.on("SIGINT", () => {
+	process.once("SIGINT", () => {
 		this.server?.stop(true);
 		this.server = undefined;
 
 		process.exit(0);
 	});
 
-	Bun.gc(false);
+	Bun.gc(true);
 
 	return this;
 };
