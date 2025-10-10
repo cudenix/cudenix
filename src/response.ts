@@ -2,56 +2,58 @@ import type { ContextResponse } from "@/context";
 
 const MAX_ITERATIONS = 10;
 
-export const processResponse = async ({
-	content,
-	headers,
-}: ContextResponse): Promise<Response> => {
+export const processResponse = async (
+	response: ContextResponse,
+): Promise<Response> => {
 	let iterations = 0;
 
-	while (typeof content === "function" || content instanceof Promise) {
+	while (
+		typeof response.content === "function" ||
+		response.content instanceof Promise
+	) {
 		if (iterations++ > MAX_ITERATIONS) {
 			break;
 		}
 
-		if (typeof content === "function") {
-			content = (content as () => any)();
+		if (typeof response.content === "function") {
+			response.content = (response.content as () => any)();
 		} else {
-			content = await content;
+			response.content = await response.content;
 		}
 	}
 
-	if (content instanceof ReadableStream) {
-		headers.set("Cache-Control", "no-cache");
-		headers.set("Connection", "keep-alive");
+	if (response.content instanceof ReadableStream) {
+		response.headers.set("Cache-Control", "no-cache");
+		response.headers.set("Connection", "keep-alive");
 
-		if (!headers.has("Content-Type")) {
-			headers.set("Content-Type", "text/event-stream");
+		if (!response.headers.has("Content-Type")) {
+			response.headers.set("Content-Type", "text/event-stream");
 		}
 
-		return new Response(content, {
-			headers,
+		return new Response(response.content, {
+			headers: response.headers,
 		});
 	}
 
-	if (content?.content instanceof Response) {
-		return content.content;
+	if (response.content?.content instanceof Response) {
+		return response.content.content;
 	}
 
-	if (content?.transform) {
+	if (response.content?.transform) {
 		return Response.json(
 			{
-				...content,
+				...response.content,
 				transform: undefined,
 			},
 			{
-				headers,
-				status: content.status,
+				headers: response.headers,
+				status: response.content.status,
 			},
 		);
 	}
 
-	return new Response(content?.content, {
-		headers,
-		status: content?.status,
+	return new Response(response.content?.content, {
+		headers: response.headers,
+		status: response.content?.status,
 	});
 };

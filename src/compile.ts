@@ -175,12 +175,9 @@ const step = (
 	};
 };
 
-export const compile = async (
-	{ endpoints, endpoint, regexps, memory, routes }: App,
-	module: AnyModule,
-) => {
-	if (!memory.has("validator")) {
-		memory.set("validator", validateStandardSchema);
+export const compile = async (app: App, module: AnyModule) => {
+	if (!app.memory.has("validator")) {
+		app.memory.set("validator", validateStandardSchema);
 	}
 
 	const stack = [{ module, previous: { chain: [], path: "" } }] as Stack;
@@ -188,10 +185,10 @@ export const compile = async (
 	while (stack.length > 0) {
 		const { module, previous } = stack.pop()!;
 
-		step(stack, endpoints, module, previous);
+		step(stack, app.endpoints, module, previous);
 	}
 
-	const methods = Array.from(endpoints.keys());
+	const methods = Array.from(app.endpoints.keys());
 
 	for (let i = 0; i < methods.length; i++) {
 		const method = methods[i];
@@ -200,13 +197,16 @@ export const compile = async (
 			continue;
 		}
 
-		const methodEndpoints = endpoints.get(method)?.reverse();
+		const methodEndpoints = app.endpoints.get(method)?.reverse();
 
 		if (!methodEndpoints || methodEndpoints.length === 0) {
 			continue;
 		}
 
+		app.routes ??= {};
+
 		const methodRegexps = [] as string[];
+		const routes = app.routes;
 
 		for (let j = 0; j < methodEndpoints.length; j++) {
 			const methodEndpoint = methodEndpoints[j];
@@ -224,13 +224,12 @@ export const compile = async (
 				continue;
 			}
 
-			routes ??= {};
 			routes[methodEndpoint.path] ??= {};
 
 			routes[methodEndpoint.path]![
 				methodEndpoint.route.method as keyof (typeof routes)[string]
 			] = async (request: BunRequest) => {
-				return await endpoint(
+				return await app.endpoint(
 					request,
 					methodEndpoint,
 					getUrlPathnameRegexp.exec(request.url)?.[1] || request.url,
@@ -238,7 +237,7 @@ export const compile = async (
 			};
 		}
 
-		regexps.set(
+		app.regexps.set(
 			method,
 			new RegExp(
 				`^(https?:\\/\\/)[^\\s\\/]+(${methodRegexps.join("|")})(?![^?#])`,
