@@ -1,5 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
+
 import type { App } from "@/app";
 import { module } from "@/module";
 import { getRequestContext } from "@/storage";
@@ -109,15 +110,13 @@ export const i18n = {
 					return directory.name;
 				});
 
-			this.memory.set("i18n", {
+			i18n.store = {
 				...options,
 				language,
 				languages,
 				path,
 				translations: new Empty() as Translation,
-			});
-
-			const i18n = this.memory.get("i18n") as I18n;
+			};
 
 			for (let i = 0; i < languages.length; i++) {
 				const language = languages[i];
@@ -126,16 +125,14 @@ export const i18n = {
 					continue;
 				}
 
-				i18n.translations[language] = await loadTranslations(
+				i18n.store.translations[language] = await loadTranslations(
 					join(path, language),
 				);
 			}
 
 			await Bun.write(
 				join(path, "types.d.ts"),
-				`namespace Cudenix.i18n { interface Translations ${JSON.stringify(
-					i18n.translations[language],
-				)}; };`,
+				`namespace Cudenix.i18n { interface Translations ${JSON.stringify(i18n.store.translations[language])}; };`,
 			);
 
 			return "i18n";
@@ -144,36 +141,32 @@ export const i18n = {
 
 	get language() {
 		return (
-			getRequestContext()?.store.i18n as
-				| Pick<I18n, "language">
-				| undefined
-		)?.language;
+			(
+				getRequestContext()?.store.i18n as
+					| Pick<I18n, "language">
+					| undefined
+			)?.language ?? i18n.store.language
+		);
 	},
 
 	module: () => {
-		return module().middleware(
-			({ memory, request: { raw }, store }, next) => {
-				const i18n = memory.get("i18n") as I18n | undefined;
+		return module().middleware(({ request: { raw }, store }, next) => {
+			const language =
+				getCookies(raw.headers)[
+					i18n.store.cookie ?? "Accept-Language"
+				] ??
+				raw.headers.get(i18n.store.header ?? "Accept-Language") ??
+				i18n.language;
 
-				if (!i18n) {
-					return next();
-				}
+			(store as Record<"i18n", Pick<I18n, "language">>).i18n = {
+				language:
+					i18n.store.languages.indexOf(language) !== -1
+						? language
+						: i18n.language,
+			};
 
-				const language =
-					getCookies(raw.headers)[i18n.cookie ?? "Accept-Language"] ??
-					raw.headers.get(i18n.header ?? "Accept-Language") ??
-					i18n.language;
-
-				(store as Record<"i18n", Pick<I18n, "language">>).i18n = {
-					language:
-						i18n.languages.indexOf(language) !== -1
-							? language
-							: i18n.language,
-				};
-
-				return next();
-			},
-		);
+			return next();
+		});
 	},
 
 	replace: <Translation extends string>(
@@ -202,6 +195,8 @@ export const i18n = {
 		return replaced as Translation;
 	},
 
+	store: new Empty() as unknown as I18n,
+
 	translate: <const Path extends DeepPaths<Cudenix.i18n.Translations>>(
 		path: Path,
 		{
@@ -211,14 +206,7 @@ export const i18n = {
 			DeepValue<Cudenix.i18n.Translations, Path>
 		> = new Empty(),
 	): DeepValue<Cudenix.i18n.Translations, Path> => {
-		const context = getRequestContext();
-
-		const translations = (context?.memory.get("i18n") as I18n | undefined)
-			?.translations[
-			language ??
-				(context?.store as Record<"i18n", Pick<I18n, "language">>).i18n
-					.language
-		];
+		const translations = i18n.store.translations[language ?? i18n.language];
 
 		if (!translations) {
 			return path as DeepValue<Cudenix.i18n.Translations, Path>;
