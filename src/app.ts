@@ -1,10 +1,4 @@
-import type {
-	RouterTypes,
-	ServeFunctionOptions,
-	Server,
-	ServerWebSocket,
-	TLSServeOptions,
-} from "bun";
+import type { Serve, Server, ServerWebSocket } from "bun";
 
 import type { Addon, AddonOptions } from "@/addon";
 import { compile } from "@/compile";
@@ -58,12 +52,14 @@ export interface App {
 	): Promise<Response>;
 	endpoints: Map<string, Endpoint[]>;
 	fetch(request: Request): Promise<Response>;
-	listen(options?: Omit<TLSServeOptions, "fetch">): Promise<App>;
+	listen(
+		options?: Omit<Serve.Options<unknown>, "fetch" | "unix">,
+	): Promise<App>;
 	memory: Map<string, unknown>;
 	options?: AppOptions | undefined;
 	regexps: Map<string, RegExp>;
-	routes?: Record<string, RouterTypes.RouteHandlerObject<string>>;
-	server?: Server | undefined;
+	routes?: Record<string, Bun.Serve.Routes<unknown, string>>;
+	server?: Server<unknown> | undefined;
 }
 
 type Constructor = new (module: AnyModule, options?: AppOptions) => App;
@@ -409,10 +405,7 @@ App.prototype.fetch = async function (this: App, request: Request) {
 
 App.prototype.listen = async function (
 	this: App,
-	options?: Omit<
-		ServeFunctionOptions<undefined, NonNullable<unknown>>,
-		"fetch"
-	>,
+	options?: Omit<Serve.Options<unknown>, "fetch" | "unix">,
 ) {
 	await this.compile();
 

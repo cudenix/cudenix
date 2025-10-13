@@ -18,7 +18,7 @@ export interface DeveloperContext<
 		raw: Request;
 	} & Validators;
 	response: ContextResponse;
-	server: Server;
+	server: Server<unknown>;
 	store: Stores;
 }
 
@@ -51,7 +51,7 @@ export interface Context {
 	memory: Map<string, unknown>;
 	request: ContextRequest;
 	response: ContextResponse;
-	server: Server;
+	server: Server<unknown>;
 	store: Record<PropertyKey, unknown>;
 }
 
@@ -60,7 +60,7 @@ type Constructor = new (
 	memory: Map<string, unknown>,
 	path: string,
 	request: Request,
-	server: Server,
+	server: Server<unknown>,
 ) => Context;
 
 export const Context = function (
@@ -69,7 +69,7 @@ export const Context = function (
 	memory: Map<string, unknown>,
 	path: string,
 	request: Request,
-	server: Server,
+	server: Server<unknown>,
 ) {
 	this.endpoint = endpoint;
 	this.memory = memory;
@@ -253,7 +253,7 @@ export const context = (
 	memory: Map<string, unknown>,
 	path: string,
 	request: Request,
-	server: Server,
+	server: Server<unknown>,
 ) => {
 	return new Context(endpoint, memory, path, request, server);
 };
