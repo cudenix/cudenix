@@ -6,7 +6,7 @@
 	},
 	"description": "cudenix",
 	"devDependencies": {
-		"@biomejs/biome": "2.2.5",
+		"@biomejs/biome": "2.2.6",
 		"@types/bun": "1.3.0",
 		"tsc-alias": "1.8.16",
 		"typescript": "5.9.3"
@@ -16,39 +16,7 @@
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
 		},
-		"./client": {
-			"import": "./dist/ecosystem/client/index.js",
-			"types": "./dist/ecosystem/client/index.d.ts"
-		},
-		"./cluster": {
-			"import": "./dist/ecosystem/cluster/index.js",
-			"types": "./dist/ecosystem/cluster/index.d.ts"
-		},
-		"./compress": {
-			"import": "./dist/ecosystem/compress/index.js",
-			"types": "./dist/ecosystem/compress/index.d.ts"
-		},
-		"./cors": {
-			"import": "./dist/ecosystem/cors/index.js",
-			"types": "./dist/ecosystem/cors/index.d.ts"
-		},
-		"./events": {
-			"import": "./dist/ecosystem/events/index.js",
-			"types": "./dist/ecosystem/events/index.d.ts"
-		},
-		"./i18n": {
-			"import": "./dist/ecosystem/i18n/index.js",
-			"types": "./dist/ecosystem/i18n/index.d.ts"
-		},
-		"./openapi": {
-			"import": "./dist/ecosystem/openapi/index.js",
-			"types": "./dist/ecosystem/openapi/index.d.ts"
-		},
-		"./package.json": "./package.json",
-		"./trycatch": {
-			"import": "./dist/ecosystem/trycatch/index.js",
-			"types": "./dist/ecosystem/trycatch/index.d.ts"
-		}
+		"./package.json": "./package.json"
 	},
 	"files": [
 		"dist"

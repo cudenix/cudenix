@@ -1,4 +1,4 @@
-import { Empty } from "@/utils/empty";
+import { Empty } from "@/utils";
 
 // @ts-expect-error
 export interface WS<Request, Response> extends WebSocket {

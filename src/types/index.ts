@@ -6,6 +6,7 @@ export type * from "@/types/extract-content";
 export type * from "@/types/extract-url-params";
 export type * from "@/types/generator-sse";
 export type * from "@/types/http-method";
+export type * from "@/types/maybe-function";
 export type * from "@/types/maybe-promise";
 export type * from "@/types/merge";
 export type * from "@/types/merge-paths";

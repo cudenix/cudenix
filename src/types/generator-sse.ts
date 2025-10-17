@@ -1,5 +1,4 @@
-import type { AnyError } from "@/error";
-import type { AnySuccess } from "@/success";
+import type { AnyError, AnySuccess } from "@/core";
 
 export interface GeneratorSSE<
 	Data extends AnyError | AnySuccess,
