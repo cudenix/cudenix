@@ -52,8 +52,6 @@ export interface I18n {
 	translations: Translation;
 }
 
-export type I18nPluginOptions = Pick<I18n, "cookie" | "header">;
-
 const store = new Empty() as unknown as I18n;
 
 const loadTranslations = async (directory: string) => {
@@ -123,7 +121,9 @@ export const replace = <Translation extends string>(
 export const load = async (
 	path: string,
 	language: string,
-	options?: I18nPluginOptions,
+	options?: Pick<I18n, "cookie" | "header"> & {
+		types: boolean;
+	},
 ) => {
 	const directories = await readdir(path, {
 		withFileTypes: true,
@@ -156,12 +156,12 @@ export const load = async (
 		);
 	}
 
-	await Bun.write(
-		join(path, "types.d.ts"),
-		`namespace Cudenix.i18n { interface Translations ${JSON.stringify(store.translations[language])}; };`,
-	);
-
-	return "i18n";
+	if (options?.types !== false) {
+		await Bun.write(
+			join(path, "types.d.ts"),
+			`namespace Cudenix.i18n { interface Translations ${JSON.stringify(store.translations[language])}; };`,
+		);
+	}
 };
 
 export const getLanguage = () => {
