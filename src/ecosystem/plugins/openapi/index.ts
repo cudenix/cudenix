@@ -24,7 +24,7 @@ const contentTypes = [
 ] as const;
 
 export const plugin = (
-	toJsonSchema: (schema: unknown) => Record<string, unknown>,
+	toJsonSchema: (schema: any) => Record<string, unknown>,
 	{
 		description = "Cudenix Documentation",
 		title = "Cudenix Documentation",

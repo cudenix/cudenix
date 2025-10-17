@@ -16,7 +16,39 @@
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
 		},
-		"./package.json": "./package.json"
+		"./client": {
+			"import": "./dist/ecosystem/client/index.js",
+			"types": "./dist/ecosystem/client/index.d.ts"
+		},
+		"./cluster": {
+			"import": "./dist/ecosystem/plugins/cluster/index.js",
+			"types": "./dist/ecosystem/plugins/cluster/index.d.ts"
+		},
+		"./compress": {
+			"import": "./dist/ecosystem/modules/compress/index.js",
+			"types": "./dist/ecosystem/modules/compress/index.d.ts"
+		},
+		"./cors": {
+			"import": "./dist/ecosystem/modules/cors/index.js",
+			"types": "./dist/ecosystem/modules/cors/index.d.ts"
+		},
+		"./events": {
+			"import": "./dist/ecosystem/plugins/events/index.js",
+			"types": "./dist/ecosystem/plugins/events/index.d.ts"
+		},
+		"./i18n": {
+			"import": "./dist/ecosystem/plugins/i18n/index.js",
+			"types": "./dist/ecosystem/plugins/i18n/index.d.ts"
+		},
+		"./openapi": {
+			"import": "./dist/ecosystem/plugins/openapi/index.js",
+			"types": "./dist/ecosystem/plugins/openapi/index.d.ts"
+		},
+		"./package.json": "./package.json",
+		"./trycatch": {
+			"import": "./dist/ecosystem/modules/trycatch/index.js",
+			"types": "./dist/ecosystem/modules/trycatch/index.d.ts"
+		}
 	},
 	"files": [
 		"dist"
