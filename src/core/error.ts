@@ -59,15 +59,12 @@ type Constructor = new (
 export const Error = function (
 	this: AnyError,
 	content: unknown,
-	options: AnyErrorOptions = {
-		status: 400,
-		transform: true,
-	},
+	options: AnyErrorOptions,
 ) {
 	this.content = content;
-	this.status = options.status;
+	this.status = options.status ?? 400;
 	this.success = false;
-	this.transform = options.transform;
+	this.transform = options.transform ?? true;
 } as unknown as Constructor;
 
 export const error = <
