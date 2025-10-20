@@ -57,12 +57,12 @@ type Constructor = new (
 export const Success = function (
 	this: AnySuccess,
 	content: unknown,
-	options: AnySuccessOptions,
+	options?: AnySuccessOptions,
 ) {
 	this.content = content;
-	this.status = options.status ?? 200;
+	this.status = options?.status ?? 200;
 	this.success = true;
-	this.transform = options.transform ?? true;
+	this.transform = options?.transform ?? true;
 } as unknown as Constructor;
 
 export const success = <
