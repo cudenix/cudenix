@@ -8,7 +8,6 @@ export * from "@/core/middleware";
 export * from "@/core/module";
 export * from "@/core/response";
 export * from "@/core/route";
-export * from "@/core/storage";
 export * from "@/core/store";
 export * from "@/core/success";
 export * from "@/core/validator";
