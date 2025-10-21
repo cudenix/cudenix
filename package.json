@@ -36,6 +36,10 @@
 			"import": "./dist/ecosystem/plugins/events/index.js",
 			"types": "./dist/ecosystem/plugins/events/index.d.ts"
 		},
+		"./global-request-context": {
+			"import": "./dist/ecosystem/modules/global-request-context/index.js",
+			"types": "./dist/ecosystem/modules/global-request-context/index.d.ts"
+		},
 		"./i18n": {
 			"import": "./dist/ecosystem/plugins/i18n/index.js",
 			"types": "./dist/ecosystem/plugins/i18n/index.d.ts"

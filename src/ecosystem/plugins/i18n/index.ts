@@ -1,7 +1,8 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
-import { getRequestContext, module } from "@/core";
+import { module } from "@/core";
+import { getRequestContext } from "@/ecosystem/modules/global-request-context";
 import { Empty, getCookies } from "@/utils";
 
 export type DeepPaths<Type extends Record<PropertyKey, unknown>> = {
