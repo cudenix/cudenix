@@ -413,7 +413,7 @@ App.prototype.listen = async function (
 		process.exit(0);
 	});
 
-	Bun.gc(true);
+	Bun.gc();
 
 	return this;
 };
