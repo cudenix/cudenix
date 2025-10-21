@@ -33,8 +33,7 @@ export const compress = (
 			response.headers.has("Content-Encoding") ||
 			response.headers.has("Content-Range") ||
 			response.headers.has("Transfer-Encoding") ||
-			(contentLength && Number(contentLength) < threshold) ||
-			response.content instanceof ReadableStream
+			(contentLength && Number(contentLength) < threshold)
 		) {
 			return;
 		}
@@ -114,7 +113,7 @@ export const compress = (
 				processedResponse,
 			),
 			{
-				status: response.content.status,
+				status: processedResponse.status,
 				transform: false,
 			},
 		);
