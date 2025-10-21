@@ -1,5 +1,6 @@
-import { Readable, Writable } from "node:stream";
+import { Duplex } from "node:stream";
 import {
+	type BrotliOptions,
 	createBrotliCompress,
 	createDeflate,
 	createGzip,
@@ -20,11 +21,11 @@ export class CompressionStream {
 
 	constructor(
 		method: keyof typeof transformMap,
-		options: ZlibOptions & { dictionary?: Buffer } = {},
+		options: BrotliOptions & ZlibOptions & { dictionary?: Buffer } = {},
 	) {
-		const handle = transformMap[method](options);
+		const pair = Duplex.toWeb(transformMap[method](options));
 
-		this.readable = Readable.toWeb(handle) as unknown as ReadableStream;
-		this.writable = Writable.toWeb(handle);
+		this.readable = pair.readable as unknown as ReadableStream;
+		this.writable = pair.writable;
 	}
 }

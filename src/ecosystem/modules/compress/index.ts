@@ -1,6 +1,6 @@
-import { brotliCompressSync, constants } from "node:zlib";
+import { constants } from "node:zlib";
 
-import { error, module, processResponse, success } from "@/core";
+import { module, processResponse, success } from "@/core";
 import { CompressionStream } from "@/ecosystem/modules/compress/compression-stream";
 import { Empty } from "@/utils";
 
@@ -9,39 +9,51 @@ export interface CompressOptions {
 	level?: Bun.ZlibCompressionOptions["level"];
 }
 
+const compressibleRegexp =
+	/^\s*(?:text\/(?!event-stream(?:[;\s]|$))[^;\s]+|application\/(?:json|javascript|xml|x-www-form-urlencoded)|[^;\s]+\/[^;\s]+\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
+const noTransformRegexp = /\bno-transform\b/i;
+
 export const compress = (
-	{ threshold = 512, level }: CompressOptions = new Empty(),
+	{ threshold = 1024, level }: CompressOptions = new Empty(),
 ) => {
 	const encodings = ["zstd", "br", "gzip", "deflate"] as const;
 
 	return module().middleware(async ({ request: { raw }, response }, next) => {
 		await next();
 
+		const contentLength = response.headers.get("Content-Length");
+
 		if (
 			!response.content ||
 			raw.method === "HEAD" ||
+			noTransformRegexp.test(
+				response.headers.get("Cache-Control") ?? "",
+			) ||
+			raw.headers.has("Range") ||
 			response.headers.has("Content-Encoding") ||
-			response.headers.has("Transfer-Encoding")
+			response.headers.has("Content-Range") ||
+			response.headers.has("Transfer-Encoding") ||
+			(contentLength && Number(contentLength) < threshold) ||
+			response.content instanceof ReadableStream
 		) {
 			return;
 		}
 
-		const acceptEncoding = raw.headers.get("Accept-Encoding");
-
-		if (!acceptEncoding) {
-			return;
-		}
-
 		const accepted = new Set(
-			acceptEncoding
-				.split(",")
+			raw.headers
+				.get("Accept-Encoding")
+				?.split(",")
 				.map((encoding) => {
 					return encoding.trim().toLowerCase().split(";")[0];
 				})
 				.filter((encoding): encoding is string => {
-					return Boolean(encoding);
+					return !!encoding;
 				}),
 		);
+
+		if (accepted.size === 0) {
+			return;
+		}
 
 		const encoding = encodings.find((encoding) => {
 			return accepted.has(encoding);
@@ -51,76 +63,60 @@ export const compress = (
 			return;
 		}
 
-		if (response.content instanceof ReadableStream) {
-			const stream = new CompressionStream(encoding, {
-				flush:
-					encoding === "br"
-						? constants.BROTLI_OPERATION_FLUSH
-						: constants.Z_SYNC_FLUSH,
-				level,
-			});
-
-			response.content = response.content.pipeThrough(stream);
-
-			response.headers.set("Content-Encoding", encoding);
-
-			response.headers.delete("Content-Length");
-
-			return;
-		}
-
 		const processedResponse = await processResponse(response);
-
-		const buffer = Buffer.from(await processedResponse.arrayBuffer());
-
-		if (buffer.byteLength < threshold) {
-			return;
-		}
-
-		let compressed: Buffer | Uint8Array | undefined;
-
-		if (encoding === "zstd") {
-			compressed = await Bun.zstdCompress(buffer, {
-				level: level ?? 4,
-			});
-		} else if (encoding === "br") {
-			compressed = brotliCompressSync(buffer, {
-				params: {
-					[constants.BROTLI_PARAM_QUALITY]: level ?? 11,
-				},
-			});
-		} else if (encoding === "gzip") {
-			compressed = Bun.gzipSync(buffer, {
-				level: level ?? 6,
-			});
-		} else if (encoding === "deflate") {
-			compressed = Bun.deflateSync(buffer, {
-				level: level ?? 6,
-			});
-		}
-
-		if (!compressed) {
-			return;
-		}
-
-		response.headers.set("Content-Encoding", encoding);
-
-		response.headers.set("Content-Length", String(compressed.byteLength));
 
 		const contentType = processedResponse.headers.get("Content-Type");
 
-		if (contentType) {
-			response.headers.set("Content-Type", contentType);
+		if (!contentType || !compressibleRegexp.test(contentType)) {
+			return;
 		}
 
-		response.content = response.content.success
-			? success(compressed, {
-					status: response.content.status,
-					transform: false,
-				})
-			: error(compressed, {
-					status: response.content.status,
-					transform: false,
-				});
+		let stream = processedResponse.body;
+
+		if (!stream) {
+			const buffer = await processedResponse.arrayBuffer();
+
+			if (buffer.byteLength < threshold) {
+				return;
+			}
+
+			stream = new Response(buffer).body;
+		}
+
+		if (!stream) {
+			return;
+		}
+
+		processedResponse.headers.append("Vary", "Accept-Encoding");
+
+		processedResponse.headers.delete("Content-Length");
+
+		processedResponse.headers.set("Content-Encoding", encoding);
+
+		response.content = success(
+			new Response(
+				stream.pipeThrough(
+					new CompressionStream(
+						encoding,
+						encoding === "br"
+							? {
+									params: {
+										[constants.BROTLI_PARAM_QUALITY]:
+											level ?? 6,
+									},
+								}
+							: {
+									flush: constants.Z_SYNC_FLUSH,
+									level,
+								},
+					),
+				),
+				processedResponse,
+			),
+			{
+				status: response.content.status,
+				transform: false,
+			},
+		);
 	});
 };
