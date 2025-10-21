@@ -4,7 +4,6 @@ import {
 	type AnyRoute,
 	type AnyStore,
 	type AnyValidator,
-	asyncLocalStorage,
 	Context,
 	compile,
 	Error,
@@ -39,10 +38,6 @@ export interface Endpoint {
 	use: Set<"body" | "cookies" | "headers" | "params" | "query">;
 }
 
-export interface AppOptions {
-	globalContext?: boolean;
-}
-
 export interface App {
 	compile(): Promise<void>;
 	endpoint(
@@ -56,23 +51,17 @@ export interface App {
 		options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 	): Promise<App>;
 	memory: Map<string, unknown>;
-	options?: AppOptions | undefined;
 	plugin(plugin: Plugin | Plugin[], options?: PluginOptions): App;
 	regexps: Map<string, RegExp>;
 	routes?: Record<string, Bun.Serve.Routes<unknown, string>>;
 	server?: Bun.Server<unknown> | undefined;
 }
 
-type Constructor = new (module: AnyModule, options?: AppOptions) => App;
+type Constructor = new (module: AnyModule) => App;
 
-export const App = function (
-	this: App,
-	module: AnyModule,
-	options?: AppOptions,
-) {
+export const App = function (this: App, module: AnyModule) {
 	this.endpoints = new Map();
 	this.memory = new Map();
-	this.options = options;
 	this.regexps = new Map();
 
 	this.memory.set("module", module);
@@ -335,13 +324,7 @@ App.prototype.endpoint = async function (
 		context.response.content = returned;
 	};
 
-	if (this.options?.globalContext) {
-		await asyncLocalStorage.run(context, async () => {
-			await step(endpoint.chain, 0);
-		});
-	} else {
-		await step(endpoint.chain, 0);
-	}
+	await step(endpoint.chain, 0);
 
 	return await processResponse(context.response);
 };
@@ -452,6 +435,6 @@ App.prototype.plugin = function (
 	return this;
 };
 
-export const app = (module: AnyModule, options?: AppOptions) => {
-	return new App(module, options) as App;
+export const app = (module: AnyModule) => {
+	return new App(module) as App;
 };
