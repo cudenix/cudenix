@@ -6,7 +6,7 @@ export interface CompressOptions {
 }
 
 const compressibleRegexp =
-	/^\s*(?:text\/(?!event-stream(?:[;\s]|$))[^;\s]+|application\/(?:json|javascript|xml|x-www-form-urlencoded)|[^;\s]+\/[^;\s]+\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
+	/^\s*(?:text\/[^;\s]+|application\/(?:json|javascript|xml|x-www-form-urlencoded)|[^;\s]+\/[^;\s]+\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
 const noTransformRegexp = /\bno-transform\b/i;
 
 export const compress = (
