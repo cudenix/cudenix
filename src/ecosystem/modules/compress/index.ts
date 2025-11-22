@@ -1,12 +1,8 @@
-import { constants } from "node:zlib";
-
 import { module, processResponse, success } from "@/core";
-import { CompressionStream } from "@/ecosystem/modules/compress/compression-stream";
 import { Empty } from "@/utils";
 
 export interface CompressOptions {
 	threshold?: number;
-	level?: Bun.ZlibCompressionOptions["level"];
 }
 
 const compressibleRegexp =
@@ -14,9 +10,14 @@ const compressibleRegexp =
 const noTransformRegexp = /\bno-transform\b/i;
 
 export const compress = (
-	{ threshold = 1024, level }: CompressOptions = new Empty(),
+	{ threshold = 1024 }: CompressOptions = new Empty(),
 ) => {
-	const encodings = ["zstd", "br", "gzip", "deflate"] as const;
+	const encodings = {
+		br: "brotli",
+		deflate: "deflate",
+		gzip: "gzip",
+		zstd: "zstd",
+	} as const;
 
 	return module().middleware(async ({ request: { raw }, response }, next) => {
 		await next();
@@ -38,25 +39,31 @@ export const compress = (
 			return;
 		}
 
-		const accepted = new Set(
-			raw.headers
-				.get("Accept-Encoding")
-				?.split(",")
-				.map((encoding) => {
-					return encoding.trim().toLowerCase().split(";")[0];
-				})
-				.filter((encoding): encoding is string => {
-					return !!encoding;
-				}),
-		);
+		const accepted = [
+			...new Set(
+				raw.headers
+					.get("Accept-Encoding")
+					?.split(",")
+					.map((encoding) => {
+						return encoding.trim().toLowerCase().split(";")[0];
+					})
+					.filter((encoding): encoding is string => {
+						return !!encoding;
+					}),
+			),
+		];
 
-		if (accepted.size === 0) {
+		if (accepted.length === 0) {
 			return;
 		}
 
-		const encoding = encodings.find((encoding) => {
-			return accepted.has(encoding);
-		});
+		const encoding = accepted
+			.map((encoding) => {
+				return encodings[encoding as keyof typeof encodings];
+			})
+			.find((encoding) => {
+				return !!encoding;
+			});
 
 		if (!encoding) {
 			return;
@@ -94,22 +101,8 @@ export const compress = (
 
 		response.content = success(
 			new Response(
-				stream.pipeThrough(
-					new CompressionStream(
-						encoding,
-						encoding === "br"
-							? {
-									params: {
-										[constants.BROTLI_PARAM_QUALITY]:
-											level ?? 6,
-									},
-								}
-							: {
-									flush: constants.Z_SYNC_FLUSH,
-									level,
-								},
-					),
-				),
+				// @ts-expect-error
+				stream.pipeThrough(new CompressionStream(encoding)),
 				processedResponse,
 			),
 			{
