@@ -5,6 +5,7 @@ on:
     types: [published]
 
 permissions:
+  contents: read
   id-token: write
 
 jobs:
@@ -12,25 +13,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
           registry-url: https://registry.npmjs.org
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: latest
           registry-url: https://registry.npmjs.org
 
       - run: bun install
 
-      - run: bun run build
-
-      - run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
+      - run: bun --bun run build
 
       - run: npm publish --provenance --access=public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
