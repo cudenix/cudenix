@@ -9,15 +9,75 @@ const compressibleRegexp =
 	/^\s*(?:text\/[^;\s]+|application\/(?:json|javascript|xml|x-www-form-urlencoded)|[^;\s]+\/[^;\s]+\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
 const noTransformRegexp = /\bno-transform\b/i;
 
+const parseAcceptEncoding = (header: string) => {
+	const map = new Map<
+		string,
+		{
+			q: number;
+			order: number;
+		}
+	>();
+
+	if (!header) {
+		return map;
+	}
+
+	let order = 0;
+
+	const split = header.split(",");
+
+	for (let i = 0; i < split.length; i++) {
+		const token = split[i]?.trim().toLowerCase();
+
+		if (!token) {
+			continue;
+		}
+
+		const [name, ...options] = token.split(";").map((split) => {
+			return split.trim();
+		});
+
+		if (!name) {
+			continue;
+		}
+
+		let q = 1;
+
+		for (let j = 0; j < options.length; j++) {
+			const option = options[j];
+
+			if (!option) {
+				continue;
+			}
+
+			const priority = Number(option.match(/^q=([0-9.]+)$/)?.[1]);
+
+			if (Number.isNaN(priority)) {
+				continue;
+			}
+
+			q = priority;
+		}
+
+		const previous = map.get(name);
+
+		if (!previous || q > previous.q) {
+			map.set(name, {
+				order,
+				q,
+			});
+		}
+
+		order++;
+	}
+
+	return map;
+};
+
 export const compress = (
 	{ threshold = 1024 }: CompressOptions = new Empty(),
 ) => {
-	const encodings = {
-		br: "brotli",
-		deflate: "deflate",
-		gzip: "gzip",
-		zstd: "zstd",
-	} as const;
+	const encodings = ["br", "gzip", "deflate", "zstd"] as const;
 
 	return module().middleware(async ({ request: { raw }, response }, next) => {
 		await next();
@@ -39,31 +99,31 @@ export const compress = (
 			return;
 		}
 
-		const accepted = [
-			...new Set(
-				raw.headers
-					.get("Accept-Encoding")
-					?.split(",")
-					.map((encoding) => {
-						return encoding.trim().toLowerCase().split(";")[0];
-					})
-					.filter((encoding): encoding is string => {
-						return !!encoding;
-					}),
-			),
-		];
+		const accepted = parseAcceptEncoding(
+			raw.headers.get("Accept-Encoding") ?? "",
+		);
 
-		if (accepted.length === 0) {
+		if (accepted.size === 0) {
 			return;
 		}
 
-		const encoding = accepted
+		const star = accepted.get("*");
+
+		const encoding = encodings
 			.map((encoding) => {
-				return encodings[encoding as keyof typeof encodings];
+				return {
+					order: 0,
+					q: 0,
+					...(accepted.get(encoding) ?? star),
+					name: encoding,
+				};
 			})
-			.find((encoding) => {
-				return !!encoding;
-			});
+			.filter((encoding) => {
+				return encoding.q > 0;
+			})
+			.sort((a, b) => {
+				return b.q === a.q ? a.order - b.order : b.q - a.q;
+			})[0];
 
 		if (!encoding) {
 			return;
@@ -93,16 +153,24 @@ export const compress = (
 			return;
 		}
 
-		processedResponse.headers.append("Vary", "Accept-Encoding");
+		const vary = processedResponse.headers.get("Vary");
+
+		if (!vary || vary.toLowerCase().indexOf("accept-encoding") === -1) {
+			processedResponse.headers.append("Vary", "Accept-Encoding");
+		}
 
 		processedResponse.headers.delete("Content-Length");
 
-		processedResponse.headers.set("Content-Encoding", encoding);
+		processedResponse.headers.set("Content-Encoding", encoding.name);
 
 		response.content = success(
 			new Response(
-				// @ts-expect-error
-				stream.pipeThrough(new CompressionStream(encoding)),
+				stream.pipeThrough(
+					new CompressionStream(
+						// @ts-expect-error
+						encoding.name === "br" ? "brotli" : encoding.name,
+					),
+				),
 				processedResponse,
 			),
 			{
