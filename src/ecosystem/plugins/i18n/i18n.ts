@@ -1,9 +1,10 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
-import { module } from "@/core";
-import { getRequestContext } from "@/ecosystem/modules/global-request-context";
-import { Empty, getCookies } from "@/utils";
+import { module } from "@/core/module";
+import { getRequestContext } from "@/ecosystem/modules/global-request-context/global-request-context";
+import { getCookies } from "@/utils/cookies/get";
+import { Empty } from "@/utils/objects/empty";
 
 export type DeepPaths<Type extends Record<PropertyKey, unknown>> = {
 	[Key in keyof Type]: Key extends string

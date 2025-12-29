@@ -1,4 +1,5 @@
-import type { AnyError, DeveloperContext } from "@/core";
+import type { DeveloperContext } from "@/core/context";
+import type { AnyError } from "@/core/error";
 
 export type StoreFn<
 	Return extends Record<PropertyKey, unknown> | AnyError,

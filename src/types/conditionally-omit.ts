@@ -1,4 +1,4 @@
-import type { ExtendsType } from "@/types";
+import type { ExtendsType } from "@/types/extends-type";
 
 type OmitKeys<Type extends Record<PropertyKey, unknown>, OmitType> = keyof {
 	[Key in keyof Type as ExtendsType<

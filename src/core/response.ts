@@ -1,4 +1,4 @@
-import type { ContextResponse } from "@/core";
+import type { ContextResponse } from "@/core/context";
 
 export const processResponse = async (
 	response: ContextResponse,

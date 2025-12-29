@@ -1,5 +1,5 @@
-import type { AnyModule } from "@/core";
-import { Empty } from "@/utils";
+import type { AnyModule } from "@/core/module";
+import { Empty } from "@/utils/objects/empty";
 
 export type GroupFn<Module extends AnyModule, Return extends AnyModule> = (
 	module: Module,

@@ -1,5 +1,7 @@
-import { type AnyDeveloperContext, module, success } from "@/core";
-import { Empty } from "@/utils";
+import type { AnyDeveloperContext } from "@/core/context";
+import { module } from "@/core/module";
+import { success } from "@/core/success";
+import { Empty } from "@/utils/objects/empty";
 
 export interface CorsOptions {
 	allowHeaders?: string[];

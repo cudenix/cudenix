@@ -1,4 +1,4 @@
-import type { ExtractContent } from "@/types";
+import type { ExtractContent } from "@/types/extract-content";
 
 export type FilterSuccess<Type> = Extract<Type, AnySuccess>;
 

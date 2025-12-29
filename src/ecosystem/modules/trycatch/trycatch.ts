@@ -1,4 +1,5 @@
-import { error, module } from "@/core";
+import { error } from "@/core/error";
+import { module } from "@/core/module";
 
 export const trycatch = () => {
 	return module().middleware(async (context, next) => {

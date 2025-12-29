@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
-import { type AnyDeveloperContext, module } from "@/core";
+import type { AnyDeveloperContext } from "@/core/context";
+import { module } from "@/core/module";
 
 export const asyncLocalStorage = new AsyncLocalStorage<AnyDeveloperContext>();
 

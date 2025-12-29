@@ -1,5 +1,7 @@
-import { module, processResponse, success } from "@/core";
-import { Empty } from "@/utils";
+import { module } from "@/core/module";
+import { processResponse } from "@/core/response";
+import { success } from "@/core/success";
+import { Empty } from "@/utils/objects/empty";
 
 export interface CompressOptions {
 	threshold?: number;

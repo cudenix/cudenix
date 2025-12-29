@@ -1,13 +1,14 @@
-import type { AnyError, AnyModule, AnySuccess } from "@/core";
+import type { AnyError } from "@/core/error";
+import type { AnyModule } from "@/core/module";
+import type { AnySuccess } from "@/core/success";
 import type { SSE } from "@/ecosystem/client/sse";
 import type { WS } from "@/ecosystem/client/ws";
-import type {
-	AnyGeneratorSSE,
-	ConditionallyOptional,
-	MaybeFunction,
-	Merge,
-} from "@/types";
-import { Empty, isFile } from "@/utils";
+import type { ConditionallyOptional } from "@/types/conditionally-optional";
+import type { AnyGeneratorSSE } from "@/types/generator-sse";
+import type { MaybeFunction } from "@/types/maybe-function";
+import type { Merge } from "@/types/merge";
+import { isFile } from "@/utils/files/is-file";
+import { Empty } from "@/utils/objects/empty";
 
 export type RequestOptions<Request> = Merge<
 	Omit<RequestInit, "method"> & {

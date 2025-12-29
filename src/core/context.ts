@@ -1,5 +1,8 @@
-import type { AnyError, AnySuccess, Endpoint } from "@/core";
-import { Empty, getCookies } from "@/utils";
+import type { Endpoint } from "@/core/app";
+import type { AnyError } from "@/core/error";
+import type { AnySuccess } from "@/core/success";
+import { getCookies } from "@/utils/cookies/get";
+import { Empty } from "@/utils/objects/empty";
 
 const isSerializedArray = /^sas-(.*?)-eas$/;
 const isSerializedObject = /^sos-(.*?)-eos$/;

@@ -1,5 +1,7 @@
-import type { Error } from "@/core";
-import type { ConditionallyOmit, ExtendsType, MaybePromise } from "@/types";
+import type { Error } from "@/core/error";
+import type { ConditionallyOmit } from "@/types/conditionally-omit";
+import type { ExtendsType } from "@/types/extends-type";
+import type { MaybePromise } from "@/types/maybe-promise";
 
 export type ValidatorPlugin = (
 	schema: any,

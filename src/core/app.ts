@@ -1,20 +1,22 @@
-import {
-	type AnyMiddleware,
-	type AnyModule,
-	type AnyRoute,
-	type AnyStore,
-	type AnyValidator,
-	Context,
-	compile,
-	Error,
-	processResponse,
-	type RouteFnReturnGenerator,
-	type RouteFnReturnWS,
-	type ValidatorPlugin,
-	type ValidatorRequest,
-} from "@/core";
-import type { WSData } from "@/types";
-import { merge } from "@/utils";
+import { compile } from "@/core/compile";
+import { Context } from "@/core/context";
+import { Error } from "@/core/error";
+import type { AnyMiddleware } from "@/core/middleware";
+import type { AnyModule } from "@/core/module";
+import { processResponse } from "@/core/response";
+import type {
+	AnyRoute,
+	RouteFnReturnGenerator,
+	RouteFnReturnWS,
+} from "@/core/route";
+import type { AnyStore } from "@/core/store";
+import type {
+	AnyValidator,
+	ValidatorPlugin,
+	ValidatorRequest,
+} from "@/core/validator";
+import type { WSData } from "@/types/ws";
+import { merge } from "@/utils/objects/merge";
 
 export type Plugin = (...options: any[]) => string | Promise<string>;
 

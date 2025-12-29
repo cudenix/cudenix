@@ -7,7 +7,7 @@
 	"description": "cudenix",
 	"devDependencies": {
 		"@biomejs/biome": "2.3.10",
-		"@types/bun": "1.3.4",
+		"@types/bun": "1.3.5",
 		"tsc-alias": "1.8.16",
 		"typescript": "5.9.3"
 	},
@@ -17,41 +17,41 @@
 			"types": "./dist/index.d.ts"
 		},
 		"./client": {
-			"import": "./dist/ecosystem/client/index.js",
-			"types": "./dist/ecosystem/client/index.d.ts"
+			"import": "./dist/ecosystem/client/client.js",
+			"types": "./dist/ecosystem/client/client.d.ts"
 		},
 		"./cluster": {
-			"import": "./dist/ecosystem/plugins/cluster/index.js",
-			"types": "./dist/ecosystem/plugins/cluster/index.d.ts"
+			"import": "./dist/ecosystem/plugins/cluster/cluster.js",
+			"types": "./dist/ecosystem/plugins/cluster/cluster.d.ts"
 		},
 		"./compress": {
-			"import": "./dist/ecosystem/modules/compress/index.js",
-			"types": "./dist/ecosystem/modules/compress/index.d.ts"
+			"import": "./dist/ecosystem/modules/compress/compress.js",
+			"types": "./dist/ecosystem/modules/compress/compress.d.ts"
 		},
 		"./cors": {
-			"import": "./dist/ecosystem/modules/cors/index.js",
-			"types": "./dist/ecosystem/modules/cors/index.d.ts"
+			"import": "./dist/ecosystem/modules/cors/cors.js",
+			"types": "./dist/ecosystem/modules/cors/cors.d.ts"
 		},
 		"./events": {
-			"import": "./dist/ecosystem/plugins/events/index.js",
-			"types": "./dist/ecosystem/plugins/events/index.d.ts"
+			"import": "./dist/ecosystem/plugins/events/events.js",
+			"types": "./dist/ecosystem/plugins/events/events.d.ts"
 		},
 		"./global-request-context": {
-			"import": "./dist/ecosystem/modules/global-request-context/index.js",
-			"types": "./dist/ecosystem/modules/global-request-context/index.d.ts"
+			"import": "./dist/ecosystem/modules/global-request-context/global-request-context.js",
+			"types": "./dist/ecosystem/modules/global-request-context/global-request-context.d.ts"
 		},
 		"./i18n": {
-			"import": "./dist/ecosystem/plugins/i18n/index.js",
-			"types": "./dist/ecosystem/plugins/i18n/index.d.ts"
+			"import": "./dist/ecosystem/plugins/i18n/i18n.js",
+			"types": "./dist/ecosystem/plugins/i18n/i18n.d.ts"
 		},
 		"./openapi": {
-			"import": "./dist/ecosystem/plugins/openapi/index.js",
-			"types": "./dist/ecosystem/plugins/openapi/index.d.ts"
+			"import": "./dist/ecosystem/plugins/openapi/openapi.js",
+			"types": "./dist/ecosystem/plugins/openapi/openapi.d.ts"
 		},
 		"./package.json": "./package.json",
 		"./trycatch": {
-			"import": "./dist/ecosystem/modules/trycatch/index.js",
-			"types": "./dist/ecosystem/modules/trycatch/index.d.ts"
+			"import": "./dist/ecosystem/modules/trycatch/trycatch.js",
+			"types": "./dist/ecosystem/modules/trycatch/trycatch.d.ts"
 		}
 	},
 	"files": [

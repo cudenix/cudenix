@@ -1,6 +1,8 @@
-import { type App, module, success } from "@/core";
+import type { App } from "@/core/app";
+import { module } from "@/core/module";
+import { success } from "@/core/success";
 import { scalar } from "@/ecosystem/plugins/openapi/scalar";
-import { Empty } from "@/utils";
+import { Empty } from "@/utils/objects/empty";
 
 export interface OpenapiPluginOptions {
 	description?: string;

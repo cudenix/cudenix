@@ -1,5 +1,7 @@
-import type { AnyError, AnySuccess, DeveloperContext } from "@/core";
-import type { MaybePromise } from "@/types";
+import type { DeveloperContext } from "@/core/context";
+import type { AnyError } from "@/core/error";
+import type { AnySuccess } from "@/core/success";
+import type { MaybePromise } from "@/types/maybe-promise";
 
 export type MiddlewareFn<
 	Return extends MaybePromise<AnyError | AnySuccess | void>,

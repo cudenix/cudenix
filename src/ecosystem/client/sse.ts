@@ -1,4 +1,4 @@
-import type { AnyGeneratorSSE } from "@/types";
+import type { AnyGeneratorSSE } from "@/types/generator-sse";
 
 const startsWithOn = /^on/;
 

@@ -1,25 +1,22 @@
-import type { WebSocketHandler } from "bun";
+import type { MaybePromise, WebSocketHandler } from "bun";
 
+import type { DeveloperContext } from "@/core/context";
+import type { AnyError } from "@/core/error";
+import type { AnySuccess } from "@/core/success";
 import {
-	type AnyError,
-	type AnySuccess,
 	type AnyValidator,
 	type DeepInferValidatorOutput,
-	type DeveloperContext,
 	type MergeInferValidatorRequest,
 	Validator,
 	type ValidatorOptions,
 	type ValidatorRequest,
-} from "@/core";
-import type {
-	ConditionallyOmit,
-	ExtendsType,
-	ExtractUrlParams,
-	GeneratorSSE,
-	HttpMethod,
-	MaybePromise,
-} from "@/types";
-import { Empty } from "@/utils";
+} from "@/core/validator";
+import type { ConditionallyOmit } from "@/types/conditionally-omit";
+import type { ExtendsType } from "@/types/extends-type";
+import type { ExtractUrlParams } from "@/types/extract-url-params";
+import type { GeneratorSSE } from "@/types/generator-sse";
+import type { HttpMethod } from "@/types/http-method";
+import { Empty } from "@/utils/objects/empty";
 
 export type PathToObject<
 	Path extends string,

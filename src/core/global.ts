@@ -1,4 +1,9 @@
-import type { InferInput, InferOutput, Issue, StandardSchemaV1 } from "@/types";
+import type {
+	InferInput,
+	InferOutput,
+	Issue,
+	StandardSchemaV1,
+} from "@/types/standard-schema";
 
 declare global {
 	namespace Cudenix {

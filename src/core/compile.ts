@@ -1,11 +1,6 @@
-import {
-	type AnyModule,
-	type App,
-	type Chain,
-	type Endpoint,
-	Module,
-} from "@/core";
-import { validateStandardSchema } from "@/utils";
+import type { App, Chain, Endpoint } from "@/core/app";
+import { type AnyModule, Module } from "@/core/module";
+import { validateStandardSchema } from "@/utils/standard-schema/validate";
 
 type Stack = {
 	module: AnyModule;
