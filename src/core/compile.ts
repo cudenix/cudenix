@@ -2,13 +2,13 @@ import type { App, Chain, Endpoint } from "@/core/app";
 import { type AnyModule, Module } from "@/core/module";
 import { validateStandardSchema } from "@/utils/standard-schema/validate";
 
-type Stack = {
+interface Stack {
 	module: AnyModule;
 	previous: {
 		chain: Chain;
 		path: string;
 	};
-}[];
+}
 
 const endsWithQuestionMarkRegexp = /\?$/;
 const getUrlPathnameRegexp =
@@ -78,10 +78,10 @@ const pathToRegexp = (path: string, captureParamGroups = false) => {
 };
 
 const step = (
-	stack: Stack,
+	stack: Stack[],
 	endpoints: App["endpoints"],
 	module: AnyModule,
-	previous: Stack[number]["previous"],
+	previous: Stack["previous"],
 ) => {
 	const chain = [] as Chain;
 
@@ -216,7 +216,15 @@ export const compile = async (app: App, module: AnyModule) => {
 		app.memory.set("validator", validateStandardSchema);
 	}
 
-	const stack = [{ module, previous: { chain: [], path: "" } }] as Stack;
+	const stack = [
+		{
+			module,
+			previous: {
+				chain: [],
+				path: "",
+			},
+		},
+	] as Stack[];
 
 	while (stack.length > 0) {
 		const { module, previous } = stack.pop()!;
