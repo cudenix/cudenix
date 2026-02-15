@@ -1,8 +1,9 @@
 import { Empty } from "@/utils/objects/empty";
 
 export const getCookies = (headers: Request["headers"]) => {
-	const splittedCookies = headers.get("Cookie")?.split(";");
 	const cookies = new Empty() as Record<string, string>;
+
+	const splittedCookies = headers.get("Cookie")?.split(";");
 
 	for (let i = 0; i < (splittedCookies?.length ?? 0); i++) {
 		const cookie = splittedCookies?.[i]?.trim();

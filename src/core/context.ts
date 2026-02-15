@@ -1,7 +1,7 @@
 import type { Endpoint } from "@/core/app";
 import type { AnyError } from "@/core/error";
 import type { AnySuccess } from "@/core/success";
-import { getCookies } from "@/utils/cookies/get";
+import { getCookies } from "@/utils/cookies/get/cookies";
 import { Empty } from "@/utils/objects/empty";
 
 const isSerializedArray = /^sas-(.*?)-eas$/;
