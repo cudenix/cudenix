@@ -13,11 +13,11 @@
 		"noEmit": false,
 		"noUncheckedIndexedAccess": true,
 		"noUncheckedSideEffectImports": true,
-		"outDir": "dist",
+		"outDir": "./dist",
 		"paths": {
 			"@/*": ["./src/*"]
 		},
-		"rootDir": "src",
+		"rootDir": "./",
 		"skipLibCheck": true,
 		"sourceMap": true,
 		"strict": true,
