@@ -1,6 +1,6 @@
 .DS_Store
-.env
+*.env
 *.tsbuildinfo
+/dist/
+/node_modules/
 bun.lock
-dist
-node_modules/
