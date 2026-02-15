@@ -328,7 +328,7 @@ App.prototype.endpoint = async function (
 
 	await step(endpoint.chain, 0);
 
-	return await processResponse(context.response);
+	return processResponse(context.response);
 };
 
 App.prototype.fetch = async function (this: App, request: Request) {
@@ -358,7 +358,7 @@ App.prototype.fetch = async function (this: App, request: Request) {
 		});
 	}
 
-	return await this.endpoint(request, endpoint, match[2]);
+	return this.endpoint(request, endpoint, match[2]);
 };
 
 App.prototype.listen = async function (

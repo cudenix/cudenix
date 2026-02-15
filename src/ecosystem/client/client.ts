@@ -256,7 +256,7 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 					.split(";")[0];
 
 				if (contentType === "application/json") {
-					return await response.json();
+					return response.json();
 				}
 
 				if (contentType === "text/event-stream") {
