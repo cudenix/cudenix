@@ -4,6 +4,7 @@
 		"declaration": true,
 		"declarationMap": true,
 		"disableSizeLimit": true,
+		"emitDeclarationOnly": false,
 		"inlineSourceMap": false,
 		"isolatedModules": true,
 		"lib": ["DOM", "ESNext"],
