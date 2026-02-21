@@ -394,8 +394,6 @@ App.prototype.listen = async function (
 	process.once("SIGINT", () => {
 		this.server?.stop(true);
 		this.server = undefined;
-
-		process.exit(0);
 	});
 
 	Bun.gc();
