@@ -82,9 +82,8 @@
 		"url": "git+https://github.com/cudenix/cudenix.git"
 	},
 	"scripts": {
-		"build": "bun format && bun lint && rm -rf dist && tsc && tsc-alias",
-		"format": "biome format --fix",
-		"lint": "biome lint --diagnostic-level=error"
+		"build": "bun check && rm -rf dist && tsc && tsc-alias",
+		"check": "biome check --diagnostic-level=error --fix"
 	},
 	"sideEffects": false,
 	"type": "module",
