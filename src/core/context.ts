@@ -1,7 +1,6 @@
 import type { Endpoint } from "@/core/app";
 import type { AnyError } from "@/core/error";
 import type { AnySuccess } from "@/core/success";
-import { getCookies } from "@/utils/cookies/get/cookies";
 import { Empty } from "@/utils/objects/empty";
 
 const isSerializedArray = /^sas-(.*?)-eas$/;
@@ -24,7 +23,7 @@ export type AnyDeveloperContext = DeveloperContext<any, any>;
 
 export interface ContextResponse {
 	content?: AnyError | AnySuccess | ReadableStream;
-	cookies: Map<string, string>;
+	cookies: Bun.CookieMap;
 	headers: Headers;
 }
 
@@ -76,7 +75,7 @@ export const Context = function (
 		raw: request,
 	};
 	this.response = {
-		cookies: new Map(),
+		cookies: new Bun.CookieMap(),
 		headers: new Headers(),
 	} as ContextResponse;
 	this.server = server;
@@ -153,7 +152,15 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 };
 
 Context.prototype.loadRequestCookies = function (this: Context) {
-	const cookies = getCookies(this.request.raw.headers);
+	const header = this.request.raw.headers.get("Cookie");
+
+	if (!header) {
+		return;
+	}
+
+	this.response.cookies = new Bun.CookieMap(header);
+
+	const cookies = this.response.cookies.toJSON();
 
 	this.request.cookies =
 		Object.keys(cookies).length > 0 ? cookies : undefined;

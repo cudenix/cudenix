@@ -3,7 +3,6 @@ import { join } from "node:path";
 
 import { module } from "@/core/module";
 import { getRequestContext } from "@/ecosystem/modules/global-request-context/global-request-context";
-import { getCookies } from "@/utils/cookies/get/cookies";
 import { Empty } from "@/utils/objects/empty";
 
 export type DeepPaths<Type extends Record<PropertyKey, unknown>> = {
@@ -227,7 +226,9 @@ export const translate = <
 export const i18n = () => {
 	return module().middleware(({ request: { raw }, store: _store }, next) => {
 		const language =
-			getCookies(raw.headers)[store.cookie ?? "Accept-Language"] ??
+			new Bun.CookieMap(raw.headers.get("Cookie") ?? "").get(
+				store.cookie ?? "Accept-Language",
+			) ??
 			raw.headers.get(store.header ?? "Accept-Language") ??
 			getLanguage();
 

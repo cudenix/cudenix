@@ -3,6 +3,18 @@ import type { ContextResponse } from "@/core/context";
 export const processResponse = async (
 	response: ContextResponse,
 ): Promise<Response> => {
+	const setCookieHeaders = response.cookies.toSetCookieHeaders();
+
+	for (let i = 0; i < setCookieHeaders.length; i++) {
+		const setCookieHeader = setCookieHeaders[i];
+
+		if (!setCookieHeader) {
+			continue;
+		}
+
+		response.headers.append("Set-Cookie", setCookieHeader);
+	}
+
 	if (response.content instanceof ReadableStream) {
 		response.headers.set("Cache-Control", "no-cache");
 		response.headers.set("Connection", "keep-alive");
