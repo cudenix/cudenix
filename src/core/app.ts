@@ -129,7 +129,9 @@ App.prototype.endpoint = async function (
 
 	await context.loadRequest();
 
-	const validatorPlugin = this.memory.get("validator") as ValidatorPlugin;
+	const validatorPlugin = this.memory.get("validator") as
+		| ValidatorPlugin
+		| undefined;
 
 	const step = async (chain: Chain, index: number) => {
 		for (let i = index; i < chain.length; i++) {
@@ -165,7 +167,7 @@ App.prototype.endpoint = async function (
 				}
 
 				continue;
-			} else if (!link.request) {
+			} else if (!link.request || !validatorPlugin) {
 				continue;
 			}
 
@@ -349,7 +351,7 @@ App.prototype.fetch = async function (this: App, { request }: FetchParams) {
 		});
 	}
 
-	let index = 0;
+	let index = -1;
 
 	for (let i = 3; i < match.length; i++) {
 		if (match[i] === "") {
@@ -357,6 +359,12 @@ App.prototype.fetch = async function (this: App, { request }: FetchParams) {
 
 			break;
 		}
+	}
+
+	if (index === -1) {
+		return new Response(undefined, {
+			status: 404,
+		});
 	}
 
 	const endpoint = this.endpoints.get(request.method)?.[index];
