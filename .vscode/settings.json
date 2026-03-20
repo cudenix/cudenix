@@ -4,5 +4,5 @@
 		"source.organizeImports.biome": "explicit"
 	},
 	"editor.defaultFormatter": "biomejs.biome",
-	"typescript.inlayHints.parameterNames.enabled": "literals"
+	"js/ts.inlayHints.parameterNames.enabled": "literals"
 }
