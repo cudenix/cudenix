@@ -27,10 +27,6 @@ export interface EndpointParams {
 	request: Request;
 }
 
-export interface FetchParams {
-	request: Request;
-}
-
 export type Plugin = (...options: any[]) => string | Promise<string>;
 
 export interface PluginParams {
@@ -56,7 +52,7 @@ export interface App {
 	compile(): Promise<void>;
 	endpoint(params: EndpointParams): Promise<Response>;
 	endpoints: Map<string, Endpoint[]>;
-	fetch(params: FetchParams): Promise<Response>;
+	fetch(request: Request): Promise<Response>;
 	listen(
 		params?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 	): Promise<App>;
@@ -240,7 +236,9 @@ App.prototype.endpoint = async function (
 						} catch {}
 					};
 
-					request.signal.addEventListener("abort", onAbort);
+					request.signal.addEventListener("abort", onAbort, {
+						once: true,
+					});
 
 					try {
 						for await (const chunk of endpoint.route.route(
@@ -334,7 +332,7 @@ App.prototype.endpoint = async function (
 	return processResponse(context.response);
 };
 
-App.prototype.fetch = async function (this: App, { request }: FetchParams) {
+App.prototype.fetch = async function (this: App, request: Request) {
 	const match = this.regexps.get(request.method)?.exec(request.url);
 
 	if (!match) {
@@ -393,9 +391,7 @@ App.prototype.listen = async function (
 		reusePort: true,
 		...params,
 		fetch: (request) => {
-			return this.fetch({
-				request,
-			});
+			return this.fetch(request);
 		},
 		routes: this.routes,
 		websocket: {
