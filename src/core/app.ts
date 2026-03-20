@@ -16,20 +16,32 @@ import type {
 	ValidatorRequest,
 } from "@/core/validator";
 import type { WSData } from "@/types/ws";
+import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
+
+export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
+
+export interface EndpointParams {
+	endpoint: Endpoint;
+	path: string;
+	request: Request;
+}
+
+export interface FetchParams {
+	request: Request;
+}
 
 export type Plugin = (...options: any[]) => string | Promise<string>;
 
-export interface PluginOptions {
+export interface PluginParams {
+	plugins: Plugin[];
 	compile?: "AFTER" | "BEFORE" | false;
 }
 
 export interface MemoryPlugin {
 	plugin: Plugin;
-	options?: PluginOptions | undefined;
+	options?: Omit<PluginParams, "plugins">;
 }
-
-export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
 export interface Endpoint {
 	chain: Chain;
@@ -42,18 +54,14 @@ export interface Endpoint {
 
 export interface App {
 	compile(): Promise<void>;
-	endpoint(
-		request: Request,
-		endpoint: Endpoint,
-		path: string,
-	): Promise<Response>;
+	endpoint(params: EndpointParams): Promise<Response>;
 	endpoints: Map<string, Endpoint[]>;
-	fetch(request: Request): Promise<Response>;
+	fetch(params: FetchParams): Promise<Response>;
 	listen(
-		options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
+		params?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 	): Promise<App>;
 	memory: Map<string, unknown>;
-	plugin(plugin: Plugin | Plugin[], options?: PluginOptions): App;
+	plugin(params: PluginParams): App;
 	regexps: Map<string, RegExp>;
 	routes?: Record<string, Bun.Serve.Routes<unknown, string>>;
 	server?: Bun.Server<unknown> | undefined;
@@ -61,7 +69,7 @@ export interface App {
 
 type Constructor = new (module: AnyModule) => App;
 
-export const App = function (this: App, module: AnyModule) {
+export const App = function (this: App, { module }: { module: AnyModule }) {
 	this.endpoints = new Map();
 	this.memory = new Map();
 	this.regexps = new Map();
@@ -74,7 +82,8 @@ App.prototype.compile = async function (this: App) {
 
 	this.endpoints.clear();
 	this.regexps.clear();
-	this.routes = {};
+
+	this.routes = new Empty() as App["routes"];
 
 	if (this.memory.has("plugins")) {
 		const plugins = this.memory.get("plugins") as MemoryPlugin[];
@@ -82,11 +91,7 @@ App.prototype.compile = async function (this: App) {
 		for (let i = 0; i < plugins.length; i++) {
 			const plugin = plugins[i];
 
-			if (!plugin) {
-				continue;
-			}
-
-			if (plugin.options?.compile === false) {
+			if (!plugin || plugin.options?.compile === false) {
 				continue;
 			}
 
@@ -112,9 +117,7 @@ App.prototype.compile = async function (this: App) {
 
 App.prototype.endpoint = async function (
 	this: App,
-	request: Request,
-	endpoint: Endpoint,
-	path: string,
+	{ endpoint, path, request }: EndpointParams,
 ) {
 	const context = new Context(
 		endpoint,
@@ -142,9 +145,7 @@ App.prototype.endpoint = async function (
 
 			if (link.type === "ROUTE") {
 				continue;
-			}
-
-			if (link.type === "MIDDLEWARE") {
+			} else if (link.type === "MIDDLEWARE") {
 				const middleware = await link.middleware(context, () => {
 					return step(chain, i + 1);
 				});
@@ -154,9 +155,7 @@ App.prototype.endpoint = async function (
 				}
 
 				return;
-			}
-
-			if (link.type === "STORE") {
+			} else if (link.type === "STORE") {
 				const store = await link.store(context);
 
 				if (store instanceof Error) {
@@ -166,16 +165,16 @@ App.prototype.endpoint = async function (
 				}
 
 				continue;
-			}
-
-			if (!link.request) {
+			} else if (!link.request) {
 				continue;
 			}
 
-			const errors = new Map<
-				keyof ValidatorRequest,
-				{ details: unknown[]; type: keyof ValidatorRequest }
-			>();
+			let errors:
+				| Map<
+						keyof ValidatorRequest,
+						{ details: unknown[]; type: keyof ValidatorRequest }
+				  >
+				| undefined;
 
 			for (let i = 0; i < link.keys.length; i++) {
 				const key = link.keys[i] as keyof ValidatorRequest;
@@ -198,6 +197,8 @@ App.prototype.endpoint = async function (
 					? (validated.content as unknown[])
 					: [validated.content];
 
+				errors ??= new Map();
+
 				if (errors.has(key)) {
 					errors.get(key)?.details.push(...content);
 
@@ -210,7 +211,7 @@ App.prototype.endpoint = async function (
 				});
 			}
 
-			if (errors.size > 0) {
+			if (errors && errors.size > 0) {
 				context.response.content = new Error(
 					Array.from(errors.values()),
 					{
@@ -331,10 +332,18 @@ App.prototype.endpoint = async function (
 	return processResponse(context.response);
 };
 
-App.prototype.fetch = async function (this: App, request: Request) {
+App.prototype.fetch = async function (this: App, { request }: FetchParams) {
 	const match = this.regexps.get(request.method)?.exec(request.url);
 
 	if (!match) {
+		return new Response(undefined, {
+			status: 404,
+		});
+	}
+
+	const path = match[2];
+
+	if (!path) {
 		return new Response(undefined, {
 			status: 404,
 		});
@@ -352,27 +361,33 @@ App.prototype.fetch = async function (this: App, request: Request) {
 
 	const endpoint = this.endpoints.get(request.method)?.[index];
 
-	if (!endpoint || !match[2]) {
+	if (!endpoint) {
 		return new Response(undefined, {
 			status: 404,
 		});
 	}
 
-	return this.endpoint(request, endpoint, match[2]);
+	return this.endpoint({
+		endpoint,
+		path,
+		request,
+	});
 };
 
 App.prototype.listen = async function (
 	this: App,
-	options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
+	params?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 ) {
 	await this.compile();
 
 	this.server = Bun.serve({
 		development: false,
 		reusePort: true,
-		...options,
+		...params,
 		fetch: (request) => {
-			return this.fetch(request);
+			return this.fetch({
+				request,
+			});
 		},
 		routes: this.routes,
 		websocket: {
@@ -391,7 +406,7 @@ App.prototype.listen = async function (
 		},
 	});
 
-	process.once("SIGINT", () => {
+	process.once("beforeExit", () => {
 		this.server?.stop(true);
 		this.server = undefined;
 	});
@@ -403,20 +418,10 @@ App.prototype.listen = async function (
 
 App.prototype.plugin = function (
 	this: App,
-	plugins: Plugin | Plugin[],
-	options?: PluginOptions,
+	{ plugins, ...options }: PluginParams,
 ) {
 	if (!this.memory.has("plugins")) {
 		this.memory.set("plugins", []);
-	}
-
-	if (typeof plugins === "function") {
-		(this.memory.get("plugins") as MemoryPlugin[]).push({
-			options,
-			plugin: plugins,
-		});
-
-		return this;
 	}
 
 	for (let i = 0; i < plugins.length; i++) {
