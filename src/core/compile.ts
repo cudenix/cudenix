@@ -273,11 +273,13 @@ export const compile = async (app: App, module: AnyModule) => {
 			routes[methodEndpoint.path]![
 				methodEndpoint.route.method as keyof (typeof routes)[string]
 			] = async (request: Bun.BunRequest) => {
-				return app.endpoint(
+				return app.endpoint({
+					endpoint: methodEndpoint,
+					path:
+						getUrlPathnameRegexp.exec(request.url)?.[1] ||
+						request.url,
 					request,
-					methodEndpoint,
-					getUrlPathnameRegexp.exec(request.url)?.[1] || request.url,
-				);
+				});
 			};
 		}
 
