@@ -10,11 +10,8 @@ interface Stack {
 	};
 }
 
-const endsWithQuestionMarkRegexp = /\?$/;
 const getUrlPathnameRegexp =
 	/^(?:[a-zA-Z][a-zA-Z\d+\-.]*:\/\/)?[^/?#]*(\/[^?#]*)?/;
-const startsWithColonRegexp = /^:/;
-const startsWithEllipsisRegexp = /^\.{3}/;
 
 const useRegexps = [
 	["body", /\bbody\b/m],
@@ -38,13 +35,12 @@ const getLinkText = (link: Chain[number]): string => {
 };
 
 const pathToRegexp = (path: string, captureParamGroups = false) => {
-	let pattern = "()";
-
 	if (path === "/") {
-		return `${pattern}\\/`;
+		return "()\\/";
 	}
 
 	const segments = path.split("/");
+	const parts = ["()"];
 
 	for (let i = 0; i < segments.length; i++) {
 		let segment = segments[i];
@@ -53,15 +49,22 @@ const pathToRegexp = (path: string, captureParamGroups = false) => {
 			continue;
 		}
 
-		const isOptional = endsWithQuestionMarkRegexp.test(segment);
+		const isOptional = segment.charCodeAt(segment.length - 1) === 63; // '?'
 
 		if (isOptional) {
 			segment = segment.slice(0, -1);
 		}
 
-		if (startsWithColonRegexp.test(segment)) {
+		const firstChar = segment.charCodeAt(0);
+
+		if (firstChar === 58) {
+			// ':'
 			segment = `\\/${captureParamGroups ? `(?<${segment.slice(1)}>` : ""}[^/\\s?#]+${captureParamGroups ? ")" : ""}`;
-		} else if (startsWithEllipsisRegexp.test(segment)) {
+		} else if (
+			firstChar === 46 && // '.'
+			segment.charCodeAt(1) === 46 &&
+			segment.charCodeAt(2) === 46
+		) {
 			segment = `\\/${captureParamGroups ? `(?<${segment.slice(3)}>` : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${captureParamGroups ? ")" : ""}`;
 		} else {
 			segment = `/${segment}`;
@@ -71,10 +74,10 @@ const pathToRegexp = (path: string, captureParamGroups = false) => {
 			segment = `(?:${segment})?`;
 		}
 
-		pattern = `${pattern}${segment}`;
+		parts.push(segment);
 	}
 
-	return pattern;
+	return parts.join("");
 };
 
 const step = (
@@ -86,6 +89,9 @@ const step = (
 	const chain = [] as Chain;
 
 	let path = module.prefix;
+
+	let mergedChain: Chain | null = null;
+	let mergedChainLength = -1;
 
 	for (let i = 0; i < module.chain.length; i++) {
 		const link = module.chain[i];
@@ -100,6 +106,7 @@ const step = (
 			});
 
 			module.chain = [...previous.chain, ...chain];
+			mergedChain = null;
 
 			stack.push({
 				module: link.group(module),
@@ -118,6 +125,7 @@ const step = (
 			link.type === "VALIDATOR"
 		) {
 			chain.push(link);
+			mergedChain = null;
 
 			continue;
 		}
@@ -129,6 +137,7 @@ const step = (
 			});
 
 			chain.push(...compiled.chain);
+			mergedChain = null;
 
 			if (compiled.path !== "/") {
 				path = `${path}${compiled.path}`;
@@ -137,7 +146,10 @@ const step = (
 			continue;
 		}
 
-		const mergedChain = [...previous.chain, ...chain];
+		if (!mergedChain || chain.length !== mergedChainLength) {
+			mergedChain = [...previous.chain, ...chain];
+			mergedChainLength = chain.length;
+		}
 
 		const use = new Set<string>() as Endpoint["use"];
 
@@ -193,10 +205,12 @@ const step = (
 			`${previous.path}${path}${link.path === "/" ? "" : link.path}` ||
 			"/";
 
+		const endpointChain = link.validator
+			? [...mergedChain, link.validator]
+			: [...mergedChain];
+
 		endpoints.get(method)?.push({
-			chain: link.validator
-				? [...mergedChain, link.validator]
-				: mergedChain,
+			chain: endpointChain,
 			generator: link.generator,
 			paramsRegexp: new RegExp(`^${pathToRegexp(finalPath, true)}$`),
 			path: finalPath,
@@ -269,10 +283,9 @@ export const compile = async (app: App, module: AnyModule) => {
 			}
 
 			routes[methodEndpoint.path] ??= {};
-
 			routes[methodEndpoint.path]![
 				methodEndpoint.route.method as keyof (typeof routes)[string]
-			] = async (request: Bun.BunRequest) => {
+			] = async (request: Request) => {
 				return app.endpoint({
 					endpoint: methodEndpoint,
 					path:
