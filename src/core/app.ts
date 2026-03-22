@@ -21,22 +21,15 @@ import { merge } from "@/utils/objects/merge";
 
 export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
-export interface EndpointParams {
-	endpoint: Endpoint;
-	path: string;
-	request: Request;
-}
-
 export type Plugin = (...options: any[]) => string | Promise<string>;
 
-export interface PluginParams {
-	plugins: Plugin[];
+export interface PluginOptions {
 	compile?: "AFTER" | "BEFORE" | false;
 }
 
 export interface MemoryPlugin {
 	plugin: Plugin;
-	options?: Omit<PluginParams, "plugins">;
+	options?: PluginOptions;
 }
 
 export interface Endpoint {
@@ -50,14 +43,18 @@ export interface Endpoint {
 
 export interface App {
 	compile(): Promise<void>;
-	endpoint(params: EndpointParams): Promise<Response>;
+	endpoint(
+		endpoint: Endpoint,
+		path: string,
+		request: Request,
+	): Promise<Response>;
 	endpoints: Map<string, Endpoint[]>;
 	fetch(request: Request): Promise<Response>;
 	listen(
-		params?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
+		options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 	): Promise<App>;
 	memory: Map<string, unknown>;
-	plugins(params: PluginParams): App;
+	plugins(plugins: Plugin[], options: PluginOptions): App;
 	regexps: Map<string, RegExp>;
 	routes?: Record<string, Bun.Serve.Routes<unknown, string>>;
 	server?: Bun.Server<unknown> | undefined;
@@ -113,7 +110,9 @@ App.prototype.compile = async function (this: App) {
 
 App.prototype.endpoint = async function (
 	this: App,
-	{ endpoint, path, request }: EndpointParams,
+	endpoint: Endpoint,
+	path: string,
+	request: Request,
 ) {
 	const context = new Context(
 		endpoint,
@@ -373,23 +372,19 @@ App.prototype.fetch = async function (this: App, request: Request) {
 		});
 	}
 
-	return this.endpoint({
-		endpoint,
-		path,
-		request,
-	});
+	return this.endpoint(endpoint, path, request);
 };
 
 App.prototype.listen = async function (
 	this: App,
-	params?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
+	options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 ) {
 	await this.compile();
 
 	this.server = Bun.serve({
 		development: false,
 		reusePort: true,
-		...params,
+		...options,
 		fetch: (request) => {
 			return this.fetch(request);
 		},
@@ -422,7 +417,8 @@ App.prototype.listen = async function (
 
 App.prototype.plugins = function (
 	this: App,
-	{ plugins, ...options }: PluginParams,
+	plugins: Plugin[],
+	options: PluginOptions,
 ) {
 	if (!this.memory.has("plugins")) {
 		this.memory.set("plugins", []);
