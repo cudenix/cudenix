@@ -57,7 +57,7 @@ export interface App {
 		params?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 	): Promise<App>;
 	memory: Map<string, unknown>;
-	plugin(params: PluginParams): App;
+	plugins(params: PluginParams): App;
 	regexps: Map<string, RegExp>;
 	routes?: Record<string, Bun.Serve.Routes<unknown, string>>;
 	server?: Bun.Server<unknown> | undefined;
@@ -65,7 +65,7 @@ export interface App {
 
 type Constructor = new (module: AnyModule) => App;
 
-export const App = function (this: App, { module }: { module: AnyModule }) {
+export const App = function (this: App, module: AnyModule) {
 	this.endpoints = new Map();
 	this.memory = new Map();
 	this.regexps = new Map();
@@ -420,7 +420,7 @@ App.prototype.listen = async function (
 	return this;
 };
 
-App.prototype.plugin = function (
+App.prototype.plugins = function (
 	this: App,
 	{ plugins, ...options }: PluginParams,
 ) {
