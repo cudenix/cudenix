@@ -10,6 +10,10 @@ interface Stack {
 	};
 }
 
+interface PathToRegexpOptions {
+	captureParamGroups?: boolean;
+}
+
 const getUrlPathnameRegexp =
 	/^(?:[a-zA-Z][a-zA-Z\d+\-.]*:\/\/)?[^/?#]*(\/[^?#]*)?/;
 
@@ -34,7 +38,7 @@ const getLinkText = (link: Chain[number]): string => {
 	}
 };
 
-const pathToRegexp = (path: string, captureParamGroups = false) => {
+const pathToRegexp = (path: string, options?: PathToRegexpOptions) => {
 	if (path === "/") {
 		return "()\\/";
 	}
@@ -59,13 +63,13 @@ const pathToRegexp = (path: string, captureParamGroups = false) => {
 
 		if (firstChar === 58) {
 			// ':'
-			segment = `\\/${captureParamGroups ? `(?<${segment.slice(1)}>` : ""}[^/\\s?#]+${captureParamGroups ? ")" : ""}`;
+			segment = `\\/${options?.captureParamGroups ? `(?<${segment.slice(1)}>` : ""}[^/\\s?#]+${options?.captureParamGroups ? ")" : ""}`;
 		} else if (
 			firstChar === 46 && // '.'
 			segment.charCodeAt(1) === 46 &&
 			segment.charCodeAt(2) === 46
 		) {
-			segment = `\\/${captureParamGroups ? `(?<${segment.slice(3)}>` : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${captureParamGroups ? ")" : ""}`;
+			segment = `\\/${options?.captureParamGroups ? `(?<${segment.slice(3)}>` : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${options?.captureParamGroups ? ")" : ""}`;
 		} else {
 			segment = `/${segment}`;
 		}
@@ -212,7 +216,11 @@ const step = (
 		endpoints.get(method)?.push({
 			chain: endpointChain,
 			generator: link.generator,
-			paramsRegexp: new RegExp(`^${pathToRegexp(finalPath, true)}$`),
+			paramsRegexp: new RegExp(
+				`^${pathToRegexp(finalPath, {
+					captureParamGroups: true,
+				})}$`,
+			),
 			path: finalPath,
 			route: link,
 			use,
@@ -286,13 +294,11 @@ export const compile = async (app: App, module: AnyModule) => {
 			routes[methodEndpoint.path]![
 				methodEndpoint.route.method as keyof (typeof routes)[string]
 			] = async (request: Request) => {
-				return app.endpoint({
-					endpoint: methodEndpoint,
-					path:
-						getUrlPathnameRegexp.exec(request.url)?.[1] ||
-						request.url,
+				return app.endpoint(
+					methodEndpoint,
+					getUrlPathnameRegexp.exec(request.url)?.[1] || request.url,
 					request,
-				});
+				);
 			};
 		}
 
