@@ -1,4 +1,4 @@
-// biome-ignore lint/complexity/useArrowFunction: <explanation>
+// biome-ignore lint/complexity/useArrowFunction: Is necessary for the prototype
 export const Empty = function () {} as unknown as new () => Record<
 	PropertyKey,
 	unknown
