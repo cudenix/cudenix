@@ -33,6 +33,7 @@ import {
 	type RouteFnReturnGenerator,
 	type RouteFnReturnWS,
 	type RouteOptions,
+	type ValidatorsWithParams,
 } from "@/core/route";
 import {
 	type AnyStore,
@@ -59,8 +60,6 @@ import {
 	type ValidatorRequest,
 } from "@/core/validator";
 import type { AllPropertiesAreUnknown } from "@/types/all-properties-are-unknown";
-import type { ConditionallyOmit } from "@/types/conditionally-omit";
-import type { ExtendsType } from "@/types/extends-type";
 import type { ExtractUrlParams } from "@/types/extract-url-params";
 import type { HttpMethod } from "@/types/http-method";
 import type { MergePaths } from "@/types/merge-paths";
@@ -189,27 +188,14 @@ export interface Module<
 					Omit<
 						DeveloperContext<
 							Stores,
-							ExtendsType<
-								ExtractUrlParams<RoutePath>,
-								NonNullable<unknown>,
+							ValidatorsWithParams<
+								RoutePath,
 								MergeInferValidatorRequest<
 									Validators["outputs"],
 									DeepInferValidatorOutput<
 										RouteValidatorOptions["request"]
 									>
-								>,
-								MergeInferValidatorRequest<
-									Validators["outputs"],
-									DeepInferValidatorOutput<
-										RouteValidatorOptions["request"]
-									>
-								> &
-									ConditionallyOmit<
-										{
-											params: ExtractUrlParams<RoutePath>;
-										},
-										NonNullable<unknown>
-									>
+								>
 							>
 						>,
 						"response"
@@ -233,71 +219,55 @@ export interface Module<
 			>
 		>,
 		options?: RouteOptions<RouteValidatorOptions>,
-	): Module<
-		Errors,
-		Prefix,
-		Routes &
-			ParseRoute<
-				RouteMethod,
-				MergePaths<Prefix, RoutePath>,
-				MergeInferValidatorRequest<
-					Validators["inputs"],
-					DeepInferValidatorInput<RouteValidatorOptions["request"]>
-				> &
-					ExtendsType<
-						ExtractUrlParams<MergePaths<Prefix, RoutePath>>,
-						NonNullable<unknown>,
-						NonNullable<unknown>,
-						{
-							params: RequiredKeys<
-								ExtractUrlParams<MergePaths<Prefix, RoutePath>>
-							> extends never
-								?
-										| ExtractUrlParams<
-												MergePaths<Prefix, RoutePath>
-										  >
-										| undefined
-								: ExtractUrlParams<
-										MergePaths<Prefix, RoutePath>
-									>;
-						}
-					>,
-				| Awaited<
-						ReturnType<
-							RouteFn<
-								RouteMethod,
-								RoutePath,
-								RouteReturn,
-								Stores,
-								MergeInferValidatorRequest<
-									Validators["outputs"],
-									DeepInferValidatorOutput<
-										RouteValidatorOptions["request"]
-									>
+	): MergePaths<Prefix, RoutePath> extends infer MergedPath extends
+		`/${string}`
+		? ExtractUrlParams<MergedPath> extends infer PathParams extends Record<
+				string,
+				string | string[]
+			>
+			? Module<
+					Errors,
+					Prefix,
+					Routes &
+						ParseRoute<
+							RouteMethod,
+							MergedPath,
+							MergeInferValidatorRequest<
+								Validators["inputs"],
+								DeepInferValidatorInput<
+									RouteValidatorOptions["request"]
 								>
-							>
-						>
-				  >
-				| (AllPropertiesAreUnknown<
-						RouteValidatorOptions["request"]
-				  > extends true
-						? ValueOf<Errors>
-						: ValueOf<
-								MergeErrors<
-									Errors,
-									TransformValidatorError<
-										DeepInferValidatorError<
-											RouteValidatorOptions["request"]
-										>
-									>
-								>
-							>)
-				| ValueOf<Successes>
-			>,
-		Stores,
-		Successes,
-		Validators
-	>;
+							> &
+								([NonNullable<unknown>] extends [PathParams]
+									? NonNullable<unknown>
+									: {
+											params: RequiredKeys<PathParams> extends never
+												? PathParams | undefined
+												: PathParams;
+										}),
+							| Awaited<RouteReturn>
+							| (AllPropertiesAreUnknown<
+									RouteValidatorOptions["request"]
+							  > extends true
+									? ValueOf<Errors>
+									: ValueOf<
+											MergeErrors<
+												Errors,
+												TransformValidatorError<
+													DeepInferValidatorError<
+														RouteValidatorOptions["request"]
+													>
+												>
+											>
+										>)
+							| ValueOf<Successes>
+						>,
+					Stores,
+					Successes,
+					Validators
+				>
+			: never
+		: never;
 	routes: Routes;
 	store<const StoreReturn extends Record<PropertyKey, unknown> | AnyError>(
 		store: StoreFn<StoreReturn, Stores, Validators["outputs"]>,
