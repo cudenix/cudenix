@@ -99,7 +99,7 @@ const step = (
 				prefix: `${previous.path}${path === "/" ? "" : path}${link.prefix === "/" ? "" : link.prefix}`,
 			});
 
-			module.chain = [...previous.chain, ...chain];
+			module.chain = previous.chain.concat(chain);
 
 			stack.push({
 				module: link.group(module),
@@ -124,7 +124,7 @@ const step = (
 
 		if (link.type === "MODULE") {
 			const compiled = step(stack, endpoints, link, {
-				chain: [...previous.chain, ...chain],
+				chain: previous.chain.concat(chain),
 				path: `${previous.path}${path === "/" ? "" : path}`,
 			});
 
@@ -137,7 +137,7 @@ const step = (
 			continue;
 		}
 
-		const mergedChain = [...previous.chain, ...chain];
+		const mergedChain = previous.chain.concat(chain);
 
 		const use = new Set<string>() as Endpoint["use"];
 
@@ -152,14 +152,28 @@ const step = (
 				continue;
 			}
 
+			if (link.type === "VALIDATOR") {
+				for (let k = 0; k < link.keys.length; k++) {
+					const key = link.keys[k];
+
+					if (!key) {
+						continue;
+					}
+
+					use.add(key);
+				}
+
+				continue;
+			}
+
 			const text = getLinkText(link);
 
 			if (!text) {
 				continue;
 			}
 
-			for (let i = 0; i < useRegexps.length; i++) {
-				const regexp = useRegexps[i];
+			for (let k = 0; k < useRegexps.length; k++) {
+				const regexp = useRegexps[k];
 
 				if (!regexp || !regexp[1].test(text)) {
 					continue;
@@ -172,14 +186,26 @@ const step = (
 		if (use.size !== useRegexps.length) {
 			const text = link.route.toString();
 
-			for (let i = 0; i < useRegexps.length; i++) {
-				const regexp = useRegexps[i];
+			for (let j = 0; j < useRegexps.length; j++) {
+				const regexp = useRegexps[j];
 
 				if (!regexp || !regexp[1].test(text)) {
 					continue;
 				}
 
 				use.add(regexp[0]);
+			}
+		}
+
+		if (link.validator && use.size !== useRegexps.length) {
+			for (let j = 0; j < link.validator.keys.length; j++) {
+				const key = link.validator.keys[j];
+
+				if (!key) {
+					continue;
+				}
+
+				use.add(key);
 			}
 		}
 
@@ -195,7 +221,7 @@ const step = (
 
 		endpoints.get(method)?.push({
 			chain: link.validator
-				? [...mergedChain, link.validator]
+				? mergedChain.concat(link.validator)
 				: mergedChain,
 			generator: link.generator,
 			paramsRegexp: new RegExp(`^${pathToRegexp(finalPath, true)}$`),
