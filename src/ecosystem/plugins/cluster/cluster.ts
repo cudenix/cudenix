@@ -17,9 +17,7 @@ export const cluster = (command: string) => {
 
 	const kill = () => {
 		for (let i = 0; i < cpus; i++) {
-			try {
-				buns[i].kill();
-			} catch {}
+			buns[i]?.kill().catch(() => {});
 		}
 	};
 
