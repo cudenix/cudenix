@@ -331,10 +331,6 @@ App.prototype.endpoint = async function (
 
 	await step(endpoint.chain, 0);
 
-	if (endpoint.route.method === "WS" && !context.response.content) {
-		return new Response();
-	}
-
 	return processResponse(context.response);
 };
 
