@@ -167,11 +167,9 @@ App.prototype.endpoint = async function (
 			}
 
 			let errors:
-				| Map<
-						keyof ValidatorRequest,
-						{ details: unknown[]; type: keyof ValidatorRequest }
-				  >
+				| { details: unknown[]; type: keyof ValidatorRequest }[]
 				| undefined;
+			let errorIndex: Record<string, number> | undefined;
 
 			for (let j = 0; j < link.keys.length; j++) {
 				const key = link.keys[j];
@@ -199,27 +197,27 @@ App.prototype.endpoint = async function (
 					? (validated.content as unknown[])
 					: [validated.content];
 
-				errors ??= new Map();
+				errors ??= [];
+				errorIndex ??= new Empty() as Record<string, number>;
 
-				if (errors.has(key)) {
-					errors.get(key)?.details.push(...content);
+				if (key in errorIndex && errorIndex[key] !== undefined) {
+					errors[errorIndex[key]]?.details.push(...content);
 
 					continue;
 				}
 
-				errors.set(key, {
+				errorIndex[key] = errors.length;
+
+				errors.push({
 					details: content,
 					type: key,
 				});
 			}
 
-			if (errors && errors.size > 0) {
-				context.response.content = new Error(
-					Array.from(errors.values()),
-					{
-						status: 422,
-					},
-				);
+			if (errors) {
+				context.response.content = new Error(errors, {
+					status: 422,
+				});
 			}
 		}
 
