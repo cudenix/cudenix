@@ -173,8 +173,13 @@ App.prototype.endpoint = async function (
 				  >
 				| undefined;
 
-			for (let i = 0; i < link.keys.length; i++) {
-				const key = link.keys[i] as keyof ValidatorRequest;
+			for (let j = 0; j < link.keys.length; j++) {
+				const key = link.keys[j];
+
+				if (!key) {
+					continue;
+				}
+
 				const schema = link.request[key];
 
 				const validated = await validatorPlugin(
