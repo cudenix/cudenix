@@ -200,7 +200,7 @@ App.prototype.endpoint = async function (
 				errors ??= [];
 				errorIndex ??= new Empty() as Record<string, number>;
 
-				if (key in errorIndex && errorIndex[key] !== undefined) {
+				if (errorIndex[key] !== undefined) {
 					errors[errorIndex[key]]?.details.push(...content);
 
 					continue;
@@ -228,7 +228,7 @@ App.prototype.endpoint = async function (
 		if (endpoint.generator) {
 			context.response.content = new ReadableStream({
 				async start(controller) {
-					let closed = false as boolean;
+					let closed = false;
 
 					const onAbort = () => {
 						closed = true;
@@ -330,6 +330,10 @@ App.prototype.endpoint = async function (
 	};
 
 	await step(endpoint.chain, 0);
+
+	if (endpoint.route.method === "WS" && !context.response.content) {
+		return new Response();
+	}
 
 	return processResponse(context.response);
 };
