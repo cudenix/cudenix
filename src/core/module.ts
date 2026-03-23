@@ -66,7 +66,7 @@ import type { HttpMethod } from "@/types/http-method";
 import type { MergePaths } from "@/types/merge-paths";
 import type { RequiredKeys } from "@/types/required-keys";
 import type { ValueOf } from "@/types/value-of";
-import { Empty } from "@/utils/objects/empty";
+import { FreezeEmpty } from "@/utils/objects/empty";
 
 export type ModuleChain = (
 	| AnyGroup
@@ -346,7 +346,7 @@ type Constructor = new (options: AnyModuleOptions) => AnyModule;
 
 export const Module = function (
 	this: AnyModule,
-	{ prefix }: AnyModuleOptions = new Empty(),
+	{ prefix }: AnyModuleOptions = FreezeEmpty,
 ) {
 	this.chain = [];
 	this.prefix = prefix ?? "";
@@ -368,7 +368,7 @@ Module.prototype.extends = function (
 Module.prototype.group = function (
 	this: AnyModule,
 	group: AnyGroupFn,
-	options: AnyGroupOptions = new Empty(),
+	options: AnyGroupOptions = FreezeEmpty,
 ) {
 	this.chain.push(new Group(group, options));
 
@@ -389,7 +389,7 @@ Module.prototype.route = function (
 	method: HttpMethod,
 	path: `/${string}`,
 	route: AnyRouteFn,
-	options: AnyRouteOptions = new Empty(),
+	options: AnyRouteOptions = FreezeEmpty,
 ) {
 	this.chain.push(new Route(method, path, route, options));
 
@@ -425,7 +425,7 @@ export const module = <
 		outputs: NonNullable<unknown>;
 	},
 >(
-	options: ModuleOptions<Prefix> = new Empty(),
+	options: ModuleOptions<Prefix> = FreezeEmpty,
 ) => {
 	return new Module(options) as Module<
 		Errors,
