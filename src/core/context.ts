@@ -5,6 +5,7 @@ import { Empty } from "@/utils/objects/empty";
 
 const isSerializedArray = /^sas-(.*?)-eas$/;
 const isSerializedObject = /^sos-(.*?)-eos$/;
+const queryRegexp = /[?&]([^=#]+)=([^&#]*)/g;
 
 export interface DeveloperContext<
 	Stores extends Record<PropertyKey, unknown>,
@@ -85,34 +86,31 @@ export const Context = function (
 Context.prototype.loadRequest = async function (this: Context) {
 	const { use } = this.endpoint;
 
-	try {
-		if (use.has("body")) {
-			await this.loadRequestBody();
-		}
+	if (use.has("body")) {
+		await this.loadRequestBody();
+	}
 
-		if (use.has("headers") || use.has("cookies")) {
-			this.loadRequestHeaders();
-		}
+	if (use.has("headers") || use.has("cookies")) {
+		this.loadRequestHeaders();
+	}
 
-		if (use.has("cookies")) {
-			this.loadRequestCookies();
-		}
+	if (use.has("cookies")) {
+		this.loadRequestCookies();
+	}
 
-		if (use.has("params")) {
-			this.loadRequestParams();
-		}
+	if (use.has("params")) {
+		this.loadRequestParams();
+	}
 
-		if (use.has("query")) {
-			this.loadRequestQuery();
-		}
-	} catch {}
+	if (use.has("query")) {
+		this.loadRequestQuery();
+	}
 };
 
 Context.prototype.loadRequestBody = async function (this: Context) {
-	const contentType = this.request.raw.headers
-		.get("Content-Type")
-		?.toLowerCase()
-		.split(";")[0];
+	const raw = this.request.raw.headers.get("Content-Type")?.toLowerCase();
+	const semi = raw ? raw.indexOf(";") : -1;
+	const contentType = semi === -1 ? raw : raw?.slice(0, semi);
 
 	if (contentType === "application/json") {
 		this.request.body = await this.request.raw.json();
@@ -131,17 +129,17 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 
 		const result = new Empty();
 
-		formData.forEach((value, key) => {
-			if (result[key]) {
-				if ((result[key] as any).pop) {
-					(result[key] as unknown[]).push(value);
+		for (const [key, value] of formData.entries()) {
+			if (key in result) {
+				if (Array.isArray(result[key])) {
+					result[key].push(value);
 				} else {
 					result[key] = [result[key], value];
 				}
 			} else {
 				result[key] = value;
 			}
-		});
+		}
 
 		this.request.body = result;
 
@@ -162,19 +160,37 @@ Context.prototype.loadRequestCookies = function (this: Context) {
 
 	const cookies = this.response.cookies.toJSON();
 
-	this.request.cookies =
-		Object.keys(cookies).length > 0 ? cookies : undefined;
+	let hasCookies = false;
+
+	for (const cookie in cookies) {
+		hasCookies = true;
+
+		break;
+	}
+
+	if (!hasCookies) {
+		return;
+	}
+
+	this.request.cookies = cookies;
 };
 
 Context.prototype.loadRequestHeaders = function (this: Context) {
 	const headers = new Empty();
 
+	let hasHeaders = false;
+
 	this.request.raw.headers.forEach((value, key) => {
 		headers[key] = value;
+
+		hasHeaders = true;
 	});
 
-	this.request.headers =
-		Object.keys(headers).length > 0 ? headers : undefined;
+	if (!hasHeaders) {
+		return;
+	}
+
+	this.request.headers = headers;
 };
 
 Context.prototype.loadRequestParams = function (this: Context) {
@@ -192,20 +208,12 @@ Context.prototype.loadRequestParams = function (this: Context) {
 		return;
 	}
 
-	const keys = Object.keys(groups);
-
-	for (let i = 0; i < keys.length; i++) {
-		const key = keys[i];
-
-		if (!key) {
-			continue;
-		}
-
+	for (const key in groups) {
 		if (
 			typeof groups[key] === "string" &&
 			groups[key].indexOf("/") !== -1
 		) {
-			groups[key] = (groups[key] as unknown as string).split("/");
+			groups[key] = groups[key].split("/");
 		}
 	}
 
@@ -213,44 +221,54 @@ Context.prototype.loadRequestParams = function (this: Context) {
 };
 
 Context.prototype.loadRequestQuery = function (this: Context) {
+	const queryIndex = this.request.raw.url.indexOf("?");
+
+	if (queryIndex === -1) {
+		return;
+	}
+
 	const params = new Empty();
 
-	const url = decodeURIComponent(this.request.raw.url);
+	queryRegexp.lastIndex = queryIndex;
 
+	let hasParams = false;
 	let match: RegExpExecArray | null;
-
-	const queryRegexp = /[?&]([^=#]+)=([^&#]*)/g;
 
 	while (
 		// biome-ignore lint/suspicious/noAssignInExpressions: Is necessary for the loop
-		(match = queryRegexp.exec(url))
+		(match = queryRegexp.exec(this.request.raw.url))
 	) {
-		let [, key, value] = match;
+		const key = match[1];
 
-		if (!(key && value)) {
+		let value = match[2];
+
+		if (!key || value === undefined) {
 			continue;
 		}
 
-		value = value.replaceAll("+", " ");
+		value = decodeURIComponent(value.replaceAll("+", " "));
 
-		if (isSerializedObject.test(value)) {
-			const parsed = value.match(isSerializedObject);
+		const parsedObject = isSerializedObject.exec(value);
+		const parsedArray = !parsedObject
+			? isSerializedArray.exec(value)
+			: null;
 
-			if (parsed) {
-				value = JSON.parse(parsed[1] ?? "");
-			}
-		} else if (isSerializedArray.test(value)) {
-			const parsed = value.match(isSerializedArray);
-
-			if (parsed) {
-				value = JSON.parse(parsed[1] ?? "");
-			}
+		if (parsedObject) {
+			value = JSON.parse(parsedObject[1] ?? "");
+		} else if (parsedArray) {
+			value = JSON.parse(parsedArray[1] ?? "");
 		}
 
-		params[key] = value;
+		params[decodeURIComponent(key)] = value;
+
+		hasParams = true;
 	}
 
-	this.request.query = Object.keys(params).length > 0 ? params : undefined;
+	if (!hasParams) {
+		return;
+	}
+
+	this.request.query = params;
 };
 
 export const context = (
