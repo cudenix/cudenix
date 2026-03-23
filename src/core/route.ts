@@ -58,6 +58,22 @@ export type RouteFnReturnGenerator =
 			AnyError | AnySuccess | void
 	  >;
 
+type ValidatorsWithParams<
+	Path extends string,
+	Validators extends Record<PropertyKey, unknown>,
+> = ExtendsType<
+	ExtractUrlParams<Path>,
+	NonNullable<unknown>,
+	Validators,
+	Validators &
+		ConditionallyOmit<
+			{
+				params: ExtractUrlParams<Path>;
+			},
+			NonNullable<unknown>
+		>
+>;
+
 export type RouteFn<
 	Method extends HttpMethod,
 	Path extends string,
@@ -66,18 +82,7 @@ export type RouteFn<
 				Omit<
 					DeveloperContext<
 						Stores,
-						ExtendsType<
-							ExtractUrlParams<Path>,
-							NonNullable<unknown>,
-							Validators,
-							Validators &
-								ConditionallyOmit<
-									{
-										params: ExtractUrlParams<Path>;
-									},
-									NonNullable<unknown>
-								>
-						>
+						ValidatorsWithParams<Path, Validators>
 					>,
 					"response"
 				>
@@ -88,18 +93,7 @@ export type RouteFn<
 > = (
 	context: DeveloperContext<
 		Stores,
-		ExtendsType<
-			ExtractUrlParams<Path>,
-			NonNullable<unknown>,
-			Validators,
-			Validators &
-				ConditionallyOmit<
-					{
-						params: ExtractUrlParams<Path>;
-					},
-					NonNullable<unknown>
-				>
-		>
+		ValidatorsWithParams<Path, Validators>
 	>,
 ) => Return;
 
@@ -113,27 +107,14 @@ export interface Route<
 				Omit<
 					DeveloperContext<
 						Stores,
-						ExtendsType<
-							ExtractUrlParams<Path>,
-							NonNullable<unknown>,
+						ValidatorsWithParams<
+							Path,
 							MergeInferValidatorRequest<
 								Validators,
 								DeepInferValidatorOutput<
 									_ValidatorOptions["request"]
 								>
-							>,
-							MergeInferValidatorRequest<
-								Validators,
-								DeepInferValidatorOutput<
-									_ValidatorOptions["request"]
-								>
-							> &
-								ConditionallyOmit<
-									{
-										params: ExtractUrlParams<Path>;
-									},
-									NonNullable<unknown>
-								>
+							>
 						>
 					>,
 					"response"
@@ -203,27 +184,14 @@ export const route = <
 				Omit<
 					DeveloperContext<
 						Stores,
-						ExtendsType<
-							ExtractUrlParams<Path>,
-							NonNullable<unknown>,
+						ValidatorsWithParams<
+							Path,
 							MergeInferValidatorRequest<
 								Validators,
 								DeepInferValidatorOutput<
 									_ValidatorOptions["request"]
 								>
-							>,
-							MergeInferValidatorRequest<
-								Validators,
-								DeepInferValidatorOutput<
-									_ValidatorOptions["request"]
-								>
-							> &
-								ConditionallyOmit<
-									{
-										params: ExtractUrlParams<Path>;
-									},
-									NonNullable<unknown>
-								>
+							>
 						>
 					>,
 					"response"
