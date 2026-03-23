@@ -58,7 +58,7 @@ export type RouteFnReturnGenerator =
 			AnyError | AnySuccess | void
 	  >;
 
-type ValidatorsWithParams<
+export type ValidatorsWithParams<
 	Path extends string,
 	Validators extends Record<PropertyKey, unknown>,
 > = ExtendsType<
@@ -91,10 +91,7 @@ export type RouteFn<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > = (
-	context: DeveloperContext<
-		Stores,
-		ValidatorsWithParams<Path, Validators>
-	>,
+	context: DeveloperContext<Stores, ValidatorsWithParams<Path, Validators>>,
 ) => Return;
 
 export type AnyRouteFn = RouteFn<any, any, any, any, any>;
