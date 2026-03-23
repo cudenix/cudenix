@@ -51,9 +51,9 @@ export type MergeInferValidatorRequest<
 	FirstType extends Record<PropertyKey, unknown>,
 	SecondType extends Record<PropertyKey, unknown>,
 > = {
-	[Key in "body" | "cookies" | "headers" | "params" | "query" as [unknown] extends [
-		SecondType[Key],
-	]
+	[Key in "body" | "cookies" | "headers" | "params" | "query" as [
+		unknown,
+	] extends [SecondType[Key]]
 		? [unknown] extends [FirstType[Key]]
 			? never
 			: Key
