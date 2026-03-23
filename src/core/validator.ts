@@ -1,6 +1,4 @@
 import type { Error } from "@/core/error";
-import type { ConditionallyOmit } from "@/types/conditionally-omit";
-import type { ExtendsType } from "@/types/extends-type";
 import type { MaybePromise } from "@/types/maybe-promise";
 
 export type ValidatorPlugin = (
@@ -52,24 +50,17 @@ export interface TransformValidatorError<
 export type MergeInferValidatorRequest<
 	FirstType extends Record<PropertyKey, unknown>,
 	SecondType extends Record<PropertyKey, unknown>,
-> = ConditionallyOmit<
-	{
-		body: ExtendsType<SecondType["body"], unknown, FirstType["body"]>;
-		cookies: ExtendsType<
-			SecondType["cookies"],
-			unknown,
-			FirstType["cookies"]
-		>;
-		headers: ExtendsType<
-			SecondType["headers"],
-			unknown,
-			FirstType["headers"]
-		>;
-		params: ExtendsType<SecondType["params"], unknown, FirstType["params"]>;
-		query: ExtendsType<SecondType["query"], unknown, FirstType["query"]>;
-	},
-	unknown
->;
+> = {
+	[Key in "body" | "cookies" | "headers" | "params" | "query" as [unknown] extends [
+		SecondType[Key],
+	]
+		? [unknown] extends [FirstType[Key]]
+			? never
+			: Key
+		: Key]: [unknown] extends [SecondType[Key]]
+		? FirstType[Key]
+		: SecondType[Key];
+};
 
 export interface ValidatorRequest<
 	Body = unknown,
