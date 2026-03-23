@@ -4,15 +4,19 @@ export const merge = (
 ) => {
 	const keys = Object.keys(object2);
 
-	for (let i = 0; i < keys.length; i++) {
-		const key = keys[i];
+	if (keys.length <= 8) {
+		for (let i = 0; i < keys.length; i++) {
+			const key = keys[i];
 
-		if (!key) {
-			continue;
+			if (!key) {
+				continue;
+			}
+
+			object1[key] = object2[key];
 		}
 
-		object1[key] = object2[key];
+		return object1;
 	}
 
-	return object1;
+	return Object.assign(object1, object2);
 };
