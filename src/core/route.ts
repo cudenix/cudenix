@@ -11,8 +11,6 @@ import {
 	type ValidatorOptions,
 	type ValidatorRequest,
 } from "@/core/validator";
-import type { ConditionallyOmit } from "@/types/conditionally-omit";
-import type { ExtendsType } from "@/types/extends-type";
 import type { ExtractUrlParams } from "@/types/extract-url-params";
 import type { GeneratorSSE } from "@/types/generator-sse";
 import type { HttpMethod } from "@/types/http-method";
@@ -61,18 +59,14 @@ export type RouteFnReturnGenerator =
 export type ValidatorsWithParams<
 	Path extends string,
 	Validators extends Record<PropertyKey, unknown>,
-> = ExtendsType<
-	ExtractUrlParams<Path>,
-	NonNullable<unknown>,
-	Validators,
-	Validators &
-		ConditionallyOmit<
-			{
-				params: ExtractUrlParams<Path>;
-			},
-			NonNullable<unknown>
-		>
->;
+> =
+	ExtractUrlParams<Path> extends infer Params
+		? [Params] extends [NonNullable<unknown>]
+			? [NonNullable<unknown>] extends [Params]
+				? Validators
+				: Validators & { params: Params }
+			: Validators & { params: Params }
+		: never;
 
 export type RouteFn<
 	Method extends HttpMethod,
