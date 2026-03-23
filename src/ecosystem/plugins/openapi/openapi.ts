@@ -67,7 +67,7 @@ export const plugin = (
 				for (let k = 0; k < endpoint.chain.length; k++) {
 					const link = endpoint.chain[k];
 
-					if (link?.type !== "VALIDATOR") {
+					if (!link || link.type !== "VALIDATOR") {
 						continue;
 					}
 
