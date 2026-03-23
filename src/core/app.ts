@@ -190,7 +190,7 @@ App.prototype.endpoint = async function (
 					continue;
 				}
 
-				const content = (validated.content as any).pop
+				const content = Array.isArray(validated.content)
 					? (validated.content as unknown[])
 					: [validated.content];
 
