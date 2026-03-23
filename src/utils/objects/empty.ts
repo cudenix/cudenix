@@ -5,3 +5,5 @@ export const Empty = function () {} as unknown as new () => Record<
 >;
 
 Empty.prototype = Object.create(null);
+
+export const FreezeEmpty = Object.freeze(new Empty());
