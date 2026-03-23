@@ -49,7 +49,7 @@ export interface App {
 		request: Request,
 	): Promise<Response>;
 	endpoints: Map<string, Endpoint[]>;
-	fetch(request: Request): Promise<Response>;
+	fetch(request: Request): Response;
 	listen(
 		options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 	): Promise<App>;
@@ -334,7 +334,7 @@ App.prototype.endpoint = async function (
 	return processResponse(context.response);
 };
 
-App.prototype.fetch = async function (this: App, request: Request) {
+App.prototype.fetch = function (this: App, request: Request) {
 	const match = this.regexps.get(request.method)?.exec(request.url);
 
 	if (!match) {
