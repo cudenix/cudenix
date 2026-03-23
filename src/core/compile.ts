@@ -10,12 +10,11 @@ interface Stack {
 	};
 }
 
-interface PathToRegexpOptions {
-	captureParamGroups?: boolean;
-}
-
+const endsWithQuestionMarkRegexp = /\?$/;
 const getUrlPathnameRegexp =
 	/^(?:[a-zA-Z][a-zA-Z\d+\-.]*:\/\/)?[^/?#]*(\/[^?#]*)?/;
+const startsWithColonRegexp = /^:/;
+const startsWithEllipsisRegexp = /^\.{3}/;
 
 const useRegexps = [
 	["body", /\bbody\b/m],
@@ -38,13 +37,14 @@ const getLinkText = (link: Chain[number]): string => {
 	}
 };
 
-const pathToRegexp = (path: string, options?: PathToRegexpOptions) => {
+const pathToRegexp = (path: string, captureParamGroups = false) => {
+	let pattern = "()";
+
 	if (path === "/") {
-		return "()\\/";
+		return `${pattern}\\/`;
 	}
 
 	const segments = path.split("/");
-	const parts = ["()"];
 
 	for (let i = 0; i < segments.length; i++) {
 		let segment = segments[i];
@@ -53,23 +53,16 @@ const pathToRegexp = (path: string, options?: PathToRegexpOptions) => {
 			continue;
 		}
 
-		const isOptional = segment.charCodeAt(segment.length - 1) === 63; // '?'
+		const isOptional = endsWithQuestionMarkRegexp.test(segment);
 
 		if (isOptional) {
 			segment = segment.slice(0, -1);
 		}
 
-		const firstChar = segment.charCodeAt(0);
-
-		if (firstChar === 58) {
-			// ':'
-			segment = `\\/${options?.captureParamGroups ? `(?<${segment.slice(1)}>` : ""}[^/\\s?#]+${options?.captureParamGroups ? ")" : ""}`;
-		} else if (
-			firstChar === 46 && // '.'
-			segment.charCodeAt(1) === 46 &&
-			segment.charCodeAt(2) === 46
-		) {
-			segment = `\\/${options?.captureParamGroups ? `(?<${segment.slice(3)}>` : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${options?.captureParamGroups ? ")" : ""}`;
+		if (startsWithColonRegexp.test(segment)) {
+			segment = `\\/${captureParamGroups ? `(?<${segment.slice(1)}>` : ""}[^/\\s?#]+${captureParamGroups ? ")" : ""}`;
+		} else if (startsWithEllipsisRegexp.test(segment)) {
+			segment = `\\/${captureParamGroups ? `(?<${segment.slice(3)}>` : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${captureParamGroups ? ")" : ""}`;
 		} else {
 			segment = `/${segment}`;
 		}
@@ -78,10 +71,10 @@ const pathToRegexp = (path: string, options?: PathToRegexpOptions) => {
 			segment = `(?:${segment})?`;
 		}
 
-		parts.push(segment);
+		pattern = `${pattern}${segment}`;
 	}
 
-	return parts.join("");
+	return pattern;
 };
 
 const step = (
@@ -93,9 +86,6 @@ const step = (
 	const chain = [] as Chain;
 
 	let path = module.prefix;
-
-	let mergedChain: Chain | null = null;
-	let mergedChainLength = -1;
 
 	for (let i = 0; i < module.chain.length; i++) {
 		const link = module.chain[i];
@@ -110,7 +100,6 @@ const step = (
 			});
 
 			module.chain = [...previous.chain, ...chain];
-			mergedChain = null;
 
 			stack.push({
 				module: link.group(module),
@@ -129,7 +118,6 @@ const step = (
 			link.type === "VALIDATOR"
 		) {
 			chain.push(link);
-			mergedChain = null;
 
 			continue;
 		}
@@ -141,7 +129,6 @@ const step = (
 			});
 
 			chain.push(...compiled.chain);
-			mergedChain = null;
 
 			if (compiled.path !== "/") {
 				path = `${path}${compiled.path}`;
@@ -150,10 +137,7 @@ const step = (
 			continue;
 		}
 
-		if (!mergedChain || chain.length !== mergedChainLength) {
-			mergedChain = [...previous.chain, ...chain];
-			mergedChainLength = chain.length;
-		}
+		const mergedChain = [...previous.chain, ...chain];
 
 		const use = new Set<string>() as Endpoint["use"];
 
@@ -209,18 +193,12 @@ const step = (
 			`${previous.path}${path}${link.path === "/" ? "" : link.path}` ||
 			"/";
 
-		const endpointChain = link.validator
-			? [...mergedChain, link.validator]
-			: [...mergedChain];
-
 		endpoints.get(method)?.push({
-			chain: endpointChain,
+			chain: link.validator
+				? [...mergedChain, link.validator]
+				: mergedChain,
 			generator: link.generator,
-			paramsRegexp: new RegExp(
-				`^${pathToRegexp(finalPath, {
-					captureParamGroups: true,
-				})}$`,
-			),
+			paramsRegexp: new RegExp(`^${pathToRegexp(finalPath, true)}$`),
 			path: finalPath,
 			route: link,
 			use,
@@ -291,6 +269,7 @@ export const compile = async (app: App, module: AnyModule) => {
 			}
 
 			routes[methodEndpoint.path] ??= {};
+
 			routes[methodEndpoint.path]![
 				methodEndpoint.route.method as keyof (typeof routes)[string]
 			] = async (request: Request) => {
