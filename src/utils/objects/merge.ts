@@ -7,7 +7,7 @@ export const merge = (
 	for (let i = 0; i < keys.length; i++) {
 		const key = keys[i];
 
-		if (!key) {
+		if (key === undefined) {
 			continue;
 		}
 
