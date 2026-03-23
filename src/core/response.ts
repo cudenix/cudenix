@@ -1,8 +1,6 @@
 import type { ContextResponse } from "@/core/context";
 
-export const processResponse = async (
-	response: ContextResponse,
-): Promise<Response> => {
+export const processResponse = (response: ContextResponse) => {
 	const setCookieHeaders = response.cookies.toSetCookieHeaders();
 
 	for (let i = 0; i < setCookieHeaders.length; i++) {
@@ -29,14 +27,21 @@ export const processResponse = async (
 	}
 
 	if (response.content?.content instanceof Response) {
-		return response.content.content;
+		const original = response.content.content;
+
+		response.headers.forEach((value, key) => {
+			original.headers.append(key, value);
+		});
+
+		return original;
 	}
 
 	if (response.content?.transform) {
 		return Response.json(
 			{
-				...response.content,
-				transform: undefined,
+				content: response.content.content,
+				status: response.content.status,
+				success: response.content.success,
 			},
 			{
 				headers: response.headers,

@@ -131,7 +131,7 @@ export const compress = (
 			return;
 		}
 
-		const processedResponse = await processResponse(response);
+		const processedResponse = processResponse(response);
 
 		const contentType = processedResponse.headers.get("Content-Type");
 
