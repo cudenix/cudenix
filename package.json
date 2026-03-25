@@ -83,7 +83,7 @@
 		"url": "git+https://github.com/cudenix/cudenix.git"
 	},
 	"scripts": {
-		"build": "bun check && rm -rf dist && tsc && tsc-alias",
+		"build": "bun check && tsc && tsc-alias",
 		"check": "biome check --diagnostic-level=error --fix"
 	},
 	"sideEffects": false,
