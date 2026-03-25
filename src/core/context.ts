@@ -105,7 +105,7 @@ Context.prototype.loadRequest = function (this: Context) {
 };
 
 Context.prototype.loadRequestBody = async function (this: Context) {
-	const raw = this.request.raw.headers.get("Content-Type");
+	const raw = this.request.raw.headers.get("content-type");
 
 	if (!raw) {
 		this.request.body = await this.request.raw.text();
@@ -204,11 +204,14 @@ Context.prototype.loadRequestParams = function (this: Context) {
 	}
 
 	for (const key in groups) {
-		if (
-			typeof groups[key] === "string" &&
-			groups[key].indexOf("/") !== -1
-		) {
-			groups[key] = groups[key].split("/");
+		const value = groups[key];
+
+		if (typeof value === "string") {
+			groups[key] = decodeURIComponent(value);
+		} else if (Array.isArray(value)) {
+			groups[key] = value.map((value) => {
+				return decodeURIComponent(value);
+			});
 		}
 	}
 
