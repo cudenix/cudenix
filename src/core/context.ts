@@ -270,13 +270,11 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 						: decodeURIComponent(rawValue)
 					: decodeURIComponent(rawValue.replaceAll("+", " "));
 
-			if (value.startsWith("sos-") && value.endsWith("-eos")) {
+			const firstChar = value.charCodeAt(0);
+
+			if (firstChar === 123 || firstChar === 91) {
 				try {
-					value = JSON.parse(value.slice(4, -4));
-				} catch {}
-			} else if (value.startsWith("sas-") && value.endsWith("-eas")) {
-				try {
-					value = JSON.parse(value.slice(4, -4));
+					value = JSON.parse(value);
 				} catch {}
 			}
 
