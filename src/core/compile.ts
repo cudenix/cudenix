@@ -154,7 +154,7 @@ const step = (
 			chain.push(...compiled.chain);
 
 			if (compiled.path !== "/") {
-				path = `${path}${compiled.path}`;
+				path = `${path === "/" ? "" : path}${compiled.path}`;
 			}
 
 			continue;
@@ -239,7 +239,7 @@ const step = (
 		}
 
 		const finalPath =
-			`${previous.path}${path}${link.path === "/" ? "" : link.path}` ||
+			`${previous.path}${path === "/" ? "" : path}${link.path === "/" ? "" : link.path}` ||
 			"/";
 
 		endpoints.get(method)?.push({
