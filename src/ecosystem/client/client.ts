@@ -21,15 +21,15 @@ export type RequestOptions<Request> = Merge<
 
 export type ParseResponse<Method, Request, Response> = Method extends "WS"
 	? WS<Request, Response>
-	: Response extends Generator<infer Yield>
+	: Response extends
+			| Generator<infer Yield>
+			| AsyncGenerator<infer Yield>
 		? SSE<Yield extends AnyGeneratorSSE ? Yield : never>
-		: Response extends AsyncGenerator<infer Yield>
-			? SSE<Yield extends AnyGeneratorSSE ? Yield : never>
-			: Response extends AnyError | AnySuccess
-				? Response["transform"] extends true
-					? Response
-					: Response["content"]
-				: Response;
+		: Response extends AnyError | AnySuccess
+			? Response["transform"] extends true
+				? Response
+				: Response["content"]
+			: Response;
 
 export type RouteHandler<Method, Request, Response> = (
 	options?: RequestOptions<Request>,
