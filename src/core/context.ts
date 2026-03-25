@@ -163,21 +163,11 @@ Context.prototype.loadRequestCookies = function (this: Context) {
 
 	this.response.cookies = new Bun.CookieMap(header);
 
-	const cookies = this.response.cookies.toJSON();
-
-	let hasCookies = false;
-
-	for (const cookie in cookies) {
-		hasCookies = true;
-
-		break;
-	}
-
-	if (!hasCookies) {
+	if (this.response.cookies.size === 0) {
 		return;
 	}
 
-	this.request.cookies = cookies;
+	this.request.cookies = this.response.cookies.toJSON();
 };
 
 Context.prototype.loadRequestHeaders = function (this: Context) {
