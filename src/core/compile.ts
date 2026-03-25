@@ -18,32 +18,6 @@ const useRegexps = [
 	["query", /\bquery\b/m],
 ] as const;
 
-const mergeChains = (a: Chain, b: Chain): Chain => {
-	const result = new Array(a.length + b.length) as Chain;
-
-	for (let i = 0; i < a.length; i++) {
-		const link = a[i];
-
-		if (!link) {
-			continue;
-		}
-
-		result[i] = link;
-	}
-
-	for (let i = 0; i < b.length; i++) {
-		const link = b[i];
-
-		if (!link) {
-			continue;
-		}
-
-		result[a.length + i] = link;
-	}
-
-	return result;
-};
-
 const getLinkText = (link: Chain[number]): string => {
 	switch (link.type) {
 		case "MIDDLEWARE":
@@ -118,7 +92,7 @@ const step = (
 				prefix: `${previous.path}${path === "/" ? "" : path}${link.prefix === "/" ? "" : link.prefix}`,
 			});
 
-			module.chain = mergeChains(previous.chain, chain);
+			module.chain = previous.chain.concat(chain);
 
 			step(endpoints, link.group(module), {
 				chain: [],
@@ -140,7 +114,7 @@ const step = (
 
 		if (link.type === "MODULE") {
 			const compiled = step(endpoints, link, {
-				chain: mergeChains(previous.chain, chain),
+				chain: previous.chain.concat(chain),
 				path: `${previous.path}${path === "/" ? "" : path}`,
 			});
 
@@ -153,7 +127,7 @@ const step = (
 			continue;
 		}
 
-		const mergedChain = mergeChains(previous.chain, chain);
+		const mergedChain = previous.chain.concat(chain);
 
 		const use = new Set<string>() as Endpoint["use"];
 
