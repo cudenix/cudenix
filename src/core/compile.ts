@@ -1,5 +1,6 @@
 import type { App, Chain, Endpoint } from "@/core/app";
 import { type AnyModule, Module } from "@/core/module";
+import { Empty } from "@/utils/objects/empty";
 import { validateStandardSchema } from "@/utils/standard-schema/validate";
 
 interface Previous {
@@ -32,19 +33,6 @@ const KEY_TO_BIT = {
 	params: USE_PARAMS,
 	query: USE_QUERY,
 } as const satisfies Record<string, number>;
-
-const getLinkText = (link: Chain[number]): string => {
-	switch (link.type) {
-		case "MIDDLEWARE":
-			return link.middleware.toString();
-		case "ROUTE":
-			return link.route.toString();
-		case "STORE":
-			return link.store.toString();
-		default:
-			return "";
-	}
-};
 
 const pathToRegexp = (path: string, captureParamGroups = false) => {
 	if (path === "/") {
@@ -171,7 +159,8 @@ const step = (
 				continue;
 			}
 
-			const text = getLinkText(link);
+			const text =
+				link[link.type.toLowerCase() as keyof typeof link].toString();
 
 			if (!text) {
 				continue;
@@ -276,7 +265,7 @@ const step = (
 	};
 };
 
-export const compile = async (app: App, module: AnyModule) => {
+export const compile = (app: App, module: AnyModule) => {
 	if (!app.memory.has("validator")) {
 		app.memory.set("validator", validateStandardSchema);
 	}
@@ -287,11 +276,11 @@ export const compile = async (app: App, module: AnyModule) => {
 	});
 
 	for (const [method, endpoints] of app.endpoints) {
-		if (!endpoints || endpoints.length === 0) {
+		if (endpoints.length === 0) {
 			continue;
 		}
 
-		app.routes ??= {};
+		app.routes ??= new Empty() as NonNullable<App["routes"]>;
 
 		const methodRegexps = [] as string[];
 		const routes = app.routes;
@@ -312,7 +301,9 @@ export const compile = async (app: App, module: AnyModule) => {
 				continue;
 			}
 
-			routes[methodEndpoint.path] ??= {};
+			routes[methodEndpoint.path] ??= new Empty() as NonNullable<
+				(typeof routes)[string]
+			>;
 
 			routes[methodEndpoint.path]![
 				method as keyof (typeof routes)[string]
