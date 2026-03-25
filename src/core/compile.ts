@@ -2,12 +2,9 @@ import type { App, Chain, Endpoint } from "@/core/app";
 import { type AnyModule, Module } from "@/core/module";
 import { validateStandardSchema } from "@/utils/standard-schema/validate";
 
-interface Stack {
-	module: AnyModule;
-	previous: {
-		chain: Chain;
-		path: string;
-	};
+interface Previous {
+	chain: Chain;
+	path: string;
 }
 
 const getUrlPathnameRegexp =
@@ -101,10 +98,9 @@ const pathToRegexp = (path: string, captureParamGroups = false) => {
 };
 
 const step = (
-	stack: Stack[],
 	endpoints: App["endpoints"],
 	module: AnyModule,
-	previous: Stack["previous"],
+	previous: Previous,
 ) => {
 	const chain = [] as Chain;
 
@@ -124,12 +120,9 @@ const step = (
 
 			module.chain = mergeChains(previous.chain, chain);
 
-			stack.push({
-				module: link.group(module),
-				previous: {
-					chain: [],
-					path: "",
-				},
+			step(endpoints, link.group(module), {
+				chain: [],
+				path: "",
 			});
 
 			continue;
@@ -146,7 +139,7 @@ const step = (
 		}
 
 		if (link.type === "MODULE") {
-			const compiled = step(stack, endpoints, link, {
+			const compiled = step(endpoints, link, {
 				chain: mergeChains(previous.chain, chain),
 				path: `${previous.path}${path === "/" ? "" : path}`,
 			});
@@ -265,26 +258,13 @@ export const compile = async (app: App, module: AnyModule) => {
 		app.memory.set("validator", validateStandardSchema);
 	}
 
-	const stack = [
-		{
-			module,
-			previous: {
-				chain: [],
-				path: "",
-			},
-		},
-	] as Stack[];
-
-	while (stack.length > 0) {
-		const { module, previous } = stack.pop()!;
-
-		step(stack, app.endpoints, module, previous);
-	}
+	step(app.endpoints, module, {
+		chain: [],
+		path: "",
+	});
 
 	for (const [method, endpoints] of app.endpoints) {
-		const methodEndpoints = endpoints.reverse();
-
-		if (!methodEndpoints || methodEndpoints.length === 0) {
+		if (!endpoints || endpoints.length === 0) {
 			continue;
 		}
 
@@ -293,8 +273,8 @@ export const compile = async (app: App, module: AnyModule) => {
 		const methodRegexps = [] as string[];
 		const routes = app.routes;
 
-		for (let j = 0; j < methodEndpoints.length; j++) {
-			const methodEndpoint = methodEndpoints[j];
+		for (let j = 0; j < endpoints.length; j++) {
+			const methodEndpoint = endpoints[j];
 
 			if (!methodEndpoint) {
 				continue;
@@ -312,7 +292,7 @@ export const compile = async (app: App, module: AnyModule) => {
 			routes[methodEndpoint.path] ??= {};
 
 			routes[methodEndpoint.path]![
-				methodEndpoint.route.method as keyof (typeof routes)[string]
+				method as keyof (typeof routes)[string]
 			] = async (request: Request) => {
 				return app.endpoint(
 					methodEndpoint,
