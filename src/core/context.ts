@@ -195,24 +195,14 @@ Context.prototype.loadRequestParams = function (this: Context) {
 		return;
 	}
 
-	const groups = match.groups as
-		| Record<string, string | string[]>
-		| undefined;
+	const groups = match.groups;
 
 	if (!groups) {
 		return;
 	}
 
 	for (const key in groups) {
-		const value = groups[key];
-
-		if (typeof value === "string") {
-			groups[key] = decodeURIComponent(value);
-		} else if (Array.isArray(value)) {
-			groups[key] = value.map((value) => {
-				return decodeURIComponent(value);
-			});
-		}
+		groups[key] = decodeURIComponent(groups[key]!);
 	}
 
 	this.request.params = groups;
