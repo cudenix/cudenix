@@ -198,7 +198,7 @@ const step = (
 			for (let k = 0; k < useRegexps.length; k++) {
 				const regexp = useRegexps[k];
 
-				if (!regexp || !regexp[1].test(text)) {
+				if (!regexp || use.has(regexp[0]) || !regexp[1].test(text)) {
 					continue;
 				}
 
@@ -212,7 +212,7 @@ const step = (
 			for (let j = 0; j < useRegexps.length; j++) {
 				const regexp = useRegexps[j];
 
-				if (!regexp || !regexp[1].test(text)) {
+				if (!regexp || use.has(regexp[0]) || !regexp[1].test(text)) {
 					continue;
 				}
 
