@@ -236,7 +236,7 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 		while (i < url.length) {
 			const char = url.charCodeAt(i);
 
-			if (char === 61 || char === 35) {
+			if (char === 61 || char === 38 || char === 35) {
 				break;
 			}
 
@@ -245,6 +245,12 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 
 		if (i >= url.length || url.charCodeAt(i) === 35) {
 			break;
+		}
+
+		if (url.charCodeAt(i) === 38) {
+			i++;
+
+			continue;
 		}
 
 		const key = url.substring(keyStart, i);
@@ -266,31 +272,25 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 		if (key.length > 0) {
 			const rawValue = url.substring(valueStart, i);
 
-			let value = decodeURIComponent(
+			let value =
 				rawValue.indexOf("+") === -1
-					? rawValue
-					: rawValue.replaceAll("+", " "),
-			);
+					? rawValue.indexOf("%") === -1
+						? rawValue
+						: decodeURIComponent(rawValue)
+					: decodeURIComponent(rawValue.replaceAll("+", " "));
 
-			if (
-				typeof value === "string" &&
-				value.startsWith("sos-") &&
-				value.endsWith("-eos")
-			) {
+			if (value.startsWith("sos-") && value.endsWith("-eos")) {
 				try {
 					value = JSON.parse(value.slice(4, -4));
 				} catch {}
-			} else if (
-				typeof value === "string" &&
-				value.startsWith("sas-") &&
-				value.endsWith("-eas")
-			) {
+			} else if (value.startsWith("sas-") && value.endsWith("-eas")) {
 				try {
 					value = JSON.parse(value.slice(4, -4));
 				} catch {}
 			}
 
-			params[decodeURIComponent(key)] = value;
+			params[key.indexOf("%") === -1 ? key : decodeURIComponent(key)] =
+				value;
 
 			hasParams = true;
 		}
