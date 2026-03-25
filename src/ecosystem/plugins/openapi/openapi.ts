@@ -35,18 +35,9 @@ export const plugin = (
 ) => {
 	return function (this: App) {
 		const paths = new Empty();
-		const methods = Array.from(this.endpoints.keys());
 		const tags = new Set<string>();
 
-		for (let i = 0; i < methods.length; i++) {
-			const method = methods[i];
-
-			if (!method) {
-				continue;
-			}
-
-			const endpoints = this.endpoints.get(method);
-
+		for (const [method, endpoints] of this.endpoints) {
 			if (!endpoints) {
 				continue;
 			}
@@ -241,9 +232,11 @@ export const plugin = (
 			},
 			openapi: "3.1.0",
 			paths,
-			tags: Array.from(tags).map((tag) => ({
-				name: tag,
-			})),
+			tags: Array.from(tags, (tag) => {
+				return {
+					name: tag,
+				};
+			}),
 		});
 
 		return "openapi";
