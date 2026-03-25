@@ -183,16 +183,8 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 						continue;
 					}
 
-					if (value?.pop) {
-						mergedOptions.query[key] =
-							`sas-${JSON.stringify(value)}-eas`;
-
-						continue;
-					}
-
 					if (typeof value === "object" && value) {
-						mergedOptions.query[key] =
-							`sos-${JSON.stringify(value)}-eos`;
+						mergedOptions.query[key] = JSON.stringify(value);
 					}
 				}
 
