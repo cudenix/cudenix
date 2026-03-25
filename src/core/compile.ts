@@ -281,16 +281,8 @@ export const compile = async (app: App, module: AnyModule) => {
 		step(stack, app.endpoints, module, previous);
 	}
 
-	const methods = Array.from(app.endpoints.keys());
-
-	for (let i = 0; i < methods.length; i++) {
-		const method = methods[i];
-
-		if (!method) {
-			continue;
-		}
-
-		const methodEndpoints = app.endpoints.get(method)?.reverse();
+	for (const [method, endpoints] of app.endpoints) {
+		const methodEndpoints = endpoints.reverse();
 
 		if (!methodEndpoints || methodEndpoints.length === 0) {
 			continue;
