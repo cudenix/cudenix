@@ -10,11 +10,8 @@ interface Stack {
 	};
 }
 
-const endsWithQuestionMarkRegexp = /\?$/;
 const getUrlPathnameRegexp =
 	/^(?:[a-zA-Z][a-zA-Z\d+\-.]*:\/\/)?[^/?#]*(\/[^?#]*)?/;
-const startsWithColonRegexp = /^:/;
-const startsWithEllipsisRegexp = /^\.{3}/;
 
 const useRegexps = [
 	["body", /\bbody\b/m],
@@ -79,15 +76,15 @@ const pathToRegexp = (path: string, captureParamGroups = false) => {
 			continue;
 		}
 
-		const isOptional = endsWithQuestionMarkRegexp.test(segment);
+		const isOptional = segment.endsWith("?");
 
 		if (isOptional) {
 			segment = segment.slice(0, -1);
 		}
 
-		if (startsWithColonRegexp.test(segment)) {
+		if (segment.startsWith(":")) {
 			segment = `\\/${captureParamGroups ? `(?<${segment.slice(1)}>` : ""}[^/\\s?#]+${captureParamGroups ? ")" : ""}`;
-		} else if (startsWithEllipsisRegexp.test(segment)) {
+		} else if (segment.startsWith("...")) {
 			segment = `\\/${captureParamGroups ? `(?<${segment.slice(3)}>` : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${captureParamGroups ? ")" : ""}`;
 		} else {
 			segment = `/${segment}`;
