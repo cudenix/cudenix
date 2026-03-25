@@ -3,8 +3,6 @@ import type { AnyError } from "@/core/error";
 import type { AnySuccess } from "@/core/success";
 import { Empty } from "@/utils/objects/empty";
 
-const isSerializedArray = /^sas-(.*?)-eas$/;
-const isSerializedObject = /^sos-(.*?)-eos$/;
 const queryRegexp = /[?&]([^=#]+)=([^&#]*)/g;
 
 export interface DeveloperContext<
@@ -246,17 +244,14 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 			continue;
 		}
 
-		value = decodeURIComponent(value.replaceAll("+", " "));
+		value = decodeURIComponent(
+			value.indexOf("+") === -1 ? value : value.replaceAll("+", " "),
+		);
 
-		const parsedObject = isSerializedObject.exec(value);
-		const parsedArray = !parsedObject
-			? isSerializedArray.exec(value)
-			: null;
-
-		if (parsedObject) {
-			value = JSON.parse(parsedObject[1] ?? "");
-		} else if (parsedArray) {
-			value = JSON.parse(parsedArray[1] ?? "");
+		if (value.startsWith("sos-") && value.endsWith("-eos")) {
+			value = JSON.parse(value.slice(4, -4));
+		} else if (value.startsWith("sas-") && value.endsWith("-eas")) {
+			value = JSON.parse(value.slice(4, -4));
 		}
 
 		params[decodeURIComponent(key)] = value;
