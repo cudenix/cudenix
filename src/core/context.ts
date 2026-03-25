@@ -1,9 +1,8 @@
 import type { Endpoint } from "@/core/app";
 import type { AnyError } from "@/core/error";
 import type { AnySuccess } from "@/core/success";
+import type { MaybePromise } from "@/types/maybe-promise";
 import { Empty } from "@/utils/objects/empty";
-
-const queryRegexp = /[?&]([^=#]+)=([^&#]*)/g;
 
 export interface DeveloperContext<
 	Stores extends Record<PropertyKey, unknown>,
@@ -38,7 +37,7 @@ export interface ContextRequest {
 
 export interface Context {
 	endpoint: Endpoint;
-	loadRequest(): Promise<void>;
+	loadRequest(): MaybePromise<void>;
 	loadRequestBody(): Promise<void>;
 	loadRequestCookies(): void;
 	loadRequestHeaders(): void;
@@ -81,14 +80,10 @@ export const Context = function (
 	this.store = new Empty();
 } as unknown as Constructor;
 
-Context.prototype.loadRequest = async function (this: Context) {
+Context.prototype.loadRequest = function (this: Context) {
 	const { use } = this.endpoint;
 
-	if (use.has("body")) {
-		await this.loadRequestBody();
-	}
-
-	if (use.has("headers") || use.has("cookies")) {
+	if (use.has("headers")) {
 		this.loadRequestHeaders();
 	}
 
@@ -102,6 +97,10 @@ Context.prototype.loadRequest = async function (this: Context) {
 
 	if (use.has("query")) {
 		this.loadRequestQuery();
+	}
+
+	if (use.has("body")) {
+		return this.loadRequestBody();
 	}
 };
 
@@ -219,7 +218,8 @@ Context.prototype.loadRequestParams = function (this: Context) {
 };
 
 Context.prototype.loadRequestQuery = function (this: Context) {
-	const queryIndex = this.request.raw.url.indexOf("?");
+	const url = this.request.raw.url;
+	const queryIndex = url.indexOf("?");
 
 	if (queryIndex === -1) {
 		return;
@@ -227,36 +227,79 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 
 	const params = new Empty();
 
-	queryRegexp.lastIndex = queryIndex;
-
 	let hasParams = false;
-	let match: RegExpExecArray | null;
+	let i = queryIndex + 1;
 
-	while (
-		// biome-ignore lint/suspicious/noAssignInExpressions: Is necessary for the loop
-		(match = queryRegexp.exec(this.request.raw.url))
-	) {
-		const key = match[1];
+	while (i < url.length) {
+		const keyStart = i;
 
-		let value = match[2];
+		while (i < url.length) {
+			const char = url.charCodeAt(i);
 
-		if (!key || value === undefined) {
-			continue;
+			if (char === 61 || char === 35) {
+				break;
+			}
+
+			i++;
 		}
 
-		value = decodeURIComponent(
-			value.indexOf("+") === -1 ? value : value.replaceAll("+", " "),
-		);
-
-		if (value.startsWith("sos-") && value.endsWith("-eos")) {
-			value = JSON.parse(value.slice(4, -4));
-		} else if (value.startsWith("sas-") && value.endsWith("-eas")) {
-			value = JSON.parse(value.slice(4, -4));
+		if (i >= url.length || url.charCodeAt(i) === 35) {
+			break;
 		}
 
-		params[decodeURIComponent(key)] = value;
+		const key = url.substring(keyStart, i);
 
-		hasParams = true;
+		i++;
+
+		const valueStart = i;
+
+		while (i < url.length) {
+			const char = url.charCodeAt(i);
+
+			if (char === 38 || char === 35) {
+				break;
+			}
+
+			i++;
+		}
+
+		if (key.length > 0) {
+			const rawValue = url.substring(valueStart, i);
+
+			let value = decodeURIComponent(
+				rawValue.indexOf("+") === -1
+					? rawValue
+					: rawValue.replaceAll("+", " "),
+			);
+
+			if (
+				typeof value === "string" &&
+				value.startsWith("sos-") &&
+				value.endsWith("-eos")
+			) {
+				try {
+					value = JSON.parse(value.slice(4, -4));
+				} catch {}
+			} else if (
+				typeof value === "string" &&
+				value.startsWith("sas-") &&
+				value.endsWith("-eas")
+			) {
+				try {
+					value = JSON.parse(value.slice(4, -4));
+				} catch {}
+			}
+
+			params[decodeURIComponent(key)] = value;
+
+			hasParams = true;
+		}
+
+		if (i >= url.length || url.charCodeAt(i) === 35) {
+			break;
+		}
+
+		i++;
 	}
 
 	if (!hasParams) {
