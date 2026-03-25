@@ -6,7 +6,9 @@
 				"organizeImports": "on",
 				"useSortedAttributes": "on",
 				"useSortedKeys": "on",
-				"useSortedProperties": "on"
+				"useSortedProperties": "on",
+				"noDuplicateClasses": "on",
+				"useSortedInterfaceMembers": "on"
 			}
 		}
 	},
