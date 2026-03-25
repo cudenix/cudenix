@@ -26,10 +26,12 @@ export type DeepValue<
 		? Type[Path]
 		: never;
 
-export type ExtractPlaceholders<String extends string> =
-	String extends `${infer _Start}\${${infer Param}}${infer Rest}`
-		? Param | ExtractPlaceholders<Rest>
-		: never;
+export type ExtractPlaceholders<
+	String extends string,
+	Acc extends string = never,
+> = String extends `${infer _Start}\${${infer Param}}${infer Rest}`
+	? ExtractPlaceholders<Rest, Acc | Param>
+	: Acc;
 
 export interface Translation {
 	[key: string]: string | Translation | (string | Translation)[];
