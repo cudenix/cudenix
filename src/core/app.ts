@@ -32,8 +32,8 @@ export interface PluginOptions {
 }
 
 export interface MemoryPlugin {
-	plugin: Plugin;
 	options?: PluginOptions;
+	plugin: Plugin;
 }
 
 export interface Endpoint {
@@ -77,9 +77,6 @@ export const App = function (this: App, module: AnyModule) {
 App.prototype.compile = async function (this: App) {
 	const pluginsAfterCompile = [] as Plugin[];
 
-	this.endpoints.clear();
-	this.regexps.clear();
-
 	this.routes = new Empty() as App["routes"];
 
 	if (this.memory.has("plugins")) {
@@ -102,7 +99,7 @@ App.prototype.compile = async function (this: App) {
 		}
 	}
 
-	await compile(this, this.memory.get("module") as AnyModule);
+	compile(this, this.memory.get("module") as AnyModule);
 
 	for (let i = 0; i < pluginsAfterCompile.length; i++) {
 		await pluginsAfterCompile[i]?.call(this);
@@ -171,7 +168,10 @@ App.prototype.endpoint = async function (
 			}
 
 			let errors:
-				| { details: unknown[]; type: keyof ValidatorRequest }[]
+				| {
+						details: unknown[];
+						type: keyof ValidatorRequest;
+				  }[]
 				| undefined;
 			let errorIndex: Record<string, number> | undefined;
 
@@ -198,7 +198,7 @@ App.prototype.endpoint = async function (
 				}
 
 				const content = Array.isArray(validated.content)
-					? (validated.content as unknown[])
+					? validated.content
 					: [validated.content];
 
 				errors ??= [];
