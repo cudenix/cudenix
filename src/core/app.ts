@@ -19,6 +19,10 @@ import type { WSData } from "@/types/ws";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 
+const NOT_FOUND_INIT = {
+	status: 404,
+} as const satisfies ResponseInit;
+
 export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
 export type Plugin = (...options: any[]) => string | Promise<string>;
@@ -338,17 +342,13 @@ App.prototype.fetch = function (this: App, request: Request) {
 	const match = this.regexps.get(request.method)?.exec(request.url);
 
 	if (!match) {
-		return new Response(undefined, {
-			status: 404,
-		});
+		return new Response(undefined, NOT_FOUND_INIT);
 	}
 
 	const path = match[2];
 
 	if (!path) {
-		return new Response(undefined, {
-			status: 404,
-		});
+		return new Response(undefined, NOT_FOUND_INIT);
 	}
 
 	let index = -1;
@@ -362,17 +362,13 @@ App.prototype.fetch = function (this: App, request: Request) {
 	}
 
 	if (index === -1) {
-		return new Response(undefined, {
-			status: 404,
-		});
+		return new Response(undefined, NOT_FOUND_INIT);
 	}
 
 	const endpoint = this.endpoints.get(request.method)?.[index];
 
 	if (!endpoint) {
-		return new Response(undefined, {
-			status: 404,
-		});
+		return new Response(undefined, NOT_FOUND_INIT);
 	}
 
 	return this.endpoint(endpoint, path, request);
