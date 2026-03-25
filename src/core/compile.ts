@@ -7,16 +7,31 @@ interface Previous {
 	path: string;
 }
 
-const getUrlPathnameRegexp =
+const GET_URL_PATHNAME_REGEXP =
 	/^(?:[a-zA-Z][a-zA-Z\d+\-.]*:\/\/)?[^/?#]*(\/[^?#]*)?/;
 
-const useRegexps = [
-	["body", /\bbody\b/m],
-	["cookies", /\bcookies\b/m],
-	["headers", /\bheaders\b/m],
-	["params", /\bparams\b/m],
-	["query", /\bquery\b/m],
-] as const;
+const USE_BODY = 1;
+const USE_COOKIES = 2;
+const USE_HEADERS = 4;
+const USE_PARAMS = 8;
+const USE_QUERY = 16;
+const USE_ALL = USE_BODY | USE_COOKIES | USE_HEADERS | USE_PARAMS | USE_QUERY;
+
+const USE_REGEXPS = [
+	[USE_BODY, /\bbody\b/m],
+	[USE_COOKIES, /\bcookies\b/m],
+	[USE_HEADERS, /\bheaders\b/m],
+	[USE_PARAMS, /\bparams\b/m],
+	[USE_QUERY, /\bquery\b/m],
+] as const satisfies Array<[number, RegExp]>;
+
+const KEY_TO_BIT = {
+	body: USE_BODY,
+	cookies: USE_COOKIES,
+	headers: USE_HEADERS,
+	params: USE_PARAMS,
+	query: USE_QUERY,
+} as const satisfies Record<string, number>;
 
 const getLinkText = (link: Chain[number]): string => {
 	switch (link.type) {
@@ -32,11 +47,11 @@ const getLinkText = (link: Chain[number]): string => {
 };
 
 const pathToRegexp = (path: string, captureParamGroups = false) => {
-	let pattern = "()";
-
 	if (path === "/") {
-		return `${pattern}\\/`;
+		return "()\\/";
 	}
+
+	let pattern = "()";
 
 	const segments = path.split("/");
 
@@ -65,7 +80,7 @@ const pathToRegexp = (path: string, captureParamGroups = false) => {
 			segment = `(?:${segment})?`;
 		}
 
-		pattern = `${pattern}${segment}`;
+		pattern += segment;
 	}
 
 	return pattern;
@@ -129,10 +144,10 @@ const step = (
 
 		const mergedChain = previous.chain.concat(chain);
 
-		const use = new Set<string>() as Endpoint["use"];
+		let useBits = 0;
 
 		for (let j = 0; j < mergedChain.length; j++) {
-			if (use.size === useRegexps.length) {
+			if (useBits === USE_ALL) {
 				break;
 			}
 
@@ -150,7 +165,7 @@ const step = (
 						continue;
 					}
 
-					use.add(key);
+					useBits |= KEY_TO_BIT[key];
 				}
 
 				continue;
@@ -162,32 +177,40 @@ const step = (
 				continue;
 			}
 
-			for (let k = 0; k < useRegexps.length; k++) {
-				const regexp = useRegexps[k];
+			for (let k = 0; k < USE_REGEXPS.length; k++) {
+				const regexp = USE_REGEXPS[k];
 
-				if (!regexp || use.has(regexp[0]) || !regexp[1].test(text)) {
+				if (
+					!regexp ||
+					(useBits & regexp[0]) !== 0 ||
+					!regexp[1].test(text)
+				) {
 					continue;
 				}
 
-				use.add(regexp[0]);
+				useBits |= regexp[0];
 			}
 		}
 
-		if (use.size !== useRegexps.length) {
+		if (useBits !== USE_ALL) {
 			const text = link.route.toString();
 
-			for (let j = 0; j < useRegexps.length; j++) {
-				const regexp = useRegexps[j];
+			for (let j = 0; j < USE_REGEXPS.length; j++) {
+				const regexp = USE_REGEXPS[j];
 
-				if (!regexp || use.has(regexp[0]) || !regexp[1].test(text)) {
+				if (
+					!regexp ||
+					(useBits & regexp[0]) !== 0 ||
+					!regexp[1].test(text)
+				) {
 					continue;
 				}
 
-				use.add(regexp[0]);
+				useBits |= regexp[0];
 			}
 		}
 
-		if (link.validator && use.size !== useRegexps.length) {
+		if (link.validator && useBits !== USE_ALL) {
 			for (let j = 0; j < link.validator.keys.length; j++) {
 				const key = link.validator.keys[j];
 
@@ -195,8 +218,30 @@ const step = (
 					continue;
 				}
 
-				use.add(key);
+				useBits |= KEY_TO_BIT[key];
 			}
+		}
+
+		const use = new Set<string>() as Endpoint["use"];
+
+		if (useBits & USE_BODY) {
+			use.add("body");
+		}
+
+		if (useBits & USE_COOKIES) {
+			use.add("cookies");
+		}
+
+		if (useBits & USE_HEADERS) {
+			use.add("headers");
+		}
+
+		if (useBits & USE_PARAMS) {
+			use.add("params");
+		}
+
+		if (useBits & USE_QUERY) {
+			use.add("query");
 		}
 
 		const method = link.method === "WS" ? "GET" : link.method;
@@ -274,7 +319,8 @@ export const compile = async (app: App, module: AnyModule) => {
 			] = async (request: Request) => {
 				return app.endpoint(
 					methodEndpoint,
-					getUrlPathnameRegexp.exec(request.url)?.[1] || request.url,
+					GET_URL_PATHNAME_REGEXP.exec(request.url)?.[1] ||
+						request.url,
 					request,
 				);
 			};
