@@ -87,7 +87,7 @@ const pathToRegexp = (path: string, captureParamGroups = false) => {
 		} else if (segment.startsWith("...")) {
 			segment = `\\/${captureParamGroups ? `(?<${segment.slice(3)}>` : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${captureParamGroups ? ")" : ""}`;
 		} else {
-			segment = `/${segment}`;
+			segment = `\\/${RegExp.escape(segment)}`;
 		}
 
 		if (isOptional) {
