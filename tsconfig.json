@@ -1,17 +1,12 @@
 {
 	"compilerOptions": {
-		"alwaysStrict": true,
 		"declaration": true,
 		"declarationMap": true,
-		"disableSizeLimit": true,
-		"emitDeclarationOnly": false,
-		"inlineSourceMap": false,
 		"isolatedModules": true,
 		"lib": ["DOM", "ESNext"],
 		"module": "ESNext",
 		"moduleDetection": "force",
 		"moduleResolution": "Bundler",
-		"noEmit": false,
 		"noUncheckedIndexedAccess": true,
 		"noUncheckedSideEffectImports": true,
 		"outDir": "./dist",
