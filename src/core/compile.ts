@@ -158,7 +158,7 @@ const step = (
 		const use = new Set<string>() as Endpoint["use"];
 
 		for (let j = 0; j < mergedChain.length; j++) {
-			if (use.size === 5) {
+			if (use.size === useRegexps.length) {
 				break;
 			}
 
@@ -227,15 +227,19 @@ const step = (
 
 		const method = link.method === "WS" ? "GET" : link.method;
 
-		if (!endpoints.has(method)) {
-			endpoints.set(method, []);
+		let methodEndpoints = endpoints.get(method);
+
+		if (!methodEndpoints) {
+			methodEndpoints = [];
+
+			endpoints.set(method, methodEndpoints);
 		}
 
 		const finalPath =
 			`${previous.path}${path === "/" ? "" : path}${link.path === "/" ? "" : link.path}` ||
 			"/";
 
-		endpoints.get(method)?.push({
+		methodEndpoints.push({
 			chain: link.validator
 				? mergedChain.concat(link.validator)
 				: mergedChain,
