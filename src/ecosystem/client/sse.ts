@@ -1,6 +1,6 @@
 import type { AnyGeneratorSSE } from "@/types/generator-sse";
 
-const startsWithOn = /^on/;
+const STARTS_WITH_ON = /^on/;
 
 export type SSE<Generator extends AnyGeneratorSSE> = Omit<
 	EventSource,
@@ -64,7 +64,7 @@ export const SSE = function (
 
 	return new Proxy(eventSource, {
 		get(target, prop, receiver) {
-			if (typeof prop !== "string" || !startsWithOn.test(prop)) {
+			if (typeof prop !== "string" || !STARTS_WITH_ON.test(prop)) {
 				const value = Reflect.get(target, prop, receiver);
 
 				if (typeof value === "function") {
@@ -77,7 +77,7 @@ export const SSE = function (
 			return handlerMap.get(prop);
 		},
 		set(target, prop, value, receiver) {
-			if (typeof prop !== "string" || !startsWithOn.test(prop)) {
+			if (typeof prop !== "string" || !STARTS_WITH_ON.test(prop)) {
 				return Reflect.set(target, prop, value, receiver);
 			}
 

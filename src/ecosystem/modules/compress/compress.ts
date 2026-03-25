@@ -7,9 +7,9 @@ export interface CompressOptions {
 	threshold?: number;
 }
 
-const compressibleRegexp =
+const COMPRESSIBLE_REGEXP =
 	/^\s*(?:text\/(?!event-stream(?:[;\s]|$))[^;\s]+|application\/(?:json|javascript|xml|x-www-form-urlencoded)|[^;\s]+\/[^;\s]+\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
-const noTransformRegexp = /\bno-transform\b/i;
+const NO_TRANSFORM_REGEXP = /\bno-transform\b/i;
 
 const parseAcceptEncoding = (header: string) => {
 	const map = new Map<
@@ -89,7 +89,7 @@ export const compress = (
 		if (
 			!response.content ||
 			raw.method === "HEAD" ||
-			noTransformRegexp.test(
+			NO_TRANSFORM_REGEXP.test(
 				response.headers.get("Cache-Control") ?? "",
 			) ||
 			raw.headers.has("Range") ||
@@ -135,7 +135,7 @@ export const compress = (
 
 		const contentType = processedResponse.headers.get("Content-Type");
 
-		if (!contentType || !compressibleRegexp.test(contentType)) {
+		if (!contentType || !COMPRESSIBLE_REGEXP.test(contentType)) {
 			return;
 		}
 

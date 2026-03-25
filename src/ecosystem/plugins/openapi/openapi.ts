@@ -14,12 +14,12 @@ export interface OpenapiModuleOptions {
 	path?: `/${string}`;
 }
 
-const endsWithQuestionMarkRegexp = /\?$/;
-const endsWithSRegexp = /s$/;
-const startsWithEllipsisRegexp = /^\.{3}/;
-const startsWithSlashRegexp = /^\/{/;
+const ENDS_WITH_QUESTION_MARK_REGEXP = /\?$/;
+const ENDS_WITH_S_REGEXP = /s$/;
+const STARTS_WITH_ELLIPSIS_REGEXP = /^\.{3}/;
+const STARTS_WITH_SLASH_REGEXP = /^\/{/;
 
-const contentTypes = [
+const CONTENT_TYPES = [
 	"application/json",
 	"multipart/form-data",
 	"text/plain",
@@ -72,7 +72,7 @@ export const plugin = (
 						}
 
 						if (key !== "body") {
-							const _in = key.replace(endsWithSRegexp, "");
+							const _in = key.replace(ENDS_WITH_S_REGEXP, "");
 							const schema = toJsonSchema(link.request[key]);
 
 							operation.parameters ??= [];
@@ -137,8 +137,8 @@ export const plugin = (
 							content: new Empty(),
 						};
 
-						for (let m = 0; m < contentTypes.length; m++) {
-							const contentType = contentTypes[m];
+						for (let m = 0; m < CONTENT_TYPES.length; m++) {
+							const contentType = CONTENT_TYPES[m];
 
 							if (!contentType) {
 								continue;
@@ -194,9 +194,9 @@ export const plugin = (
 						).push({
 							in: "path",
 							name,
-							required: !endsWithQuestionMarkRegexp.test(param),
+							required: !ENDS_WITH_QUESTION_MARK_REGEXP.test(param),
 							schema: {
-								pattern: startsWithEllipsisRegexp.test(param)
+								pattern: STARTS_WITH_ELLIPSIS_REGEXP.test(param)
 									? ".*"
 									: undefined,
 								type: "string",
@@ -205,7 +205,7 @@ export const plugin = (
 					}
 				}
 
-				if (!startsWithSlashRegexp.test(path)) {
+				if (!STARTS_WITH_SLASH_REGEXP.test(path)) {
 					const tag = path.split("/")[1];
 
 					if (!tag) {

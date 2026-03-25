@@ -17,7 +17,7 @@ export interface CorsOptions {
 		  ) => string | undefined);
 }
 
-const requestHeadersSplitRegexp = /\s*,\s*/;
+const REQUEST_HEADERS_SPLIT_REGEXP = /\s*,\s*/;
 
 export const cors = (
 	{
@@ -94,7 +94,7 @@ export const cors = (
 
 					if (requestHeaders) {
 						resolvedAllowHeaders = requestHeaders.split(
-							requestHeadersSplitRegexp,
+							REQUEST_HEADERS_SPLIT_REGEXP,
 						);
 					}
 				}
