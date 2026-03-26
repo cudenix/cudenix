@@ -1,4 +1,4 @@
-import { Empty } from "@/utils/objects/empty";
+import { FreezeEmpty } from "@/utils/objects/empty";
 
 // @ts-expect-error
 export interface WS<Request, Response> extends WebSocket {
@@ -10,29 +10,24 @@ export type AnyWS = WS<any, any>;
 
 type Constructor = new (url: string | URL) => AnyWS;
 
+const onmessageSetter = Object.getOwnPropertyDescriptor(
+	WebSocket.prototype,
+	"onmessage",
+)?.set;
+
 export const WS = function (this: AnyWS, url: string | URL) {
 	const webSocket = new WebSocket(url);
 
-	const onmessageSetter = Object.getOwnPropertyDescriptor(
-		WebSocket.prototype,
-		"onmessage",
-	)?.set;
-
-	if (!onmessageSetter) {
-		throw new Error("WebSocket does not have an onmessage setter");
-	}
-
 	Object.defineProperty(webSocket, "onmessage", {
 		set(listener: (event: MessageEvent) => any) {
-			onmessageSetter.call(webSocket, (event: MessageEvent) => {
-				listener.call(
-					webSocket,
-					new MessageEvent(event.type, {
-						...event,
-						data: JSON.parse(String(event.data)),
-						ports: [...event.ports],
-					}),
-				);
+			onmessageSetter?.call(webSocket, (event: MessageEvent) => {
+				const parsed = Object.create(event);
+
+				Object.defineProperty(parsed, "data", {
+					value: JSON.parse(event.data),
+				});
+
+				listener.call(webSocket, parsed);
 			});
 		},
 	});
@@ -40,7 +35,7 @@ export const WS = function (this: AnyWS, url: string | URL) {
 	const send = webSocket.send;
 
 	Object.defineProperty(webSocket, "send", {
-		value(data: any, options = new Empty()) {
+		value(data: any, options = FreezeEmpty) {
 			// @ts-expect-error
 			send.call(webSocket, JSON.stringify(data), options);
 		},
