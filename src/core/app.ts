@@ -127,7 +127,11 @@ App.prototype.endpoint = async function (
 		this.server!,
 	);
 
-	await context.loadRequest();
+	const loadResult = context.loadRequest();
+
+	if (loadResult instanceof Promise) {
+		await loadResult;
+	}
 
 	const validatorPlugin = this.memory.get("validator") as
 		| ValidatorPlugin
@@ -148,9 +152,13 @@ App.prototype.endpoint = async function (
 			if (link.type === "ROUTE") {
 				continue;
 			} else if (link.type === "MIDDLEWARE") {
-				const middleware = await link.middleware(context, () => {
+				let middleware = link.middleware(context, () => {
 					return step(chain, i + 1);
 				});
+
+				if (middleware instanceof Promise) {
+					middleware = await middleware;
+				}
 
 				if (middleware) {
 					context.response.content = middleware;
@@ -158,7 +166,11 @@ App.prototype.endpoint = async function (
 
 				return;
 			} else if (link.type === "STORE") {
-				const store = await link.store(context);
+				let store = link.store(context);
+
+				if (store instanceof Promise) {
+					store = await store;
+				}
 
 				if (store instanceof Error) {
 					context.response.content = store;
@@ -188,11 +200,15 @@ App.prototype.endpoint = async function (
 
 				const schema = link.request[key];
 
-				const validated = await validatorPlugin(
+				let validated = validatorPlugin(
 					schema,
 					context.request[key as keyof typeof context.request],
 					key as any,
 				);
+
+				if (validated instanceof Promise) {
+					validated = await validated;
+				}
 
 				if (validated.success) {
 					context.request[key as keyof typeof context.request] =
@@ -296,7 +312,11 @@ App.prototype.endpoint = async function (
 			return;
 		}
 
-		const returned = await endpoint.route.route(context);
+		let returned = endpoint.route.route(context);
+
+		if (returned instanceof Promise) {
+			returned = await returned;
+		}
 
 		if (endpoint.route.method === "WS") {
 			this.server?.upgrade(request, {
