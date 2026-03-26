@@ -1,7 +1,5 @@
 import type { AnyGeneratorSSE } from "@/types/generator-sse";
 
-const STARTS_WITH_ON = /^on/;
-
 export type SSE<Generator extends AnyGeneratorSSE> = Omit<
 	EventSource,
 	"onmessage"
@@ -35,36 +33,12 @@ export const SSE = function (
 	options?: EventSourceInit,
 ) {
 	const eventSource = new EventSource(url, options);
-
-	const onmessageSetter = Object.getOwnPropertyDescriptor(
-		EventSource.prototype,
-		"onmessage",
-	)?.set;
-
-	if (!onmessageSetter) {
-		throw new Error("EventSource does not have an onmessage setter");
-	}
-
-	Object.defineProperty(eventSource, "onmessage", {
-		set(listener: (event: MessageEvent) => any) {
-			onmessageSetter.call(eventSource, (event: MessageEvent) => {
-				listener.call(
-					eventSource,
-					new MessageEvent(event.type, {
-						...event,
-						data: JSON.parse(String(event.data)),
-						ports: [...event.ports],
-					}),
-				);
-			});
-		},
-	});
-
-	const handlerMap = new Map<string, (...args: any[]) => any>();
+	const listenerMap = new Map<string, (...args: any[]) => any>();
+	const wrapperMap = new Map<string, (...args: any[]) => any>();
 
 	return new Proxy(eventSource, {
 		get(target, prop, receiver) {
-			if (typeof prop !== "string" || !STARTS_WITH_ON.test(prop)) {
+			if (typeof prop !== "string" || !prop.startsWith("on")) {
 				const value = Reflect.get(target, prop, receiver);
 
 				if (typeof value === "function") {
@@ -74,29 +48,34 @@ export const SSE = function (
 				return value;
 			}
 
-			return handlerMap.get(prop);
+			return listenerMap.get(prop);
 		},
 		set(target, prop, value, receiver) {
-			if (typeof prop !== "string" || !STARTS_WITH_ON.test(prop)) {
+			if (typeof prop !== "string" || !prop.startsWith("on")) {
 				return Reflect.set(target, prop, value, receiver);
 			}
 
 			const eventName = prop.slice(2);
 
-			if (handlerMap.has(prop)) {
-				target.removeEventListener(eventName, handlerMap.get(prop)!);
+			if (wrapperMap.has(prop)) {
+				target.removeEventListener(eventName, wrapperMap.get(prop)!);
 			}
 
-			const handler = (event: MessageEvent) => {
-				value.call(target, {
-					...event,
-					data: JSON.parse(String(event.data)),
+			listenerMap.set(prop, value);
+
+			const wrapper = (event: MessageEvent) => {
+				const parsed = Object.create(event);
+
+				Object.defineProperty(parsed, "data", {
+					value: JSON.parse(event.data),
 				});
+
+				value.call(target, parsed);
 			};
 
-			handlerMap.set(prop, handler);
+			wrapperMap.set(prop, wrapper);
 
-			target.addEventListener(eventName, handler);
+			target.addEventListener(eventName, wrapper);
 
 			return true;
 		},
