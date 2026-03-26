@@ -19,7 +19,7 @@ const selectEncoding = (header: string) => {
 
 	const length = header.length;
 
-	let bestName: string | undefined;
+	let bestIdx = -1;
 	let bestQ = -1;
 	let bestOrder = 0x7fffffff;
 
@@ -100,13 +100,39 @@ const selectEncoding = (header: string) => {
 							header.charCodeAt(optStart) === 113 &&
 							header.charCodeAt(optStart + 1) === 61
 						) {
-							const priority = +header.slice(
-								optStart + 2,
-								optEnd,
-							);
+							let val = 0;
+							let frac = 0;
+							let fracDiv = 1;
+							let hasDot = false;
+							let valid = true;
 
-							if (!Number.isNaN(priority)) {
-								q = priority;
+							for (let i = optStart + 2; i < optEnd; i++) {
+								const char = header.charCodeAt(i);
+
+								if (char === 46) {
+									if (hasDot) {
+										valid = false;
+
+										break;
+									}
+
+									hasDot = true;
+								} else if (char >= 48 && char <= 57) {
+									if (hasDot) {
+										fracDiv *= 10;
+										frac += (char - 48) / fracDiv;
+									} else {
+										val = val * 10 + (char - 48);
+									}
+								} else {
+									valid = false;
+
+									break;
+								}
+							}
+
+							if (valid && optEnd - optStart - 2 > 0) {
+								q = val + frac;
 							}
 						}
 
@@ -121,7 +147,7 @@ const selectEncoding = (header: string) => {
 						hasStar = true;
 					}
 				} else if (q > 0) {
-					let matched: number | undefined;
+					let matched = -1;
 
 					if (nameLength === 2) {
 						const c0 = header.charCodeAt(tokenStart) | 0x20;
@@ -174,10 +200,10 @@ const selectEncoding = (header: string) => {
 					}
 
 					if (
-						matched !== undefined &&
+						matched >= 0 &&
 						(q > bestQ || (q === bestQ && order < bestOrder))
 					) {
-						bestName = ENCODING_NAMES[matched];
+						bestIdx = matched;
 						bestQ = q;
 						bestOrder = order;
 					}
@@ -198,11 +224,7 @@ const selectEncoding = (header: string) => {
 		return ENCODING_NAMES[0];
 	}
 
-	if (!bestName && hasStar && starQ > 0) {
-		return ENCODING_NAMES[0];
-	}
-
-	return bestName;
+	return bestIdx >= 0 ? ENCODING_NAMES[bestIdx] : undefined;
 };
 
 export const compress = ({
@@ -238,7 +260,7 @@ export const compress = ({
 
 		const processedResponse = processResponse(response);
 
-		const contentType = processedResponse.headers.get("Content-Type");
+		const contentType = processedResponse.headers.get("content-type");
 
 		if (!contentType || !COMPRESSIBLE_REGEXP.test(contentType)) {
 			return;
@@ -260,7 +282,7 @@ export const compress = ({
 			return;
 		}
 
-		const vary = processedResponse.headers.get("Vary");
+		const vary = processedResponse.headers.get("vary");
 
 		if (!vary || vary.toLowerCase().indexOf("accept-encoding") === -1) {
 			processedResponse.headers.append("vary", "Accept-Encoding");
