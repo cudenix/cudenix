@@ -107,11 +107,11 @@ export const plugin = (
 										in: _in,
 										name: key,
 										required:
-											(
+											((
 												schema.required as
 													| string[]
 													| undefined
-											)?.includes(key) ?? false,
+											)?.indexOf(key) ?? -1) !== -1,
 										schema: property,
 									});
 								}
