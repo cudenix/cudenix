@@ -1,3 +1,5 @@
+const CLOSE_TAG_REGEXP = /</g;
+
 export const scalar = (title: string, spec: string, configuration: string) => {
 	return `
         <!DOCTYPE html>
@@ -11,11 +13,11 @@ export const scalar = (title: string, spec: string, configuration: string) => {
 
             <body>
                 <script id="api-reference" type="application/json">
-                    ${Bun.escapeHTML(spec)}
+                    ${spec.replace(CLOSE_TAG_REGEXP, "\\u003c")}
                 </script>
 
                 <script>
-                    document.getElementById("api-reference").dataset.configuration = '${Bun.escapeHTML(configuration)}';
+                    document.getElementById("api-reference").dataset.configuration = '${configuration.replace(CLOSE_TAG_REGEXP, "\\u003c").replace(/'/g, "\\u0027")}';
                 </script>
 
                 <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
