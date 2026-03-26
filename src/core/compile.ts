@@ -75,7 +75,7 @@ const pathToRegexp = (path: string, captureParamGroups = false) => {
 };
 
 const step = (
-	endpoints: App["endpoints"],
+	endpoints: Map<string, Endpoint[]>,
 	module: AnyModule,
 	previous: Previous,
 ) => {
@@ -270,13 +270,15 @@ export const compile = (app: App, module: AnyModule) => {
 		app.memory.set("validator", validateStandardSchema);
 	}
 
-	step(app.endpoints, module, {
+	const endpoints = new Map<string, Endpoint[]>();
+
+	step(endpoints, module, {
 		chain: [],
 		path: "",
 	});
 
-	for (const [method, endpoints] of app.endpoints) {
-		if (endpoints.length === 0) {
+	for (const [method, methodEndpoints] of endpoints) {
+		if (methodEndpoints.length === 0) {
 			continue;
 		}
 
@@ -285,8 +287,8 @@ export const compile = (app: App, module: AnyModule) => {
 		const methodRegexps = [] as string[];
 		const routes = app.routes;
 
-		for (let j = 0; j < endpoints.length; j++) {
-			const methodEndpoint = endpoints[j];
+		for (let j = 0; j < methodEndpoints.length; j++) {
+			const methodEndpoint = methodEndpoints[j];
 
 			if (!methodEndpoint) {
 				continue;
@@ -317,11 +319,11 @@ export const compile = (app: App, module: AnyModule) => {
 			};
 		}
 
-		app.regexps.set(
-			method,
-			new RegExp(
+		app.methods.set(method, {
+			endpoints: methodEndpoints,
+			regexp: new RegExp(
 				`^(https?:\\/\\/)[^\\s\\/]+(${methodRegexps.join("|")})(?![^?#])`,
 			),
-		);
+		});
 	}
 };
