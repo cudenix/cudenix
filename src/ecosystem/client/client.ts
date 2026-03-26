@@ -8,7 +8,7 @@ import type { AnyGeneratorSSE } from "@/types/generator-sse";
 import type { MaybeFunction } from "@/types/maybe-function";
 import type { Merge } from "@/types/merge";
 import { isFile } from "@/utils/files/is-file";
-import { Empty } from "@/utils/objects/empty";
+import { FreezeEmpty } from "@/utils/objects/empty";
 
 const PARAM_REGEX_TEST = /\/:(\w+\??)/;
 const PARAM_REGEX_REPLACE = /\/:(\w+\??)/g;
@@ -95,7 +95,7 @@ const transform = (value: unknown) => {
 
 const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 	return new Proxy(() => {}, {
-		async apply(target, thisArg, [requestOptions = new Empty()]) {
+		async apply(target, thisArg, [requestOptions = FreezeEmpty]) {
 			const mergedOptions = {
 				...(typeof options === "function" ? await options() : options),
 				...requestOptions,

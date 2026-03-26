@@ -1,7 +1,7 @@
 import { module } from "@/core/module";
 import { processResponse } from "@/core/response";
 import { success } from "@/core/success";
-import { Empty } from "@/utils/objects/empty";
+import { FreezeEmpty } from "@/utils/objects/empty";
 
 export interface CompressOptions {
 	threshold?: number;
@@ -76,9 +76,9 @@ const parseAcceptEncoding = (header: string) => {
 	return map;
 };
 
-export const compress = (
-	{ threshold = 1024 }: CompressOptions = new Empty(),
-) => {
+export const compress = ({
+	threshold = 1024,
+}: CompressOptions = FreezeEmpty) => {
 	const encodings = ["br", "gzip", "deflate", "zstd"] as const;
 
 	return module().middleware(async ({ request: { raw }, response }, next) => {

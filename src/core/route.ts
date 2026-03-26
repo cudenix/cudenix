@@ -14,7 +14,7 @@ import {
 import type { ExtractUrlParams } from "@/types/extract-url-params";
 import type { GeneratorSSE } from "@/types/generator-sse";
 import type { HttpMethod } from "@/types/http-method";
-import { Empty } from "@/utils/objects/empty";
+import { FreezeEmpty } from "@/utils/objects/empty";
 
 export type PathToObject<
 	Path extends string,
@@ -155,7 +155,7 @@ export const Route = function (
 	method: HttpMethod,
 	path: `/${string}`,
 	route: AnyRouteFn,
-	options: AnyRouteOptions = new Empty(),
+	options: AnyRouteOptions = FreezeEmpty,
 ) {
 	this.generator = route.constructor.name.indexOf("GeneratorFunction") !== -1;
 	this.method = method;
@@ -205,7 +205,7 @@ export const route = <
 			DeepInferValidatorOutput<_ValidatorOptions["request"]>
 		>
 	>,
-	options: RouteOptions<_ValidatorOptions> = new Empty(),
+	options: RouteOptions<_ValidatorOptions> = FreezeEmpty,
 ) => {
 	return new Route(method, path, route, options) as Route<
 		Method,

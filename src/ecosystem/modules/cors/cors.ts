@@ -1,7 +1,7 @@
 import type { AnyDeveloperContext } from "@/core/context";
 import { module } from "@/core/module";
 import { success } from "@/core/success";
-import { Empty } from "@/utils/objects/empty";
+import { FreezeEmpty } from "@/utils/objects/empty";
 
 export interface CorsOptions {
 	allowHeaders?: string[];
@@ -17,24 +17,14 @@ export interface CorsOptions {
 		  ) => string | undefined);
 }
 
-export const cors = (
-	{
-		allowHeaders,
-		allowMethods = [
-			"DELETE",
-			"GET",
-			"HEAD",
-			"OPTIONS",
-			"PATCH",
-			"POST",
-			"PUT",
-		],
-		credentials,
-		exposeHeaders,
-		maxAge,
-		origin = "*",
-	}: CorsOptions = new Empty(),
-) => {
+export const cors = ({
+	allowHeaders,
+	allowMethods = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"],
+	credentials,
+	exposeHeaders,
+	maxAge,
+	origin = "*",
+}: CorsOptions = FreezeEmpty) => {
 	const joinedAllowHeaders = allowHeaders?.join(",");
 	const joinedAllowMethods = allowMethods.join(",");
 	const joinedExposeHeaders = exposeHeaders?.join(",");

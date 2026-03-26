@@ -1,5 +1,5 @@
 import type { AnyModule } from "@/core/module";
-import { Empty } from "@/utils/objects/empty";
+import { FreezeEmpty } from "@/utils/objects/empty";
 
 export type GroupFn<Module extends AnyModule, Return extends AnyModule> = (
 	module: Module,
@@ -33,7 +33,7 @@ type Constructor = new (
 export const Group = function (
 	this: AnyGroup,
 	group: AnyGroupFn,
-	options: AnyGroupOptions = new Empty(),
+	options: AnyGroupOptions = FreezeEmpty,
 ) {
 	this.group = group;
 	this.prefix = options.prefix ?? "";
@@ -46,7 +46,7 @@ export const group = <
 	const Return extends AnyModule,
 >(
 	group: GroupFn<Module, Return>,
-	options: GroupOptions<Prefix> = new Empty(),
+	options: GroupOptions<Prefix> = FreezeEmpty,
 ) => {
 	return new Group(group, options) as Group<Module, Prefix, Return>;
 };
