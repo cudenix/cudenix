@@ -170,7 +170,12 @@ export const compress = ({
 		let encoding: { name: string; q: number; order: number } | undefined;
 
 		for (let i = 0; i < encodings.length; i++) {
-			const name = encodings[i]!;
+			const name = encodings[i];
+
+			if (!name) {
+				continue;
+			}
+
 			const entry = accepted.get(name) ?? star;
 
 			if (!entry || entry.q <= 0) {
