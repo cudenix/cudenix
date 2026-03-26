@@ -155,7 +155,7 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 };
 
 Context.prototype.loadRequestCookies = function (this: Context) {
-	const header = this.request.raw.headers.get("Cookie");
+	const header = this.request.raw.headers.get("cookie");
 
 	if (!header) {
 		return;
