@@ -42,7 +42,7 @@ export const cors = (
 
 	return module()
 
-		.middleware(async (context, next) => {
+		.middleware((context, next) => {
 			const {
 				request: { raw },
 				response: { headers },
