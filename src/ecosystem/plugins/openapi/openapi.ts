@@ -2,7 +2,15 @@ import type { App } from "@/core/app";
 import { module } from "@/core/module";
 import { success } from "@/core/success";
 import { scalar } from "@/ecosystem/plugins/openapi/scalar";
-import { Empty } from "@/utils/objects/empty";
+import { Empty, FreezeEmpty } from "@/utils/objects/empty";
+
+const LEADING_COLON_DOTS_REGEXP = /^[:.]*/;
+
+const CONTENT_TYPES = [
+	"application/json",
+	"multipart/form-data",
+	"text/plain",
+] as const;
 
 export interface OpenapiPluginOptions {
 	description?: string;
@@ -14,24 +22,13 @@ export interface OpenapiModuleOptions {
 	path?: `/${string}`;
 }
 
-const ENDS_WITH_QUESTION_MARK_REGEXP = /\?$/;
-const ENDS_WITH_S_REGEXP = /s$/;
-const STARTS_WITH_ELLIPSIS_REGEXP = /^\.{3}/;
-const STARTS_WITH_SLASH_REGEXP = /^\/{/;
-
-const CONTENT_TYPES = [
-	"application/json",
-	"multipart/form-data",
-	"text/plain",
-] as const;
-
 export const plugin = (
 	toJsonSchema: (schema: any) => Record<string, any>,
 	{
 		description = "Cudenix Documentation",
 		title = "Cudenix Documentation",
 		version = "0.0.1",
-	}: OpenapiPluginOptions = new Empty(),
+	}: OpenapiPluginOptions = FreezeEmpty,
 ) => {
 	return function (this: App) {
 		const paths = new Empty();
@@ -72,7 +69,9 @@ export const plugin = (
 						}
 
 						if (key !== "body") {
-							const _in = key.replace(ENDS_WITH_S_REGEXP, "");
+							const _in = key.endsWith("s")
+								? key.slice(0, -1)
+								: key;
 							const schema = toJsonSchema(link.request[key]);
 
 							operation.parameters ??= [];
@@ -137,6 +136,8 @@ export const plugin = (
 							content: new Empty(),
 						};
 
+						const bodySchema = toJsonSchema(link.request[key]);
+
 						for (let m = 0; m < CONTENT_TYPES.length; m++) {
 							const contentType = CONTENT_TYPES[m];
 
@@ -152,7 +153,7 @@ export const plugin = (
 									>
 								).content as Record<string, unknown>
 							)[contentType] = {
-								schema: toJsonSchema(link.request[key]),
+								schema: bodySchema,
 							};
 						}
 					}
@@ -169,7 +170,7 @@ export const plugin = (
 						}
 
 						const name = param
-							.replaceAll(/^[:.]*/g, "")
+							.replaceAll(LEADING_COLON_DOTS_REGEXP, "")
 							.replace("?", "");
 
 						if (
@@ -194,10 +195,9 @@ export const plugin = (
 						).push({
 							in: "path",
 							name,
-							required:
-								!ENDS_WITH_QUESTION_MARK_REGEXP.test(param),
+							required: !param.endsWith("?"),
 							schema: {
-								pattern: STARTS_WITH_ELLIPSIS_REGEXP.test(param)
+								pattern: param.startsWith("...")
 									? ".*"
 									: undefined,
 								type: "string",
@@ -206,7 +206,7 @@ export const plugin = (
 					}
 				}
 
-				if (!STARTS_WITH_SLASH_REGEXP.test(path)) {
+				if (!path.startsWith("/{")) {
 					const tag = path.split("/")[1];
 
 					if (!tag) {
@@ -244,8 +244,8 @@ export const plugin = (
 	};
 };
 
-export const openapi = ({ path }: OpenapiModuleOptions = new Empty()) => {
-	const url = `${path ?? "/openapi"}` as `/${string}`;
+export const openapi = ({ path }: OpenapiModuleOptions = FreezeEmpty) => {
+	const url = (path ?? "/openapi") as `/${string}`;
 
 	return module()
 
