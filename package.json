@@ -50,9 +50,9 @@
 			"types": "./dist/ecosystem/plugins/openapi/openapi.d.ts"
 		},
 		"./package.json": "./package.json",
-		"./trycatch": {
-			"import": "./dist/ecosystem/modules/trycatch/trycatch.js",
-			"types": "./dist/ecosystem/modules/trycatch/trycatch.d.ts"
+		"./try-catch": {
+			"import": "./dist/ecosystem/modules/try-catch/try-catch.js",
+			"types": "./dist/ecosystem/modules/try-catch/try-catch.d.ts"
 		}
 	},
 	"files": [
