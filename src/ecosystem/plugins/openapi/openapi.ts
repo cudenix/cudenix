@@ -34,13 +34,13 @@ export const plugin = (
 		const paths = new Empty();
 		const tags = new Set<string>();
 
-		for (const [method, endpoints] of this.endpoints) {
-			if (!endpoints) {
+		for (const [method, methodData] of this.methods) {
+			if (!methodData) {
 				continue;
 			}
 
-			for (let j = 0; j < endpoints.length; j++) {
-				const endpoint = endpoints[j];
+			for (let j = 0; j < methodData.endpoints.length; j++) {
+				const endpoint = methodData.endpoints[j];
 
 				if (!endpoint) {
 					continue;
