@@ -9,7 +9,6 @@ export interface CompressOptions {
 
 const COMPRESSIBLE_REGEXP =
 	/^\s*(?:text\/(?!event-stream(?:[;\s]|$))[^;\s]+|application\/(?:json|javascript|xml|x-www-form-urlencoded)|[^;\s]+\/[^;\s]+\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
-const NO_TRANSFORM_REGEXP = /\bno-transform\b/i;
 
 const parseAcceptEncoding = (header: string) => {
 	const map = new Map<
@@ -145,13 +144,13 @@ export const compress = ({
 		if (
 			!response.content ||
 			raw.method === "HEAD" ||
-			NO_TRANSFORM_REGEXP.test(
-				response.headers.get("Cache-Control") ?? "",
-			) ||
-			raw.headers.has("Range") ||
-			response.headers.has("Content-Encoding") ||
-			response.headers.has("Content-Range") ||
-			response.headers.has("Transfer-Encoding") ||
+			(response.headers.get("cache-control") ?? "").indexOf(
+				"no-transform",
+			) !== -1 ||
+			raw.headers.has("range") ||
+			response.headers.has("content-encoding") ||
+			response.headers.has("content-range") ||
+			response.headers.has("transfer-encoding") ||
 			(contentLength && Number(contentLength) < threshold)
 		) {
 			return;
@@ -167,7 +166,13 @@ export const compress = ({
 
 		const star = accepted.get("*");
 
-		let encoding: { name: string; q: number; order: number } | undefined;
+		let encoding:
+			| {
+					name: string;
+					q: number;
+					order: number;
+			  }
+			| undefined;
 
 		for (let i = 0; i < encodings.length; i++) {
 			const name = encodings[i];
@@ -187,7 +192,11 @@ export const compress = ({
 				entry.q > encoding.q ||
 				(entry.q === encoding.q && entry.order < encoding.order)
 			) {
-				encoding = { name, order: entry.order, q: entry.q };
+				encoding = {
+					name,
+					order: entry.order,
+					q: entry.q,
+				};
 			}
 		}
 
@@ -222,12 +231,12 @@ export const compress = ({
 		const vary = processedResponse.headers.get("Vary");
 
 		if (!vary || vary.toLowerCase().indexOf("accept-encoding") === -1) {
-			processedResponse.headers.append("Vary", "Accept-Encoding");
+			processedResponse.headers.append("vary", "Accept-Encoding");
 		}
 
-		processedResponse.headers.delete("Content-Length");
+		processedResponse.headers.delete("content-length");
 
-		processedResponse.headers.set("Content-Encoding", encoding.name);
+		processedResponse.headers.set("content-encoding", encoding.name);
 
 		response.content = success(
 			new Response(
