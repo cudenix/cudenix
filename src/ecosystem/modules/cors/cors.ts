@@ -17,8 +17,6 @@ export interface CorsOptions {
 		  ) => string | undefined);
 }
 
-const REQUEST_HEADERS_SPLIT_REGEXP = /\s*,\s*/;
-
 export const cors = (
 	{
 		allowHeaders,
@@ -37,6 +35,11 @@ export const cors = (
 		origin = "*",
 	}: CorsOptions = new Empty(),
 ) => {
+	const joinedAllowHeaders = allowHeaders?.join(",");
+	const joinedAllowMethods = allowMethods.join(",");
+	const joinedExposeHeaders = exposeHeaders?.join(",");
+	const stringMaxAge = maxAge?.toString();
+
 	return module()
 
 		.middleware(async (context, next) => {
@@ -68,51 +71,45 @@ export const cors = (
 				headers.set("Access-Control-Allow-Credentials", "true");
 			}
 
-			if (exposeHeaders) {
+			if (joinedExposeHeaders) {
 				headers.set(
 					"Access-Control-Expose-Headers",
-					exposeHeaders.join(","),
+					joinedExposeHeaders,
 				);
 			}
 
 			if (raw.method === "OPTIONS") {
-				headers.set(
-					"Access-Control-Allow-Methods",
-					allowMethods.join(","),
-				);
+				headers.set("Access-Control-Allow-Methods", joinedAllowMethods);
 
-				if (maxAge !== undefined) {
-					headers.set("Access-Control-Max-Age", maxAge.toString());
+				if (stringMaxAge !== undefined) {
+					headers.set("Access-Control-Max-Age", stringMaxAge);
 				}
 
-				let resolvedAllowHeaders = allowHeaders;
-
-				if (!resolvedAllowHeaders) {
+				if (joinedAllowHeaders) {
+					headers.set(
+						"Access-Control-Allow-Headers",
+						joinedAllowHeaders,
+					);
+				} else {
 					const requestHeaders = raw.headers.get(
 						"Access-Control-Request-Headers",
 					);
 
 					if (requestHeaders) {
-						resolvedAllowHeaders = requestHeaders.split(
-							REQUEST_HEADERS_SPLIT_REGEXP,
+						headers.set(
+							"Access-Control-Allow-Headers",
+							requestHeaders,
+						);
+
+						const vary = headers.get("Vary");
+
+						headers.set(
+							"Vary",
+							vary
+								? `${vary}, Access-Control-Request-Headers`
+								: "Access-Control-Request-Headers",
 						);
 					}
-				}
-
-				if (resolvedAllowHeaders) {
-					headers.set(
-						"Access-Control-Allow-Headers",
-						resolvedAllowHeaders.join(","),
-					);
-
-					const vary = headers.get("Vary");
-
-					headers.set(
-						"Vary",
-						vary
-							? `${vary}, Access-Control-Request-Headers`
-							: "Access-Control-Request-Headers",
-					);
 				}
 
 				headers.set("Content-Length", "0");
