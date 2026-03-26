@@ -2,7 +2,7 @@ import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import { module } from "@/core/module";
-import { getRequestContext } from "@/ecosystem/modules/global-request-context/global-request-context";
+import { getRequestContext } from "@/ecosystem/plugins/global-request-context/global-request-context";
 import { Empty, FreezeEmpty } from "@/utils/objects/empty";
 
 export type DeepPaths<Type extends Record<PropertyKey, unknown>> = {

@@ -26,20 +26,20 @@
 			"types": "./dist/ecosystem/plugins/cluster/cluster.d.ts"
 		},
 		"./compress": {
-			"import": "./dist/ecosystem/modules/compress/compress.js",
-			"types": "./dist/ecosystem/modules/compress/compress.d.ts"
+			"import": "./dist/ecosystem/plugins/compress/compress.js",
+			"types": "./dist/ecosystem/plugins/compress/compress.d.ts"
 		},
 		"./cors": {
-			"import": "./dist/ecosystem/modules/cors/cors.js",
-			"types": "./dist/ecosystem/modules/cors/cors.d.ts"
+			"import": "./dist/ecosystem/plugins/cors/cors.js",
+			"types": "./dist/ecosystem/plugins/cors/cors.d.ts"
 		},
 		"./events": {
 			"import": "./dist/ecosystem/plugins/events/events.js",
 			"types": "./dist/ecosystem/plugins/events/events.d.ts"
 		},
 		"./global-request-context": {
-			"import": "./dist/ecosystem/modules/global-request-context/global-request-context.js",
-			"types": "./dist/ecosystem/modules/global-request-context/global-request-context.d.ts"
+			"import": "./dist/ecosystem/plugins/global-request-context/global-request-context.js",
+			"types": "./dist/ecosystem/plugins/global-request-context/global-request-context.d.ts"
 		},
 		"./i18n": {
 			"import": "./dist/ecosystem/plugins/i18n/i18n.js",
@@ -51,8 +51,8 @@
 		},
 		"./package.json": "./package.json",
 		"./try-catch": {
-			"import": "./dist/ecosystem/modules/try-catch/try-catch.js",
-			"types": "./dist/ecosystem/modules/try-catch/try-catch.d.ts"
+			"import": "./dist/ecosystem/plugins/try-catch/try-catch.js",
+			"types": "./dist/ecosystem/plugins/try-catch/try-catch.d.ts"
 		}
 	},
 	"files": [
