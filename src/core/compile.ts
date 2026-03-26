@@ -18,13 +18,13 @@ const USE_PARAMS = 8;
 const USE_QUERY = 16;
 const USE_ALL = USE_BODY | USE_COOKIES | USE_HEADERS | USE_PARAMS | USE_QUERY;
 
-const USE_REGEXPS = [
-	[USE_BODY, /\bbody\b/m],
-	[USE_COOKIES, /\bcookies\b/m],
-	[USE_HEADERS, /\bheaders\b/m],
-	[USE_PARAMS, /\bparams\b/m],
-	[USE_QUERY, /\bquery\b/m],
-] as const satisfies Array<[number, RegExp]>;
+const USE_KEYWORDS = [
+	[USE_BODY, "body"],
+	[USE_COOKIES, "cookies"],
+	[USE_HEADERS, "headers"],
+	[USE_PARAMS, "params"],
+	[USE_QUERY, "query"],
+] as const satisfies Array<[number, string]>;
 
 const KEY_TO_BIT = {
 	body: USE_BODY,
@@ -166,36 +166,36 @@ const step = (
 				continue;
 			}
 
-			for (let k = 0; k < USE_REGEXPS.length; k++) {
-				const regexp = USE_REGEXPS[k];
+			for (let k = 0; k < USE_KEYWORDS.length; k++) {
+				const keyword = USE_KEYWORDS[k];
 
 				if (
-					!regexp ||
-					(useBits & regexp[0]) !== 0 ||
-					!regexp[1].test(text)
+					!keyword ||
+					(useBits & keyword[0]) !== 0 ||
+					text.indexOf(keyword[1]) === -1
 				) {
 					continue;
 				}
 
-				useBits |= regexp[0];
+				useBits |= keyword[0];
 			}
 		}
 
 		if (useBits !== USE_ALL) {
 			const text = link.route.toString();
 
-			for (let j = 0; j < USE_REGEXPS.length; j++) {
-				const regexp = USE_REGEXPS[j];
+			for (let j = 0; j < USE_KEYWORDS.length; j++) {
+				const keyword = USE_KEYWORDS[j];
 
 				if (
-					!regexp ||
-					(useBits & regexp[0]) !== 0 ||
-					!regexp[1].test(text)
+					!keyword ||
+					(useBits & keyword[0]) !== 0 ||
+					text.indexOf(keyword[1]) === -1
 				) {
 					continue;
 				}
 
-				useBits |= regexp[0];
+				useBits |= keyword[0];
 			}
 		}
 
