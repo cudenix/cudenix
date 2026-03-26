@@ -4,9 +4,9 @@ export interface StandardTypedV1<Input = unknown, Output = Input> {
 
 export declare namespace StandardTypedV1 {
 	export interface Props<Input = unknown, Output = Input> {
-		readonly version: 1;
-		readonly vendor: string;
 		readonly types?: Types<Input, Output> | undefined;
+		readonly vendor: string;
+		readonly version: 1;
 	}
 
 	export interface Types<Input = unknown, Output = Input> {
@@ -39,8 +39,8 @@ export declare namespace StandardSchemaV1 {
 	export type Result<Output> = SuccessResult<Output> | FailureResult;
 
 	export interface SuccessResult<Output> {
-		readonly value: Output;
 		readonly issues?: undefined;
+		readonly value: Output;
 	}
 
 	export interface Options {
@@ -96,8 +96,8 @@ export declare namespace StandardJSONSchemaV1 {
 		| ({} & string);
 
 	export interface Options {
-		readonly target: Target;
 		readonly libraryOptions?: Record<string, unknown> | undefined;
+		readonly target: Target;
 	}
 
 	export interface Types<Input = unknown, Output = Input>

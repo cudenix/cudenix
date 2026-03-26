@@ -77,9 +77,9 @@ export interface ValidatorRequest<
 }
 
 export interface Validator<Request extends Partial<ValidatorRequest>> {
+	keys: (keyof ValidatorRequest)[];
 	request: Request;
 	type: "VALIDATOR";
-	keys: (keyof ValidatorRequest)[];
 }
 
 export type AnyValidator = Validator<any>;

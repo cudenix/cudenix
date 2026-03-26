@@ -194,7 +194,8 @@ export const plugin = (
 						).push({
 							in: "path",
 							name,
-							required: !ENDS_WITH_QUESTION_MARK_REGEXP.test(param),
+							required:
+								!ENDS_WITH_QUESTION_MARK_REGEXP.test(param),
 							schema: {
 								pattern: STARTS_WITH_ELLIPSIS_REGEXP.test(param)
 									? ".*"

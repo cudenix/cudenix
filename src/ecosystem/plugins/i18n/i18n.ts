@@ -47,11 +47,11 @@ export interface TranslateOptions<Translation> {
 }
 
 export interface I18n {
-	path: string;
 	cookie?: string;
 	header?: string;
 	language: string;
 	languages: string[];
+	path: string;
 	translations: Translation;
 }
 

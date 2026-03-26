@@ -117,6 +117,8 @@ export interface Route<
 	Validators extends Record<PropertyKey, unknown>,
 > {
 	generator: boolean;
+	method: Method;
+	path: Path;
 	route: RouteFn<
 		Method,
 		Path,
@@ -127,8 +129,6 @@ export interface Route<
 			DeepInferValidatorOutput<_ValidatorOptions["request"]>
 		>
 	>;
-	method: Method;
-	path: Path;
 	type: "ROUTE";
 	validator?: AnyValidator | undefined;
 }
