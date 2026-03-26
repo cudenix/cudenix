@@ -10,6 +10,11 @@ import type { Merge } from "@/types/merge";
 import { isFile } from "@/utils/files/is-file";
 import { Empty } from "@/utils/objects/empty";
 
+const PARAM_REGEX_TEST = /\/:(\w+\??)/;
+const PARAM_REGEX_REPLACE = /\/:(\w+\??)/g;
+const SPREAD_REGEX_TEST = /\/\.{3}(\w+\??)/;
+const SPREAD_REGEX_REPLACE = /\/\.{3}(\w+\??)/g;
+
 export type RequestOptions<Request> = Merge<
 	Omit<RequestInit, "method"> & {
 		headers?: Record<string, string | readonly string[]>;
@@ -96,9 +101,21 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				...requestOptions,
 			};
 
-			let url = `${mergedOptions.url}/${paths.slice(0, -1).join("/")}`;
+			const end = paths.length - 1;
 
-			mergedOptions.url = undefined;
+			let pathStr = "";
+
+			for (let i = 0; i < end; i++) {
+				if (i > 0) {
+					pathStr += "/";
+				}
+
+				pathStr += paths[i];
+			}
+
+			let url = `${mergedOptions.url}/${pathStr}`;
+
+			delete mergedOptions.url;
 
 			if (mergedOptions.body) {
 				const keys = Object.keys(mergedOptions.body);
@@ -114,7 +131,7 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 
 					if (
 						isFile(mergedOptions.body[key]) ||
-						(mergedOptions.body[key]?.pop &&
+						(Array.isArray(mergedOptions.body[key]) &&
 							(mergedOptions.body[key] as Blob[]).some(isFile))
 					) {
 						hasFile = true;
@@ -133,7 +150,7 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 							continue;
 						}
 
-						if (mergedOptions.body[key].pop) {
+						if (Array.isArray(mergedOptions.body[key])) {
 							for (
 								let j = 0;
 								j <
@@ -207,8 +224,8 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				}
 			}
 
-			if (/\/:(\w+\??)/g.test(url)) {
-				url = url.replaceAll(/\/:(\w+\??)/g, (_, key: string) => {
+			if (PARAM_REGEX_TEST.test(url)) {
+				url = url.replaceAll(PARAM_REGEX_REPLACE, (_, key: string) => {
 					const param = mergedOptions.params?.[
 						key.replaceAll("?", "")
 					] as string | undefined;
@@ -217,8 +234,8 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				});
 			}
 
-			if (/\/\.{3}(\w+\??)/g.test(url)) {
-				url = url.replaceAll(/\/\.{3}(\w+\??)/g, (_, key: string) => {
+			if (SPREAD_REGEX_TEST.test(url)) {
+				url = url.replaceAll(SPREAD_REGEX_REPLACE, (_, key: string) => {
 					const params = mergedOptions.params?.[
 						key.replaceAll("?", "")
 					] as string[] | undefined;
@@ -227,39 +244,37 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				});
 			}
 
-			mergedOptions.method = paths.slice(-1)[0];
+			mergedOptions.method = paths[end];
 
-			return (async () => {
-				if (mergedOptions.method === "ws") {
-					url = url.startsWith("https://")
-						? url.replace("https://", "wss://")
-						: url.replace("http://", "ws://");
+			if (mergedOptions.method === "ws") {
+				url = url.startsWith("https://")
+					? url.replace("https://", "wss://")
+					: url.replace("http://", "ws://");
 
-					return (await import("@/ecosystem/client/ws")).ws(url);
-				}
+				return (await import("@/ecosystem/client/ws")).ws(url);
+			}
 
-				const response = await fetch(url, mergedOptions);
+			const response = await fetch(url, mergedOptions);
 
-				const contentType = response.headers
-					.get("Content-Type")
-					?.toLowerCase()
-					.split(";")[0];
+			const contentType = response.headers
+				.get("Content-Type")
+				?.toLowerCase()
+				.split(";")[0];
 
-				if (contentType === "application/json") {
-					return response.json();
-				}
+			if (contentType === "application/json") {
+				return response.json();
+			}
 
-				if (contentType === "text/event-stream") {
-					return (await import("@/ecosystem/client/sse")).sse(
-						response.url,
-						{
-							withCredentials: true,
-						},
-					);
-				}
+			if (contentType === "text/event-stream") {
+				return (await import("@/ecosystem/client/sse")).sse(
+					response.url,
+					{
+						withCredentials: true,
+					},
+				);
+			}
 
-				return transform(await response.text());
-			})();
+			return transform(await response.text());
 		},
 		get(target, path: string) {
 			return createProxy(
