@@ -4,11 +4,12 @@ export const cluster = (command: string) => {
 	}
 
 	const cpus = navigator.hardwareConcurrency;
+	const cmd = [...command.split(" "), "--worker"];
 	const buns = new Array(cpus);
 
 	for (let i = 0; i < cpus; i++) {
 		buns[i] = Bun.spawn({
-			cmd: [...command.split(" "), "--worker"],
+			cmd,
 			stderr: "inherit",
 			stdin: "inherit",
 			stdout: "inherit",
@@ -17,7 +18,9 @@ export const cluster = (command: string) => {
 
 	const kill = () => {
 		for (let i = 0; i < cpus; i++) {
-			buns[i]?.kill().catch(() => {});
+			try {
+				buns[i]?.kill();
+			} catch {}
 		}
 	};
 
