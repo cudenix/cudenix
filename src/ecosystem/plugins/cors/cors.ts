@@ -25,80 +25,88 @@ export const cors = ({
 	maxAge,
 	origin = "*",
 }: CorsOptions = FreezeEmpty) => {
+	const isStringOrigin = typeof origin === "string";
+	const isWildcardWithCredentials =
+		isStringOrigin && credentials === true && origin === "*";
 	const joinedAllowHeaders = allowHeaders?.join(",");
 	const joinedAllowMethods = allowMethods.join(",");
 	const joinedExposeHeaders = exposeHeaders?.join(",");
+	const needsVary = isStringOrigin && origin !== "*";
 	const stringMaxAge = maxAge?.toString();
 
 	return module()
 
 		.middleware((context, next) => {
-			const {
-				request: { raw },
-				response: { headers },
-			} = context;
+			const raw = context.request.raw;
+			const headers = context.response.headers;
 
-			const requestOrigin = raw.headers.get("Origin") ?? undefined;
+			if (isWildcardWithCredentials) {
+				const requestOrigin = raw.headers.get("Origin") ?? origin;
 
-			let resolvedOrigin: string;
+				headers.set("access-control-allow-origin", requestOrigin);
 
-			if (typeof origin === "string") {
-				resolvedOrigin =
-					credentials && origin === "*"
-						? (requestOrigin ?? origin)
-						: origin;
+				if (requestOrigin !== origin) {
+					headers.append("vary", "Origin");
+				}
+			} else if (isStringOrigin) {
+				headers.set("access-control-allow-origin", origin);
+
+				if (needsVary) {
+					headers.append("vary", "Origin");
+				}
 			} else {
-				resolvedOrigin = origin(requestOrigin, context) ?? "*";
-			}
+				const requestOrigin = raw.headers.get("origin") ?? undefined;
+				const resolvedOrigin = origin(requestOrigin, context) ?? "*";
 
-			headers.set("Access-Control-Allow-Origin", resolvedOrigin);
+				headers.set("access-control-allow-origin", resolvedOrigin);
 
-			if (resolvedOrigin !== "*") {
-				headers.append("Vary", "Origin");
+				if (resolvedOrigin !== "*") {
+					headers.append("vary", "Origin");
+				}
 			}
 
 			if (credentials) {
-				headers.set("Access-Control-Allow-Credentials", "true");
+				headers.set("access-control-allow-credentials", "true");
 			}
 
 			if (joinedExposeHeaders) {
 				headers.set(
-					"Access-Control-Expose-Headers",
+					"access-control-expose-headers",
 					joinedExposeHeaders,
 				);
 			}
 
 			if (raw.method === "OPTIONS") {
-				headers.set("Access-Control-Allow-Methods", joinedAllowMethods);
+				headers.set("access-control-allow-methods", joinedAllowMethods);
 
 				if (stringMaxAge !== undefined) {
-					headers.set("Access-Control-Max-Age", stringMaxAge);
+					headers.set("access-control-max-age", stringMaxAge);
 				}
 
 				if (joinedAllowHeaders) {
 					headers.set(
-						"Access-Control-Allow-Headers",
+						"access-control-allow-headers",
 						joinedAllowHeaders,
 					);
 				} else {
 					const requestHeaders = raw.headers.get(
-						"Access-Control-Request-Headers",
+						"access-control-request-headers",
 					);
 
 					if (requestHeaders) {
 						headers.set(
-							"Access-Control-Allow-Headers",
+							"access-control-allow-headers",
 							requestHeaders,
 						);
 
 						headers.append(
-							"Vary",
+							"vary",
 							"Access-Control-Request-Headers",
 						);
 					}
 				}
 
-				headers.set("Content-Length", "0");
+				headers.set("content-length", "0");
 			}
 
 			return next();
