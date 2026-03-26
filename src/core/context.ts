@@ -134,7 +134,7 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 
 		const result = new Empty();
 
-		for (const [key, value] of formData.entries()) {
+		formData.forEach((value, key) => {
 			if (key in result) {
 				if (Array.isArray(result[key])) {
 					result[key].push(value);
@@ -144,7 +144,7 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 			} else {
 				result[key] = value;
 			}
-		}
+		});
 
 		this.request.body = result;
 
