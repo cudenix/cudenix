@@ -170,7 +170,7 @@ export const plugin = (
 						}
 
 						const name = param
-							.replaceAll(LEADING_COLON_DOTS_REGEXP, "")
+							.replace(LEADING_COLON_DOTS_REGEXP, "")
 							.replace("?", "");
 
 						if (
@@ -209,13 +209,11 @@ export const plugin = (
 				if (!path.startsWith("/{")) {
 					const tag = path.split("/")[1];
 
-					if (!tag) {
-						continue;
+					if (tag) {
+						operation.tags = [tag];
+
+						tags.add(tag);
 					}
-
-					operation.tags = [tag];
-
-					tags.add(tag);
 				}
 
 				paths[path] ??= new Empty();
@@ -247,24 +245,34 @@ export const plugin = (
 export const openapi = ({ path }: OpenapiModuleOptions = FreezeEmpty) => {
 	const url = (path ?? "/openapi") as `/${string}`;
 
+	let cachedHtml: string | undefined;
+	let cachedJson: string | undefined;
+
 	return module()
 
 		.route("GET", url, ({ memory, response: { headers } }) => {
 			headers.set("Content-Type", "text/html");
 
-			return success(
-				scalar(
+			if (!cachedHtml) {
+				cachedJson ??= JSON.stringify(memory.get("openapi"));
+
+				cachedHtml = scalar(
 					"Cudenix Documentation",
-					JSON.stringify(memory.get("openapi")),
+					cachedJson,
 					JSON.stringify({}),
-				),
-				{
-					transform: false,
-				},
-			);
+				);
+			}
+
+			return success(cachedHtml, {
+				transform: false,
+			});
 		})
 
 		.route("GET", `${url}/json`, ({ memory }) => {
-			return success(memory.get("openapi"));
+			if (!cachedJson) {
+				cachedJson = JSON.stringify(memory.get("openapi"));
+			}
+
+			return success(cachedJson);
 		});
 };
