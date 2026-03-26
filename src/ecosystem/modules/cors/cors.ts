@@ -48,13 +48,15 @@ export const cors = (
 				response: { headers },
 			} = context;
 
-			const requestOrigin = raw.headers.get("Origin") ?? "";
+			const requestOrigin = raw.headers.get("Origin") ?? undefined;
 
 			let resolvedOrigin: string;
 
 			if (typeof origin === "string") {
 				resolvedOrigin =
-					credentials && origin === "*" ? requestOrigin : origin;
+					credentials && origin === "*"
+						? (requestOrigin ?? origin)
+						: origin;
 			} else {
 				resolvedOrigin = origin(requestOrigin, context) ?? "*";
 			}
@@ -62,9 +64,7 @@ export const cors = (
 			headers.set("Access-Control-Allow-Origin", resolvedOrigin);
 
 			if (resolvedOrigin !== "*") {
-				const vary = headers.get("Vary");
-
-				headers.set("Vary", vary ? `${vary}, Origin` : "Origin");
+				headers.append("Vary", "Origin");
 			}
 
 			if (credentials) {
@@ -101,13 +101,9 @@ export const cors = (
 							requestHeaders,
 						);
 
-						const vary = headers.get("Vary");
-
-						headers.set(
+						headers.append(
 							"Vary",
-							vary
-								? `${vary}, Access-Control-Request-Headers`
-								: "Access-Control-Request-Headers",
+							"Access-Control-Request-Headers",
 						);
 					}
 				}
