@@ -12,216 +12,112 @@ const COMPRESSIBLE_REGEXP =
 
 const ENCODING_NAMES = ["br", "gzip", "deflate", "zstd"] as const;
 
+const ENCODING_INDEX = {
+	br: 0,
+	deflate: 2,
+	gzip: 1,
+	zstd: 3,
+} as const satisfies Record<(typeof ENCODING_NAMES)[number], number>;
+
+const parseQuality = (entry: string, semiIdx: number): number => {
+	const params = entry.slice(semiIdx + 1).split(";");
+
+	for (let i = 0; i < params.length; i++) {
+		const param = params[i]?.trim();
+
+		if (!param) {
+			continue;
+		}
+
+		if (
+			param.length > 2 &&
+			param.charCodeAt(0) === 0x71 &&
+			param.charCodeAt(1) === 0x3d
+		) {
+			const q = Number(param.slice(2));
+
+			if (!Number.isNaN(q)) {
+				return q;
+			}
+		}
+	}
+
+	return 1;
+};
+
 const selectEncoding = (header: string) => {
 	if (!header) {
 		return;
 	}
 
-	const length = header.length;
-
 	let bestIdx = -1;
 	let bestQ = -1;
-	let bestOrder = 0x7fffffff;
+	let bestOrder = Infinity;
 
 	let starQ = -1;
-	let starOrder = 0x7fffffff;
+	let starOrder = Infinity;
 	let hasStar = false;
 
-	let order = 0;
-	let start = 0;
+	let mentioned = 0;
 
-	while (start < length) {
-		let end = header.indexOf(",", start);
+	const entries = header.split(",");
 
-		if (end === -1) {
-			end = length;
+	for (let order = 0; order < entries.length; order++) {
+		const entry = entries[order]?.trim();
+
+		if (!entry) {
+			continue;
 		}
 
-		let tokenStart = start;
-		let tokenEnd = end;
+		const semiIdx = entry.indexOf(";");
+		const name = (semiIdx === -1 ? entry : entry.slice(0, semiIdx))
+			.trim()
+			.toLowerCase();
 
-		while (tokenStart < tokenEnd && header.charCodeAt(tokenStart) <= 32) {
-			tokenStart++;
+		if (!name) {
+			continue;
 		}
 
-		while (tokenEnd > tokenStart && header.charCodeAt(tokenEnd - 1) <= 32) {
-			tokenEnd--;
-		}
+		const q = semiIdx === -1 ? 1 : parseQuality(entry, semiIdx);
 
-		if (tokenStart < tokenEnd) {
-			const semiIdx = header.indexOf(";", tokenStart);
-
-			let nameEnd: number;
-
-			if (semiIdx === -1 || semiIdx >= tokenEnd) {
-				nameEnd = tokenEnd;
-			} else {
-				nameEnd = semiIdx;
+		if (name === "*") {
+			if (!hasStar || q > starQ) {
+				starQ = q;
+				starOrder = order;
+				hasStar = true;
 			}
 
-			while (
-				nameEnd > tokenStart &&
-				header.charCodeAt(nameEnd - 1) <= 32
-			) {
-				nameEnd--;
-			}
-
-			if (nameEnd > tokenStart) {
-				const nameLength = nameEnd - tokenStart;
-
-				let q = 1;
-
-				if (semiIdx !== -1 && semiIdx < tokenEnd) {
-					let optStart = semiIdx + 1;
-
-					while (optStart < tokenEnd) {
-						let optEnd = header.indexOf(";", optStart);
-
-						if (optEnd === -1 || optEnd > tokenEnd) {
-							optEnd = tokenEnd;
-						}
-
-						while (
-							optStart < optEnd &&
-							header.charCodeAt(optStart) <= 32
-						) {
-							optStart++;
-						}
-
-						while (
-							optEnd > optStart &&
-							header.charCodeAt(optEnd - 1) <= 32
-						) {
-							optEnd--;
-						}
-
-						if (
-							optEnd - optStart > 2 &&
-							header.charCodeAt(optStart) === 113 &&
-							header.charCodeAt(optStart + 1) === 61
-						) {
-							let val = 0;
-							let frac = 0;
-							let fracDiv = 1;
-							let hasDot = false;
-							let valid = true;
-
-							for (let i = optStart + 2; i < optEnd; i++) {
-								const char = header.charCodeAt(i);
-
-								if (char === 46) {
-									if (hasDot) {
-										valid = false;
-
-										break;
-									}
-
-									hasDot = true;
-								} else if (char >= 48 && char <= 57) {
-									if (hasDot) {
-										fracDiv *= 10;
-										frac += (char - 48) / fracDiv;
-									} else {
-										val = val * 10 + (char - 48);
-									}
-								} else {
-									valid = false;
-
-									break;
-								}
-							}
-
-							if (valid && optEnd - optStart - 2 > 0) {
-								q = val + frac;
-							}
-						}
-
-						optStart = optEnd + 1;
-					}
-				}
-
-				if (nameLength === 1 && header.charCodeAt(tokenStart) === 42) {
-					if (!hasStar || q > starQ) {
-						starQ = q;
-						starOrder = order;
-						hasStar = true;
-					}
-				} else if (q > 0) {
-					let matched = -1;
-
-					if (nameLength === 2) {
-						const c0 = header.charCodeAt(tokenStart) | 0x20;
-						const c1 = header.charCodeAt(tokenStart + 1) | 0x20;
-
-						if (c0 === 98 && c1 === 114) {
-							matched = 0;
-						}
-					} else if (nameLength === 4) {
-						const c0 = header.charCodeAt(tokenStart) | 0x20;
-						const c1 = header.charCodeAt(tokenStart + 1) | 0x20;
-						const c2 = header.charCodeAt(tokenStart + 2) | 0x20;
-						const c3 = header.charCodeAt(tokenStart + 3) | 0x20;
-
-						if (
-							c0 === 103 &&
-							c1 === 122 &&
-							c2 === 105 &&
-							c3 === 112
-						) {
-							matched = 1;
-						} else if (
-							c0 === 122 &&
-							c1 === 115 &&
-							c2 === 116 &&
-							c3 === 100
-						) {
-							matched = 3;
-						}
-					} else if (nameLength === 7) {
-						const c0 = header.charCodeAt(tokenStart) | 0x20;
-						const c1 = header.charCodeAt(tokenStart + 1) | 0x20;
-						const c2 = header.charCodeAt(tokenStart + 2) | 0x20;
-						const c3 = header.charCodeAt(tokenStart + 3) | 0x20;
-						const c4 = header.charCodeAt(tokenStart + 4) | 0x20;
-						const c5 = header.charCodeAt(tokenStart + 5) | 0x20;
-						const c6 = header.charCodeAt(tokenStart + 6) | 0x20;
-
-						if (
-							c0 === 100 &&
-							c1 === 101 &&
-							c2 === 102 &&
-							c3 === 108 &&
-							c4 === 97 &&
-							c5 === 116 &&
-							c6 === 101
-						) {
-							matched = 2;
-						}
-					}
-
-					if (
-						matched >= 0 &&
-						(q > bestQ || (q === bestQ && order < bestOrder))
-					) {
-						bestIdx = matched;
-						bestQ = q;
-						bestOrder = order;
-					}
-				}
-
-				order++;
-			}
+			continue;
 		}
 
-		start = end + 1;
+		const idx = ENCODING_INDEX[name as keyof typeof ENCODING_INDEX];
+
+		if (idx === undefined) {
+			continue;
+		}
+
+		mentioned |= 1 << idx;
+
+		if (q > 0 && (q > bestQ || (q === bestQ && order < bestOrder))) {
+			bestIdx = idx;
+			bestQ = q;
+			bestOrder = order;
+		}
 	}
 
-	if (
-		hasStar &&
-		starQ > 0 &&
-		(bestQ < starQ || (bestQ === starQ && starOrder < bestOrder))
-	) {
-		return ENCODING_NAMES[0];
+	if (hasStar && starQ > 0) {
+		for (let i = 0; i < ENCODING_NAMES.length; i++) {
+			if (!(mentioned & (1 << i))) {
+				if (
+					starQ > bestQ ||
+					(starQ === bestQ && starOrder < bestOrder)
+				) {
+					return ENCODING_NAMES[i];
+				}
+
+				break;
+			}
+		}
 	}
 
 	return bestIdx >= 0 ? ENCODING_NAMES[bestIdx] : undefined;
@@ -233,7 +129,7 @@ export const compress = ({
 	return module().middleware(async ({ request: { raw }, response }, next) => {
 		await next();
 
-		const contentLength = response.headers.get("Content-Length");
+		const contentLength = response.headers.get("content-length");
 
 		if (
 			!response.content ||
@@ -251,7 +147,7 @@ export const compress = ({
 		}
 
 		const encodingName = selectEncoding(
-			raw.headers.get("Accept-Encoding") ?? "",
+			raw.headers.get("accept-encoding") ?? "",
 		);
 
 		if (!encodingName) {
