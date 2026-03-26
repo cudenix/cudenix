@@ -3,16 +3,14 @@ import type { ContextResponse } from "@/core/context";
 export const processResponse = (response: ContextResponse) => {
 	const setCookieHeaders = response.cookies.toSetCookieHeaders();
 
-	if (setCookieHeaders.length > 0) {
-		for (let i = 0; i < setCookieHeaders.length; i++) {
-			const setCookieHeader = setCookieHeaders[i];
+	for (let i = 0; i < setCookieHeaders.length; i++) {
+		const setCookieHeader = setCookieHeaders[i];
 
-			if (!setCookieHeader) {
-				continue;
-			}
-
-			response.headers.append("Set-Cookie", setCookieHeader);
+		if (!setCookieHeader) {
+			continue;
 		}
+
+		response.headers.append("Set-Cookie", setCookieHeader);
 	}
 
 	const content = response.content;
@@ -30,7 +28,13 @@ export const processResponse = (response: ContextResponse) => {
 		});
 	}
 
-	if (content?.content instanceof Response) {
+	if (!content) {
+		return new Response(undefined, {
+			headers: response.headers,
+		});
+	}
+
+	if (content.content instanceof Response) {
 		const original = content.content;
 
 		response.headers.forEach((value, key) => {
@@ -40,7 +44,7 @@ export const processResponse = (response: ContextResponse) => {
 		return original;
 	}
 
-	if (content?.transform) {
+	if (content.transform) {
 		return Response.json(
 			{
 				content: content.content,
@@ -54,8 +58,8 @@ export const processResponse = (response: ContextResponse) => {
 		);
 	}
 
-	return new Response(content?.content, {
+	return new Response(content.content, {
 		headers: response.headers,
-		status: content?.status,
+		status: content.status,
 	});
 };
