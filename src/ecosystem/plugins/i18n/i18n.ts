@@ -202,7 +202,13 @@ export const translate = <
 			continue;
 		}
 
-		translation = (translation as Translation)[key] ?? "";
+		const next = (translation as Translation)[key];
+
+		if (next === undefined) {
+			return path as DeepValue<Cudenix.i18n.Translations, Path>;
+		}
+
+		translation = next;
 	}
 
 	if (replace) {
