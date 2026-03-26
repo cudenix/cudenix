@@ -1,8 +1,17 @@
-export const validateStandardSchema = async (schema: any, input: unknown) => {
-	const { issues, value } = await schema["~standard"].validate(input);
+export const validateStandardSchema = (schema: any, input: unknown) => {
+	const result = schema["~standard"].validate(input);
+
+	if (result instanceof Promise) {
+		return result.then(({ issues, value }) => {
+			return {
+				content: issues ?? value,
+				success: !issues,
+			};
+		});
+	}
 
 	return {
-		content: issues ?? value,
-		success: !issues,
+		content: result.issues ?? result.value,
+		success: !result.issues,
 	};
 };
