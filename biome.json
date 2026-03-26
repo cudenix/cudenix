@@ -3,12 +3,12 @@
 	"assist": {
 		"actions": {
 			"source": {
+				"noDuplicateClasses": "on",
 				"organizeImports": "on",
 				"useSortedAttributes": "on",
+				"useSortedInterfaceMembers": "on",
 				"useSortedKeys": "on",
-				"useSortedProperties": "on",
-				"noDuplicateClasses": "on",
-				"useSortedInterfaceMembers": "on"
+				"useSortedProperties": "on"
 			}
 		}
 	},
