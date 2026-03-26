@@ -66,16 +66,7 @@ const parseAcceptEncoding = (header: string) => {
 			}
 
 			if (nameEnd > tokenStart) {
-				let name = "";
-
-				for (let k = tokenStart; k < nameEnd; k++) {
-					const char = header.charCodeAt(k);
-
-					name +=
-						char >= 65 && char <= 90
-							? String.fromCharCode(char + 32)
-							: header[k];
-				}
+				const name = header.slice(tokenStart, nameEnd).toLowerCase();
 
 				let q = 1;
 
