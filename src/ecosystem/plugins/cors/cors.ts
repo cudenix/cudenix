@@ -41,7 +41,7 @@ export const cors = ({
 			const headers = context.response.headers;
 
 			if (isWildcardWithCredentials) {
-				const requestOrigin = raw.headers.get("Origin") ?? origin;
+				const requestOrigin = raw.headers.get("origin") ?? origin;
 
 				headers.set("access-control-allow-origin", requestOrigin);
 
