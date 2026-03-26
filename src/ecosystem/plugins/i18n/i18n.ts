@@ -232,21 +232,29 @@ export const translate = <
 };
 
 export const i18n = () => {
-	return module().middleware(({ request: { raw }, store: _store }, next) => {
-		const language =
-			new Bun.CookieMap(raw.headers.get("Cookie") ?? "").get(
-				store.cookie ?? "Accept-Language",
-			) ??
-			raw.headers.get(store.header ?? "Accept-Language") ??
-			getLanguage();
+	return module().middleware(
+		({ request: { raw }, response: { cookies }, store: _store }, next) => {
+			if (store.languages.length <= 1) {
+				(_store as Record<"i18n", Pick<I18n, "language">>).i18n = {
+					language: store.language,
+				};
 
-		(_store as Record<"i18n", Pick<I18n, "language">>).i18n = {
-			language:
-				store.languages.indexOf(language) !== -1
-					? language
-					: getLanguage(),
-		};
+				return next();
+			}
 
-		return next();
-	});
+			const language =
+				(store.cookie ? cookies.get(store.cookie) : undefined) ??
+				raw.headers.get(store.header ?? "accept-language") ??
+				store.language;
+
+			(_store as Record<"i18n", Pick<I18n, "language">>).i18n = {
+				language:
+					store.languages.indexOf(language) !== -1
+						? language
+						: store.language,
+			};
+
+			return next();
+		},
+	);
 };
