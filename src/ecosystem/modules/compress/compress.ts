@@ -10,29 +10,31 @@ export interface CompressOptions {
 const COMPRESSIBLE_REGEXP =
 	/^\s*(?:text\/(?!event-stream(?:[;\s]|$))[^;\s]+|application\/(?:json|javascript|xml|x-www-form-urlencoded)|[^;\s]+\/[^;\s]+\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
 
-const parseAcceptEncoding = (header: string) => {
-	const map = new Map<
-		string,
-		{
-			q: number;
-			order: number;
-		}
-	>();
+const ENCODING_NAMES = ["br", "gzip", "deflate", "zstd"] as const;
 
+const selectEncoding = (header: string) => {
 	if (!header) {
-		return map;
+		return;
 	}
 
-	const len = header.length;
+	const length = header.length;
+
+	let bestName: string | undefined;
+	let bestQ = -1;
+	let bestOrder = 0x7fffffff;
+
+	let starQ = -1;
+	let starOrder = 0x7fffffff;
+	let hasStar = false;
 
 	let order = 0;
 	let start = 0;
 
-	while (start < len) {
+	while (start < length) {
 		let end = header.indexOf(",", start);
 
 		if (end === -1) {
-			end = len;
+			end = length;
 		}
 
 		let tokenStart = start;
@@ -65,7 +67,7 @@ const parseAcceptEncoding = (header: string) => {
 			}
 
 			if (nameEnd > tokenStart) {
-				const name = header.slice(tokenStart, nameEnd).toLowerCase();
+				const nameLength = nameEnd - tokenStart;
 
 				let q = 1;
 
@@ -112,13 +114,73 @@ const parseAcceptEncoding = (header: string) => {
 					}
 				}
 
-				const previous = map.get(name);
+				if (nameLength === 1 && header.charCodeAt(tokenStart) === 42) {
+					if (!hasStar || q > starQ) {
+						starQ = q;
+						starOrder = order;
+						hasStar = true;
+					}
+				} else if (q > 0) {
+					let matched: number | undefined;
 
-				if (!previous || q > previous.q) {
-					map.set(name, {
-						order,
-						q,
-					});
+					if (nameLength === 2) {
+						const c0 = header.charCodeAt(tokenStart) | 0x20;
+						const c1 = header.charCodeAt(tokenStart + 1) | 0x20;
+
+						if (c0 === 98 && c1 === 114) {
+							matched = 0;
+						}
+					} else if (nameLength === 4) {
+						const c0 = header.charCodeAt(tokenStart) | 0x20;
+						const c1 = header.charCodeAt(tokenStart + 1) | 0x20;
+						const c2 = header.charCodeAt(tokenStart + 2) | 0x20;
+						const c3 = header.charCodeAt(tokenStart + 3) | 0x20;
+
+						if (
+							c0 === 103 &&
+							c1 === 122 &&
+							c2 === 105 &&
+							c3 === 112
+						) {
+							matched = 1;
+						} else if (
+							c0 === 122 &&
+							c1 === 115 &&
+							c2 === 116 &&
+							c3 === 100
+						) {
+							matched = 3;
+						}
+					} else if (nameLength === 7) {
+						const c0 = header.charCodeAt(tokenStart) | 0x20;
+						const c1 = header.charCodeAt(tokenStart + 1) | 0x20;
+						const c2 = header.charCodeAt(tokenStart + 2) | 0x20;
+						const c3 = header.charCodeAt(tokenStart + 3) | 0x20;
+						const c4 = header.charCodeAt(tokenStart + 4) | 0x20;
+						const c5 = header.charCodeAt(tokenStart + 5) | 0x20;
+						const c6 = header.charCodeAt(tokenStart + 6) | 0x20;
+
+						if (
+							c0 === 100 &&
+							c1 === 101 &&
+							c2 === 102 &&
+							c3 === 108 &&
+							c4 === 97 &&
+							c5 === 116 &&
+							c6 === 101
+						) {
+							matched = 2;
+						}
+					}
+
+					if (
+						matched !== undefined &&
+						(q > bestQ || (q === bestQ && order < bestOrder))
+					) {
+						bestName = ENCODING_NAMES[matched];
+						bestQ = q;
+						bestOrder = order;
+					}
 				}
 
 				order++;
@@ -128,14 +190,24 @@ const parseAcceptEncoding = (header: string) => {
 		start = end + 1;
 	}
 
-	return map;
+	if (
+		hasStar &&
+		starQ > 0 &&
+		(bestQ < starQ || (bestQ === starQ && starOrder < bestOrder))
+	) {
+		return ENCODING_NAMES[0];
+	}
+
+	if (!bestName && hasStar && starQ > 0) {
+		return ENCODING_NAMES[0];
+	}
+
+	return bestName;
 };
 
 export const compress = ({
 	threshold = 1024,
 }: CompressOptions = FreezeEmpty) => {
-	const encodings = ["br", "gzip", "deflate", "zstd"] as const;
-
 	return module().middleware(async ({ request: { raw }, response }, next) => {
 		await next();
 
@@ -156,51 +228,11 @@ export const compress = ({
 			return;
 		}
 
-		const accepted = parseAcceptEncoding(
+		const encodingName = selectEncoding(
 			raw.headers.get("Accept-Encoding") ?? "",
 		);
 
-		if (accepted.size === 0) {
-			return;
-		}
-
-		const star = accepted.get("*");
-
-		let encoding:
-			| {
-					name: string;
-					q: number;
-					order: number;
-			  }
-			| undefined;
-
-		for (let i = 0; i < encodings.length; i++) {
-			const name = encodings[i];
-
-			if (!name) {
-				continue;
-			}
-
-			const entry = accepted.get(name) ?? star;
-
-			if (!entry || entry.q <= 0) {
-				continue;
-			}
-
-			if (
-				!encoding ||
-				entry.q > encoding.q ||
-				(entry.q === encoding.q && entry.order < encoding.order)
-			) {
-				encoding = {
-					name,
-					order: entry.order,
-					q: entry.q,
-				};
-			}
-		}
-
-		if (!encoding) {
+		if (!encodingName) {
 			return;
 		}
 
@@ -236,14 +268,14 @@ export const compress = ({
 
 		processedResponse.headers.delete("content-length");
 
-		processedResponse.headers.set("content-encoding", encoding.name);
+		processedResponse.headers.set("content-encoding", encodingName);
 
 		response.content = success(
 			new Response(
 				stream.pipeThrough(
 					new CompressionStream(
 						// @ts-expect-error
-						encoding.name === "br" ? "brotli" : encoding.name,
+						encodingName === "br" ? "brotli" : encodingName,
 					),
 				),
 				processedResponse,
