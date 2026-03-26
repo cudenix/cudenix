@@ -10,10 +10,16 @@ import type { Merge } from "@/types/merge";
 import { isFile } from "@/utils/files/is-file";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
-const PARAM_REGEX_TEST = /\/:(\w+\??)/;
+const JSON_FIRST_CHAR = new Uint8Array(128);
 const PARAM_REGEX_REPLACE = /\/:(\w+\??)/g;
-const SPREAD_REGEX_TEST = /\/\.{3}(\w+\??)/;
 const SPREAD_REGEX_REPLACE = /\/\.{3}(\w+\??)/g;
+
+for (const char of [
+	9, 10, 13, 32, 34, 45, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 91, 102, 110,
+	116, 123,
+]) {
+	JSON_FIRST_CHAR[char] = 1;
+}
 
 export type RequestOptions<Request> = Merge<
 	Omit<RequestInit, "method"> & {
@@ -67,12 +73,20 @@ export type ClientOptions = MaybeFunction<
 	} & Omit<RequestInit, "method">
 >;
 
-const transform = (value: unknown) => {
-	try {
-		return JSON.parse(value as string) as Record<string, unknown>;
-	} catch {}
+const transform = (value: string) => {
+	if (value.length === 0) {
+		return value;
+	}
 
-	if (!Number.isNaN(Number(value))) {
+	const firstChar = value.charCodeAt(0);
+
+	if (firstChar < 128 && JSON_FIRST_CHAR[firstChar]) {
+		try {
+			return JSON.parse(value);
+		} catch {}
+	}
+
+	if (value.trim() !== "" && !Number.isNaN(Number(value))) {
 		return Number(value);
 	}
 
@@ -84,7 +98,7 @@ const transform = (value: unknown) => {
 		return false;
 	}
 
-	const date = new Date(value as string);
+	const date = new Date(value);
 
 	if (!Number.isNaN(date.getTime())) {
 		return date;
@@ -224,7 +238,7 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				}
 			}
 
-			if (PARAM_REGEX_TEST.test(url)) {
+			if (url.indexOf("/:") !== -1) {
 				url = url.replaceAll(PARAM_REGEX_REPLACE, (_, key: string) => {
 					const param = mergedOptions.params?.[
 						key.replaceAll("?", "")
@@ -234,7 +248,7 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				});
 			}
 
-			if (SPREAD_REGEX_TEST.test(url)) {
+			if (url.indexOf("/...") !== -1) {
 				url = url.replaceAll(SPREAD_REGEX_REPLACE, (_, key: string) => {
 					const params = mergedOptions.params?.[
 						key.replaceAll("?", "")
