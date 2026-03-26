@@ -15,7 +15,7 @@ import type {
 	ValidatorPlugin,
 	ValidatorRequest,
 } from "@/core/validator";
-import type { MaybeFunction } from "@/types/maybe-function";
+import type { MaybePromise } from "@/types/maybe-promise";
 import type { WSData } from "@/types/ws";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
@@ -58,7 +58,7 @@ export interface App {
 		path: string,
 		request: Request,
 	): Promise<Response>;
-	fetch(request: Request): MaybeFunction<Response>;
+	fetch(request: Request): MaybePromise<Response>;
 	listen(
 		options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 	): Promise<App>;
