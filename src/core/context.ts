@@ -171,21 +171,11 @@ Context.prototype.loadRequestCookies = function (this: Context) {
 };
 
 Context.prototype.loadRequestHeaders = function (this: Context) {
-	const headers = new Empty();
-
-	let hasHeaders = false;
-
-	this.request.raw.headers.forEach((value, key) => {
-		headers[key] = value;
-
-		hasHeaders = true;
-	});
-
-	if (!hasHeaders) {
+	if (this.request.raw.headers.count === 0) {
 		return;
 	}
 
-	this.request.headers = headers;
+	this.request.headers = this.request.raw.headers.toJSON();
 };
 
 Context.prototype.loadRequestParams = function (this: Context) {
