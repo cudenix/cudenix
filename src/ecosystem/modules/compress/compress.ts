@@ -24,53 +24,118 @@ const parseAcceptEncoding = (header: string) => {
 		return map;
 	}
 
+	const len = header.length;
+
 	let order = 0;
+	let start = 0;
 
-	const split = header.split(",");
+	while (start < len) {
+		let end = header.indexOf(",", start);
 
-	for (let i = 0; i < split.length; i++) {
-		const token = split[i]?.trim().toLowerCase();
-
-		if (!token) {
-			continue;
+		if (end === -1) {
+			end = len;
 		}
 
-		const [name, ...options] = token.split(";").map((split) => {
-			return split.trim();
-		});
+		let tokenStart = start;
+		let tokenEnd = end;
 
-		if (!name) {
-			continue;
+		while (tokenStart < tokenEnd && header.charCodeAt(tokenStart) <= 32) {
+			tokenStart++;
 		}
 
-		let q = 1;
+		while (tokenEnd > tokenStart && header.charCodeAt(tokenEnd - 1) <= 32) {
+			tokenEnd--;
+		}
 
-		for (let j = 0; j < options.length; j++) {
-			const option = options[j];
+		if (tokenStart < tokenEnd) {
+			const semiIdx = header.indexOf(";", tokenStart);
 
-			if (!option) {
-				continue;
+			let nameEnd: number;
+
+			if (semiIdx === -1 || semiIdx >= tokenEnd) {
+				nameEnd = tokenEnd;
+			} else {
+				nameEnd = semiIdx;
 			}
 
-			const priority = Number(option.match(/^q=([0-9.]+)$/)?.[1]);
-
-			if (Number.isNaN(priority)) {
-				continue;
+			while (
+				nameEnd > tokenStart &&
+				header.charCodeAt(nameEnd - 1) <= 32
+			) {
+				nameEnd--;
 			}
 
-			q = priority;
+			if (nameEnd > tokenStart) {
+				let name = "";
+
+				for (let k = tokenStart; k < nameEnd; k++) {
+					const char = header.charCodeAt(k);
+
+					name +=
+						char >= 65 && char <= 90
+							? String.fromCharCode(char + 32)
+							: header[k];
+				}
+
+				let q = 1;
+
+				if (semiIdx !== -1 && semiIdx < tokenEnd) {
+					let optStart = semiIdx + 1;
+
+					while (optStart < tokenEnd) {
+						let optEnd = header.indexOf(";", optStart);
+
+						if (optEnd === -1 || optEnd > tokenEnd) {
+							optEnd = tokenEnd;
+						}
+
+						while (
+							optStart < optEnd &&
+							header.charCodeAt(optStart) <= 32
+						) {
+							optStart++;
+						}
+
+						while (
+							optEnd > optStart &&
+							header.charCodeAt(optEnd - 1) <= 32
+						) {
+							optEnd--;
+						}
+
+						if (
+							optEnd - optStart > 2 &&
+							header.charCodeAt(optStart) === 113 &&
+							header.charCodeAt(optStart + 1) === 61
+						) {
+							const priority = +header.slice(
+								optStart + 2,
+								optEnd,
+							);
+
+							if (!Number.isNaN(priority)) {
+								q = priority;
+							}
+						}
+
+						optStart = optEnd + 1;
+					}
+				}
+
+				const previous = map.get(name);
+
+				if (!previous || q > previous.q) {
+					map.set(name, {
+						order,
+						q,
+					});
+				}
+
+				order++;
+			}
 		}
 
-		const previous = map.get(name);
-
-		if (!previous || q > previous.q) {
-			map.set(name, {
-				order,
-				q,
-			});
-		}
-
-		order++;
+		start = end + 1;
 	}
 
 	return map;
@@ -111,21 +176,24 @@ export const compress = ({
 
 		const star = accepted.get("*");
 
-		const encoding = encodings
-			.map((encoding) => {
-				return {
-					order: 0,
-					q: 0,
-					...(accepted.get(encoding) ?? star),
-					name: encoding,
-				};
-			})
-			.filter((encoding) => {
-				return encoding.q > 0;
-			})
-			.sort((a, b) => {
-				return b.q === a.q ? a.order - b.order : b.q - a.q;
-			})[0];
+		let encoding: { name: string; q: number; order: number } | undefined;
+
+		for (let i = 0; i < encodings.length; i++) {
+			const name = encodings[i]!;
+			const entry = accepted.get(name) ?? star;
+
+			if (!entry || entry.q <= 0) {
+				continue;
+			}
+
+			if (
+				!encoding ||
+				entry.q > encoding.q ||
+				(entry.q === encoding.q && entry.order < encoding.order)
+			) {
+				encoding = { name, order: entry.order, q: entry.q };
+			}
+		}
 
 		if (!encoding) {
 			return;
