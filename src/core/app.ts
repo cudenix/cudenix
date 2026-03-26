@@ -15,6 +15,7 @@ import type {
 	ValidatorPlugin,
 	ValidatorRequest,
 } from "@/core/validator";
+import type { MaybeFunction } from "@/types/maybe-function";
 import type { WSData } from "@/types/ws";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
@@ -45,6 +46,11 @@ export interface Endpoint {
 	use: Set<"body" | "cookies" | "headers" | "params" | "query">;
 }
 
+export interface MethodData {
+	endpoints: Endpoint[];
+	regexp: RegExp;
+}
+
 export interface App {
 	compile(): Promise<void>;
 	endpoint(
@@ -52,14 +58,13 @@ export interface App {
 		path: string,
 		request: Request,
 	): Promise<Response>;
-	endpoints: Map<string, Endpoint[]>;
-	fetch(request: Request): Response;
+	fetch(request: Request): MaybeFunction<Response>;
 	listen(
 		options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 	): Promise<App>;
 	memory: Map<string, unknown>;
+	methods: Map<string, MethodData>;
 	plugins(plugins: Plugin[], options: PluginOptions): App;
-	regexps: Map<string, RegExp>;
 	routes?: Record<string, Bun.Serve.Routes<unknown, string>>;
 	server?: Bun.Server<unknown> | undefined;
 }
@@ -67,9 +72,8 @@ export interface App {
 type Constructor = new (module: AnyModule) => App;
 
 export const App = function (this: App, module: AnyModule) {
-	this.endpoints = new Map();
 	this.memory = new Map();
-	this.regexps = new Map();
+	this.methods = new Map();
 
 	this.memory.set("module", module);
 } as unknown as Constructor;
@@ -339,7 +343,13 @@ App.prototype.endpoint = async function (
 };
 
 App.prototype.fetch = function (this: App, request: Request) {
-	const match = this.regexps.get(request.method)?.exec(request.url);
+	const data = this.methods.get(request.method);
+
+	if (!data) {
+		return new Response(undefined, NOT_FOUND_INIT);
+	}
+
+	const match = data.regexp.exec(request.url);
 
 	if (!match) {
 		return new Response(undefined, NOT_FOUND_INIT);
@@ -354,7 +364,7 @@ App.prototype.fetch = function (this: App, request: Request) {
 	let index = -1;
 
 	for (let i = 3; i < match.length; i++) {
-		if (match[i] === "") {
+		if (match[i] !== undefined) {
 			index = i - 3;
 
 			break;
@@ -365,7 +375,7 @@ App.prototype.fetch = function (this: App, request: Request) {
 		return new Response(undefined, NOT_FOUND_INIT);
 	}
 
-	const endpoint = this.endpoints.get(request.method)?.[index];
+	const endpoint = data.endpoints[index];
 
 	if (!endpoint) {
 		return new Response(undefined, NOT_FOUND_INIT);
