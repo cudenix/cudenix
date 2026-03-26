@@ -33,9 +33,9 @@ export const processResponse = (response: ContextResponse) => {
 	if (content?.content instanceof Response) {
 		const original = content.content;
 
-		for (const [key, value] of response.headers) {
+		response.headers.forEach((value, key) => {
 			original.headers.append(key, value);
-		}
+		});
 
 		return original;
 	}
