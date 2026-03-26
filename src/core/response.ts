@@ -3,17 +3,21 @@ import type { ContextResponse } from "@/core/context";
 export const processResponse = (response: ContextResponse) => {
 	const setCookieHeaders = response.cookies.toSetCookieHeaders();
 
-	for (let i = 0; i < setCookieHeaders.length; i++) {
-		const setCookieHeader = setCookieHeaders[i];
+	if (setCookieHeaders.length > 0) {
+		for (let i = 0; i < setCookieHeaders.length; i++) {
+			const setCookieHeader = setCookieHeaders[i];
 
-		if (!setCookieHeader) {
-			continue;
+			if (!setCookieHeader) {
+				continue;
+			}
+
+			response.headers.append("Set-Cookie", setCookieHeader);
 		}
-
-		response.headers.append("Set-Cookie", setCookieHeader);
 	}
 
-	if (response.content instanceof ReadableStream) {
+	const content = response.content;
+
+	if (content instanceof ReadableStream) {
 		response.headers.set("Cache-Control", "no-cache");
 		response.headers.set("Connection", "keep-alive");
 
@@ -21,37 +25,37 @@ export const processResponse = (response: ContextResponse) => {
 			response.headers.set("Content-Type", "text/event-stream");
 		}
 
-		return new Response(response.content, {
+		return new Response(content, {
 			headers: response.headers,
 		});
 	}
 
-	if (response.content?.content instanceof Response) {
-		const original = response.content.content;
+	if (content?.content instanceof Response) {
+		const original = content.content;
 
-		response.headers.forEach((value, key) => {
+		for (const [key, value] of response.headers) {
 			original.headers.append(key, value);
-		});
+		}
 
 		return original;
 	}
 
-	if (response.content?.transform) {
+	if (content?.transform) {
 		return Response.json(
 			{
-				content: response.content.content,
-				status: response.content.status,
-				success: response.content.success,
+				content: content.content,
+				status: content.status,
+				success: content.success,
 			},
 			{
 				headers: response.headers,
-				status: response.content.status,
+				status: content.status,
 			},
 		);
 	}
 
-	return new Response(response.content?.content, {
+	return new Response(content?.content, {
 		headers: response.headers,
-		status: response.content?.status,
+		status: content?.status,
 	});
 };
