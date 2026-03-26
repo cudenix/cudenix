@@ -3,7 +3,7 @@
 		"declaration": true,
 		"declarationMap": true,
 		"isolatedModules": true,
-		"lib": ["DOM", "ESNext"],
+		"lib": ["DOM", "DOM.Iterable", "ESNext"],
 		"module": "ESNext",
 		"moduleDetection": "force",
 		"moduleResolution": "Bundler",
