@@ -160,6 +160,8 @@ export const loadTranslations = async (directory: string) => {
 		withFileTypes: true,
 	});
 
+	const promises = [] as Promise<void>[];
+
 	for (let i = 0; i < entries.length; i++) {
 		const entry = entries[i];
 
@@ -170,23 +172,33 @@ export const loadTranslations = async (directory: string) => {
 		const fullPath = join(directory, entry.name);
 
 		if (entry.isDirectory()) {
-			result[entry.name] = await loadTranslations(fullPath);
+			promises.push(
+				loadTranslations(fullPath).then((data) => {
+					result[entry.name] = data;
+				}),
+			);
 
 			continue;
 		}
 
 		if (entry.isFile() && entry.name.endsWith(".json")) {
-			const data = await Bun.file(fullPath).json();
+			promises.push(
+				Bun.file(fullPath)
+					.json()
+					.then((data) => {
+						if (entry.name === "index.json") {
+							Object.assign(result, data);
 
-			if (entry.name === "index.json") {
-				Object.assign(result, data);
+							return;
+						}
 
-				continue;
-			}
-
-			result[entry.name.slice(0, -5)] = data;
+						result[entry.name.slice(0, -5)] = data;
+					}),
+			);
 		}
 	}
+
+	await Promise.all(promises);
 
 	return result;
 };
