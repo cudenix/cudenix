@@ -4,8 +4,6 @@ import { success } from "@/core/success";
 import { scalar } from "@/ecosystem/plugins/openapi/scalar";
 import { Empty, FreezeEmpty } from "@/utils/objects/empty";
 
-const LEADING_COLON_DOTS_REGEXP = /^[:.]*/;
-
 const CONTENT_TYPES = [
 	"application/json",
 	"multipart/form-data",
@@ -46,9 +44,10 @@ export const plugin = (
 					continue;
 				}
 
-				const path = endpoint.path
-					.replaceAll(/:(\w+)/g, "{$1}")
-					.replaceAll(/\.{3}(\w+)/g, "{$1}");
+				const path = endpoint.path.replaceAll(
+					/(?::|\.{3})(\w+)\??/g,
+					"{$1}",
+				);
 
 				const operation = new Empty();
 
@@ -172,9 +171,12 @@ export const plugin = (
 							continue;
 						}
 
-						const name = param
-							.replace(LEADING_COLON_DOTS_REGEXP, "")
-							.replace("?", "");
+						const name = param.slice(
+							param.charCodeAt(0) === 46 ? 3 : 1,
+							param.charCodeAt(param.length - 1) === 63
+								? param.length - 1
+								: param.length,
+						);
 
 						if (
 							(
