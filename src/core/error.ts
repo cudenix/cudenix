@@ -29,15 +29,12 @@ export type MergeErrors<Errors, Error> = {
 			: never;
 };
 
-export interface ErrorOptions<
-	Status extends number,
-	Transform extends boolean,
-> {
+interface ErrorOptions<Status extends number, Transform extends boolean> {
 	status?: Status;
 	transform?: Transform;
 }
 
-export type AnyErrorOptions = ErrorOptions<any, any>;
+type AnyErrorOptions = ErrorOptions<any, any>;
 
 export interface Error<
 	Content,
