@@ -182,13 +182,14 @@ Context.prototype.loadRequestCookies = function (this: Context) {
 		return;
 	}
 
-	this.response.cookies = new Bun.CookieMap(header);
+	const cookies = new Bun.CookieMap(header);
 
-	if (this.response.cookies.size === 0) {
+	if (cookies.size === 0) {
 		return;
 	}
 
-	this.request.cookies = this.response.cookies.toJSON();
+	this.response.cookies = cookies;
+	this.request.cookies = cookies.toJSON();
 };
 
 Context.prototype.loadRequestHeaders = function (this: Context) {
@@ -272,10 +273,6 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 			}
 
 			value = url.substring(valueStart, i);
-
-			if (value.length === 0) {
-				value = "true";
-			}
 		} else {
 			value = "true";
 		}
