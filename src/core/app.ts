@@ -16,17 +16,6 @@ const NOT_FOUND_INIT = {
 
 export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
-export type Plugin = (...options: any[]) => MaybePromise<void>;
-
-export interface PluginOptions {
-	compile?: "AFTER" | "BEFORE" | false;
-}
-
-export interface MemoryPlugin {
-	options?: PluginOptions;
-	plugin: Plugin;
-}
-
 export interface Endpoint {
 	chain: Chain;
 	generator: boolean;
@@ -36,9 +25,20 @@ export interface Endpoint {
 	use: number;
 }
 
-export interface MethodData {
+interface MemoryPlugin {
+	options?: PluginOptions;
+	plugin: Plugin;
+}
+
+interface MethodData {
 	endpoints: Endpoint[];
 	regexp: RegExp;
+}
+
+type Plugin = (...options: any[]) => MaybePromise<void>;
+
+interface PluginOptions {
+	compile?: "AFTER" | "BEFORE" | false;
 }
 
 export interface App {
@@ -61,7 +61,7 @@ export interface App {
 
 type Constructor = new (module: AnyModule) => App;
 
-export const App = function (this: App, module: AnyModule) {
+const App = function (this: App, module: AnyModule) {
 	this.memory = new Map();
 	this.methods = new Map();
 
