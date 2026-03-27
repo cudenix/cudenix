@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { module } from "@/core/module";
 import { getRequestContext } from "@/ecosystem/plugins/global-request-context/global-request-context";
+import { parseQuality } from "@/utils/header/quality";
 import { Empty, FreezeEmpty } from "@/utils/objects/empty";
 
 const STORE = new Empty() as unknown as I18n;
@@ -57,32 +58,6 @@ export interface I18n {
 	translations: Translation;
 }
 
-export const parseLanguageQuality = (entry: string, semiIdx: number) => {
-	const params = entry.slice(semiIdx + 1).split(";");
-
-	for (let i = 0; i < params.length; i++) {
-		const param = params[i]?.trim();
-
-		if (!param) {
-			continue;
-		}
-
-		if (
-			param.length > 2 &&
-			param.charCodeAt(0) === 0x71 &&
-			param.charCodeAt(1) === 0x3d
-		) {
-			const q = Number(param.slice(2));
-
-			if (!Number.isNaN(q)) {
-				return q;
-			}
-		}
-	}
-
-	return 1;
-};
-
 export const selectLanguage = (header: string, languages: string[]) => {
 	if (!header) {
 		return STORE.language;
@@ -110,7 +85,7 @@ export const selectLanguage = (header: string, languages: string[]) => {
 			continue;
 		}
 
-		const q = semiIdx === -1 ? 1 : parseLanguageQuality(entry, semiIdx);
+		const q = semiIdx === -1 ? 1 : parseQuality(entry, semiIdx);
 
 		if (q <= 0) {
 			continue;

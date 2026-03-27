@@ -1,6 +1,7 @@
 import { module } from "@/core/module";
 import { processResponse } from "@/core/response";
 import { success } from "@/core/success";
+import { parseQuality } from "@/utils/header/quality";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
 export interface CompressOptions {
@@ -18,32 +19,6 @@ const ENCODING_INDEX = {
 	gzip: 1,
 	zstd: 3,
 } as const satisfies Record<(typeof ENCODING_NAMES)[number], number>;
-
-const parseQuality = (entry: string, semiIdx: number): number => {
-	const params = entry.slice(semiIdx + 1).split(";");
-
-	for (let i = 0; i < params.length; i++) {
-		const param = params[i]?.trim();
-
-		if (!param) {
-			continue;
-		}
-
-		if (
-			param.length > 2 &&
-			param.charCodeAt(0) === 0x71 &&
-			param.charCodeAt(1) === 0x3d
-		) {
-			const q = Number(param.slice(2));
-
-			if (!Number.isNaN(q)) {
-				return q;
-			}
-		}
-	}
-
-	return 1;
-};
 
 const selectEncoding = (header: string) => {
 	if (!header) {
