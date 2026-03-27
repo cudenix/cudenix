@@ -251,30 +251,33 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 			i++;
 		}
 
-		if (i >= url.length || url.charCodeAt(i) === 35) {
-			break;
-		}
-
-		if (url.charCodeAt(i) === 38) {
-			i++;
-
-			continue;
-		}
+		const hasValue = i < url.length && url.charCodeAt(i) === 61;
 
 		let key = url.substring(keyStart, i);
+		let value: string;
 
-		i++;
+		if (hasValue) {
+			i++;
 
-		const valueStart = i;
+			const valueStart = i;
 
-		while (i < url.length) {
-			const char = url.charCodeAt(i);
+			while (i < url.length) {
+				const char = url.charCodeAt(i);
 
-			if (char === 38 || char === 35) {
-				break;
+				if (char === 38 || char === 35) {
+					break;
+				}
+
+				i++;
 			}
 
-			i++;
+			value = url.substring(valueStart, i);
+
+			if (value.length === 0) {
+				value = "true";
+			}
+		} else {
+			value = "true";
 		}
 
 		if (key.length > 0) {
@@ -286,24 +289,28 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 				key = decodeURIComponent(key);
 			}
 
-			let value = url.substring(valueStart, i);
+			if (hasValue) {
+				if (value.indexOf("+") !== -1) {
+					value = value.replaceAll("+", " ");
+				}
 
-			if (value.length === 0) {
-				value = "true";
-			}
-
-			if (value.indexOf("+") !== -1) {
-				value = value.replaceAll("+", " ");
-			}
-
-			if (value.indexOf("%") !== -1) {
-				value = decodeURIComponent(value);
+				if (value.indexOf("%") !== -1) {
+					value = decodeURIComponent(value);
+				}
 			}
 
 			const firstChar = value.charCodeAt(0);
 
-			params[key] =
+			const parsed =
 				firstChar === 123 || firstChar === 91 ? tryParse(value) : value;
+
+			if (params[key] === undefined) {
+				params[key] = parsed;
+			} else if (Array.isArray(params[key])) {
+				(params[key] as unknown[]).push(parsed);
+			} else {
+				params[key] = [params[key], parsed];
+			}
 
 			hasParams = true;
 		}
