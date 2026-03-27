@@ -61,7 +61,7 @@ export interface App {
 
 type Constructor = new (module: AnyModule) => App;
 
-const App = function (this: App, module: AnyModule) {
+export const App = function (this: App, module: AnyModule) {
 	this.memory = new Map();
 	this.methods = new Map();
 
