@@ -5,6 +5,8 @@ import { module } from "@/core/module";
 import { getRequestContext } from "@/ecosystem/plugins/global-request-context/global-request-context";
 import { Empty, FreezeEmpty } from "@/utils/objects/empty";
 
+const STORE = new Empty() as unknown as I18n;
+
 export type DeepPaths<Type extends Record<PropertyKey, unknown>> = {
 	[Key in keyof Type]: Key extends string
 		? Type[Key] extends Record<PropertyKey, unknown>
@@ -55,12 +57,7 @@ export interface I18n {
 	translations: Translation;
 }
 
-const store = new Empty() as unknown as I18n;
-
-export const parseLanguageQuality = (
-	entry: string,
-	semiIdx: number,
-): number => {
+export const parseLanguageQuality = (entry: string, semiIdx: number) => {
 	const params = entry.slice(semiIdx + 1).split(";");
 
 	for (let i = 0; i < params.length; i++) {
@@ -88,7 +85,7 @@ export const parseLanguageQuality = (
 
 export const selectLanguage = (header: string, languages: string[]) => {
 	if (!header) {
-		return;
+		return STORE.language;
 	}
 
 	let bestLang: string | undefined;
@@ -150,7 +147,7 @@ export const selectLanguage = (header: string, languages: string[]) => {
 		}
 	}
 
-	return bestLang;
+	return bestLang ?? STORE.language;
 };
 
 export const loadTranslations = async (directory: string) => {
@@ -232,9 +229,13 @@ export const replace = <Translation extends string>(
 export const load = async (
 	path: string,
 	language: string,
-	options?: Pick<I18n, "cookie" | "header"> & {
+	{
+		cookie,
+		header,
+		types,
+	}: Pick<I18n, "cookie" | "header"> & {
 		types: boolean;
-	},
+	} = FreezeEmpty as any,
 ) => {
 	const directories = await readdir(path, {
 		withFileTypes: true,
@@ -248,12 +249,16 @@ export const load = async (
 			return directory.name;
 		});
 
-	store.cookie = options?.cookie;
-	store.header = options?.header;
-	store.language = language;
-	store.languages = languages;
-	store.path = path;
-	store.translations = new Empty() as Translation;
+	Object.assign(STORE, {
+		cookie,
+		header,
+		language,
+		languages,
+		path,
+		translations: new Empty() as Translation,
+	});
+
+	const promises = [] as Promise<void>[];
 
 	for (let i = 0; i < languages.length; i++) {
 		const language = languages[i];
@@ -262,23 +267,27 @@ export const load = async (
 			continue;
 		}
 
-		store.translations[language] = await loadTranslations(
-			join(path, language),
+		promises.push(
+			loadTranslations(join(path, language)).then((translations) => {
+				STORE.translations[language] = translations;
+			}),
 		);
 	}
 
-	if (options?.types !== false) {
+	await Promise.all(promises);
+
+	if (types !== false) {
 		await Bun.write(
 			join(path, "types.d.ts"),
-			`namespace Cudenix.i18n { interface Translations ${JSON.stringify(store.translations[language])}; };`,
+			`namespace Cudenix.i18n { interface Translations ${JSON.stringify(STORE.translations[language])}; };`,
 		);
 	}
 };
 
 export const getLanguage = () => {
 	return (
-		(getRequestContext()?.store.i18n as Pick<I18n, "language"> | undefined)
-			?.language ?? store.language
+		(getRequestContext()?.store.i18n as Partial<I18n>)?.language ??
+		STORE.language
 	);
 };
 
@@ -292,8 +301,8 @@ export const translate = <
 	}: TranslateOptions<
 		DeepValue<Cudenix.i18n.Translations, Path>
 	> = FreezeEmpty,
-): DeepValue<Cudenix.i18n.Translations, Path> => {
-	const translations = store.translations[language ?? getLanguage()];
+) => {
+	const translations = STORE.translations[language ?? getLanguage()];
 
 	if (!translations) {
 		return path as DeepValue<Cudenix.i18n.Translations, Path>;
@@ -319,7 +328,7 @@ export const translate = <
 		translation = next;
 	}
 
-	if (replace) {
+	if (replace && typeof translation === "string") {
 		const keys = Object.keys(replace);
 
 		for (let i = 0; i < keys.length; i++) {
@@ -329,7 +338,7 @@ export const translate = <
 				continue;
 			}
 
-			translation = (translation as string).replaceAll(
+			translation = translation.replaceAll(
 				`\${${key}}`,
 				replace[key as keyof typeof replace] ?? "",
 			);
@@ -341,30 +350,21 @@ export const translate = <
 
 export const i18n = () => {
 	return module().middleware(
-		({ request: { raw }, response: { cookies }, store: _store }, next) => {
-			if (store.languages.length <= 1) {
-				(_store as Record<"i18n", Pick<I18n, "language">>).i18n = {
-					language: store.language,
-				};
-
-				return next();
-			}
-
-			const fromCookie = store.cookie
-				? cookies.get(store.cookie)
-				: undefined;
-
-			(_store as Record<"i18n", Pick<I18n, "language">>).i18n = {
+		({ request: { raw }, response: { cookies }, store }, next) => {
+			(store as Record<"i18n", Partial<I18n>>).i18n = {
 				language:
-					(fromCookie && store.languages.indexOf(fromCookie) !== -1
-						? fromCookie
-						: undefined) ??
-					selectLanguage(
-						raw.headers.get(store.header ?? "accept-language") ??
-							"",
-						store.languages,
-					) ??
-					store.language,
+					STORE.languages.length <= 1
+						? STORE.language
+						: selectLanguage(
+								(STORE.cookie
+									? cookies.get(STORE.cookie)
+									: undefined) ??
+									raw.headers.get(
+										STORE.header ?? "accept-language",
+									) ??
+									STORE.language,
+								STORE.languages,
+							),
 			};
 
 			return next();
