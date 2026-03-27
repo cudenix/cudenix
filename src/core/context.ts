@@ -1,4 +1,11 @@
 import type { Endpoint } from "@/core/app";
+import {
+	USE_BODY,
+	USE_COOKIES,
+	USE_HEADERS,
+	USE_PARAMS,
+	USE_QUERY,
+} from "@/core/compile";
 import type { AnyError } from "@/core/error";
 import type { AnySuccess } from "@/core/success";
 import type { MaybePromise } from "@/types/maybe-promise";
@@ -83,23 +90,23 @@ export const Context = function (
 Context.prototype.loadRequest = function (this: Context) {
 	const { use } = this.endpoint;
 
-	if (use.has("headers")) {
+	if (use & USE_HEADERS) {
 		this.loadRequestHeaders();
 	}
 
-	if (use.has("cookies")) {
+	if (use & USE_COOKIES) {
 		this.loadRequestCookies();
 	}
 
-	if (use.has("params")) {
+	if (use & USE_PARAMS) {
 		this.loadRequestParams();
 	}
 
-	if (use.has("query")) {
+	if (use & USE_QUERY) {
 		this.loadRequestQuery();
 	}
 
-	if (use.has("body")) {
+	if (use & USE_BODY) {
 		return this.loadRequestBody();
 	}
 };
@@ -129,7 +136,10 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 		return;
 	}
 
-	if (contentType === "multipart/form-data") {
+	if (
+		contentType === "multipart/form-data" ||
+		contentType === "application/x-www-form-urlencoded"
+	) {
 		const formData = await this.request.raw.formData();
 
 		const result = new Empty();
