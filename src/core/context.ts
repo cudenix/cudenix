@@ -152,15 +152,19 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 		const result = new Empty();
 
 		for (const [key, value] of formData) {
-			if (key in result) {
-				if (Array.isArray(result[key])) {
-					result[key].push(value);
-				} else {
-					result[key] = [result[key], value];
-				}
-			} else {
+			if (result[key] === undefined) {
 				result[key] = value;
+
+				continue;
 			}
+
+			if (Array.isArray(result[key])) {
+				result[key].push(value);
+
+				continue;
+			}
+
+			result[key] = [result[key], value];
 		}
 
 		this.request.body = result;
@@ -274,14 +278,19 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 		}
 
 		if (key.length > 0) {
-			const rawValue = url.substring(valueStart, i);
+			let value = url.substring(valueStart, i);
 
-			const value =
-				rawValue.indexOf("+") === -1
-					? rawValue.indexOf("%") === -1
-						? rawValue
-						: decodeURIComponent(rawValue)
-					: decodeURIComponent(rawValue.replaceAll("+", " "));
+			if (value.length === 0) {
+				value = "true";
+			}
+
+			if (value.indexOf("+") !== -1) {
+				value = value.replaceAll("+", " ");
+			}
+
+			if (value.indexOf("%") !== -1) {
+				value = decodeURIComponent(value);
+			}
 
 			const firstChar = value.charCodeAt(0);
 
