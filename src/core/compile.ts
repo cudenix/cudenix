@@ -33,12 +33,12 @@ const KEY_TO_BIT = {
 
 const LINK_USE_BITS_CACHE = new WeakMap<object, number>();
 
-export interface PreviousStep {
+interface PreviousStep {
 	chain: Chain;
 	path: string;
 }
 
-export const getLinkUseBits = (link: Chain[number]) => {
+const getLinkUseBits = (link: Chain[number]) => {
 	let bits = LINK_USE_BITS_CACHE.get(link);
 
 	if (bits !== undefined) {
@@ -79,7 +79,7 @@ export const getLinkUseBits = (link: Chain[number]) => {
 	return bits;
 };
 
-export const compileStep = (
+const step = (
 	endpoints: Map<string, Endpoint[]>,
 	module: AnyModule,
 	previous: PreviousStep,
@@ -102,7 +102,7 @@ export const compileStep = (
 
 			module.chain = previous.chain.concat(chain);
 
-			compileStep(endpoints, link.group(module), {
+			step(endpoints, link.group(module), {
 				chain: [],
 				path: "",
 			});
@@ -121,7 +121,7 @@ export const compileStep = (
 		}
 
 		if (link.type === "MODULE") {
-			const compiled = compileStep(endpoints, link, {
+			const compiled = step(endpoints, link, {
 				chain: previous.chain.concat(chain),
 				path: `${previous.path}${path === "/" ? "" : path}`,
 			});
@@ -226,7 +226,7 @@ export const compile = (app: App, module: AnyModule) => {
 
 	const endpoints = new Map<string, Endpoint[]>();
 
-	compileStep(endpoints, module, {
+	step(endpoints, module, {
 		chain: [],
 		path: "",
 	});
