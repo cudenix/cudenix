@@ -1,4 +1,5 @@
 import type { ExtractContent } from "@/types/extract-content";
+import { FreezeEmpty } from "@/utils/objects/empty";
 
 export type FilterError<Type> = Extract<Type, AnyError>;
 
@@ -59,12 +60,12 @@ type Constructor = new (
 export const Error = function (
 	this: AnyError,
 	content: unknown,
-	options?: AnyErrorOptions,
+	{ status = 400, transform = true }: AnyErrorOptions = FreezeEmpty,
 ) {
 	this.content = content;
-	this.status = options?.status ?? 400;
+	this.status = status;
 	this.success = false;
-	this.transform = options?.transform ?? true;
+	this.transform = transform;
 } as unknown as Constructor;
 
 export const error = <
