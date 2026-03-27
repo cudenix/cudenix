@@ -22,7 +22,7 @@ for (const char of [
 	JSON_FIRST_CHAR[char] = 1;
 }
 
-export type RequestOptions<Request> = Merge<
+type RequestOptions<Request> = Merge<
 	Omit<RequestInit, "method"> & {
 		headers?: Record<string, string | readonly string[]>;
 	},
@@ -31,7 +31,7 @@ export type RequestOptions<Request> = Merge<
 		: NonNullable<unknown>
 >;
 
-export type ParseResponse<Method, Request, Response> = Method extends "WS"
+type ParseResponse<Method, Request, Response> = Method extends "WS"
 	? WS<Request, Response>
 	: Response extends Generator<infer Yield> | AsyncGenerator<infer Yield>
 		? SSE<Yield extends AnyGeneratorSSE ? Yield : never>
@@ -41,11 +41,11 @@ export type ParseResponse<Method, Request, Response> = Method extends "WS"
 				: Response["content"]
 			: Response;
 
-export type RouteHandler<Method, Request, Response> = (
+type RouteHandler<Method, Request, Response> = (
 	options?: RequestOptions<Request>,
 ) => Promise<ParseResponse<Method, Request, Response>>;
 
-export type ClientChain<Routes extends Record<PropertyKey, unknown>> = {
+type ClientChain<Routes extends Record<PropertyKey, unknown>> = {
 	[Key in keyof Routes]: Routes[Key] extends Record<PropertyKey, unknown>
 		? Routes[Key] extends {
 				request: infer Request;
@@ -68,7 +68,7 @@ export type InferRouteResponse<Route> = Route extends (...options: any[]) => any
 	? Awaited<ReturnType<Route>>
 	: never;
 
-export type ClientOptions = MaybeFunction<
+type ClientOptions = MaybeFunction<
 	{
 		url: string;
 	} & Omit<RequestInit, "method">
