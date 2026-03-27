@@ -76,13 +76,49 @@ export const Context = function (
 	this.endpoint = endpoint;
 	this.memory = memory;
 	this.request = {
+		body: undefined,
+		cookies: undefined,
+		headers: undefined,
+		params: undefined,
 		path,
+		query: undefined,
 		raw: request,
 	};
 	this.response = {
-		cookies: new Bun.CookieMap(),
+		_cookiesInit: false,
+		content: undefined,
 		headers: new Headers(),
-	} as ContextResponse;
+	} as unknown as ContextResponse;
+
+	Object.defineProperty(this.response, "cookies", {
+		configurable: true,
+		enumerable: true,
+		get() {
+			const cookies = new Bun.CookieMap();
+
+			this._cookiesInit = true;
+
+			Object.defineProperty(this, "cookies", {
+				configurable: true,
+				enumerable: true,
+				value: cookies,
+				writable: true,
+			});
+
+			return cookies;
+		},
+		set(value: Bun.CookieMap) {
+			this._cookiesInit = true;
+
+			Object.defineProperty(this, "cookies", {
+				configurable: true,
+				enumerable: true,
+				value: value,
+				writable: true,
+			});
+		},
+	});
+
 	this.server = server;
 	this.store = new Empty();
 } as unknown as Constructor;
