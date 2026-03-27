@@ -57,7 +57,103 @@ export interface I18n {
 
 const store = new Empty() as unknown as I18n;
 
-const loadTranslations = async (directory: string) => {
+export const parseLanguageQuality = (
+	entry: string,
+	semiIdx: number,
+): number => {
+	const params = entry.slice(semiIdx + 1).split(";");
+
+	for (let i = 0; i < params.length; i++) {
+		const param = params[i]?.trim();
+
+		if (!param) {
+			continue;
+		}
+
+		if (
+			param.length > 2 &&
+			param.charCodeAt(0) === 0x71 &&
+			param.charCodeAt(1) === 0x3d
+		) {
+			const q = Number(param.slice(2));
+
+			if (!Number.isNaN(q)) {
+				return q;
+			}
+		}
+	}
+
+	return 1;
+};
+
+export const selectLanguage = (header: string, languages: string[]) => {
+	if (!header) {
+		return;
+	}
+
+	let bestLang: string | undefined;
+	let bestQ = -1;
+	let bestOrder = Infinity;
+
+	const entries = header.split(",");
+
+	for (let order = 0; order < entries.length; order++) {
+		const entry = entries[order]?.trim();
+
+		if (!entry) {
+			continue;
+		}
+
+		const semiIdx = entry.indexOf(";");
+		const tag = (semiIdx === -1 ? entry : entry.slice(0, semiIdx))
+			.trim()
+			.toLowerCase();
+
+		if (!tag) {
+			continue;
+		}
+
+		const q = semiIdx === -1 ? 1 : parseLanguageQuality(entry, semiIdx);
+
+		if (q <= 0) {
+			continue;
+		}
+
+		if (q > bestQ || (q === bestQ && order < bestOrder)) {
+			if (tag === "*") {
+				bestLang = languages[0];
+				bestQ = q;
+				bestOrder = order;
+
+				continue;
+			}
+
+			if (languages.indexOf(tag) !== -1) {
+				bestLang = tag;
+				bestQ = q;
+				bestOrder = order;
+
+				continue;
+			}
+
+			const dashIdx = tag.indexOf("-");
+
+			if (dashIdx !== -1) {
+				const prefix = tag.slice(0, dashIdx);
+
+				if (languages.indexOf(prefix) !== -1) {
+					bestLang = prefix;
+					bestQ = q;
+					bestOrder = order;
+				}
+			}
+		}
+	}
+
+	return bestLang;
+};
+
+export const loadTranslations = async (directory: string) => {
 	const result = new Empty() as Translation;
 
 	const entries = await readdir(directory, {
@@ -242,16 +338,21 @@ export const i18n = () => {
 				return next();
 			}
 
-			const language =
-				(store.cookie ? cookies.get(store.cookie) : undefined) ??
-				raw.headers.get(store.header ?? "accept-language") ??
-				store.language;
+			const fromCookie = store.cookie
+				? cookies.get(store.cookie)
+				: undefined;
 
 			(_store as Record<"i18n", Pick<I18n, "language">>).i18n = {
 				language:
-					store.languages.indexOf(language) !== -1
-						? language
-						: store.language,
+					(fromCookie && store.languages.indexOf(fromCookie) !== -1
+						? fromCookie
+						: undefined) ??
+					selectLanguage(
+						raw.headers.get(store.header ?? "accept-language") ??
+							"",
+						store.languages,
+					) ??
+					store.language,
 			};
 
 			return next();
