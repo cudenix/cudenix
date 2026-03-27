@@ -1,7 +1,7 @@
 import { module } from "@/core/module";
 import { processResponse } from "@/core/response";
 import { success } from "@/core/success";
-import { parseQuality } from "@/utils/header/quality";
+import { selectHeader } from "@/utils/header/select";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
 export interface CompressOptions {
@@ -12,63 +12,6 @@ const COMPRESSIBLE_REGEXP =
 	/^\s*(?:text\/(?!event-stream(?:[;\s]|$))[^;\s]+|application\/(?:json|javascript|xml|x-www-form-urlencoded)|[^;\s]+\/[^;\s]+\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
 
 const ENCODING_NAMES = ["br", "gzip", "deflate", "zstd"] as const;
-
-const selectEncoding = (header: string) => {
-	if (!header) {
-		return;
-	}
-
-	let bestEncoding: (typeof ENCODING_NAMES)[number] | undefined;
-	let bestQ = -1;
-	let bestOrder = Infinity;
-
-	const entries = header.split(",");
-
-	for (let order = 0; order < entries.length; order++) {
-		const entry = entries[order]?.trim();
-
-		if (!entry) {
-			continue;
-		}
-
-		const semiIdx = entry.indexOf(";");
-		const name = (semiIdx === -1 ? entry : entry.slice(0, semiIdx))
-			.trim()
-			.toLowerCase();
-
-		if (!name) {
-			continue;
-		}
-
-		const q = semiIdx === -1 ? 1 : parseQuality(entry, semiIdx);
-
-		if (q <= 0) {
-			continue;
-		}
-
-		if (q > bestQ || (q === bestQ && order < bestOrder)) {
-			if (name === "*") {
-				bestEncoding = ENCODING_NAMES[0];
-				bestQ = q;
-				bestOrder = order;
-
-				continue;
-			}
-
-			if (
-				ENCODING_NAMES.indexOf(
-					name as (typeof ENCODING_NAMES)[number],
-				) !== -1
-			) {
-				bestEncoding = name as (typeof ENCODING_NAMES)[number];
-				bestQ = q;
-				bestOrder = order;
-			}
-		}
-	}
-
-	return bestEncoding;
-};
 
 export const compress = ({
 	threshold = 1024,
@@ -93,8 +36,9 @@ export const compress = ({
 			return;
 		}
 
-		const encodingName = selectEncoding(
+		const encodingName = selectHeader(
 			raw.headers.get("accept-encoding") ?? "",
+			ENCODING_NAMES,
 		);
 
 		if (!encodingName) {
