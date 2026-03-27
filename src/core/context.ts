@@ -87,7 +87,7 @@ export const Context = function (
 	};
 	this.response = {
 		content: undefined,
-		cookies: new Bun.CookieMap(),
+		cookies: undefined,
 		headers: new Headers(),
 	} as unknown as ContextResponse;
 	this.server = server;
@@ -179,16 +179,19 @@ Context.prototype.loadRequestCookies = function (this: Context) {
 	const header = this.request.raw.headers.get("cookie");
 
 	if (!header) {
+		this.response.cookies = new Bun.CookieMap();
+
 		return;
 	}
 
 	const cookies = new Bun.CookieMap(header);
 
+	this.response.cookies = cookies;
+
 	if (cookies.size === 0) {
 		return;
 	}
 
-	this.response.cookies = cookies;
 	this.request.cookies = cookies.toJSON();
 };
 
@@ -201,6 +204,10 @@ Context.prototype.loadRequestHeaders = function (this: Context) {
 };
 
 Context.prototype.loadRequestParams = function (this: Context) {
+	if (!this.endpoint.paramsRegexp) {
+		return;
+	}
+
 	const match = this.endpoint.paramsRegexp.exec(this.request.path);
 
 	if (!match) {
