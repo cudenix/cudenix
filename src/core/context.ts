@@ -209,7 +209,13 @@ Context.prototype.loadRequestParams = function (this: Context) {
 	}
 
 	for (const key in groups) {
-		groups[key] = decodeURIComponent(groups[key] as string);
+		const value = groups[key];
+
+		if (value === undefined) {
+			continue;
+		}
+
+		groups[key] = decodeURIComponent(value);
 	}
 
 	this.request.params = groups;
