@@ -11,11 +11,12 @@ interface Previous {
 const GET_URL_PATHNAME_REGEXP =
 	/^(?:[a-zA-Z][a-zA-Z\d+\-.]*:\/\/)?[^/?#]*(\/[^?#]*)?/;
 
-const USE_BODY = 1;
-const USE_COOKIES = 2;
-const USE_HEADERS = 4;
-const USE_PARAMS = 8;
-const USE_QUERY = 16;
+export const USE_BODY = 1;
+export const USE_COOKIES = 2;
+export const USE_HEADERS = 4;
+export const USE_PARAMS = 8;
+export const USE_QUERY = 16;
+
 const USE_ALL = USE_BODY | USE_COOKIES | USE_HEADERS | USE_PARAMS | USE_QUERY;
 
 const USE_KEYWORDS = [
@@ -211,28 +212,6 @@ const step = (
 			}
 		}
 
-		const use = new Set<string>() as Endpoint["use"];
-
-		if (useBits & USE_BODY) {
-			use.add("body");
-		}
-
-		if (useBits & USE_COOKIES) {
-			use.add("cookies");
-		}
-
-		if (useBits & USE_HEADERS) {
-			use.add("headers");
-		}
-
-		if (useBits & USE_PARAMS) {
-			use.add("params");
-		}
-
-		if (useBits & USE_QUERY) {
-			use.add("query");
-		}
-
 		const method = link.method === "WS" ? "GET" : link.method;
 
 		let methodEndpoints = endpoints.get(method);
@@ -255,7 +234,7 @@ const step = (
 			paramsRegexp: new RegExp(`^${pathToRegexp(finalPath, true)}$`),
 			path: finalPath,
 			route: link,
-			use,
+			use: useBits,
 		});
 	}
 
