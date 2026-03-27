@@ -8,7 +8,6 @@ import type { AnyStore } from "@/core/store";
 import type { AnyValidator } from "@/core/validator";
 import type { MaybePromise } from "@/types/maybe-promise";
 import type { WSData } from "@/types/ws";
-import { Empty } from "@/utils/objects/empty";
 
 const NOT_FOUND_INIT = {
 	status: 404,
@@ -69,31 +68,27 @@ export const App = function (this: App, module: AnyModule) {
 } as unknown as Constructor;
 
 App.prototype.compile = async function (this: App) {
+	const memoryPlugins = (this.memory.get("plugins") ?? []) as MemoryPlugin[];
+
 	const pluginsAfterCompile = [] as Plugin[];
 
-	this.routes = new Empty() as App["routes"];
+	for (let i = 0; i < memoryPlugins.length; i++) {
+		const plugin = memoryPlugins[i];
 
-	if (this.memory.has("plugins")) {
-		const plugins = this.memory.get("plugins") as MemoryPlugin[];
+		if (!plugin || plugin.options?.compile === false) {
+			continue;
+		}
 
-		for (let i = 0; i < plugins.length; i++) {
-			const plugin = plugins[i];
+		if (plugin.options?.compile === "AFTER") {
+			pluginsAfterCompile.push(plugin.plugin);
 
-			if (!plugin || plugin.options?.compile === false) {
-				continue;
-			}
+			continue;
+		}
 
-			if (plugin.options?.compile === "AFTER") {
-				pluginsAfterCompile.push(plugin.plugin);
+		const result = plugin.plugin.call(this);
 
-				continue;
-			}
-
-			const result = plugin.plugin.call(this);
-
-			if (result instanceof Promise) {
-				await result;
-			}
+		if (result instanceof Promise) {
+			await result;
 		}
 	}
 
@@ -158,11 +153,13 @@ App.prototype.fetch = function (this: App, request: Request) {
 	let index = -1;
 
 	for (let i = 3; i < match.length; i++) {
-		if (match[i] !== undefined) {
-			index = i - 3;
-
-			break;
+		if (match[i] === undefined) {
+			continue;
 		}
+
+		index = i - 3;
+
+		break;
 	}
 
 	if (index === -1) {
