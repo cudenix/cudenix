@@ -8,6 +8,7 @@ import type { AnyGeneratorSSE } from "@/types/generator-sse";
 import type { MaybeFunction } from "@/types/maybe-function";
 import type { Merge } from "@/types/merge";
 import { isFile } from "@/utils/files/is-file";
+import { tryParse } from "@/utils/json/try-parse";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
 const JSON_FIRST_CHAR = new Uint8Array(128);
@@ -81,9 +82,7 @@ const transform = (value: string) => {
 	const firstChar = value.charCodeAt(0);
 
 	if (firstChar < 128 && JSON_FIRST_CHAR[firstChar]) {
-		try {
-			return JSON.parse(value);
-		} catch {}
+		return tryParse(value);
 	}
 
 	if (value.trim() !== "" && !Number.isNaN(Number(value))) {
