@@ -16,7 +16,7 @@ const NOT_FOUND_INIT = {
 
 export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
-export type Plugin = (...options: any[]) => string | Promise<string>;
+export type Plugin = (...options: any[]) => MaybePromise<void>;
 
 export interface PluginOptions {
 	compile?: "AFTER" | "BEFORE" | false;
@@ -56,7 +56,7 @@ export interface App {
 	methods: Map<string, MethodData>;
 	plugins(plugins: Plugin[], options: PluginOptions): App;
 	routes?: Record<string, Bun.Serve.Routes<unknown, string>>;
-	server?: Bun.Server<unknown> | undefined;
+	server?: Bun.Server<unknown>;
 }
 
 type Constructor = new (module: AnyModule) => App;
