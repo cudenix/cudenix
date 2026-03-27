@@ -12,13 +12,13 @@ const CONTENT_TYPES = [
 	"text/plain",
 ] as const;
 
-export interface OpenapiPluginOptions {
+interface OpenapiPluginOptions {
 	description?: string;
 	title?: string;
 	version?: string;
 }
 
-export interface OpenapiModuleOptions {
+interface OpenapiModuleOptions {
 	path?: `/${string}`;
 }
 
