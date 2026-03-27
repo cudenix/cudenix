@@ -9,6 +9,7 @@ import {
 import type { AnyError } from "@/core/error";
 import type { AnySuccess } from "@/core/success";
 import type { MaybePromise } from "@/types/maybe-promise";
+import { tryParse } from "@/utils/json/try-parse";
 import { Empty } from "@/utils/objects/empty";
 
 export interface DeveloperContext<
@@ -269,7 +270,7 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 		if (key.length > 0) {
 			const rawValue = url.substring(valueStart, i);
 
-			let value =
+			const value =
 				rawValue.indexOf("+") === -1
 					? rawValue.indexOf("%") === -1
 						? rawValue
@@ -278,14 +279,11 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 
 			const firstChar = value.charCodeAt(0);
 
-			if (firstChar === 123 || firstChar === 91) {
-				try {
-					value = JSON.parse(value);
-				} catch {}
-			}
+			const parsed =
+				firstChar === 123 || firstChar === 91 ? tryParse(value) : value;
 
 			params[key.indexOf("%") === -1 ? key : decodeURIComponent(key)] =
-				value;
+				parsed;
 
 			hasParams = true;
 		}
