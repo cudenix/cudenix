@@ -261,7 +261,7 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 			continue;
 		}
 
-		const key = url.substring(keyStart, i);
+		let key = url.substring(keyStart, i);
 
 		i++;
 
@@ -278,6 +278,14 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 		}
 
 		if (key.length > 0) {
+			if (key.indexOf("+") !== -1) {
+				key = key.replaceAll("+", " ");
+			}
+
+			if (key.indexOf("%") !== -1) {
+				key = decodeURIComponent(key);
+			}
+
 			let value = url.substring(valueStart, i);
 
 			if (value.length === 0) {
@@ -294,7 +302,7 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 
 			const firstChar = value.charCodeAt(0);
 
-			params[key.indexOf("%") === -1 ? key : decodeURIComponent(key)] =
+			params[key] =
 				firstChar === 123 || firstChar === 91 ? tryParse(value) : value;
 
 			hasParams = true;
