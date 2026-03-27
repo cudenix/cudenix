@@ -67,7 +67,7 @@ import type { RequiredKeys } from "@/types/required-keys";
 import type { ValueOf } from "@/types/value-of";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
-export type ModuleChain = (
+type ModuleChain = (
 	| AnyGroup
 	| AnyMiddleware
 	| AnyModule
@@ -76,7 +76,7 @@ export type ModuleChain = (
 	| AnyValidator
 )[];
 
-export interface ModuleExtendsOptions {
+interface ModuleExtendsOptions {
 	execute?: boolean;
 }
 
