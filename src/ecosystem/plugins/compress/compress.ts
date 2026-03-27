@@ -13,27 +13,14 @@ const COMPRESSIBLE_REGEXP =
 
 const ENCODING_NAMES = ["br", "gzip", "deflate", "zstd"] as const;
 
-const ENCODING_INDEX = {
-	br: 0,
-	deflate: 2,
-	gzip: 1,
-	zstd: 3,
-} as const satisfies Record<(typeof ENCODING_NAMES)[number], number>;
-
 const selectEncoding = (header: string) => {
 	if (!header) {
 		return;
 	}
 
-	let bestIdx = -1;
+	let bestEncoding: (typeof ENCODING_NAMES)[number] | undefined;
 	let bestQ = -1;
 	let bestOrder = Infinity;
-
-	let starQ = -1;
-	let starOrder = Infinity;
-	let hasStar = false;
-
-	let mentioned = 0;
 
 	const entries = header.split(",");
 
@@ -55,47 +42,32 @@ const selectEncoding = (header: string) => {
 
 		const q = semiIdx === -1 ? 1 : parseQuality(entry, semiIdx);
 
-		if (name === "*") {
-			if (!hasStar || q > starQ) {
-				starQ = q;
-				starOrder = order;
-				hasStar = true;
+		if (q <= 0) {
+			continue;
+		}
+
+		if (q > bestQ || (q === bestQ && order < bestOrder)) {
+			if (name === "*") {
+				bestEncoding = ENCODING_NAMES[0];
+				bestQ = q;
+				bestOrder = order;
+
+				continue;
 			}
 
-			continue;
-		}
-
-		const idx = ENCODING_INDEX[name as keyof typeof ENCODING_INDEX];
-
-		if (idx === undefined) {
-			continue;
-		}
-
-		mentioned |= 1 << idx;
-
-		if (q > 0 && (q > bestQ || (q === bestQ && order < bestOrder))) {
-			bestIdx = idx;
-			bestQ = q;
-			bestOrder = order;
-		}
-	}
-
-	if (hasStar && starQ > 0) {
-		for (let i = 0; i < ENCODING_NAMES.length; i++) {
-			if (!(mentioned & (1 << i))) {
-				if (
-					starQ > bestQ ||
-					(starQ === bestQ && starOrder < bestOrder)
-				) {
-					return ENCODING_NAMES[i];
-				}
-
-				break;
+			if (
+				ENCODING_NAMES.indexOf(
+					name as (typeof ENCODING_NAMES)[number],
+				) !== -1
+			) {
+				bestEncoding = name as (typeof ENCODING_NAMES)[number];
+				bestQ = q;
+				bestOrder = order;
 			}
 		}
 	}
 
-	return bestIdx >= 0 ? ENCODING_NAMES[bestIdx] : undefined;
+	return bestEncoding;
 };
 
 export const compress = ({
