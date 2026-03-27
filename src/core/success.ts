@@ -1,4 +1,5 @@
 import type { ExtractContent } from "@/types/extract-content";
+import { FreezeEmpty } from "@/utils/objects/empty";
 
 export type FilterSuccess<Type> = Extract<Type, AnySuccess>;
 
@@ -57,12 +58,12 @@ type Constructor = new (
 export const Success = function (
 	this: AnySuccess,
 	content: unknown,
-	options?: AnySuccessOptions,
+	{ status = 200, transform = true }: AnySuccessOptions = FreezeEmpty,
 ) {
 	this.content = content;
-	this.status = options?.status ?? 200;
+	this.status = status;
 	this.success = true;
-	this.transform = options?.transform ?? true;
+	this.transform = transform;
 } as unknown as Constructor;
 
 export const success = <
