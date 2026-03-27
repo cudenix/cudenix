@@ -26,7 +26,7 @@ export type DeepInferValidatorOutput<
 	[Key in keyof Type]: Cudenix.InferValidatorOutput<Type[Key]>;
 };
 
-export type ValidatorErrorDetails<Type> = {
+type ValidatorErrorDetails<Type> = {
 	[Key in keyof Type]: {
 		details: [Type[Key]];
 		type: Key;
