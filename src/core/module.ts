@@ -312,23 +312,23 @@ export interface ModuleOptions<Prefix extends `/${string}`> {
 
 export type AnyModuleOptions = ModuleOptions<any>;
 
-type Constructor = new (options: AnyModuleOptions) => AnyModule;
+type Constructor = new (options?: AnyModuleOptions) => AnyModule;
 
 export const Module = function (
 	this: AnyModule,
-	{ prefix }: AnyModuleOptions = FreezeEmpty,
+	{ prefix = "" }: AnyModuleOptions = FreezeEmpty,
 ) {
 	this.chain = [];
-	this.prefix = prefix ?? "";
+	this.prefix = prefix;
 	this.type = "MODULE";
 } as unknown as Constructor;
 
 Module.prototype.extends = function (
 	this: AnyModule,
 	module: AnyModule,
-	options?: ModuleExtendsOptions,
+	{ execute }: ModuleExtendsOptions = FreezeEmpty,
 ) {
-	if (options?.execute !== false) {
+	if (execute !== false) {
 		this.chain.push(module);
 	}
 
@@ -338,7 +338,7 @@ Module.prototype.extends = function (
 Module.prototype.group = function (
 	this: AnyModule,
 	group: AnyGroupFn,
-	options: AnyGroupOptions = FreezeEmpty,
+	options?: AnyGroupOptions,
 ) {
 	this.chain.push(new Group(group, options));
 
@@ -359,7 +359,7 @@ Module.prototype.route = function (
 	method: HttpMethod,
 	path: `/${string}`,
 	route: AnyRouteFn,
-	options: AnyRouteOptions = FreezeEmpty,
+	options?: AnyRouteOptions,
 ) {
 	this.chain.push(new Route(method, path, route, options));
 
@@ -395,7 +395,7 @@ export const module = <
 		outputs: NonNullable<unknown>;
 	},
 >(
-	options: ModuleOptions<Prefix> = FreezeEmpty,
+	options?: ModuleOptions<Prefix>,
 ) => {
 	return new Module(options) as Module<
 		Errors,
