@@ -228,6 +228,7 @@ export const compile = (app: App, module: AnyModule) => {
 
 		app.routes ??= new Empty() as NonNullable<App["routes"]>;
 
+		const dynamicEndpoints = [] as Endpoint[];
 		const methodRegexps = [] as string[];
 		const routes = app.routes;
 
@@ -238,12 +239,14 @@ export const compile = (app: App, module: AnyModule) => {
 				continue;
 			}
 
-			methodRegexps.push(pathToRegexp(methodEndpoint.path));
-
 			if (
 				methodEndpoint.path.indexOf("?") !== -1 ||
 				methodEndpoint.path.indexOf("...") !== -1
 			) {
+				methodRegexps.push(pathToRegexp(methodEndpoint.path));
+
+				dynamicEndpoints.push(methodEndpoint);
+
 				continue;
 			}
 
@@ -261,8 +264,12 @@ export const compile = (app: App, module: AnyModule) => {
 			};
 		}
 
+		if (dynamicEndpoints.length === 0) {
+			continue;
+		}
+
 		app.methods.set(method, {
-			endpoints: methodEndpoints,
+			endpoints: dynamicEndpoints,
 			regexp: new RegExp(
 				`^(https?:\\/\\/)[^\\s\\/]+(${methodRegexps.join("|")})(?![^?#])`,
 			),
