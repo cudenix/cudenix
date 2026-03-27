@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { module } from "@/core/module";
 import { getRequestContext } from "@/ecosystem/plugins/global-request-context/global-request-context";
-import { parseQuality } from "@/utils/header/quality";
+import { selectHeader } from "@/utils/header/select";
 import { Empty, FreezeEmpty } from "@/utils/objects/empty";
 
 const STORE = new Empty() as unknown as I18n;
@@ -57,73 +57,6 @@ export interface I18n {
 	path: string;
 	translations: Translation;
 }
-
-export const selectLanguage = (header: string, languages: string[]) => {
-	if (!header) {
-		return STORE.language;
-	}
-
-	let bestLang: string | undefined;
-	let bestQ = -1;
-	let bestOrder = Infinity;
-
-	const entries = header.split(",");
-
-	for (let order = 0; order < entries.length; order++) {
-		const entry = entries[order]?.trim();
-
-		if (!entry) {
-			continue;
-		}
-
-		const semiIdx = entry.indexOf(";");
-		const tag = (semiIdx === -1 ? entry : entry.slice(0, semiIdx))
-			.trim()
-			.toLowerCase();
-
-		if (!tag) {
-			continue;
-		}
-
-		const q = semiIdx === -1 ? 1 : parseQuality(entry, semiIdx);
-
-		if (q <= 0) {
-			continue;
-		}
-
-		if (q > bestQ || (q === bestQ && order < bestOrder)) {
-			if (tag === "*") {
-				bestLang = languages[0];
-				bestQ = q;
-				bestOrder = order;
-
-				continue;
-			}
-
-			if (languages.indexOf(tag) !== -1) {
-				bestLang = tag;
-				bestQ = q;
-				bestOrder = order;
-
-				continue;
-			}
-
-			const dashIdx = tag.indexOf("-");
-
-			if (dashIdx !== -1) {
-				const prefix = tag.slice(0, dashIdx);
-
-				if (languages.indexOf(prefix) !== -1) {
-					bestLang = prefix;
-					bestQ = q;
-					bestOrder = order;
-				}
-			}
-		}
-	}
-
-	return bestLang ?? STORE.language;
-};
 
 export const loadTranslations = async (directory: string) => {
 	const result = new Empty() as Translation;
@@ -344,7 +277,7 @@ export const i18n = () => {
 				language:
 					STORE.languages.length <= 1
 						? STORE.language
-						: selectLanguage(
+						: (selectHeader(
 								(STORE.cookie
 									? cookies.get(STORE.cookie)
 									: undefined) ??
@@ -353,7 +286,8 @@ export const i18n = () => {
 									) ??
 									STORE.language,
 								STORE.languages,
-							),
+								true,
+							) ?? STORE.language),
 			};
 
 			return next();
