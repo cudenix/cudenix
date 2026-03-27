@@ -300,7 +300,6 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 			}
 
 			const firstChar = value.charCodeAt(0);
-
 			const parsed =
 				firstChar === 123 || firstChar === 91 ? tryParse(value) : value;
 
