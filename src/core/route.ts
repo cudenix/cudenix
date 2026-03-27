@@ -64,8 +64,12 @@ export type ValidatorsWithParams<
 		? [Params] extends [NonNullable<unknown>]
 			? [NonNullable<unknown>] extends [Params]
 				? Validators
-				: Validators & { params: Params }
-			: Validators & { params: Params }
+				: Validators & {
+						params: Params;
+					}
+			: Validators & {
+					params: Params;
+				}
 		: never;
 
 export type RouteFn<
@@ -147,7 +151,7 @@ type Constructor = new (
 	method: HttpMethod,
 	path: `/${string}`,
 	route: AnyRouteFn,
-	options: AnyRouteOptions,
+	options?: AnyRouteOptions,
 ) => AnyRoute;
 
 export const Route = function (
@@ -155,16 +159,14 @@ export const Route = function (
 	method: HttpMethod,
 	path: `/${string}`,
 	route: AnyRouteFn,
-	options: AnyRouteOptions = FreezeEmpty,
+	{ validator }: AnyRouteOptions = FreezeEmpty,
 ) {
 	this.generator = route.constructor.name.indexOf("GeneratorFunction") !== -1;
 	this.method = method;
 	this.path = path;
 	this.route = route;
 	this.type = "ROUTE";
-	this.validator = options.validator
-		? new Validator(options.validator)
-		: undefined;
+	this.validator = validator ? new Validator(validator) : undefined;
 } as unknown as Constructor;
 
 export const route = <
@@ -205,7 +207,7 @@ export const route = <
 			DeepInferValidatorOutput<_ValidatorOptions["request"]>
 		>
 	>,
-	options: RouteOptions<_ValidatorOptions> = FreezeEmpty,
+	options?: RouteOptions<_ValidatorOptions>,
 ) => {
 	return new Route(method, path, route, options) as Route<
 		Method,
