@@ -12,7 +12,7 @@ import type { MaybePromise } from "@/types/maybe-promise";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 
-export interface ValidatorState {
+interface ValidatorState {
 	errors?: {
 		details: unknown[];
 		type: keyof ValidatorRequest;
@@ -20,7 +20,7 @@ export interface ValidatorState {
 	index?: Record<string, number>;
 }
 
-export const applyValidation = (
+const applyValidation = (
 	validated: {
 		content: unknown;
 		success: boolean;
@@ -101,7 +101,7 @@ const processValidators = (
 	}
 };
 
-export const resolveRoute = (
+const resolveRoute = (
 	app: App,
 	context: Context,
 	request: Request,
@@ -139,7 +139,7 @@ export const resolveRoute = (
 	context.response.content = returned;
 };
 
-export const step = (
+const step = (
 	app: App,
 	context: Context,
 	endpoint: Endpoint,
