@@ -31,6 +31,7 @@ export const processResponse = (response: ContextResponse) => {
 	if (!content) {
 		return new Response(undefined, {
 			headers: response.headers,
+			status: 204,
 		});
 	}
 
