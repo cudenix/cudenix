@@ -242,8 +242,8 @@ export const compile = (app: App, module: AnyModule) => {
 		const methodRegexps = [] as string[];
 		const routes = app.routes;
 
-		for (let j = 0; j < methodEndpoints.length; j++) {
-			const methodEndpoint = methodEndpoints[j];
+		for (let i = 0; i < methodEndpoints.length; i++) {
+			const methodEndpoint = methodEndpoints[i];
 
 			if (!methodEndpoint) {
 				continue;
