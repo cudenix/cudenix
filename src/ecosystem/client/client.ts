@@ -79,12 +79,6 @@ const transform = (value: string) => {
 		return value;
 	}
 
-	const firstChar = value.charCodeAt(0);
-
-	if (firstChar < 128 && JSON_FIRST_CHAR[firstChar]) {
-		return tryParse(value);
-	}
-
 	if (value.trim() !== "" && !Number.isNaN(Number(value))) {
 		return Number(value);
 	}
@@ -101,6 +95,12 @@ const transform = (value: string) => {
 
 	if (!Number.isNaN(date.getTime())) {
 		return date;
+	}
+
+	const firstChar = value.charCodeAt(0);
+
+	if (firstChar < 128 && JSON_FIRST_CHAR[firstChar]) {
+		return tryParse(value);
 	}
 
 	return value;
@@ -240,7 +240,7 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 			if (url.indexOf("/:") !== -1) {
 				url = url.replaceAll(PARAM_REGEX_REPLACE, (_, key: string) => {
 					const param = mergedOptions.params?.[
-						key.replaceAll("?", "")
+						key.endsWith("?") ? key.slice(0, -1) : key
 					] as string | undefined;
 
 					return param ? `/${param}` : "";
@@ -250,7 +250,7 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 			if (url.indexOf("/...") !== -1) {
 				url = url.replaceAll(SPREAD_REGEX_REPLACE, (_, key: string) => {
 					const params = mergedOptions.params?.[
-						key.replaceAll("?", "")
+						key.endsWith("?") ? key.slice(0, -1) : key
 					] as string[] | undefined;
 
 					return params ? `/${params.join("/")}` : "";
