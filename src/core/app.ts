@@ -43,7 +43,7 @@ export interface Endpoint {
 	paramsRegexp: RegExp;
 	path: string;
 	route: AnyRoute;
-	use: Set<"body" | "cookies" | "headers" | "params" | "query">;
+	use: number;
 }
 
 export interface MethodData {
@@ -67,6 +67,13 @@ export interface App {
 	plugins(plugins: Plugin[], options: PluginOptions): App;
 	routes?: Record<string, Bun.Serve.Routes<unknown, string>>;
 	server?: Bun.Server<unknown> | undefined;
+	step(
+		context: Context,
+		endpoint: Endpoint,
+		request: Request,
+		chain: Chain,
+		index: number,
+	): Promise<void>;
 }
 
 type Constructor = new (module: AnyModule) => App;
@@ -133,231 +140,7 @@ App.prototype.endpoint = async function (
 		await loadResult;
 	}
 
-	const validatorPlugin = this.memory.get("validator") as
-		| ValidatorPlugin
-		| undefined;
-
-	const step = async (chain: Chain, index: number) => {
-		for (let i = index; i < chain.length; i++) {
-			if (context.response.content) {
-				return;
-			}
-
-			const link = chain[i];
-
-			if (!link) {
-				continue;
-			}
-
-			if (link.type === "ROUTE") {
-				continue;
-			} else if (link.type === "MIDDLEWARE") {
-				let middleware = link.middleware(context, () => {
-					return step(chain, i + 1);
-				});
-
-				if (middleware instanceof Promise) {
-					middleware = await middleware;
-				}
-
-				if (middleware) {
-					context.response.content = middleware;
-				}
-
-				return;
-			} else if (link.type === "STORE") {
-				let store = link.store(context);
-
-				if (store instanceof Promise) {
-					store = await store;
-				}
-
-				if (store instanceof Error) {
-					context.response.content = store;
-				} else {
-					merge(context.store, store);
-				}
-
-				continue;
-			} else if (!link.request || !validatorPlugin) {
-				continue;
-			}
-
-			let errors:
-				| {
-						details: unknown[];
-						type: keyof ValidatorRequest;
-				  }[]
-				| undefined;
-			let errorIndex: Record<string, number> | undefined;
-
-			for (let j = 0; j < link.keys.length; j++) {
-				const key = link.keys[j];
-
-				if (!key) {
-					continue;
-				}
-
-				const schema = link.request[key];
-
-				let validated = validatorPlugin(
-					schema,
-					context.request[key as keyof typeof context.request],
-					key as any,
-				);
-
-				if (validated instanceof Promise) {
-					validated = await validated;
-				}
-
-				if (validated.success) {
-					context.request[key as keyof typeof context.request] =
-						validated.content as any;
-
-					continue;
-				}
-
-				const content = Array.isArray(validated.content)
-					? validated.content
-					: [validated.content];
-
-				errors ??= [];
-				errorIndex ??= new Empty() as Record<string, number>;
-
-				if (errorIndex[key] !== undefined) {
-					errors[errorIndex[key]]?.details.push(...content);
-
-					continue;
-				}
-
-				errorIndex[key] = errors.length;
-
-				errors.push({
-					details: content,
-					type: key,
-				});
-			}
-
-			if (errors) {
-				context.response.content = new Error(errors, {
-					status: 422,
-				});
-			}
-		}
-
-		if (context.response.content) {
-			return;
-		}
-
-		if (endpoint.generator) {
-			context.response.content = new ReadableStream({
-				async start(controller) {
-					let closed = false;
-
-					const onAbort = () => {
-						closed = true;
-
-						try {
-							controller.close();
-						} catch {}
-					};
-
-					request.signal.addEventListener("abort", onAbort, {
-						once: true,
-					});
-
-					try {
-						for await (const chunk of endpoint.route.route(
-							context,
-						) as RouteFnReturnGenerator) {
-							if (closed) {
-								break;
-							}
-
-							if (chunk.data.transform) {
-								if (chunk.id) {
-									controller.enqueue(`id: ${chunk.id}\n`);
-								}
-
-								if (chunk.event) {
-									controller.enqueue(
-										`event: ${chunk.event}\n`,
-									);
-								}
-
-								if (chunk.retry) {
-									controller.enqueue(
-										`retry: ${chunk.retry.toString()}\n`,
-									);
-								}
-
-								controller.enqueue(
-									`data: ${JSON.stringify(chunk.data)}\n\n`,
-								);
-
-								continue;
-							}
-
-							controller.enqueue(chunk.data.content);
-						}
-					} catch {
-					} finally {
-						request.signal.removeEventListener("abort", onAbort);
-
-						onAbort();
-					}
-				},
-			});
-
-			return;
-		}
-
-		let returned = endpoint.route.route(context);
-
-		if (returned instanceof Promise) {
-			returned = await returned;
-		}
-
-		if (endpoint.route.method === "WS") {
-			this.server?.upgrade(request, {
-				data: {
-					close: async (
-						ws: Bun.ServerWebSocket<unknown>,
-						code: number,
-						reason: string,
-					) => {
-						await (
-							returned as RouteFnReturnWS<unknown> | undefined
-						)?.close?.(ws, code, reason);
-					},
-					drain: async (ws: Bun.ServerWebSocket<unknown>) => {
-						await (
-							returned as RouteFnReturnWS<unknown> | undefined
-						)?.drain?.(ws);
-					},
-					message: async (
-						ws: Bun.ServerWebSocket<unknown>,
-						message: string,
-					) => {
-						await (
-							returned as RouteFnReturnWS<unknown> | undefined
-						)?.message(ws, message);
-					},
-					open: async (ws: Bun.ServerWebSocket<unknown>) => {
-						await (
-							returned as RouteFnReturnWS<unknown> | undefined
-						)?.open?.(ws);
-					},
-				},
-			});
-
-			return;
-		}
-
-		context.response.content = returned;
-	};
-
-	await step(endpoint.chain, 0);
+	await this.step(context, endpoint, request, endpoint.chain, 0);
 
 	return processResponse(context.response);
 };
@@ -467,6 +250,235 @@ App.prototype.plugins = function (
 	}
 
 	return this;
+};
+
+App.prototype.step = async function (
+	this: App,
+	context: Context,
+	endpoint: Endpoint,
+	request: Request,
+	chain: Chain,
+	index: number,
+) {
+	const validatorPlugin = this.memory.get("validator") as
+		| ValidatorPlugin
+		| undefined;
+
+	for (let i = index; i < chain.length; i++) {
+		if (context.response.content) {
+			return;
+		}
+
+		const link = chain[i];
+
+		if (!link) {
+			continue;
+		}
+
+		if (link.type === "ROUTE") {
+			continue;
+		} else if (link.type === "MIDDLEWARE") {
+			let middleware = link.middleware(context, () => {
+				return this.step(context, endpoint, request, chain, i + 1);
+			});
+
+			if (middleware instanceof Promise) {
+				middleware = await middleware;
+			}
+
+			if (middleware) {
+				context.response.content = middleware;
+			}
+
+			return;
+		} else if (link.type === "STORE") {
+			let store = link.store(context);
+
+			if (store instanceof Promise) {
+				store = await store;
+			}
+
+			if (store instanceof Error) {
+				context.response.content = store;
+			} else {
+				merge(context.store, store);
+			}
+
+			continue;
+		} else if (!link.request || !validatorPlugin) {
+			continue;
+		}
+
+		let errors:
+			| {
+					details: unknown[];
+					type: keyof ValidatorRequest;
+			  }[]
+			| undefined;
+		let errorIndex: Record<string, number> | undefined;
+
+		for (let j = 0; j < link.keys.length; j++) {
+			const key = link.keys[j];
+
+			if (!key) {
+				continue;
+			}
+
+			const schema = link.request[key];
+
+			let validated = validatorPlugin(
+				schema,
+				context.request[key as keyof typeof context.request],
+				key as any,
+			);
+
+			if (validated instanceof Promise) {
+				validated = await validated;
+			}
+
+			if (validated.success) {
+				context.request[key as keyof typeof context.request] =
+					validated.content as any;
+
+				continue;
+			}
+
+			const content = Array.isArray(validated.content)
+				? validated.content
+				: [validated.content];
+
+			errors ??= [];
+			errorIndex ??= new Empty() as Record<string, number>;
+
+			if (errorIndex[key] !== undefined) {
+				errors[errorIndex[key]]?.details.push(...content);
+
+				continue;
+			}
+
+			errorIndex[key] = errors.length;
+
+			errors.push({
+				details: content,
+				type: key,
+			});
+		}
+
+		if (errors) {
+			context.response.content = new Error(errors, {
+				status: 422,
+			});
+		}
+	}
+
+	if (context.response.content) {
+		return;
+	}
+
+	if (endpoint.generator) {
+		context.response.content = new ReadableStream({
+			async start(controller) {
+				let closed = false;
+
+				const onAbort = () => {
+					closed = true;
+
+					try {
+						controller.close();
+					} catch {}
+				};
+
+				request.signal.addEventListener("abort", onAbort, {
+					once: true,
+				});
+
+				try {
+					for await (const chunk of endpoint.route.route(
+						context,
+					) as RouteFnReturnGenerator) {
+						if (closed) {
+							break;
+						}
+
+						if (chunk.data.transform) {
+							if (chunk.id) {
+								controller.enqueue(`id: ${chunk.id}\n`);
+							}
+
+							if (chunk.event) {
+								controller.enqueue(`event: ${chunk.event}\n`);
+							}
+
+							if (chunk.retry) {
+								controller.enqueue(
+									`retry: ${chunk.retry.toString()}\n`,
+								);
+							}
+
+							controller.enqueue(
+								`data: ${JSON.stringify(chunk.data)}\n\n`,
+							);
+
+							continue;
+						}
+
+						controller.enqueue(chunk.data.content);
+					}
+				} catch {
+				} finally {
+					request.signal.removeEventListener("abort", onAbort);
+
+					onAbort();
+				}
+			},
+		});
+
+		return;
+	}
+
+	let returned = endpoint.route.route(context);
+
+	if (returned instanceof Promise) {
+		returned = await returned;
+	}
+
+	if (endpoint.route.method === "WS") {
+		this.server?.upgrade(request, {
+			data: {
+				close: async (
+					ws: Bun.ServerWebSocket<unknown>,
+					code: number,
+					reason: string,
+				) => {
+					await (
+						returned as RouteFnReturnWS<unknown> | undefined
+					)?.close?.(ws, code, reason);
+				},
+				drain: async (ws: Bun.ServerWebSocket<unknown>) => {
+					await (
+						returned as RouteFnReturnWS<unknown> | undefined
+					)?.drain?.(ws);
+				},
+				message: async (
+					ws: Bun.ServerWebSocket<unknown>,
+					message: string,
+				) => {
+					await (
+						returned as RouteFnReturnWS<unknown> | undefined
+					)?.message(ws, message);
+				},
+				open: async (ws: Bun.ServerWebSocket<unknown>) => {
+					await (
+						returned as RouteFnReturnWS<unknown> | undefined
+					)?.open?.(ws);
+				},
+			},
+		});
+
+		return;
+	}
+
+	context.response.content = returned;
 };
 
 export const app = (module: AnyModule) => {
