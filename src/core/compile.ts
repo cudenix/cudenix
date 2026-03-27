@@ -31,10 +31,53 @@ const KEY_TO_BIT = {
 	query: USE_QUERY,
 } as const satisfies Record<string, number>;
 
+const LINK_USE_BITS_CACHE = new WeakMap<object, number>();
+
 export interface PreviousStep {
 	chain: Chain;
 	path: string;
 }
+
+export const getLinkUseBits = (link: Chain[number]) => {
+	let bits = LINK_USE_BITS_CACHE.get(link);
+
+	if (bits !== undefined) {
+		return bits;
+	}
+
+	bits = 0;
+
+	if (link.type === "VALIDATOR") {
+		for (let i = 0; i < link.keys.length; i++) {
+			const key = link.keys[i];
+
+			if (!key) {
+				continue;
+			}
+
+			bits |= KEY_TO_BIT[key];
+		}
+	} else {
+		const text =
+			link[link.type.toLowerCase() as keyof typeof link].toString();
+
+		if (text) {
+			for (let i = 0; i < USE_KEYWORDS.length; i++) {
+				const keyword = USE_KEYWORDS[i];
+
+				if (!keyword || text.indexOf(keyword[1]) === -1) {
+					continue;
+				}
+
+				bits |= keyword[0];
+			}
+		}
+	}
+
+	LINK_USE_BITS_CACHE.set(link, bits);
+
+	return bits;
+};
 
 export const compileStep = (
 	endpoints: Map<string, Endpoint[]>,
@@ -107,40 +150,7 @@ export const compileStep = (
 				continue;
 			}
 
-			if (link.type === "VALIDATOR") {
-				for (let k = 0; k < link.keys.length; k++) {
-					const key = link.keys[k];
-
-					if (!key) {
-						continue;
-					}
-
-					useBits |= KEY_TO_BIT[key];
-				}
-
-				continue;
-			}
-
-			const text =
-				link[link.type.toLowerCase() as keyof typeof link].toString();
-
-			if (!text) {
-				continue;
-			}
-
-			for (let k = 0; k < USE_KEYWORDS.length; k++) {
-				const keyword = USE_KEYWORDS[k];
-
-				if (
-					!keyword ||
-					(useBits & keyword[0]) !== 0 ||
-					text.indexOf(keyword[1]) === -1
-				) {
-					continue;
-				}
-
-				useBits |= keyword[0];
-			}
+			useBits |= getLinkUseBits(link);
 		}
 
 		if (useBits !== USE_ALL) {
