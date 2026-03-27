@@ -19,6 +19,9 @@ export const WS = function (this: AnyWS, url: string | URL) {
 	const webSocket = new WebSocket(url);
 
 	Object.defineProperty(webSocket, "onmessage", {
+		get() {
+			return webSocket.onmessage;
+		},
 		set(listener: (event: MessageEvent) => any) {
 			onmessageSetter?.call(webSocket, (event: MessageEvent) => {
 				const parsed = Object.create(event);
