@@ -146,11 +146,8 @@ export const step = (
 	request: Request,
 	chain: Chain,
 	index: number,
+	validatorPlugin: ValidatorPlugin | undefined,
 ): MaybePromise<void> => {
-	const validatorPlugin = app.memory.get("validator") as
-		| ValidatorPlugin
-		| undefined;
-
 	for (let i = index; i < chain.length; i++) {
 		if (context.response.content) {
 			return;
@@ -168,16 +165,15 @@ export const step = (
 
 		if (link.type === "MIDDLEWARE") {
 			const middleware = link.middleware(context, () => {
-				const result = step(
+				return step(
 					app,
 					context,
 					endpoint,
 					request,
 					chain,
 					i + 1,
+					validatorPlugin,
 				);
-
-				return result instanceof Promise ? result : Promise.resolve();
 			});
 
 			if (middleware instanceof Promise) {
@@ -212,7 +208,15 @@ export const step = (
 						resolved as Record<PropertyKey, unknown>,
 					);
 
-					return step(app, context, endpoint, request, chain, i + 1);
+					return step(
+						app,
+						context,
+						endpoint,
+						request,
+						chain,
+						i + 1,
+						validatorPlugin,
+					);
 				});
 			}
 
@@ -234,7 +238,10 @@ export const step = (
 			link as AnyValidator,
 			validatorPlugin,
 			0,
-			new Empty() as ValidatorState,
+			{
+				errors: undefined,
+				index: undefined,
+			},
 		);
 
 		if (validationResult instanceof Promise) {
@@ -243,7 +250,15 @@ export const step = (
 					return;
 				}
 
-				return step(app, context, endpoint, request, chain, i + 1);
+				return step(
+					app,
+					context,
+					endpoint,
+					request,
+					chain,
+					i + 1,
+					validatorPlugin,
+				);
 			});
 		}
 	}
@@ -330,7 +345,15 @@ export const stepAndRespond = (
 	endpoint: Endpoint,
 	request: Request,
 ) => {
-	const stepResult = step(app, context, endpoint, request, endpoint.chain, 0);
+	const stepResult = step(
+		app,
+		context,
+		endpoint,
+		request,
+		endpoint.chain,
+		0,
+		app.memory.get("validator") as ValidatorPlugin | undefined,
+	);
 
 	if (stepResult instanceof Promise) {
 		return stepResult.then(() => {
