@@ -18,7 +18,7 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 export interface Endpoint {
 	chain: Chain;
 	generator: boolean;
-	paramsRegexp: RegExp;
+	paramsRegexp?: RegExp;
 	path: string;
 	route: AnyRoute;
 	use: number;
