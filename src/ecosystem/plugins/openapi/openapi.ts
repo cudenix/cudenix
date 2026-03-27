@@ -69,9 +69,12 @@ export const plugin = (
 						}
 
 						if (key !== "body") {
-							const _in = key.endsWith("s")
-								? key.slice(0, -1)
-								: key;
+							const _in =
+								key === "params"
+									? "path"
+									: key.endsWith("s")
+										? key.slice(0, -1)
+										: key;
 							const schema = toJsonSchema(link.request[key]);
 
 							operation.parameters ??= [];
@@ -273,6 +276,8 @@ export const openapi = ({ path }: OpenapiModuleOptions = FreezeEmpty) => {
 				cachedJson = JSON.stringify(memory.get("openapi"));
 			}
 
-			return success(cachedJson);
+			return success(cachedJson, {
+				transform: false,
+			});
 		});
 };
