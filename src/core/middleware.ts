@@ -9,7 +9,7 @@ export type MiddlewareFn<
 	Validators extends Record<PropertyKey, unknown>,
 > = (
 	context: DeveloperContext<Stores, Validators>,
-	next: () => Promise<void>,
+	next: () => MaybePromise<void>,
 ) => Return;
 
 export type AnyMiddlewareFn = MiddlewareFn<any, any, any>;
