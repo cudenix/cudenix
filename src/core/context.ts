@@ -85,40 +85,10 @@ export const Context = function (
 		raw: request,
 	};
 	this.response = {
-		_cookiesInit: false,
 		content: undefined,
+		cookies: new Bun.CookieMap(),
 		headers: new Headers(),
 	} as unknown as ContextResponse;
-
-	Object.defineProperty(this.response, "cookies", {
-		configurable: true,
-		enumerable: true,
-		get() {
-			const cookies = new Bun.CookieMap();
-
-			this._cookiesInit = true;
-
-			Object.defineProperty(this, "cookies", {
-				configurable: true,
-				enumerable: true,
-				value: cookies,
-				writable: true,
-			});
-
-			return cookies;
-		},
-		set(value: Bun.CookieMap) {
-			this._cookiesInit = true;
-
-			Object.defineProperty(this, "cookies", {
-				configurable: true,
-				enumerable: true,
-				value: value,
-				writable: true,
-			});
-		},
-	});
-
 	this.server = server;
 	this.store = new Empty();
 } as unknown as Constructor;
@@ -180,7 +150,7 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 
 		const result = new Empty();
 
-		formData.forEach((value, key) => {
+		for (const [key, value] of formData) {
 			if (key in result) {
 				if (Array.isArray(result[key])) {
 					result[key].push(value);
@@ -190,7 +160,7 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 			} else {
 				result[key] = value;
 			}
-		});
+		}
 
 		this.request.body = result;
 
@@ -238,7 +208,7 @@ Context.prototype.loadRequestParams = function (this: Context) {
 	}
 
 	for (const key in groups) {
-		groups[key] = decodeURIComponent(groups[key]!);
+		groups[key] = decodeURIComponent(groups[key] as string);
 	}
 
 	this.request.params = groups;
