@@ -227,6 +227,8 @@ App.prototype.plugins = function (
 		this.memory.set("plugins", []);
 	}
 
+	const memoryPlugins = this.memory.get("plugins") as MemoryPlugin[];
+
 	for (let i = 0; i < plugins.length; i++) {
 		const plugin = plugins[i];
 
@@ -234,7 +236,7 @@ App.prototype.plugins = function (
 			continue;
 		}
 
-		(this.memory.get("plugins") as MemoryPlugin[]).push({
+		memoryPlugins.push({
 			options,
 			plugin,
 		});
