@@ -1,28 +1,26 @@
 import type { ContextResponse } from "@/core/context";
 
 export const processResponse = (response: ContextResponse) => {
-	if ((response as unknown as { _cookiesInit: boolean })._cookiesInit) {
-		const setCookieHeaders = response.cookies.toSetCookieHeaders();
+	const setCookieHeaders = response.cookies.toSetCookieHeaders();
 
-		for (let i = 0; i < setCookieHeaders.length; i++) {
-			const setCookieHeader = setCookieHeaders[i];
+	for (let i = 0; i < setCookieHeaders.length; i++) {
+		const setCookieHeader = setCookieHeaders[i];
 
-			if (!setCookieHeader) {
-				continue;
-			}
-
-			response.headers.append("Set-Cookie", setCookieHeader);
+		if (!setCookieHeader) {
+			continue;
 		}
+
+		response.headers.append("set-cookie", setCookieHeader);
 	}
 
 	const content = response.content;
 
 	if (content instanceof ReadableStream) {
-		response.headers.set("Cache-Control", "no-cache");
-		response.headers.set("Connection", "keep-alive");
+		response.headers.set("cache-control", "no-cache");
+		response.headers.set("connection", "keep-alive");
 
-		if (!response.headers.has("Content-Type")) {
-			response.headers.set("Content-Type", "text/event-stream");
+		if (!response.headers.has("content-type")) {
+			response.headers.set("content-type", "text/event-stream");
 		}
 
 		return new Response(content, {
@@ -39,9 +37,9 @@ export const processResponse = (response: ContextResponse) => {
 	if (content.content instanceof Response) {
 		const original = content.content;
 
-		response.headers.forEach((value, key) => {
+		for (const [key, value] of response.headers) {
 			original.headers.append(key, value);
-		});
+		}
 
 		return original;
 	}
