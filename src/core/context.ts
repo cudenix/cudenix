@@ -211,7 +211,7 @@ Context.prototype.loadRequestParams = function (this: Context) {
 	for (const key in groups) {
 		const value = groups[key];
 
-		if (value === undefined) {
+		if (value === undefined || value.indexOf("%") === -1) {
 			continue;
 		}
 
