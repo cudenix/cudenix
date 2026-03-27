@@ -33,7 +33,7 @@ export interface ContextResponse {
 	headers: Headers;
 }
 
-export interface ContextRequest {
+interface ContextRequest {
 	body?: unknown;
 	cookies?: unknown;
 	headers?: unknown;
@@ -279,11 +279,8 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 
 			const firstChar = value.charCodeAt(0);
 
-			const parsed =
-				firstChar === 123 || firstChar === 91 ? tryParse(value) : value;
-
 			params[key.indexOf("%") === -1 ? key : decodeURIComponent(key)] =
-				parsed;
+				firstChar === 123 || firstChar === 91 ? tryParse(value) : value;
 
 			hasParams = true;
 		}
