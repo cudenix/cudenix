@@ -1,12 +1,8 @@
 import type { App, Chain, Endpoint } from "@/core/app";
 import { type AnyModule, Module } from "@/core/module";
 import { Empty } from "@/utils/objects/empty";
+import { pathToRegexp } from "@/utils/regexp/path-to-regexp";
 import { validateStandardSchema } from "@/utils/standard-schema/validate";
-
-interface Previous {
-	chain: Chain;
-	path: string;
-}
 
 const GET_URL_PATHNAME_REGEXP =
 	/^(?:[a-zA-Z][a-zA-Z\d+\-.]*:\/\/)?[^/?#]*(\/[^?#]*)?/;
@@ -35,50 +31,15 @@ const KEY_TO_BIT = {
 	query: USE_QUERY,
 } as const satisfies Record<string, number>;
 
-const pathToRegexp = (path: string, captureParamGroups = false) => {
-	if (path === "/") {
-		return "()\\/";
-	}
+export interface PreviousStep {
+	chain: Chain;
+	path: string;
+}
 
-	let pattern = "()";
-
-	const segments = path.split("/");
-
-	for (let i = 0; i < segments.length; i++) {
-		let segment = segments[i];
-
-		if (!segment) {
-			continue;
-		}
-
-		const isOptional = segment.endsWith("?");
-
-		if (isOptional) {
-			segment = segment.slice(0, -1);
-		}
-
-		if (segment.startsWith(":")) {
-			segment = `\\/${captureParamGroups ? `(?<${segment.slice(1)}>` : ""}[^/\\s?#]+${captureParamGroups ? ")" : ""}`;
-		} else if (segment.startsWith("...")) {
-			segment = `\\/${captureParamGroups ? `(?<${segment.slice(3)}>` : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${captureParamGroups ? ")" : ""}`;
-		} else {
-			segment = `\\/${RegExp.escape(segment)}`;
-		}
-
-		if (isOptional) {
-			segment = `(?:${segment})?`;
-		}
-
-		pattern += segment;
-	}
-
-	return pattern;
-};
-
-const step = (
+export const compileStep = (
 	endpoints: Map<string, Endpoint[]>,
 	module: AnyModule,
-	previous: Previous,
+	previous: PreviousStep,
 ) => {
 	const chain = [] as Chain;
 
@@ -98,7 +59,7 @@ const step = (
 
 			module.chain = previous.chain.concat(chain);
 
-			step(endpoints, link.group(module), {
+			compileStep(endpoints, link.group(module), {
 				chain: [],
 				path: "",
 			});
@@ -117,7 +78,7 @@ const step = (
 		}
 
 		if (link.type === "MODULE") {
-			const compiled = step(endpoints, link, {
+			const compiled = compileStep(endpoints, link, {
 				chain: previous.chain.concat(chain),
 				path: `${previous.path}${path === "/" ? "" : path}`,
 			});
@@ -231,7 +192,11 @@ const step = (
 				? mergedChain.concat(link.validator)
 				: mergedChain,
 			generator: link.generator,
-			paramsRegexp: new RegExp(`^${pathToRegexp(finalPath, true)}$`),
+			paramsRegexp: new RegExp(
+				`^${pathToRegexp(finalPath, {
+					captureParamGroups: true,
+				})}$`,
+			),
 			path: finalPath,
 			route: link,
 			use: useBits,
@@ -251,7 +216,7 @@ export const compile = (app: App, module: AnyModule) => {
 
 	const endpoints = new Map<string, Endpoint[]>();
 
-	step(endpoints, module, {
+	compileStep(endpoints, module, {
 		chain: [],
 		path: "",
 	});
@@ -286,9 +251,7 @@ export const compile = (app: App, module: AnyModule) => {
 				(typeof routes)[string]
 			>;
 
-			routes[methodEndpoint.path]![
-				method as keyof (typeof routes)[string]
-			] = async (request: Request) => {
+			routes[methodEndpoint.path]![method] = (request: Request) => {
 				return app.endpoint(
 					methodEndpoint,
 					GET_URL_PATHNAME_REGEXP.exec(request.url)?.[1] ||
