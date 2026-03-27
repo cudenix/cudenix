@@ -202,28 +202,55 @@ export const loadTranslations = async (directory: string) => {
 
 export const replace = <Translation extends string>(
 	translation: Translation,
-	replace: {
+	replacements: {
 		[Key in ExtractPlaceholders<Translation>]?: string;
 	},
 ) => {
-	const keys = Object.keys(replace);
+	const length = translation.length;
 
-	let replaced = translation as string;
+	let result = "";
+	let i = 0;
 
-	for (let i = 0; i < keys.length; i++) {
-		const key = keys[i];
+	while (i < length) {
+		if (
+			translation.charCodeAt(i) === 0x24 &&
+			i + 1 < length &&
+			translation.charCodeAt(i + 1) === 0x7b
+		) {
+			const start = i + 2;
+			const closingIdx = translation.indexOf("}", start);
 
-		if (!key) {
-			continue;
+			if (closingIdx !== -1 && closingIdx !== start) {
+				const key = translation.slice(start, closingIdx);
+				const value = replacements[key as keyof typeof replacements];
+
+				if (value !== undefined) {
+					result += value;
+					i = closingIdx + 1;
+
+					continue;
+				}
+			}
+
+			result += translation[i];
+
+			i++;
+		} else {
+			const nextDollar = translation.indexOf("${", i);
+
+			if (nextDollar === -1) {
+				result += translation.slice(i);
+
+				break;
+			}
+
+			result += translation.slice(i, nextDollar);
+
+			i = nextDollar;
 		}
-
-		replaced = replaced.replaceAll(
-			`\${${key}}`,
-			replace[key as keyof typeof replace] ?? "",
-		);
 	}
 
-	return replaced as Translation;
+	return result as Translation;
 };
 
 export const load = async (
@@ -297,7 +324,7 @@ export const translate = <
 	path: Path,
 	{
 		language,
-		replace,
+		replace: replacements,
 	}: TranslateOptions<
 		DeepValue<Cudenix.i18n.Translations, Path>
 	> = FreezeEmpty,
@@ -328,21 +355,8 @@ export const translate = <
 		translation = next;
 	}
 
-	if (replace && typeof translation === "string") {
-		const keys = Object.keys(replace);
-
-		for (let i = 0; i < keys.length; i++) {
-			const key = keys[i];
-
-			if (!key) {
-				continue;
-			}
-
-			translation = translation.replaceAll(
-				`\${${key}}`,
-				replace[key as keyof typeof replace] ?? "",
-			);
-		}
+	if (replacements && typeof translation === "string") {
+		translation = replace(translation, replacements);
 	}
 
 	return translation as DeepValue<Cudenix.i18n.Translations, Path>;
