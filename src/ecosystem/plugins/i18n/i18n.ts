@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { module } from "@/core/module";
 import { getRequestContext } from "@/ecosystem/plugins/global-request-context/global-request-context";
-import { selectHeader } from "@/utils/header/select";
+import { selectHeader } from "@/utils/headers/select";
 import { Empty, FreezeEmpty } from "@/utils/objects/empty";
 
 const STORE = new Empty() as unknown as I18n;
