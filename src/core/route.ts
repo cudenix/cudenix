@@ -1,4 +1,4 @@
-import type { MaybePromise, WebSocketHandler } from "bun";
+import type { WebSocketHandler } from "bun";
 
 import type { DeveloperContext } from "@/core/context";
 import type { AnyError } from "@/core/error";
@@ -14,6 +14,7 @@ import {
 import type { ExtractUrlParams } from "@/types/extract-url-params";
 import type { GeneratorSSE } from "@/types/generator-sse";
 import type { HttpMethod } from "@/types/http-method";
+import type { MaybePromise } from "@/types/maybe-promise";
 import { isGenerator } from "@/utils/functions/is-generator";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
