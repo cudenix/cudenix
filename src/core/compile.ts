@@ -1,11 +1,8 @@
 import type { App, Chain, Endpoint } from "@/core/app";
 import { type AnyModule, Module } from "@/core/module";
 import { Empty } from "@/utils/objects/empty";
-import { pathToRegexp } from "@/utils/regexp/path-to-regexp";
+import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import { validateStandardSchema } from "@/utils/standard-schema/validate";
-
-const GET_URL_PATHNAME_REGEXP =
-	/^(?:[a-zA-Z][a-zA-Z\d+\-.]*:\/\/)?[^/?#]*(\/[^?#]*)?/;
 
 export const USE_BODY = 1;
 export const USE_COOKIES = 2;
@@ -202,11 +199,14 @@ const step = (
 				? mergedChain.concat(link.validator)
 				: mergedChain,
 			generator: link.generator,
-			paramsRegexp: new RegExp(
-				`^${pathToRegexp(finalPath, {
-					captureParamGroups: true,
-				})}$`,
-			),
+			paramsRegexp:
+				finalPath.indexOf(":") !== -1 || finalPath.indexOf("...") !== -1
+					? new RegExp(
+							`^${pathToRegexp(finalPath, {
+								captureParamGroups: true,
+							})}$`,
+						)
+					: undefined,
 			path: finalPath,
 			route: link,
 			use: useBits,
@@ -267,8 +267,7 @@ export const compile = (app: App, module: AnyModule) => {
 			routes[methodEndpoint.path]![method] = (request: Request) => {
 				return app.endpoint(
 					methodEndpoint,
-					GET_URL_PATHNAME_REGEXP.exec(request.url)?.[1] ||
-						request.url,
+					methodEndpoint.path,
 					request,
 				);
 			};
