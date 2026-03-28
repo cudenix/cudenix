@@ -242,8 +242,6 @@ export const plugin = (
 				};
 			}),
 		});
-
-		return "openapi";
 	};
 };
 

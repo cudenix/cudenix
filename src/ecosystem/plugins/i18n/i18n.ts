@@ -8,7 +8,7 @@ import { Empty, FreezeEmpty } from "@/utils/objects/empty";
 
 const STORE = new Empty() as unknown as I18n;
 
-export type DeepPaths<Type extends Record<PropertyKey, unknown>> = {
+type DeepPaths<Type extends Record<PropertyKey, unknown>> = {
 	[Key in keyof Type]: Key extends string
 		? Type[Key] extends Record<PropertyKey, unknown>
 			? `${Key}` | `${Key}.${DeepPaths<Type[Key]>}`
@@ -16,7 +16,7 @@ export type DeepPaths<Type extends Record<PropertyKey, unknown>> = {
 		: never;
 }[keyof Type];
 
-export type DeepValue<
+type DeepValue<
 	Type extends Record<PropertyKey, unknown>,
 	Path extends string,
 > = Path extends `${infer Key}.${infer Rest}`
@@ -29,18 +29,18 @@ export type DeepValue<
 		? Type[Path]
 		: never;
 
-export type ExtractPlaceholders<
+type ExtractPlaceholders<
 	String extends string,
 	Acc extends string = never,
 > = String extends `${infer _Start}\${${infer Param}}${infer Rest}`
 	? ExtractPlaceholders<Rest, Acc | Param>
 	: Acc;
 
-export interface Translation {
+interface Translation {
 	[key: string]: string | Translation | (string | Translation)[];
 }
 
-export interface TranslateOptions<Translation> {
+interface TranslateOptions<Translation> {
 	language?: string;
 	replace?: Translation extends string
 		? {

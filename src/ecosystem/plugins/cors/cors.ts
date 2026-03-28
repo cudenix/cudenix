@@ -3,7 +3,7 @@ import { module } from "@/core/module";
 import { success } from "@/core/success";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
-export interface CorsOptions {
+interface CorsOptions {
 	allowHeaders?: string[];
 	allowMethods?: string[];
 	credentials?: boolean;

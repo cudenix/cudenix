@@ -4,14 +4,14 @@ import { success } from "@/core/success";
 import { selectHeader } from "@/utils/headers/select";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
-export interface CompressOptions {
-	threshold?: number;
-}
-
 const COMPRESSIBLE_REGEXP =
 	/^\s*(?:text\/(?!event-stream(?:[;\s]|$))[^;\s]+|application\/(?:json|javascript|xml|x-www-form-urlencoded)|[^;\s]+\/[^;\s]+\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
 
 const ENCODING_NAMES = ["br", "gzip", "deflate", "zstd"] as const;
+
+interface CompressOptions {
+	threshold?: number;
+}
 
 export const compress = ({
 	threshold = 1024,

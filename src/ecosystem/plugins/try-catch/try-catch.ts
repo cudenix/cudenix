@@ -2,7 +2,7 @@ import { error } from "@/core/error";
 import { module } from "@/core/module";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
-export interface TryCatchOptions {
+interface TryCatchOptions {
 	debug?: boolean;
 }
 
