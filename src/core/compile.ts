@@ -82,6 +82,7 @@ const step = (
 	previous: PreviousStep,
 ) => {
 	const chain = [] as Chain;
+	const merged = previous.chain.slice();
 
 	let path = module.prefix;
 
@@ -97,7 +98,7 @@ const step = (
 				prefix: `${previous.path}${path === "/" ? "" : path}${link.prefix === "/" ? "" : link.prefix}`,
 			});
 
-			module.chain = previous.chain.concat(chain);
+			module.chain = merged.slice();
 
 			step(endpoints, link.group(module), {
 				chain: [],
@@ -113,17 +114,28 @@ const step = (
 			link.type === "VALIDATOR"
 		) {
 			chain.push(link);
+			merged.push(link);
 
 			continue;
 		}
 
 		if (link.type === "MODULE") {
 			const compiled = step(endpoints, link, {
-				chain: previous.chain.concat(chain),
+				chain: merged.slice(),
 				path: `${previous.path}${path === "/" ? "" : path}`,
 			});
 
 			chain.push(...compiled.chain);
+
+			for (let j = 0; j < compiled.chain.length; j++) {
+				const compiledLink = compiled.chain[j];
+
+				if (!compiledLink) {
+					continue;
+				}
+
+				merged.push(compiledLink);
+			}
 
 			if (compiled.path !== "/") {
 				path = `${path === "/" ? "" : path}${compiled.path}`;
@@ -132,22 +144,20 @@ const step = (
 			continue;
 		}
 
-		const mergedChain = previous.chain.concat(chain);
-
 		let useBits = 0;
 
-		for (let j = 0; j < mergedChain.length; j++) {
+		for (let j = 0; j < merged.length; j++) {
 			if (useBits === USE_ALL) {
 				break;
 			}
 
-			const link = mergedChain[j];
+			const mergedLink = merged[j];
 
-			if (!link) {
+			if (!mergedLink) {
 				continue;
 			}
 
-			useBits |= getLinkUseBits(link);
+			useBits |= getLinkUseBits(mergedLink);
 		}
 
 		if (useBits !== USE_ALL) {
@@ -196,8 +206,8 @@ const step = (
 
 		methodEndpoints.push({
 			chain: link.validator
-				? mergedChain.concat(link.validator)
-				: mergedChain,
+				? merged.concat(link.validator)
+				: merged.slice(),
 			generator: link.generator,
 			paramsRegexp:
 				finalPath.indexOf(":") !== -1 || finalPath.indexOf("...") !== -1
