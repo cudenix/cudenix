@@ -14,6 +14,7 @@ import {
 import type { ExtractUrlParams } from "@/types/extract-url-params";
 import type { GeneratorSSE } from "@/types/generator-sse";
 import type { HttpMethod } from "@/types/http-method";
+import { isGenerator } from "@/utils/functions/is-generator";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
 export type PathToObject<
@@ -161,7 +162,7 @@ export const Route = function (
 	route: AnyRouteFn,
 	{ validator }: AnyRouteOptions = FreezeEmpty,
 ) {
-	this.generator = route.constructor.name.indexOf("GeneratorFunction") !== -1;
+	this.generator = isGenerator(route);
 	this.method = method;
 	this.path = path;
 	this.route = route;
