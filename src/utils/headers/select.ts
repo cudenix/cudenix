@@ -1,4 +1,4 @@
-import { parseQuality } from "@/utils/header/quality";
+import { parseQuality } from "@/utils/headers/quality";
 
 export const selectHeader = (
 	header: string,
