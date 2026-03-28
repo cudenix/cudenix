@@ -1,16 +1,18 @@
 import type { ContextResponse } from "@/core/context";
 
 export const processResponse = (response: ContextResponse) => {
-	const setCookieHeaders = response.cookies.toSetCookieHeaders();
+	if (response.cookies) {
+		const setCookieHeaders = response.cookies.toSetCookieHeaders();
 
-	for (let i = 0; i < setCookieHeaders.length; i++) {
-		const setCookieHeader = setCookieHeaders[i];
+		for (let i = 0; i < setCookieHeaders.length; i++) {
+			const setCookieHeader = setCookieHeaders[i];
 
-		if (!setCookieHeader) {
-			continue;
+			if (!setCookieHeader) {
+				continue;
+			}
+
+			response.headers.append("set-cookie", setCookieHeader);
 		}
-
-		response.headers.append("set-cookie", setCookieHeader);
 	}
 
 	const content = response.content;
