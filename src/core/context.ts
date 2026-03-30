@@ -12,6 +12,11 @@ import type { MaybePromise } from "@/types/maybe-promise";
 import { tryParse } from "@/utils/json/try-parse";
 import { Empty } from "@/utils/objects/empty";
 
+const Q_KEY_PLUS = 1;
+const Q_KEY_PCT = 2;
+const Q_VAL_PLUS = 4;
+const Q_VAL_PCT = 8;
+
 export interface DeveloperContext<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
@@ -259,9 +264,9 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 			}
 
 			if (char === 43) {
-				flags |= 1;
+				flags |= Q_KEY_PLUS;
 			} else if (char === 37) {
-				flags |= 2;
+				flags |= Q_KEY_PCT;
 			}
 
 			i++;
@@ -285,9 +290,9 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 				}
 
 				if (char === 43) {
-					flags |= 4;
+					flags |= Q_VAL_PLUS;
 				} else if (char === 37) {
-					flags |= 8;
+					flags |= Q_VAL_PCT;
 				}
 
 				i++;
@@ -299,20 +304,20 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 		}
 
 		if (key.length > 0) {
-			if (flags & 1) {
+			if (flags & Q_KEY_PLUS) {
 				key = key.replaceAll("+", " ");
 			}
 
-			if (flags & 2) {
+			if (flags & Q_KEY_PCT) {
 				key = decodeURIComponent(key);
 			}
 
 			if (hasValue) {
-				if (flags & 4) {
+				if (flags & Q_VAL_PLUS) {
 					value = value.replaceAll("+", " ");
 				}
 
-				if (flags & 8) {
+				if (flags & Q_VAL_PCT) {
 					value = decodeURIComponent(value);
 				}
 			}
