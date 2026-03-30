@@ -1,10 +1,12 @@
+import { FreezeEmpty } from "@/utils/objects/empty";
+
 interface PathToRegexpOptions {
 	captureParamGroups?: boolean;
 }
 
 export const pathToRegexp = (
 	path: string,
-	{ captureParamGroups = false }: PathToRegexpOptions = {},
+	{ captureParamGroups = false }: PathToRegexpOptions = FreezeEmpty,
 ) => {
 	if (path === "/") {
 		return "()\\/";
