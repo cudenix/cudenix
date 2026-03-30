@@ -3,11 +3,11 @@ import { Context } from "@/core/context";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
 import type { AnyRoute } from "@/core/route";
+import { serve } from "@/core/serve";
 import { stepAndRespond } from "@/core/step";
 import type { AnyStore } from "@/core/store";
 import type { AnyValidator } from "@/core/validator";
 import type { MaybePromise } from "@/types/maybe-promise";
-import type { WSData } from "@/types/ws";
 
 const NOT_FOUND_INIT = {
 	status: 404,
@@ -50,7 +50,7 @@ export interface App {
 	fetch(request: Request): MaybePromise<Response>;
 	listen(
 		options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
-	): Promise<App>;
+	): MaybePromise<App>;
 	memory: Map<string, unknown>;
 	methods: Map<string, MethodData>;
 	plugins(plugins: Plugin[], options: PluginOptions): App;
@@ -175,42 +175,21 @@ App.prototype.fetch = function (this: App, request: Request) {
 	return this.endpoint(endpoint, path, request);
 };
 
-App.prototype.listen = async function (
+App.prototype.listen = function (
 	this: App,
 	options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 ) {
-	await this.compile();
+	const result = this.compile();
 
-	this.server = Bun.serve({
-		development: false,
-		reusePort: true,
-		...options,
-		fetch: (request) => {
-			return this.fetch(request);
-		},
-		routes: this.routes,
-		websocket: {
-			close: (ws, code, reason) => {
-				(ws.data as WSData)?.close?.(ws, code, reason);
-			},
-			drain: (ws) => {
-				(ws.data as WSData)?.drain?.(ws);
-			},
-			message: (ws, message) => {
-				(ws.data as WSData)?.message?.(ws, message);
-			},
-			open: (ws) => {
-				(ws.data as WSData)?.open?.(ws);
-			},
-		},
-	});
+	if (result instanceof Promise) {
+		result.then(() => {
+			serve(this, options);
+		});
 
-	process.once("beforeExit", () => {
-		this.server?.stop(true);
-		this.server = undefined;
-	});
+		return this;
+	}
 
-	Bun.gc();
+	serve(this, options);
 
 	return this;
 };
