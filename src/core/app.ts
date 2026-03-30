@@ -92,10 +92,10 @@ App.prototype.endpoint = function (
 		this.server!,
 	);
 
-	const result = context.loadRequest();
+	const returned = context.loadRequest();
 
-	if (result instanceof Promise) {
-		return result.then(() => {
+	if (returned instanceof Promise) {
+		return returned.then(() => {
 			return stepAndRespond(this, context, endpoint, request);
 		});
 	}
