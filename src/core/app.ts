@@ -3,11 +3,11 @@ import { Context } from "@/core/context";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
 import type { AnyRoute } from "@/core/route";
-import { serve } from "@/core/serve";
 import { stepAndRespond } from "@/core/step";
 import type { AnyStore } from "@/core/store";
 import type { AnyValidator } from "@/core/validator";
 import type { MaybePromise } from "@/types/maybe-promise";
+import type { WSData } from "@/types/ws";
 
 const NOT_FOUND_INIT = {
 	status: 404,
@@ -34,23 +34,21 @@ interface MethodData {
 	regexp: RegExp;
 }
 
-type Plugin = (...options: any[]) => MaybePromise<void>;
+type Plugin = (...options: any[]) => void;
 
 interface PluginOptions {
 	compile?: "AFTER" | "BEFORE" | false;
 }
 
 export interface App {
-	compile(): Promise<void>;
+	compile(): void;
 	endpoint(
 		endpoint: Endpoint,
 		path: string,
 		request: Request,
 	): MaybePromise<Response>;
 	fetch(request: Request): MaybePromise<Response>;
-	listen(
-		options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
-	): MaybePromise<App>;
+	listen(options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">): App;
 	memory: Map<string, unknown>;
 	methods: Map<string, MethodData>;
 	plugins(plugins: Plugin[], options: PluginOptions): App;
@@ -67,7 +65,7 @@ export const App = function (this: App, module: AnyModule) {
 	this.memory.set("module", module);
 } as unknown as Constructor;
 
-App.prototype.compile = async function (this: App) {
+App.prototype.compile = function (this: App) {
 	const memoryPlugins = (this.memory.get("plugins") ?? []) as MemoryPlugin[];
 
 	const pluginsAfterCompile = [] as Plugin[];
@@ -85,24 +83,17 @@ App.prototype.compile = async function (this: App) {
 			continue;
 		}
 
-		const result = plugin.plugin.call(this);
-
-		if (result instanceof Promise) {
-			await result;
-		}
+		plugin.plugin.call(this);
 	}
 
 	compile(this, this.memory.get("module") as AnyModule);
 
 	for (let i = 0; i < pluginsAfterCompile.length; i++) {
-		const result = pluginsAfterCompile[i]?.call(this);
-
-		if (result instanceof Promise) {
-			await result;
-		}
+		pluginsAfterCompile[i]?.call(this);
 	}
 
 	this.memory.delete("module");
+
 	this.memory.delete("plugins");
 };
 
@@ -179,17 +170,38 @@ App.prototype.listen = function (
 	this: App,
 	options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 ) {
-	const result = this.compile();
+	this.compile();
 
-	if (result instanceof Promise) {
-		result.then(() => {
-			serve(this, options);
-		});
+	this.server = Bun.serve({
+		development: false,
+		reusePort: true,
+		...options,
+		fetch: (request) => {
+			return this.fetch(request);
+		},
+		routes: this.routes,
+		websocket: {
+			close: (ws, code, reason) => {
+				(ws.data as WSData)?.close?.(ws, code, reason);
+			},
+			drain: (ws) => {
+				(ws.data as WSData)?.drain?.(ws);
+			},
+			message: (ws, message) => {
+				(ws.data as WSData)?.message?.(ws, message);
+			},
+			open: (ws) => {
+				(ws.data as WSData)?.open?.(ws);
+			},
+		},
+	});
 
-		return this;
-	}
+	process.once("beforeExit", () => {
+		this.server?.stop(true);
+		this.server = undefined;
+	});
 
-	serve(this, options);
+	Bun.gc();
 
 	return this;
 };
