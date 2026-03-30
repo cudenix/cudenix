@@ -92,7 +92,7 @@ export const Context = function (
 	};
 	this.response = {
 		content: undefined,
-		cookies: undefined,
+		cookies: new Bun.CookieMap(),
 		headers: new Headers(),
 	} as unknown as ContextResponse;
 	this.server = server;
