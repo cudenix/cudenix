@@ -260,7 +260,7 @@ export const compile = (app: App, module: AnyModule) => {
 			}
 
 			if (
-				methodEndpoint.path.indexOf("?") !== -1 ||
+				methodEndpoint.path.indexOf(":") !== -1 ||
 				methodEndpoint.path.indexOf("...") !== -1
 			) {
 				methodRegexps.push(pathToRegexp(methodEndpoint.path));
