@@ -24,21 +24,12 @@ export interface Endpoint {
 	use: number;
 }
 
-interface MemoryPlugin {
-	options?: PluginOptions;
-	plugin: Plugin;
-}
-
 interface MethodData {
 	endpoints: Endpoint[];
 	regexp: RegExp;
 }
 
 type Plugin = (...options: any[]) => void;
-
-interface PluginOptions {
-	compile?: "AFTER" | "BEFORE" | false;
-}
 
 export interface App {
 	compile(): void;
@@ -51,7 +42,7 @@ export interface App {
 	listen(options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">): App;
 	memory: Map<string, unknown>;
 	methods: Map<string, MethodData>;
-	plugins(plugins: Plugin[], options: PluginOptions): App;
+	plugins(plugins: Plugin[]): App;
 	routes?: Record<string, Bun.Serve.Routes<unknown, string>>;
 	server?: Bun.Server<unknown>;
 }
@@ -66,31 +57,21 @@ export const App = function (this: App, module: AnyModule) {
 } as unknown as Constructor;
 
 App.prototype.compile = function (this: App) {
-	const memoryPlugins = (this.memory.get("plugins") ?? []) as MemoryPlugin[];
+	if (this.memory.has("plugins")) {
+		const plugins = this.memory.get("plugins") as Plugin[];
 
-	const pluginsAfterCompile = [] as Plugin[];
+		for (let i = 0; i < plugins.length; i++) {
+			const plugin = plugins[i];
 
-	for (let i = 0; i < memoryPlugins.length; i++) {
-		const plugin = memoryPlugins[i];
+			if (!plugin) {
+				continue;
+			}
 
-		if (!plugin || plugin.options?.compile === false) {
-			continue;
+			plugin.call(this);
 		}
-
-		if (plugin.options?.compile === "AFTER") {
-			pluginsAfterCompile.push(plugin.plugin);
-
-			continue;
-		}
-
-		plugin.plugin.call(this);
 	}
 
 	compile(this, this.memory.get("module") as AnyModule);
-
-	for (let i = 0; i < pluginsAfterCompile.length; i++) {
-		pluginsAfterCompile[i]?.call(this);
-	}
 
 	this.memory.delete("module");
 
@@ -198,6 +179,7 @@ App.prototype.listen = function (
 
 	process.once("beforeExit", () => {
 		this.server?.stop(true);
+
 		this.server = undefined;
 	});
 
@@ -206,29 +188,12 @@ App.prototype.listen = function (
 	return this;
 };
 
-App.prototype.plugins = function (
-	this: App,
-	plugins: Plugin[],
-	options: PluginOptions,
-) {
+App.prototype.plugins = function (this: App, plugins: Plugin[]) {
 	if (!this.memory.has("plugins")) {
 		this.memory.set("plugins", []);
 	}
 
-	const memoryPlugins = this.memory.get("plugins") as MemoryPlugin[];
-
-	for (let i = 0; i < plugins.length; i++) {
-		const plugin = plugins[i];
-
-		if (!plugin) {
-			continue;
-		}
-
-		memoryPlugins.push({
-			options,
-			plugin,
-		});
-	}
+	(this.memory.get("plugins") as Plugin[])?.push(...plugins);
 
 	return this;
 };
