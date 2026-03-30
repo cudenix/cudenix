@@ -249,8 +249,7 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 	while (i < url.length) {
 		const keyStart = i;
 
-		let keyHasPlus = false;
-		let keyHasPercent = false;
+		let flags = 0;
 
 		while (i < url.length) {
 			const char = url.charCodeAt(i);
@@ -260,9 +259,9 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 			}
 
 			if (char === 43) {
-				keyHasPlus = true;
+				flags |= 1;
 			} else if (char === 37) {
-				keyHasPercent = true;
+				flags |= 2;
 			}
 
 			i++;
@@ -272,8 +271,6 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 
 		let key = url.substring(keyStart, i);
 		let value: string;
-		let valueHasPlus = false;
-		let valueHasPercent = false;
 
 		if (hasValue) {
 			i++;
@@ -288,9 +285,9 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 				}
 
 				if (char === 43) {
-					valueHasPlus = true;
+					flags |= 4;
 				} else if (char === 37) {
-					valueHasPercent = true;
+					flags |= 8;
 				}
 
 				i++;
@@ -302,20 +299,20 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 		}
 
 		if (key.length > 0) {
-			if (keyHasPlus) {
+			if (flags & 1) {
 				key = key.replaceAll("+", " ");
 			}
 
-			if (keyHasPercent) {
+			if (flags & 2) {
 				key = decodeURIComponent(key);
 			}
 
 			if (hasValue) {
-				if (valueHasPlus) {
+				if (flags & 4) {
 					value = value.replaceAll("+", " ");
 				}
 
-				if (valueHasPercent) {
+				if (flags & 8) {
 					value = decodeURIComponent(value);
 				}
 			}
