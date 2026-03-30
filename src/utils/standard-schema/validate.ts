@@ -1,8 +1,8 @@
 export const validateStandardSchema = (schema: any, input: unknown) => {
-	const result = schema["~standard"].validate(input);
+	const returned = schema["~standard"].validate(input);
 
-	if (result instanceof Promise) {
-		return result.then(({ issues, value }) => {
+	if (returned instanceof Promise) {
+		return returned.then(({ issues, value }) => {
 			return {
 				content: issues ?? value,
 				success: !issues,
@@ -11,7 +11,7 @@ export const validateStandardSchema = (schema: any, input: unknown) => {
 	}
 
 	return {
-		content: result.issues ?? result.value,
-		success: !result.issues,
+		content: returned.issues ?? returned.value,
+		success: !returned.issues,
 	};
 };
