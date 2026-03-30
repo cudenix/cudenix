@@ -233,7 +233,7 @@ const step = (
 			continue;
 		}
 
-		const validationResult = processValidators(
+		const validationReturned = processValidators(
 			context,
 			link as AnyValidator,
 			validatorPlugin,
@@ -244,8 +244,8 @@ const step = (
 			},
 		);
 
-		if (validationResult instanceof Promise) {
-			return validationResult.then(() => {
+		if (validationReturned instanceof Promise) {
+			return validationReturned.then(() => {
 				if (context.response.content) {
 					return;
 				}
@@ -345,7 +345,23 @@ export const stepAndRespond = (
 	endpoint: Endpoint,
 	request: Request,
 ) => {
-	const stepResult = step(
+	if (endpoint.chain.length === 0 && !endpoint.generator) {
+		const returned = endpoint.route.route(context);
+
+		if (returned instanceof Promise) {
+			return returned.then((resolved) => {
+				resolveRoute(app, context, request, endpoint, resolved);
+
+				return processResponse(context.response);
+			});
+		}
+
+		resolveRoute(app, context, request, endpoint, returned);
+
+		return processResponse(context.response);
+	}
+
+	const returned = step(
 		app,
 		context,
 		endpoint,
@@ -355,8 +371,8 @@ export const stepAndRespond = (
 		app.memory.get("validator") as ValidatorPlugin | undefined,
 	);
 
-	if (stepResult instanceof Promise) {
-		return stepResult.then(() => {
+	if (returned instanceof Promise) {
+		return returned.then(() => {
 			return processResponse(context.response);
 		});
 	}
