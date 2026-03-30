@@ -9,9 +9,9 @@ import type { AnyValidator } from "@/core/validator";
 import type { MaybePromise } from "@/types/maybe-promise";
 import type { WSData } from "@/types/ws";
 
-const NOT_FOUND_INIT = {
+const NOT_FOUND = new Response(undefined, {
 	status: 404,
-} as const satisfies ResponseInit;
+});
 
 export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
@@ -107,19 +107,19 @@ App.prototype.fetch = function (this: App, request: Request) {
 	const data = this.methods.get(request.method);
 
 	if (!data) {
-		return new Response(undefined, NOT_FOUND_INIT);
+		return NOT_FOUND.clone();
 	}
 
 	const match = data.regexp.exec(request.url);
 
 	if (!match) {
-		return new Response(undefined, NOT_FOUND_INIT);
+		return NOT_FOUND.clone();
 	}
 
 	const path = match[2];
 
 	if (!path) {
-		return new Response(undefined, NOT_FOUND_INIT);
+		return NOT_FOUND.clone();
 	}
 
 	let index = -1;
@@ -135,13 +135,13 @@ App.prototype.fetch = function (this: App, request: Request) {
 	}
 
 	if (index === -1) {
-		return new Response(undefined, NOT_FOUND_INIT);
+		return NOT_FOUND.clone();
 	}
 
 	const endpoint = data.endpoints[index];
 
 	if (!endpoint) {
-		return new Response(undefined, NOT_FOUND_INIT);
+		return NOT_FOUND.clone();
 	}
 
 	return this.endpoint(endpoint, path, request);
