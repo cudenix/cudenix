@@ -46,6 +46,10 @@ const getLinkUseBits = (link: Chain[number]) => {
 
 	if (link.type === "VALIDATOR") {
 		for (let i = 0; i < link.keys.length; i++) {
+			if (bits === USE_ALL) {
+				break;
+			}
+
 			const key = link.keys[i];
 
 			if (!key) {
@@ -60,6 +64,10 @@ const getLinkUseBits = (link: Chain[number]) => {
 
 		if (text) {
 			for (let i = 0; i < USE_KEYWORDS.length; i++) {
+				if (bits === USE_ALL) {
+					break;
+				}
+
 				const keyword = USE_KEYWORDS[i];
 
 				if (!keyword || text.indexOf(keyword[1]) === -1) {
@@ -180,6 +188,10 @@ const step = (
 
 		if (link.validator && useBits !== USE_ALL) {
 			for (let j = 0; j < link.validator.keys.length; j++) {
+				if (useBits === USE_ALL) {
+					break;
+				}
+
 				const key = link.validator.keys[j];
 
 				if (!key) {
