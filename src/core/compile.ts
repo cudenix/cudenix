@@ -3,6 +3,8 @@ import { type AnyModule, Module } from "@/core/module";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 
+const LINK_USE_BITS_CACHE = new WeakMap<object, number>();
+
 export const USE_BODY = 1;
 export const USE_COOKIES = 2;
 export const USE_HEADERS = 4;
@@ -26,8 +28,6 @@ const KEY_TO_BIT = {
 	params: USE_PARAMS,
 	query: USE_QUERY,
 } as const satisfies Record<string, number>;
-
-const LINK_USE_BITS_CACHE = new WeakMap<object, number>();
 
 interface PreviousStep {
 	chain: Chain;
@@ -171,6 +171,10 @@ const step = (
 			const text = link.route.toString();
 
 			for (let j = 0; j < USE_KEYWORDS.length; j++) {
+				if (useBits === USE_ALL) {
+					break;
+				}
+
 				const keyword = USE_KEYWORDS[j];
 
 				if (
@@ -277,9 +281,8 @@ export const compile = (app: App, module: AnyModule) => {
 				continue;
 			}
 
-			routes[methodEndpoint.path] ??= new Empty() as NonNullable<
-				(typeof routes)[string]
-			>;
+			routes[methodEndpoint.path] ??=
+				new Empty() as (typeof routes)[string];
 
 			routes[methodEndpoint.path]![method] = (request: Request) => {
 				return app.endpoint(
