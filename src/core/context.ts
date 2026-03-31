@@ -9,6 +9,7 @@ import {
 import type { AnyError } from "@/core/error";
 import type { AnySuccess } from "@/core/success";
 import type { MaybePromise } from "@/types/maybe-promise";
+import { parseCookies } from "@/utils/cookies/parse-cookies";
 import { tryParse } from "@/utils/json/try-parse";
 import { Empty } from "@/utils/objects/empty";
 
@@ -187,15 +188,7 @@ Context.prototype.loadRequestCookies = function (this: Context) {
 		return;
 	}
 
-	const cookies = new Bun.CookieMap(header);
-
-	this.response.cookies = cookies;
-
-	if (cookies.size === 0) {
-		return;
-	}
-
-	this.request.cookies = cookies.toJSON();
+	this.request.cookies = parseCookies(header);
 };
 
 Context.prototype.loadRequestHeaders = function (this: Context) {
