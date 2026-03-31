@@ -184,8 +184,6 @@ Context.prototype.loadRequestCookies = function (this: Context) {
 	const header = this.request.raw.headers.get("cookie");
 
 	if (!header) {
-		this.response.cookies = new Bun.CookieMap();
-
 		return;
 	}
 
