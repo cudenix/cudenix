@@ -8,56 +8,47 @@ import type {
 	MergeErrors,
 	TransformError,
 } from "@/core/error";
-import {
-	type AnyGroup,
-	type AnyGroupFn,
-	type AnyGroupOptions,
-	Group,
-	type GroupFn,
-	type GroupOptions,
+import type {
+	AnyGroup,
+	AnyGroupFn,
+	AnyGroupOptions,
+	GroupFn,
+	GroupOptions,
 } from "@/core/group";
-import {
-	type AnyMiddleware,
-	type AnyMiddlewareFn,
-	Middleware,
-	type MiddlewareFn,
+import type {
+	AnyMiddleware,
+	AnyMiddlewareFn,
+	MiddlewareFn,
 } from "@/core/middleware";
-import {
-	type AnyRoute,
-	type AnyRouteFn,
-	type AnyRouteOptions,
-	type ParseRoute,
-	type PathToObject,
-	Route,
-	type RouteFn,
-	type RouteFnReturnGenerator,
-	type RouteFnReturnWS,
-	type RouteOptions,
-	type ValidatorsWithParams,
+import type {
+	AnyRoute,
+	AnyRouteFn,
+	AnyRouteOptions,
+	ParseRoute,
+	PathToObject,
+	RouteFn,
+	RouteFnReturnGenerator,
+	RouteFnReturnWS,
+	RouteOptions,
+	ValidatorsWithParams,
 } from "@/core/route";
-import {
-	type AnyStore,
-	type AnyStoreFn,
-	Store,
-	type StoreFn,
-} from "@/core/store";
+import type { AnyStore, AnyStoreFn, StoreFn } from "@/core/store";
 import type {
 	AnySuccess,
 	FilterSuccess,
 	MergeSuccesses,
 	TransformSuccess,
 } from "@/core/success";
-import {
-	type AnyValidator,
-	type AnyValidatorOptions,
-	type DeepInferValidatorError,
-	type DeepInferValidatorInput,
-	type DeepInferValidatorOutput,
-	type MergeInferValidatorRequest,
-	type TransformValidatorError,
-	Validator,
-	type ValidatorOptions,
-	type ValidatorRequest,
+import type {
+	AnyValidator,
+	AnyValidatorOptions,
+	DeepInferValidatorError,
+	DeepInferValidatorInput,
+	DeepInferValidatorOutput,
+	MergeInferValidatorRequest,
+	TransformValidatorError,
+	ValidatorOptions,
+	ValidatorRequest,
 } from "@/core/validator";
 import type { AllPropertiesAreUnknown } from "@/types/all-properties-are-unknown";
 import type { ExtractUrlParams } from "@/types/extract-url-params";
@@ -65,6 +56,7 @@ import type { HttpMethod } from "@/types/http-method";
 import type { MergePaths } from "@/types/merge-paths";
 import type { RequiredKeys } from "@/types/required-keys";
 import type { ValueOf } from "@/types/value-of";
+import { isGenerator } from "@/utils/functions/is-generator";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
 type ModuleChain = (
@@ -338,9 +330,13 @@ Module.prototype.extends = function (
 Module.prototype.group = function (
 	this: AnyModule,
 	group: AnyGroupFn,
-	options?: AnyGroupOptions,
+	{ prefix = "" }: AnyGroupOptions = FreezeEmpty,
 ) {
-	this.chain.push(new Group(group, options));
+	this.chain.push({
+		group,
+		prefix,
+		type: "GROUP" as const,
+	});
 
 	return this;
 };
@@ -349,7 +345,10 @@ Module.prototype.middleware = function (
 	this: AnyModule,
 	middleware: AnyMiddlewareFn,
 ) {
-	this.chain.push(new Middleware(middleware));
+	this.chain.push({
+		middleware,
+		type: "MIDDLEWARE" as const,
+	});
 
 	return this;
 };
@@ -359,15 +358,33 @@ Module.prototype.route = function (
 	method: HttpMethod,
 	path: `/${string}`,
 	route: AnyRouteFn,
-	options?: AnyRouteOptions,
+	{ validator }: AnyRouteOptions = FreezeEmpty,
 ) {
-	this.chain.push(new Route(method, path, route, options));
+	this.chain.push({
+		generator: isGenerator(route),
+		method,
+		path,
+		route,
+		type: "ROUTE" as const,
+		validator: validator
+			? {
+					keys: Object.keys(
+						validator.request,
+					) as (keyof ValidatorRequest)[],
+					request: validator.request,
+					type: "VALIDATOR" as const,
+				}
+			: undefined,
+	});
 
 	return this;
 };
 
 Module.prototype.store = function (this: AnyModule, store: AnyStoreFn) {
-	this.chain.push(new Store(store));
+	this.chain.push({
+		store,
+		type: "STORE" as const,
+	});
 
 	return this;
 };
@@ -376,7 +393,11 @@ Module.prototype.validator = function (
 	this: AnyModule,
 	options: AnyValidatorOptions,
 ) {
-	this.chain.push(new Validator(options));
+	this.chain.push({
+		keys: Object.keys(options.request) as (keyof ValidatorRequest)[],
+		request: options.request,
+		type: "VALIDATOR" as const,
+	});
 
 	return this;
 };
