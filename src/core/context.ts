@@ -154,25 +154,25 @@ Context.prototype.loadRequestBody = async function (this: Context) {
 	) {
 		const formData = await this.request.raw.formData();
 
-		const result = new Empty();
+		const body = new Empty();
 
 		for (const [key, value] of formData) {
-			if (result[key] === undefined) {
-				result[key] = value;
+			if (body[key] === undefined) {
+				body[key] = value;
 
 				continue;
 			}
 
-			if (Array.isArray(result[key])) {
-				result[key].push(value);
+			if (Array.isArray(body[key])) {
+				body[key].push(value);
 
 				continue;
 			}
 
-			result[key] = [result[key], value];
+			body[key] = [body[key], value];
 		}
 
-		this.request.body = result;
+		this.request.body = body;
 
 		return;
 	}
