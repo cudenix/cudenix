@@ -2,7 +2,6 @@ import type { App, Chain, Endpoint } from "@/core/app";
 import { type AnyModule, Module } from "@/core/module";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
-import { validateStandardSchema } from "@/utils/standard-schema/validate";
 
 export const USE_BODY = 1;
 export const USE_COOKIES = 2;
@@ -242,10 +241,6 @@ const step = (
 };
 
 export const compile = (app: App, module: AnyModule) => {
-	if (!app.memory.has("validator")) {
-		app.memory.set("validator", validateStandardSchema);
-	}
-
 	const endpoints = new Map<string, Endpoint[]>();
 
 	step(endpoints, module, {
