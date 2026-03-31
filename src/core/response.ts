@@ -1,7 +1,7 @@
 import type { ContextResponse } from "@/core/context";
 
 export const processResponse = (response: ContextResponse) => {
-	if (response.cookies) {
+	if (response.cookies.size > 0) {
 		const setCookieHeaders = response.cookies.toSetCookieHeaders();
 
 		for (let i = 0; i < setCookieHeaders.length; i++) {
