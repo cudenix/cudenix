@@ -1,12 +1,13 @@
 import type { ContextResponse } from "@/core/context";
+import { FreezeEmpty } from "@/utils/objects/empty";
 
-export interface ProcessResponseOptions {
+interface ProcessResponseOptions {
 	serializeCookies?: boolean;
 }
 
 export const processResponse = (
 	response: ContextResponse,
-	{ serializeCookies }: ProcessResponseOptions,
+	{ serializeCookies }: ProcessResponseOptions = FreezeEmpty,
 ) => {
 	if (serializeCookies && response.cookies.size > 0) {
 		const setCookieHeaders = response.cookies.toSetCookieHeaders();
@@ -25,29 +26,35 @@ export const processResponse = (
 	const content = response.content;
 
 	if (content instanceof ReadableStream) {
-		response.headers.set("cache-control", "no-cache");
-		response.headers.set("connection", "keep-alive");
+		const headers = response.headers;
 
-		if (!response.headers.has("content-type")) {
-			response.headers.set("content-type", "text/event-stream");
+		headers.set("cache-control", "no-cache");
+		headers.set("connection", "keep-alive");
+
+		if (!headers.has("content-type")) {
+			headers.set("content-type", "text/event-stream");
 		}
 
-		return new Response(content, {
-			headers: response.headers,
-		});
+		return new Response(content, { headers });
 	}
+
+	const headers = response.headers.count > 0 ? response.headers : undefined;
 
 	if (!content) {
 		return new Response(undefined, {
-			headers: response.headers,
+			headers,
 			status: 204,
 		});
 	}
 
 	if (content.content instanceof Response) {
+		if (!headers) {
+			return content.content;
+		}
+
 		const original = content.content;
 
-		for (const [key, value] of response.headers) {
+		for (const [key, value] of headers) {
 			original.headers.append(key, value);
 		}
 
@@ -62,14 +69,14 @@ export const processResponse = (
 				success: content.success,
 			},
 			{
-				headers: response.headers,
+				headers,
 				status: content.status,
 			},
 		);
 	}
 
 	return new Response(content.content, {
-		headers: response.headers,
+		headers,
 		status: content.status,
 	});
 };
