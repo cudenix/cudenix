@@ -352,13 +352,17 @@ export const stepAndRespond = (
 			return returned.then((resolved) => {
 				resolveRoute(app, context, request, endpoint, resolved);
 
-				return processResponse(context.response);
+				return processResponse(context.response, {
+					serializeCookies: !!endpoint.paramsRegexp,
+				});
 			});
 		}
 
 		resolveRoute(app, context, request, endpoint, returned);
 
-		return processResponse(context.response);
+		return processResponse(context.response, {
+			serializeCookies: !!endpoint.paramsRegexp,
+		});
 	}
 
 	const returned = step(
@@ -373,9 +377,13 @@ export const stepAndRespond = (
 
 	if (returned instanceof Promise) {
 		return returned.then(() => {
-			return processResponse(context.response);
+			return processResponse(context.response, {
+				serializeCookies: !!endpoint.paramsRegexp,
+			});
 		});
 	}
 
-	return processResponse(context.response);
+	return processResponse(context.response, {
+		serializeCookies: !!endpoint.paramsRegexp,
+	});
 };

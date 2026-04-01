@@ -93,7 +93,9 @@ export const Context = function (
 	};
 	this.response = {
 		content: undefined,
-		cookies: new Bun.CookieMap(),
+		cookies: endpoint.paramsRegexp
+			? new Bun.CookieMap()
+			: (request as Bun.BunRequest).cookies,
 		headers: new Headers(),
 	} as unknown as ContextResponse;
 	this.server = server;
