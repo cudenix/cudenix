@@ -6,7 +6,7 @@ interface PathToRegexpOptions {
 
 export const pathToRegexp = (
 	path: string,
-	{ captureParamGroups = false }: PathToRegexpOptions = FreezeEmpty,
+	{ captureParamGroups }: PathToRegexpOptions = FreezeEmpty,
 ) => {
 	if (path === "/") {
 		return "()\\/";
