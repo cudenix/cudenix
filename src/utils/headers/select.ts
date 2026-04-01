@@ -1,10 +1,15 @@
 import { parseQuality } from "@/utils/headers/quality";
+import { FreezeEmpty } from "@/utils/objects/empty";
+
+interface SelectHeaderOptions {
+	prefixMatch?: boolean;
+}
 
 export const selectHeader = (
 	header: string,
 	candidates: readonly string[],
-	prefixMatch?: boolean,
-): string | undefined => {
+	{ prefixMatch }: SelectHeaderOptions = FreezeEmpty,
+) => {
 	if (!header) {
 		return;
 	}
