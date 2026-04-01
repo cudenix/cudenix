@@ -1,8 +1,12 @@
-const AsyncGeneratorFunction = async function* () {}.constructor as Function;
+const AsyncGeneratorFunction = async function* () {}.constructor as (
+	...args: any[]
+) => unknown;
 
-const GeneratorFunction = function* () {}.constructor as Function;
+const GeneratorFunction = function* () {}.constructor as (
+	...args: any[]
+) => unknown;
 
-export const isGenerator = (fn: (...args: any[]) => any) => {
+export const isGenerator = (fn: (...args: any[]) => unknown) => {
 	return (
 		fn instanceof AsyncGeneratorFunction || fn instanceof GeneratorFunction
 	);
