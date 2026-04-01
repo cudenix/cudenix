@@ -44,7 +44,11 @@ const applyValidation = (
 	state.index ??= new Empty() as Record<string, number>;
 
 	if (state.index[key] !== undefined) {
-		state.errors[state.index[key]]?.details.push(...content);
+		const details = state.errors[state.index[key]]!.details;
+
+		for (let i = 0; i < content.length; i++) {
+			details.push(content[i]);
+		}
 
 		return;
 	}
@@ -350,7 +354,7 @@ export const stepAndRespond = (
 
 		if (returned instanceof Promise) {
 			return returned.then((resolved) => {
-				resolveRoute(app, context, request, endpoint, resolved);
+				context.response.content = resolved;
 
 				return processResponse(context.response, {
 					serializeCookies: !!endpoint.paramsRegexp,
@@ -358,7 +362,7 @@ export const stepAndRespond = (
 			});
 		}
 
-		resolveRoute(app, context, request, endpoint, returned);
+		context.response.content = returned;
 
 		return processResponse(context.response, {
 			serializeCookies: !!endpoint.paramsRegexp,
