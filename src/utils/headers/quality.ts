@@ -1,4 +1,4 @@
-export const parseQuality = (entry: string, semiIdx: number): number => {
+export const parseQuality = (entry: string, semiIdx: number) => {
 	const params = entry.slice(semiIdx + 1).split(";");
 
 	for (let i = 0; i < params.length; i++) {
