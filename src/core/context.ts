@@ -72,6 +72,71 @@ type Constructor = new (
 	server: Bun.Server<unknown>,
 ) => Context;
 
+type ContextResponseConstructor = new (
+	cookies?: Bun.CookieMap,
+) => ContextResponse;
+
+const ContextResponse = function (
+	this: ContextResponse,
+	cookies?: Bun.CookieMap,
+) {
+	this.content = undefined;
+
+	if (cookies) {
+		this.cookies = cookies;
+	}
+} as unknown as ContextResponseConstructor;
+
+Object.defineProperty(ContextResponse.prototype, "headers", {
+	configurable: true,
+	enumerable: true,
+	get() {
+		const headers = new Headers();
+
+		Object.defineProperty(this, "headers", {
+			configurable: true,
+			enumerable: true,
+			value: headers,
+			writable: true,
+		});
+
+		return headers;
+	},
+	set(value: Headers) {
+		Object.defineProperty(this, "headers", {
+			configurable: true,
+			enumerable: true,
+			value,
+			writable: true,
+		});
+	},
+});
+
+Object.defineProperty(ContextResponse.prototype, "cookies", {
+	configurable: true,
+	enumerable: true,
+	get() {
+		const cookies = new Bun.CookieMap();
+
+		Object.defineProperty(this, "cookies", {
+			configurable: true,
+			enumerable: true,
+			value: cookies,
+			writable: true,
+		});
+
+		return cookies;
+	},
+	set(value: Bun.CookieMap) {
+		Object.defineProperty(this, "cookies", {
+			configurable: true,
+			enumerable: true,
+			value,
+			writable: true,
+		});
+	},
+});
+
 export const Context = function (
 	this: Context,
 	endpoint: Endpoint,
@@ -91,13 +156,9 @@ export const Context = function (
 		query: undefined,
 		raw: request,
 	};
-	this.response = {
-		content: undefined,
-		cookies: endpoint.paramsRegexp
-			? new Bun.CookieMap()
-			: (request as Bun.BunRequest).cookies,
-		headers: new Headers(),
-	} as unknown as ContextResponse;
+	this.response = new ContextResponse(
+		endpoint.paramsRegexp ? undefined : (request as Bun.BunRequest).cookies,
+	);
 	this.server = server;
 	this.store = new Empty();
 } as unknown as Constructor;
