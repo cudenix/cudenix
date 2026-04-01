@@ -9,6 +9,7 @@ import type {
 	ValidatorRequest,
 } from "@/core/validator";
 import type { MaybePromise } from "@/types/maybe-promise";
+import type { WSData } from "@/types/ws";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 
@@ -120,19 +121,19 @@ const resolveRoute = (
 					code: number,
 					reason: string,
 				) => {
-					return returned?.close?.(ws, code, reason);
+					return (returned as WSData)?.close?.(ws, code, reason);
 				},
 				drain: (ws: Bun.ServerWebSocket<unknown>) => {
-					return returned?.drain?.(ws);
+					return (returned as WSData)?.drain?.(ws);
 				},
 				message: (
 					ws: Bun.ServerWebSocket<unknown>,
 					message: string,
 				) => {
-					return returned?.message(ws, message);
+					return (returned as WSData)?.message?.(ws, message);
 				},
 				open: (ws: Bun.ServerWebSocket<unknown>) => {
-					return returned?.open?.(ws);
+					return (returned as WSData)?.open?.(ws);
 				},
 			},
 		});
