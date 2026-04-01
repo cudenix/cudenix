@@ -38,7 +38,9 @@ export const processResponse = (
 		return new Response(content, { headers });
 	}
 
-	const headers = response.headers.count > 0 ? response.headers : undefined;
+	const headers = Object.hasOwn(response, "headers")
+		? response.headers
+		: undefined;
 
 	if (!content) {
 		return new Response(undefined, {
