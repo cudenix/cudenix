@@ -174,6 +174,7 @@ App.prototype.listen = function (
 			open: (ws) => {
 				(ws.data as WSData)?.open?.(ws);
 			},
+			perMessageDeflate: true,
 		},
 	});
 
