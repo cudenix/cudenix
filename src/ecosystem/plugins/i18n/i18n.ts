@@ -286,7 +286,9 @@ export const i18n = () => {
 									) ??
 									STORE.language,
 								STORE.languages,
-								true,
+								{
+									prefixMatch: true,
+								},
 							) ?? STORE.language),
 			};
 
