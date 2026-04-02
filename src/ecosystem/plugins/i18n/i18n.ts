@@ -176,13 +176,17 @@ export const load = async (
 		withFileTypes: true,
 	});
 
-	const languages = directories
-		.filter((directory) => {
-			return directory.isDirectory();
-		})
-		.map((directory) => {
-			return directory.name;
-		});
+	const languages = [] as string[];
+
+	for (let i = 0; i < directories.length; i++) {
+		const directory = directories[i];
+
+		if (!directory?.isDirectory()) {
+			continue;
+		}
+
+		languages.push(directory.name);
+	}
 
 	Object.assign(STORE, {
 		cookie,
