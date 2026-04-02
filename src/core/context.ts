@@ -340,7 +340,7 @@ Context.prototype.loadRequestQuery = function (this: Context) {
 
 			value = url.substring(valueStart, i);
 		} else {
-			value = "true";
+			value = "";
 		}
 
 		if (key.length > 0) {
