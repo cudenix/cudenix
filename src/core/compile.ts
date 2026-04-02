@@ -227,6 +227,8 @@ export const compile = (app: App, module: AnyModule) => {
 		path: "",
 	});
 
+	app.memory.set("endpoints", endpoints);
+
 	for (const [method, methodEndpoints] of endpoints) {
 		if (methodEndpoints.length === 0) {
 			continue;
