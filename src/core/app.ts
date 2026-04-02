@@ -61,13 +61,7 @@ App.prototype.compile = function (this: App) {
 		const plugins = this.memory.get("plugins") as Plugin[];
 
 		for (let i = 0; i < plugins.length; i++) {
-			const plugin = plugins[i];
-
-			if (!plugin) {
-				continue;
-			}
-
-			plugin.call(this);
+			plugins[i]!.call(this);
 		}
 	}
 
@@ -197,13 +191,7 @@ App.prototype.plugins = function (this: App, plugins: Plugin[]) {
 	const memoryPlugins = this.memory.get("plugins") as Plugin[];
 
 	for (let i = 0; i < plugins.length; i++) {
-		const plugin = plugins[i];
-
-		if (!plugin) {
-			continue;
-		}
-
-		memoryPlugins.push(plugin);
+		memoryPlugins.push(plugins[i]!);
 	}
 
 	return this;
