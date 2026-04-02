@@ -7,20 +7,10 @@ import type { ConditionallyOptional } from "@/types/conditionally-optional";
 import type { AnyGeneratorSSE } from "@/types/generator-sse";
 import type { MaybeFunction } from "@/types/maybe-function";
 import type { Merge } from "@/types/merge";
-import { isFile } from "@/utils/files/is-file";
-import { tryParse } from "@/utils/json/try-parse";
-import { FreezeEmpty } from "@/utils/objects/empty";
+import { Empty, FreezeEmpty } from "@/utils/objects/empty";
 
-const JSON_FIRST_CHAR = new Uint8Array(128);
 const PARAM_REGEX_REPLACE = /\/:(\w+\??)/g;
 const SPREAD_REGEX_REPLACE = /\/\.{3}(\w+\??)/g;
-
-for (const char of [
-	9, 10, 13, 32, 34, 45, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 91, 102, 110,
-	116, 123,
-]) {
-	JSON_FIRST_CHAR[char] = 1;
-}
 
 type RequestOptions<Request> = Merge<
 	Omit<RequestInit, "method"> & {
@@ -74,64 +64,38 @@ type ClientOptions = MaybeFunction<
 	} & Omit<RequestInit, "method">
 >;
 
-const transform = (value: string) => {
-	if (value.length === 0) {
-		return value;
-	}
-
-	if (value.trim() !== "" && !Number.isNaN(Number(value))) {
-		return Number(value);
-	}
-
-	if (value === "true") {
-		return true;
-	}
-
-	if (value === "false") {
-		return false;
-	}
-
-	const date = new Date(value);
-
-	if (!Number.isNaN(date.getTime())) {
-		return date;
-	}
-
-	const firstChar = value.charCodeAt(0);
-
-	if (firstChar < 128 && JSON_FIRST_CHAR[firstChar]) {
-		return tryParse(value);
-	}
-
-	return value;
-};
-
-const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
+const createProxy = (globalOptions: ClientOptions, paths: string[] = []) => {
 	return new Proxy(() => {}, {
 		async apply(target, thisArg, [requestOptions = FreezeEmpty]) {
-			const mergedOptions = {
-				...(typeof options === "function" ? await options() : options),
+			const options = {
+				...(typeof globalOptions === "function"
+					? await globalOptions()
+					: globalOptions),
 				...requestOptions,
 			};
 
 			const end = paths.length - 1;
 
-			let pathStr = "";
+			let path: string;
 
-			for (let i = 0; i < end; i++) {
-				if (i > 0) {
-					pathStr += "/";
+			if (end <= 0) {
+				path = "";
+			} else if (end === 1) {
+				path = paths[0]!;
+			} else {
+				path = paths[0]!;
+
+				for (let i = 1; i < end; i++) {
+					path = `${path}/${paths[i]}`;
 				}
-
-				pathStr += paths[i];
 			}
 
-			let url = `${mergedOptions.url}/${pathStr}`;
+			let url = `${options.url}/${path}`;
 
-			delete mergedOptions.url;
+			delete options.url;
 
-			if (mergedOptions.body) {
-				const keys = Object.keys(mergedOptions.body);
+			if (options.body) {
+				const keys = Object.keys(options.body);
 
 				let hasFile = false;
 
@@ -142,10 +106,15 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 						continue;
 					}
 
+					const value = options.body[key];
+
 					if (
-						isFile(mergedOptions.body[key]) ||
-						(Array.isArray(mergedOptions.body[key]) &&
-							(mergedOptions.body[key] as Blob[]).some(isFile))
+						value instanceof File ||
+						value instanceof Blob ||
+						(Array.isArray(value) &&
+							value.length > 0 &&
+							(value[0] instanceof File ||
+								value[0] instanceof Blob))
 					) {
 						hasFile = true;
 
@@ -163,40 +132,31 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 							continue;
 						}
 
-						if (Array.isArray(mergedOptions.body[key])) {
-							for (
-								let j = 0;
-								j <
-								(mergedOptions.body[key] as unknown[]).length;
-								j++
-							) {
-								formData.append(
-									key,
-									(mergedOptions.body[key] as any[])[j],
-								);
+						const value = options.body[key];
+
+						if (Array.isArray(value)) {
+							for (let j = 0; j < value.length; j++) {
+								formData.append(key, value[j]);
 							}
 
 							continue;
 						}
 
-						formData.append(key, mergedOptions.body[key]);
+						formData.append(key, value);
 					}
 
-					mergedOptions.body = formData;
+					options.body = formData;
 				} else {
-					try {
-						mergedOptions.body = JSON.stringify(mergedOptions.body);
+					options.body = JSON.stringify(options.body);
 
-						mergedOptions.headers = {
-							...mergedOptions.headers,
-							"content-type": "application/json",
-						};
-					} catch {}
+					options.headers["content-type"] = "application/json";
 				}
 			}
 
-			if (mergedOptions.query) {
-				const keys = Object.keys(mergedOptions.query);
+			if (options.query) {
+				const keys = Object.keys(options.query);
+
+				let query = "";
 
 				for (let i = 0; i < keys.length; i++) {
 					const key = keys[i];
@@ -205,41 +165,33 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 						continue;
 					}
 
-					const value = mergedOptions.query[key];
+					const value = options.query[key];
 
-					if (value === undefined) {
-						delete mergedOptions.query[key];
-
-						continue;
+					if (query.length > 0) {
+						query += "&";
 					}
 
 					if (typeof value === "object" && value) {
-						mergedOptions.query[key] = JSON.stringify(value);
+						query +=
+							encodeURIComponent(key) +
+							"=" +
+							encodeURIComponent(JSON.stringify(value));
+					} else {
+						query +=
+							encodeURIComponent(key) +
+							"=" +
+							encodeURIComponent(String(value));
 					}
 				}
 
-				url = `${url}?${new URLSearchParams(mergedOptions.query).toString()}`;
-			}
-
-			if (mergedOptions.headers) {
-				const keys = Object.keys(mergedOptions.headers);
-
-				for (let i = 0; i < keys.length; i++) {
-					const key = keys[i];
-
-					if (!key) {
-						continue;
-					}
-
-					if (mergedOptions.headers[key] === undefined) {
-						delete mergedOptions.headers[key];
-					}
+				if (query.length > 0) {
+					url = `${url}?${query}`;
 				}
 			}
 
 			if (url.indexOf("/:") !== -1) {
 				url = url.replaceAll(PARAM_REGEX_REPLACE, (_, key: string) => {
-					const param = mergedOptions.params?.[
+					const param = options.params?.[
 						key.endsWith("?") ? key.slice(0, -1) : key
 					] as string | undefined;
 
@@ -249,7 +201,7 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 
 			if (url.indexOf("/...") !== -1) {
 				url = url.replaceAll(SPREAD_REGEX_REPLACE, (_, key: string) => {
-					const params = mergedOptions.params?.[
+					const params = options.params?.[
 						key.endsWith("?") ? key.slice(0, -1) : key
 					] as string[] | undefined;
 
@@ -257,9 +209,9 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				});
 			}
 
-			mergedOptions.method = paths[end];
+			options.method = paths[end];
 
-			if (mergedOptions.method === "ws") {
+			if (options.method === "ws") {
 				url = url.startsWith("https://")
 					? url.replace("https://", "wss://")
 					: url.replace("http://", "ws://");
@@ -267,18 +219,35 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				return (await import("@/ecosystem/client/ws")).ws(url);
 			}
 
-			const response = await fetch(url, mergedOptions);
+			const response = await fetch(url, options);
 
-			const contentType = response.headers
-				.get("Content-Type")
-				?.toLowerCase()
-				.split(";")[0];
+			const contentType = response.headers.get("content-type");
 
-			if (contentType === "application/json") {
+			if (!contentType) {
+				return response.text();
+			}
+
+			if (contentType.indexOf("application/json") !== -1) {
 				return response.json();
 			}
 
-			if (contentType === "text/event-stream") {
+			if (contentType.indexOf("application/octet-stream") !== -1) {
+				return response.arrayBuffer();
+			}
+
+			if (contentType.indexOf("multipart/form-data") !== -1) {
+				const formData = await response.formData();
+
+				const result = new Empty();
+
+				for (const [key, value] of formData) {
+					result[key] = value;
+				}
+
+				return result;
+			}
+
+			if (contentType.indexOf("text/event-stream") !== -1) {
 				return (await import("@/ecosystem/client/sse")).sse(
 					response.url,
 					{
@@ -287,17 +256,17 @@ const createProxy = (options: ClientOptions, paths: string[] = []): unknown => {
 				);
 			}
 
-			return transform(await response.text());
+			return response.text();
 		},
 		get(target, path: string) {
 			return createProxy(
-				options,
-				path === "index" ? paths : [...paths, path],
+				globalOptions,
+				path === "index" ? paths : paths.concat(path),
 			);
 		},
 	});
 };
 
 export const client = <const App extends AnyModule>(options: ClientOptions) => {
-	return createProxy(options) as ClientChain<App["routes"]>;
+	return createProxy(options) as unknown as ClientChain<App["routes"]>;
 };
