@@ -49,13 +49,7 @@ const getLinkUseBits = (link: Chain[number]) => {
 				break;
 			}
 
-			const key = link.keys[i];
-
-			if (!key) {
-				continue;
-			}
-
-			bits |= KEY_TO_BIT[key];
+			bits |= KEY_TO_BIT[link.keys[i]!];
 		}
 	} else {
 		const text =
@@ -121,6 +115,7 @@ const step = (
 			link.type === "VALIDATOR"
 		) {
 			chain.push(link);
+
 			merged.push(link);
 
 			continue;
@@ -132,16 +127,8 @@ const step = (
 				path: `${previous.path}${path === "/" ? "" : path}`,
 			});
 
-			chain.push(...compiled.chain);
-
 			for (let j = 0; j < compiled.chain.length; j++) {
-				const compiledLink = compiled.chain[j];
-
-				if (!compiledLink) {
-					continue;
-				}
-
-				merged.push(compiledLink);
+				chain.push(compiled.chain[j]!);
 			}
 
 			if (compiled.path !== "/") {
@@ -158,13 +145,7 @@ const step = (
 				break;
 			}
 
-			const mergedLink = merged[j];
-
-			if (!mergedLink) {
-				continue;
-			}
-
-			useBits |= getLinkUseBits(mergedLink);
+			useBits |= getLinkUseBits(merged[j]!);
 		}
 
 		if (useBits !== USE_ALL) {
@@ -195,13 +176,7 @@ const step = (
 					break;
 				}
 
-				const key = link.validator.keys[j];
-
-				if (!key) {
-					continue;
-				}
-
-				useBits |= KEY_TO_BIT[key];
+				useBits |= KEY_TO_BIT[link.validator.keys[j]!];
 			}
 		}
 
@@ -221,7 +196,7 @@ const step = (
 
 		methodEndpoints.push({
 			chain: link.validator
-				? merged.concat(link.validator)
+				? [...merged, link.validator]
 				: merged.slice(),
 			generator: link.generator,
 			paramsRegexp:
