@@ -64,14 +64,6 @@ export interface Context {
 	store: Record<PropertyKey, unknown>;
 }
 
-type Constructor = new (
-	endpoint: Endpoint,
-	memory: Map<string, unknown>,
-	path: string,
-	request: Request,
-	server: Bun.Server<unknown>,
-) => Context;
-
 type ContextResponseConstructor = new (
 	cookies?: Bun.CookieMap,
 ) => ContextResponse;
@@ -83,7 +75,7 @@ const ContextResponse = function (
 	this.content = undefined;
 
 	if (cookies) {
-		this.cookies = cookies;
+		(this as any)._c = cookies;
 	}
 } as unknown as ContextResponseConstructor;
 
@@ -91,24 +83,18 @@ Object.defineProperty(ContextResponse.prototype, "headers", {
 	configurable: true,
 	enumerable: true,
 	get() {
-		const headers = new Headers();
+		const headers = this._h;
 
-		Object.defineProperty(this, "headers", {
-			configurable: true,
-			enumerable: true,
-			value: headers,
-			writable: true,
-		});
+		if (headers) {
+			return headers;
+		}
 
-		return headers;
+		this._h = new Headers();
+
+		return this._h;
 	},
 	set(value: Headers) {
-		Object.defineProperty(this, "headers", {
-			configurable: true,
-			enumerable: true,
-			value,
-			writable: true,
-		});
+		this._h = value;
 	},
 });
 
@@ -116,26 +102,28 @@ Object.defineProperty(ContextResponse.prototype, "cookies", {
 	configurable: true,
 	enumerable: true,
 	get() {
-		const cookies = new Bun.CookieMap();
+		const cookies = this._c;
 
-		Object.defineProperty(this, "cookies", {
-			configurable: true,
-			enumerable: true,
-			value: cookies,
-			writable: true,
-		});
+		if (cookies) {
+			return cookies;
+		}
 
-		return cookies;
+		this._c = new Bun.CookieMap();
+
+		return this._c;
 	},
 	set(value: Bun.CookieMap) {
-		Object.defineProperty(this, "cookies", {
-			configurable: true,
-			enumerable: true,
-			value,
-			writable: true,
-		});
+		this._c = value;
 	},
 });
+
+type Constructor = new (
+	endpoint: Endpoint,
+	memory: Map<string, unknown>,
+	path: string,
+	request: Request,
+	server: Bun.Server<unknown>,
+) => Context;
 
 export const Context = function (
 	this: Context,
