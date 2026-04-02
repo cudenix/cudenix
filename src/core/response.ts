@@ -35,7 +35,9 @@ export const processResponse = (
 			headers.set("content-type", "text/event-stream");
 		}
 
-		return new Response(content, { headers });
+		return new Response(content, {
+			headers,
+		});
 	}
 
 	const headers = (response as any)._h;
