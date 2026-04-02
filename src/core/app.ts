@@ -57,6 +57,8 @@ export const App = function (this: App, module: AnyModule) {
 } as unknown as Constructor;
 
 App.prototype.compile = function (this: App) {
+	compile(this, this.memory.get("module") as AnyModule);
+
 	if (this.memory.has("plugins")) {
 		const plugins = this.memory.get("plugins") as Plugin[];
 
@@ -64,8 +66,6 @@ App.prototype.compile = function (this: App) {
 			plugins[i]!.call(this);
 		}
 	}
-
-	compile(this, this.memory.get("module") as AnyModule);
 
 	this.memory.delete("module");
 
