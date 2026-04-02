@@ -194,7 +194,17 @@ App.prototype.plugins = function (this: App, plugins: Plugin[]) {
 		this.memory.set("plugins", []);
 	}
 
-	(this.memory.get("plugins") as Plugin[]).push(...plugins);
+	const memoryPlugins = this.memory.get("plugins") as Plugin[];
+
+	for (let i = 0; i < plugins.length; i++) {
+		const plugin = plugins[i];
+
+		if (!plugin) {
+			continue;
+		}
+
+		memoryPlugins.push(plugin);
+	}
 
 	return this;
 };
