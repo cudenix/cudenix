@@ -9,6 +9,13 @@ const COMPRESSIBLE_REGEXP =
 
 const ENCODING_NAMES = ["br", "gzip", "deflate", "zstd"] as const;
 
+const COMPRESSION_ALGORITHM = {
+	br: "brotli",
+	deflate: "deflate",
+	gzip: "gzip",
+	zstd: "zstd",
+} as const;
+
 interface CompressOptions {
 	threshold?: number;
 }
@@ -19,25 +26,40 @@ export const compress = ({
 	return module().middleware(async ({ request: { raw }, response }, next) => {
 		await next();
 
+		if (!response.content || raw.method === "HEAD") {
+			return;
+		}
+
+		const responseHeaders = response.headers;
+
 		if (
-			!response.content ||
-			raw.method === "HEAD" ||
-			+(response.headers.get("content-length") ?? "") < threshold ||
-			response.headers.has("content-encoding") ||
-			response.headers.has("content-range") ||
-			response.headers.has("transfer-encoding") ||
-			raw.headers.has("range") ||
-			(response.headers.get("cache-control") ?? "").indexOf(
-				"no-transform",
-			) !== -1
+			responseHeaders.has("content-encoding") ||
+			responseHeaders.has("content-range") ||
+			responseHeaders.has("transfer-encoding") ||
+			raw.headers.has("range")
 		) {
 			return;
 		}
 
-		const encodingName = selectHeader(
-			raw.headers.get("accept-encoding") ?? "",
-			ENCODING_NAMES,
-		);
+		const contentLength = responseHeaders.get("content-length");
+
+		if (contentLength && +contentLength < threshold) {
+			return;
+		}
+
+		const cacheControl = responseHeaders.get("cache-control");
+
+		if (cacheControl && cacheControl.indexOf("no-transform") !== -1) {
+			return;
+		}
+
+		const acceptEncoding = raw.headers.get("accept-encoding");
+
+		if (!acceptEncoding) {
+			return;
+		}
+
+		const encodingName = selectHeader(acceptEncoding, ENCODING_NAMES);
 
 		if (!encodingName) {
 			return;
@@ -52,20 +74,30 @@ export const compress = ({
 			return;
 		}
 
-		let stream = processedResponse.body;
+		const body = processedResponse.body;
 
-		if (!stream) {
+		let compressed: BodyInit;
+
+		if (body) {
+			compressed = body.pipeThrough(
+				// @ts-expect-error
+				new CompressionStream(COMPRESSION_ALGORITHM[encodingName]),
+			);
+		} else {
 			const buffer = await processedResponse.arrayBuffer();
 
 			if (buffer.byteLength < threshold) {
 				return;
 			}
 
-			stream = new Blob([buffer]).stream();
-		}
-
-		if (!stream) {
-			return;
+			if (encodingName === "gzip") {
+				compressed = Bun.gzipSync(new Uint8Array(buffer));
+			} else {
+				compressed = new Blob([buffer]).stream().pipeThrough(
+					// @ts-expect-error
+					new CompressionStream(COMPRESSION_ALGORITHM[encodingName]),
+				);
+			}
 		}
 
 		processedHeaders.delete("content-length");
@@ -79,15 +111,7 @@ export const compress = ({
 		processedHeaders.set("content-encoding", encodingName);
 
 		response.content = success(
-			new Response(
-				stream.pipeThrough(
-					new CompressionStream(
-						// @ts-expect-error
-						encodingName === "br" ? "brotli" : encodingName,
-					),
-				),
-				processedResponse,
-			),
+			new Response(compressed, processedResponse),
 			{
 				status: processedResponse.status,
 				transform: false,
