@@ -1,5 +1,3 @@
-import { FreezeEmpty } from "@/utils/objects/empty";
-
 // @ts-expect-error
 export interface WS<Request, Response> extends WebSocket {
 	onmessage: (event: MessageEvent<Response>) => void;
@@ -18,37 +16,42 @@ const onmessageSetter = Object.getOwnPropertyDescriptor(
 export const WS = function (this: AnyWS, url: string | URL) {
 	const webSocket = new WebSocket(url);
 
+	let currentListener: ((event: MessageEvent) => any) | undefined;
+
 	Object.defineProperty(webSocket, "onmessage", {
 		get() {
-			return webSocket.onmessage;
+			return currentListener;
 		},
-		set(listener: (event: MessageEvent) => any) {
-			onmessageSetter?.call(webSocket, (event: MessageEvent) => {
-				const parsed = Object.create(event);
+		set(listener: ((event: MessageEvent) => any) | undefined) {
+			currentListener = listener;
 
-				Object.defineProperty(parsed, "data", {
-					value: JSON.parse(event.data),
-				});
+			onmessageSetter?.call(
+				webSocket,
+				listener
+					? (event: MessageEvent) => {
+							const parsed = Object.create(event);
 
-				listener.call(webSocket, parsed);
-			});
+							Object.defineProperty(parsed, "data", {
+								value: JSON.parse(event.data),
+							});
+
+							listener.call(webSocket, parsed);
+						}
+					: undefined,
+			);
 		},
 	});
 
 	const send = webSocket.send;
 
 	Object.defineProperty(webSocket, "send", {
-		value(data: any, options = FreezeEmpty) {
-			// @ts-expect-error
-			send.call(webSocket, JSON.stringify(data), options);
+		value(data: any) {
+			send.call(webSocket, JSON.stringify(data));
 		},
 	});
 
 	return webSocket;
 } as unknown as Constructor;
-
-WS.prototype = Object.create(WebSocket.prototype);
-WS.prototype.constructor = WS;
 
 export const ws = <const Request, const Response>(url: string | URL) => {
 	return new WS(url) as WS<Request, Response>;
