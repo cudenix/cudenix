@@ -176,15 +176,19 @@ Context.prototype.loadRequest = function (this: Context) {
 };
 
 Context.prototype.loadRequestBody = async function (this: Context) {
-	const contentType = this.request.raw.headers
-		.get("content-type")
-		?.split(";")[0];
+	const rawContentType = this.request.raw.headers.get("content-type");
 
-	if (!contentType) {
+	if (!rawContentType) {
 		this.request.body = await this.request.raw.text();
 
 		return;
 	}
+
+	const semiIndex = rawContentType.indexOf(";");
+	const contentType =
+		semiIndex === -1
+			? rawContentType
+			: rawContentType.substring(0, semiIndex);
 
 	if (contentType === "application/json") {
 		this.request.body = await this.request.raw.json();
