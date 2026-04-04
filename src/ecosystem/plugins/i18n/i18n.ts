@@ -8,6 +8,10 @@ import { Empty, FreezeEmpty } from "@/utils/objects/empty";
 
 const STORE = new Empty() as unknown as I18n;
 
+const PREFIX_MATCH_OPTIONS = Object.freeze({
+	prefixMatch: true,
+});
+
 type DeepPaths<Type extends Record<PropertyKey, unknown>> = {
 	[Key in keyof Type]: Key extends string
 		? Type[Key] extends Record<PropertyKey, unknown>
@@ -49,7 +53,7 @@ interface TranslateOptions<Translation> {
 		: undefined;
 }
 
-export interface I18n {
+interface I18n {
 	cookie?: string;
 	header?: string;
 	language: string;
@@ -58,7 +62,7 @@ export interface I18n {
 	translations: Translation;
 }
 
-export const loadTranslations = async (directory: string) => {
+const loadTranslations = async (directory: string) => {
 	const result = new Empty() as Translation;
 
 	const entries = await readdir(directory, {
@@ -114,10 +118,18 @@ export const replace = <Translation extends string>(
 		[Key in ExtractPlaceholders<Translation>]?: string;
 	},
 ) => {
+	const firstPlaceholder = translation.indexOf("${");
+
+	if (firstPlaceholder === -1) {
+		return translation;
+	}
+
 	const length = translation.length;
 
-	let result = "";
-	let i = 0;
+	let result =
+		firstPlaceholder > 0 ? translation.substring(0, firstPlaceholder) : "";
+
+	let i = firstPlaceholder;
 
 	while (i < length) {
 		if (
@@ -129,11 +141,12 @@ export const replace = <Translation extends string>(
 			const closingIdx = translation.indexOf("}", start);
 
 			if (closingIdx !== -1 && closingIdx !== start) {
-				const key = translation.slice(start, closingIdx);
+				const key = translation.substring(start, closingIdx);
 				const value = replacements[key as keyof typeof replacements];
 
 				if (value !== undefined) {
 					result += value;
+
 					i = closingIdx + 1;
 
 					continue;
@@ -147,12 +160,12 @@ export const replace = <Translation extends string>(
 			const nextDollar = translation.indexOf("${", i);
 
 			if (nextDollar === -1) {
-				result += translation.slice(i);
+				result += translation.substring(i);
 
 				break;
 			}
 
-			result += translation.slice(i, nextDollar);
+			result += translation.substring(i, nextDollar);
 
 			i = nextDollar;
 		}
@@ -190,7 +203,7 @@ export const load = async (
 
 	Object.assign(STORE, {
 		cookie,
-		header,
+		header: header ?? "accept-language",
 		language,
 		languages,
 		path,
@@ -215,12 +228,14 @@ export const load = async (
 
 	await Promise.all(promises);
 
-	if (types !== false) {
-		await Bun.write(
-			join(path, "types.d.ts"),
-			`namespace Cudenix.i18n { interface Translations ${JSON.stringify(STORE.translations[language])}; };`,
-		);
+	if (types === false || !STORE.translations[language]) {
+		return;
 	}
+
+	await Bun.write(
+		join(path, "types.d.ts"),
+		`namespace Cudenix.i18n { interface Translations ${JSON.stringify(STORE.translations[language])}; };`,
+	);
 };
 
 export const getLanguage = () => {
@@ -252,13 +267,7 @@ export const translate = <
 	let translation = translations as Translation[string];
 
 	for (let i = 0; i < split.length; i++) {
-		const key = split[i];
-
-		if (!key) {
-			continue;
-		}
-
-		const next = (translation as Translation)[key];
+		const next = (translation as Translation)[split[i]!];
 
 		if (next === undefined) {
 			return path as DeepValue<Cudenix.i18n.Translations, Path>;
@@ -285,14 +294,10 @@ export const i18n = () => {
 								(STORE.cookie
 									? cookies.get(STORE.cookie)
 									: undefined) ??
-									raw.headers.get(
-										STORE.header ?? "accept-language",
-									) ??
+									raw.headers.get(STORE.header!) ??
 									STORE.language,
 								STORE.languages,
-								{
-									prefixMatch: true,
-								},
+								PREFIX_MATCH_OPTIONS,
 							) ?? STORE.language),
 			};
 
