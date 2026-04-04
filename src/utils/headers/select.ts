@@ -121,10 +121,10 @@ export const selectHeader = (
 				bestQ = q;
 				bestOrder = order;
 			} else if (prefixMatch) {
-				const dashIdx = name.indexOf("-");
+				const dashIndex = name.indexOf("-");
 
-				if (dashIdx !== -1) {
-					const prefix = name.substring(0, dashIdx);
+				if (dashIndex !== -1) {
+					const prefix = name.substring(0, dashIndex);
 
 					if (candidates.indexOf(prefix) !== -1) {
 						best = prefix;
