@@ -133,7 +133,7 @@ export const replace = <Translation extends string>(
 
 	while (i < length) {
 		if (
-			translation.charCodeAt(i) === 0x24 &&
+			translation.charCodeAt(i) === 24 &&
 			i + 1 < length &&
 			translation.charCodeAt(i + 1) === 0x7b
 		) {
