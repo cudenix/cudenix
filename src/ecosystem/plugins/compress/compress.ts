@@ -92,6 +92,10 @@ export const compress = ({
 
 			if (encodingName === "gzip") {
 				compressed = Bun.gzipSync(new Uint8Array(buffer));
+			} else if (encodingName === "zstd") {
+				compressed = Bun.zstdCompressSync(
+					new Uint8Array(buffer),
+				) as Uint8Array<ArrayBuffer>;
 			} else {
 				compressed = new Blob([buffer]).stream().pipeThrough(
 					// @ts-expect-error
