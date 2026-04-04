@@ -138,16 +138,16 @@ export const replace = <Translation extends string>(
 			translation.charCodeAt(i + 1) === 0x7b
 		) {
 			const start = i + 2;
-			const closingIdx = translation.indexOf("}", start);
+			const closingIndex = translation.indexOf("}", start);
 
-			if (closingIdx !== -1 && closingIdx !== start) {
-				const key = translation.substring(start, closingIdx);
+			if (closingIndex !== -1 && closingIndex !== start) {
+				const key = translation.substring(start, closingIndex);
 				const value = replacements[key as keyof typeof replacements];
 
 				if (value !== undefined) {
 					result += value;
 
-					i = closingIdx + 1;
+					i = closingIndex + 1;
 
 					continue;
 				}
