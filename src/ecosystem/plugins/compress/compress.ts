@@ -19,19 +19,17 @@ export const compress = ({
 	return module().middleware(async ({ request: { raw }, response }, next) => {
 		await next();
 
-		const contentLength = response.headers.get("content-length");
-
 		if (
 			!response.content ||
 			raw.method === "HEAD" ||
-			(response.headers.get("cache-control") ?? "").indexOf(
-				"no-transform",
-			) !== -1 ||
-			raw.headers.has("range") ||
+			+(response.headers.get("content-length") ?? "") < threshold ||
 			response.headers.has("content-encoding") ||
 			response.headers.has("content-range") ||
 			response.headers.has("transfer-encoding") ||
-			(contentLength && Number(contentLength) < threshold)
+			raw.headers.has("range") ||
+			(response.headers.get("cache-control") ?? "").indexOf(
+				"no-transform",
+			) !== -1
 		) {
 			return;
 		}
@@ -47,7 +45,8 @@ export const compress = ({
 
 		const processedResponse = processResponse(response);
 
-		const contentType = processedResponse.headers.get("content-type");
+		const processedHeaders = processedResponse.headers;
+		const contentType = processedHeaders.get("content-type");
 
 		if (!contentType || !COMPRESSIBLE_REGEXP.test(contentType)) {
 			return;
@@ -62,22 +61,22 @@ export const compress = ({
 				return;
 			}
 
-			stream = new Response(buffer).body;
+			stream = new Blob([buffer]).stream();
 		}
 
 		if (!stream) {
 			return;
 		}
 
-		const vary = processedResponse.headers.get("vary");
+		processedHeaders.delete("content-length");
+
+		const vary = processedHeaders.get("vary");
 
 		if (!vary || vary.toLowerCase().indexOf("accept-encoding") === -1) {
-			processedResponse.headers.append("vary", "Accept-Encoding");
+			processedHeaders.append("vary", "Accept-Encoding");
 		}
 
-		processedResponse.headers.delete("content-length");
-
-		processedResponse.headers.set("content-encoding", encodingName);
+		processedHeaders.set("content-encoding", encodingName);
 
 		response.content = success(
 			new Response(
