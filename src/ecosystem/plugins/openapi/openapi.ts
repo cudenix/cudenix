@@ -112,8 +112,10 @@ export const plugin = (
 										in: _in,
 										name: propKey,
 										required:
-											required &&
-											required.indexOf(propKey) !== -1,
+											(required &&
+												required.indexOf(propKey) !==
+													-1) ||
+											false,
 										schema: properties[propKey],
 									});
 								}
