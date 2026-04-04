@@ -13,13 +13,7 @@ export const processResponse = (
 		const setCookieHeaders = response.cookies.toSetCookieHeaders();
 
 		for (let i = 0; i < setCookieHeaders.length; i++) {
-			const setCookieHeader = setCookieHeaders[i];
-
-			if (!setCookieHeader) {
-				continue;
-			}
-
-			response.headers.append("set-cookie", setCookieHeader);
+			response.headers.append("set-cookie", setCookieHeaders[i]!);
 		}
 	}
 
