@@ -32,14 +32,15 @@ export const SSE = function (
 	url: string | URL,
 	options?: EventSourceInit,
 ) {
-	const eventSource = new EventSource(url, options);
 	const listenerMap = new Map<string, (...args: any[]) => any>();
 	const wrapperMap = new Map<string, (...args: any[]) => any>();
 
+	const eventSource = new EventSource(url, options);
+
 	return new Proxy(eventSource, {
-		get(target, prop, receiver) {
+		get(target, prop) {
 			if (typeof prop !== "string" || !prop.startsWith("on")) {
-				const value = Reflect.get(target, prop, receiver);
+				const value = Reflect.get(target, prop);
 
 				if (typeof value === "function") {
 					return value.bind(target);
@@ -50,18 +51,32 @@ export const SSE = function (
 
 			return listenerMap.get(prop);
 		},
-		set(target, prop, value, receiver) {
+		set(target, prop, value) {
 			if (typeof prop !== "string" || !prop.startsWith("on")) {
-				return Reflect.set(target, prop, value, receiver);
+				return Reflect.set(target, prop, value);
 			}
 
 			const eventName = prop.slice(2);
 
 			if (wrapperMap.has(prop)) {
 				target.removeEventListener(eventName, wrapperMap.get(prop)!);
+
+				wrapperMap.delete(prop);
 			}
 
 			listenerMap.set(prop, value);
+
+			if (!value) {
+				return true;
+			}
+
+			if (eventName === "error" || eventName === "open") {
+				wrapperMap.set(prop, value);
+
+				target.addEventListener(eventName, value);
+
+				return true;
+			}
 
 			const wrapper = (event: MessageEvent) => {
 				const parsed = Object.create(event);
@@ -81,9 +96,6 @@ export const SSE = function (
 		},
 	});
 } as unknown as Constructor;
-
-SSE.prototype = Object.create(EventSource.prototype);
-SSE.prototype.constructor = SSE;
 
 export const sse = <const Generator extends AnyGeneratorSSE>(
 	url: string | URL,
