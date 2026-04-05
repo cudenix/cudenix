@@ -4,11 +4,11 @@ import { success } from "@/core/success";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
 interface CorsOptions {
-	allowHeaders?: string[];
-	allowMethods?: string[];
+	allowHeaders?: string;
+	allowMethods?: string;
 	credentials?: boolean;
-	exposeHeaders?: string[];
-	maxAge?: number;
+	exposeHeaders?: string;
+	maxAge?: string;
 	origin?:
 		| string
 		| ((
@@ -19,85 +19,219 @@ interface CorsOptions {
 
 export const cors = ({
 	allowHeaders,
-	allowMethods = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"],
+	allowMethods = "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT",
 	credentials,
 	exposeHeaders,
 	maxAge,
 	origin = "*",
 }: CorsOptions = FreezeEmpty) => {
+	const optionsPairs = ["access-control-allow-methods", allowMethods];
+
+	if (maxAge !== undefined) {
+		optionsPairs.push("access-control-max-age", maxAge);
+	}
+
+	if (allowHeaders) {
+		optionsPairs.push("access-control-allow-headers", allowHeaders);
+	}
+
+	optionsPairs.push("content-length", "0");
+
+	const optionsPairsLength = optionsPairs.length;
+	const needsMirrorHeaders = !allowHeaders;
 	const isStringOrigin = typeof origin === "string";
-	const isWildcardWithCredentials =
-		isStringOrigin && credentials === true && origin === "*";
-	const joinedAllowHeaders = allowHeaders?.join(",");
-	const joinedAllowMethods = allowMethods.join(",");
-	const joinedExposeHeaders = exposeHeaders?.join(",");
-	const needsVary = isStringOrigin && origin !== "*";
-	const stringMaxAge = maxAge?.toString();
+
+	const optionsResponse = success(undefined, {
+		status: 204,
+		transform: false,
+	});
+
+	if (isStringOrigin) {
+		if (origin === "*" && credentials === true) {
+			return module()
+
+				.middleware((context, next) => {
+					const raw = context.request.raw;
+					const headers = context.response.headers;
+					const rawHeaders = raw.headers;
+					const requestOrigin = rawHeaders.get("origin");
+
+					if (requestOrigin !== null) {
+						headers.set(
+							"access-control-allow-origin",
+							requestOrigin,
+						);
+						headers.append("vary", "Origin");
+					} else {
+						headers.set("access-control-allow-origin", "*");
+					}
+
+					// credentials is always true in this branch
+					headers.set("access-control-allow-credentials", "true");
+
+					if (exposeHeaders) {
+						headers.set(
+							"access-control-expose-headers",
+							exposeHeaders,
+						);
+					}
+
+					if (raw.method === "OPTIONS") {
+						for (let i = 0; i < optionsPairsLength; i += 2) {
+							headers.set(optionsPairs[i], optionsPairs[i + 1]);
+						}
+
+						if (needsMirrorHeaders) {
+							const rh = rawHeaders.get(
+								"access-control-request-headers",
+							);
+
+							if (rh !== null) {
+								headers.set("access-control-allow-headers", rh);
+
+								headers.append(
+									"vary",
+									"Access-Control-Request-Headers",
+								);
+							}
+						}
+					}
+
+					return next();
+				})
+
+				.route("OPTIONS", "/...path?", () => optionsResponse);
+		}
+
+		if (origin === "*") {
+			return module()
+
+				.middleware((context, next) => {
+					const raw = context.request.raw;
+					const headers = context.response.headers;
+
+					headers.set("access-control-allow-origin", "*");
+
+					if (credentials) {
+						headers.set("access-control-allow-credentials", "true");
+					}
+
+					if (exposeHeaders) {
+						headers.set(
+							"access-control-expose-headers",
+							exposeHeaders,
+						);
+					}
+
+					if (raw.method === "OPTIONS") {
+						for (let i = 0; i < optionsPairsLength; i += 2) {
+							headers.set(optionsPairs[i], optionsPairs[i + 1]);
+						}
+
+						if (needsMirrorHeaders) {
+							const rh = raw.headers.get(
+								"access-control-request-headers",
+							);
+
+							if (rh !== null) {
+								headers.set("access-control-allow-headers", rh);
+
+								headers.append(
+									"vary",
+									"Access-Control-Request-Headers",
+								);
+							}
+						}
+					}
+
+					return next();
+				})
+
+				.route("OPTIONS", "/...path?", () => optionsResponse);
+		}
+
+		return module()
+
+			.middleware((context, next) => {
+				const raw = context.request.raw;
+				const headers = context.response.headers;
+
+				headers.set("access-control-allow-origin", origin);
+				headers.append("vary", "Origin");
+
+				if (credentials) {
+					headers.set("access-control-allow-credentials", "true");
+				}
+
+				if (exposeHeaders) {
+					headers.set("access-control-expose-headers", exposeHeaders);
+				}
+
+				if (raw.method === "OPTIONS") {
+					for (let i = 0; i < optionsPairsLength; i += 2) {
+						headers.set(optionsPairs[i], optionsPairs[i + 1]);
+					}
+
+					if (needsMirrorHeaders) {
+						const rh = raw.headers.get(
+							"access-control-request-headers",
+						);
+
+						if (rh !== null) {
+							headers.set("access-control-allow-headers", rh);
+
+							headers.append(
+								"vary",
+								"Access-Control-Request-Headers",
+							);
+						}
+					}
+				}
+
+				return next();
+			})
+
+			.route("OPTIONS", "/...path?", () => {
+				return optionsResponse;
+			});
+	}
 
 	return module()
 
 		.middleware((context, next) => {
 			const raw = context.request.raw;
 			const headers = context.response.headers;
+			const rawOrigin = raw.headers.get("origin");
+			const resolvedOrigin =
+				origin(rawOrigin !== null ? rawOrigin : undefined, context) ??
+				"*";
 
-			if (isWildcardWithCredentials) {
-				const requestOrigin = raw.headers.get("origin") ?? origin;
+			headers.set("access-control-allow-origin", resolvedOrigin);
 
-				headers.set("access-control-allow-origin", requestOrigin);
-
-				if (requestOrigin !== origin) {
-					headers.append("vary", "Origin");
-				}
-			} else if (isStringOrigin) {
-				headers.set("access-control-allow-origin", origin);
-
-				if (needsVary) {
-					headers.append("vary", "Origin");
-				}
-			} else {
-				const requestOrigin = raw.headers.get("origin") ?? undefined;
-				const resolvedOrigin = origin(requestOrigin, context) ?? "*";
-
-				headers.set("access-control-allow-origin", resolvedOrigin);
-
-				if (resolvedOrigin !== "*") {
-					headers.append("vary", "Origin");
-				}
+			if (resolvedOrigin !== "*") {
+				headers.append("vary", "Origin");
 			}
 
 			if (credentials) {
 				headers.set("access-control-allow-credentials", "true");
 			}
 
-			if (joinedExposeHeaders) {
-				headers.set(
-					"access-control-expose-headers",
-					joinedExposeHeaders,
-				);
+			if (exposeHeaders) {
+				headers.set("access-control-expose-headers", exposeHeaders);
 			}
 
 			if (raw.method === "OPTIONS") {
-				headers.set("access-control-allow-methods", joinedAllowMethods);
-
-				if (stringMaxAge !== undefined) {
-					headers.set("access-control-max-age", stringMaxAge);
+				for (let i = 0; i < optionsPairsLength; i += 2) {
+					headers.set(optionsPairs[i], optionsPairs[i + 1]);
 				}
 
-				if (joinedAllowHeaders) {
-					headers.set(
-						"access-control-allow-headers",
-						joinedAllowHeaders,
-					);
-				} else {
-					const requestHeaders = raw.headers.get(
+				if (needsMirrorHeaders) {
+					const rh = raw.headers.get(
 						"access-control-request-headers",
 					);
 
-					if (requestHeaders) {
-						headers.set(
-							"access-control-allow-headers",
-							requestHeaders,
-						);
+					if (rh !== null) {
+						headers.set("access-control-allow-headers", rh);
 
 						headers.append(
 							"vary",
@@ -105,17 +239,12 @@ export const cors = ({
 						);
 					}
 				}
-
-				headers.set("content-length", "0");
 			}
 
 			return next();
 		})
 
 		.route("OPTIONS", "/...path?", () => {
-			return success(undefined, {
-				status: 204,
-				transform: false,
-			});
+			return optionsResponse;
 		});
 };
