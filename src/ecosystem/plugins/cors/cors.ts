@@ -3,6 +3,11 @@ import { module } from "@/core/module";
 import { success } from "@/core/success";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
+const OPTIONS_RESPONSE = success(undefined, {
+	status: 204,
+	transform: false,
+});
+
 interface CorsOptions {
 	allowHeaders?: string;
 	allowMethods?: string;
@@ -41,21 +46,18 @@ export const cors = ({
 	const needsMirrorHeaders = !allowHeaders;
 	const isStringOrigin = typeof origin === "string";
 
-	const optionsResponse = success(undefined, {
-		status: 204,
-		transform: false,
-	});
-
 	const handlePreflight = (headers: Headers, rawHeaders: Headers) => {
 		for (let i = 0; i < optionsPairsLength; i += 2) {
 			headers.set(optionsPairs[i]!, optionsPairs[i + 1]!);
 		}
 
 		if (needsMirrorHeaders) {
-			const rh = rawHeaders.get("access-control-request-headers");
+			const requestHeaders = rawHeaders.get(
+				"access-control-request-headers",
+			);
 
-			if (rh !== null) {
-				headers.set("access-control-allow-headers", rh);
+			if (requestHeaders !== null) {
+				headers.set("access-control-allow-headers", requestHeaders);
 
 				headers.append("vary", "Access-Control-Request-Headers");
 			}
@@ -98,7 +100,9 @@ export const cors = ({
 					return next();
 				})
 
-				.route("OPTIONS", "/...path?", () => optionsResponse);
+				.route("OPTIONS", "/...path?", () => {
+					return OPTIONS_RESPONSE;
+				});
 		}
 
 		if (origin === "*") {
@@ -128,7 +132,9 @@ export const cors = ({
 					return next();
 				})
 
-				.route("OPTIONS", "/...path?", () => optionsResponse);
+				.route("OPTIONS", "/...path?", () => {
+					return OPTIONS_RESPONSE;
+				});
 		}
 
 		return module()
@@ -155,7 +161,9 @@ export const cors = ({
 				return next();
 			})
 
-			.route("OPTIONS", "/...path?", () => optionsResponse);
+			.route("OPTIONS", "/...path?", () => {
+				return OPTIONS_RESPONSE;
+			});
 	}
 
 	return module()
@@ -189,5 +197,7 @@ export const cors = ({
 			return next();
 		})
 
-		.route("OPTIONS", "/...path?", () => optionsResponse);
+		.route("OPTIONS", "/...path?", () => {
+			return OPTIONS_RESPONSE;
+		});
 };
