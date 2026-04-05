@@ -1,9 +1,9 @@
 import { EventEmitter } from "node:events";
 
-export type Event<Events extends Record<keyof Events, unknown[]>> =
+type Event<Events extends Record<keyof Events, unknown[]>> =
 	EventEmitter<Events>;
 
-export type AnyEvent = Event<any>;
+type AnyEvent = Event<any>;
 
 type Constructor = new () => AnyEvent;
 
