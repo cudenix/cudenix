@@ -174,7 +174,52 @@ export const replace = <Translation extends string>(
 	return result as Translation;
 };
 
-export const load = async (
+export const getLanguage = () => {
+	return (
+		(getRequestContext()?.store.i18n as Partial<I18n>)?.language ??
+		STORE.language
+	);
+};
+
+export const translate = <
+	const Path extends DeepPaths<Cudenix.i18n.Translations>,
+>(
+	path: Path,
+	{
+		language,
+		replace: replacements,
+	}: TranslateOptions<
+		DeepValue<Cudenix.i18n.Translations, Path>
+	> = FreezeEmpty,
+) => {
+	const translations = STORE.translations[language ?? getLanguage()];
+
+	if (!translations) {
+		return path as DeepValue<Cudenix.i18n.Translations, Path>;
+	}
+
+	const split = path.split(".");
+
+	let translation = translations as Translation[string];
+
+	for (let i = 0; i < split.length; i++) {
+		const next = (translation as Translation)[split[i]!];
+
+		if (next === undefined) {
+			return path as DeepValue<Cudenix.i18n.Translations, Path>;
+		}
+
+		translation = next;
+	}
+
+	if (replacements && typeof translation === "string") {
+		translation = replace(translation, replacements);
+	}
+
+	return translation as DeepValue<Cudenix.i18n.Translations, Path>;
+};
+
+export const initializeI18n = async (
 	path: string,
 	language: string,
 	{
@@ -236,51 +281,6 @@ export const load = async (
 		join(path, "types.d.ts"),
 		`namespace Cudenix.i18n { interface Translations ${JSON.stringify(STORE.translations[language])}; };`,
 	);
-};
-
-export const getLanguage = () => {
-	return (
-		(getRequestContext()?.store.i18n as Partial<I18n>)?.language ??
-		STORE.language
-	);
-};
-
-export const translate = <
-	const Path extends DeepPaths<Cudenix.i18n.Translations>,
->(
-	path: Path,
-	{
-		language,
-		replace: replacements,
-	}: TranslateOptions<
-		DeepValue<Cudenix.i18n.Translations, Path>
-	> = FreezeEmpty,
-) => {
-	const translations = STORE.translations[language ?? getLanguage()];
-
-	if (!translations) {
-		return path as DeepValue<Cudenix.i18n.Translations, Path>;
-	}
-
-	const split = path.split(".");
-
-	let translation = translations as Translation[string];
-
-	for (let i = 0; i < split.length; i++) {
-		const next = (translation as Translation)[split[i]!];
-
-		if (next === undefined) {
-			return path as DeepValue<Cudenix.i18n.Translations, Path>;
-		}
-
-		translation = next;
-	}
-
-	if (replacements && typeof translation === "string") {
-		translation = replace(translation, replacements);
-	}
-
-	return translation as DeepValue<Cudenix.i18n.Translations, Path>;
 };
 
 export const i18n = () => {
