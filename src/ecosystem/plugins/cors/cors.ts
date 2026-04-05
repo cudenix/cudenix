@@ -46,6 +46,22 @@ export const cors = ({
 		transform: false,
 	});
 
+	const handlePreflight = (headers: Headers, rawHeaders: Headers) => {
+		for (let i = 0; i < optionsPairsLength; i += 2) {
+			headers.set(optionsPairs[i]!, optionsPairs[i + 1]!);
+		}
+
+		if (needsMirrorHeaders) {
+			const rh = rawHeaders.get("access-control-request-headers");
+
+			if (rh !== null) {
+				headers.set("access-control-allow-headers", rh);
+
+				headers.append("vary", "Access-Control-Request-Headers");
+			}
+		}
+	};
+
 	if (isStringOrigin) {
 		if (origin === "*" && credentials === true) {
 			return module()
@@ -66,7 +82,6 @@ export const cors = ({
 						headers.set("access-control-allow-origin", "*");
 					}
 
-					// credentials is always true in this branch
 					headers.set("access-control-allow-credentials", "true");
 
 					if (exposeHeaders) {
@@ -77,24 +92,7 @@ export const cors = ({
 					}
 
 					if (raw.method === "OPTIONS") {
-						for (let i = 0; i < optionsPairsLength; i += 2) {
-							headers.set(optionsPairs[i], optionsPairs[i + 1]);
-						}
-
-						if (needsMirrorHeaders) {
-							const rh = rawHeaders.get(
-								"access-control-request-headers",
-							);
-
-							if (rh !== null) {
-								headers.set("access-control-allow-headers", rh);
-
-								headers.append(
-									"vary",
-									"Access-Control-Request-Headers",
-								);
-							}
-						}
+						handlePreflight(headers, rawHeaders);
 					}
 
 					return next();
@@ -124,24 +122,7 @@ export const cors = ({
 					}
 
 					if (raw.method === "OPTIONS") {
-						for (let i = 0; i < optionsPairsLength; i += 2) {
-							headers.set(optionsPairs[i], optionsPairs[i + 1]);
-						}
-
-						if (needsMirrorHeaders) {
-							const rh = raw.headers.get(
-								"access-control-request-headers",
-							);
-
-							if (rh !== null) {
-								headers.set("access-control-allow-headers", rh);
-
-								headers.append(
-									"vary",
-									"Access-Control-Request-Headers",
-								);
-							}
-						}
+						handlePreflight(headers, raw.headers);
 					}
 
 					return next();
@@ -168,32 +149,13 @@ export const cors = ({
 				}
 
 				if (raw.method === "OPTIONS") {
-					for (let i = 0; i < optionsPairsLength; i += 2) {
-						headers.set(optionsPairs[i], optionsPairs[i + 1]);
-					}
-
-					if (needsMirrorHeaders) {
-						const rh = raw.headers.get(
-							"access-control-request-headers",
-						);
-
-						if (rh !== null) {
-							headers.set("access-control-allow-headers", rh);
-
-							headers.append(
-								"vary",
-								"Access-Control-Request-Headers",
-							);
-						}
-					}
+					handlePreflight(headers, raw.headers);
 				}
 
 				return next();
 			})
 
-			.route("OPTIONS", "/...path?", () => {
-				return optionsResponse;
-			});
+			.route("OPTIONS", "/...path?", () => optionsResponse);
 	}
 
 	return module()
@@ -221,30 +183,11 @@ export const cors = ({
 			}
 
 			if (raw.method === "OPTIONS") {
-				for (let i = 0; i < optionsPairsLength; i += 2) {
-					headers.set(optionsPairs[i], optionsPairs[i + 1]);
-				}
-
-				if (needsMirrorHeaders) {
-					const rh = raw.headers.get(
-						"access-control-request-headers",
-					);
-
-					if (rh !== null) {
-						headers.set("access-control-allow-headers", rh);
-
-						headers.append(
-							"vary",
-							"Access-Control-Request-Headers",
-						);
-					}
-				}
+				handlePreflight(headers, raw.headers);
 			}
 
 			return next();
 		})
 
-		.route("OPTIONS", "/...path?", () => {
-			return optionsResponse;
-		});
+		.route("OPTIONS", "/...path?", () => optionsResponse);
 };
