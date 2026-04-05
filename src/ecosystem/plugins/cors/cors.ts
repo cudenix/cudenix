@@ -45,6 +45,7 @@ export const cors = ({
 	const optionsPairsLength = optionsPairs.length;
 	const needsMirrorHeaders = !allowHeaders;
 	const isStringOrigin = typeof origin === "string";
+	const needsVary = isStringOrigin && origin !== "*";
 
 	const handlePreflight = (headers: Headers, rawHeaders: Headers) => {
 		for (let i = 0; i < optionsPairsLength; i += 2) {
@@ -105,38 +106,6 @@ export const cors = ({
 				});
 		}
 
-		if (origin === "*") {
-			return module()
-
-				.middleware((context, next) => {
-					const raw = context.request.raw;
-					const headers = context.response.headers;
-
-					headers.set("access-control-allow-origin", "*");
-
-					if (credentials) {
-						headers.set("access-control-allow-credentials", "true");
-					}
-
-					if (exposeHeaders) {
-						headers.set(
-							"access-control-expose-headers",
-							exposeHeaders,
-						);
-					}
-
-					if (raw.method === "OPTIONS") {
-						handlePreflight(headers, raw.headers);
-					}
-
-					return next();
-				})
-
-				.route("OPTIONS", "/...path?", () => {
-					return OPTIONS_RESPONSE;
-				});
-		}
-
 		return module()
 
 			.middleware((context, next) => {
@@ -144,7 +113,10 @@ export const cors = ({
 				const headers = context.response.headers;
 
 				headers.set("access-control-allow-origin", origin);
-				headers.append("vary", "Origin");
+
+				if (needsVary) {
+					headers.append("vary", "Origin");
+				}
 
 				if (credentials) {
 					headers.set("access-control-allow-credentials", "true");
