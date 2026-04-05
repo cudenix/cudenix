@@ -23,7 +23,7 @@ interface OpenapiModuleOptions {
 	path?: `/${string}`;
 }
 
-export const plugin = (
+export const initializeOpenapi = (
 	toJsonSchema: (schema: any) => Record<string, any>,
 	{
 		description = "Cudenix Documentation",
