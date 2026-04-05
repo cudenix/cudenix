@@ -45,7 +45,6 @@ export const cors = ({
 	const optionsPairsLength = optionsPairs.length;
 	const needsMirrorHeaders = !allowHeaders;
 	const isStringOrigin = typeof origin === "string";
-	const needsVary = isStringOrigin && origin !== "*";
 
 	const handlePreflight = (headers: Headers, rawHeaders: Headers) => {
 		for (let i = 0; i < optionsPairsLength; i += 2) {
@@ -66,6 +65,8 @@ export const cors = ({
 	};
 
 	if (isStringOrigin) {
+		const needsVary = origin !== "*";
+
 		if (origin === "*" && credentials === true) {
 			return module()
 
