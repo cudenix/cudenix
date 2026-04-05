@@ -64,40 +64,50 @@ type ClientOptions = MaybeFunction<
 	} & Omit<RequestInit, "method">
 >;
 
-const createProxy = (globalOptions: ClientOptions, paths: string[] = []) => {
-	return new Proxy(() => {}, {
-		async apply(target, thisArg, [requestOptions = FreezeEmpty]) {
-			const options = {
-				...(typeof globalOptions === "function"
-					? await globalOptions()
-					: globalOptions),
-				...requestOptions,
-			};
+const proxyHandler: ProxyHandler<any> = {
+	async apply(target, _thisArg, [requestOptions = FreezeEmpty]) {
+		const globalOptions = target._o;
+		const path = target._p;
+		const method = target._m;
 
-			const end = paths.length - 1;
+		const resolved =
+			typeof globalOptions === "function"
+				? await globalOptions()
+				: globalOptions;
 
-			let path: string;
+		const options = Object.assign({}, resolved, requestOptions);
 
-			if (end <= 0) {
-				path = "";
-			} else if (end === 1) {
-				path = paths[0]!;
-			} else {
-				path = paths[0]!;
+		let url = `${resolved.url}/${path}`;
 
-				for (let i = 1; i < end; i++) {
-					path = `${path}/${paths[i]}`;
+		if (options.body) {
+			const keys = Object.keys(options.body);
+
+			let hasFile = false;
+
+			for (let i = 0; i < keys.length; i++) {
+				const key = keys[i];
+
+				if (!key) {
+					continue;
+				}
+
+				const value = options.body[key];
+
+				if (
+					value instanceof File ||
+					value instanceof Blob ||
+					(Array.isArray(value) &&
+						value.length > 0 &&
+						(value[0] instanceof File || value[0] instanceof Blob))
+				) {
+					hasFile = true;
+
+					break;
 				}
 			}
 
-			let url = `${options.url}/${path}`;
-
-			delete options.url;
-
-			if (options.body) {
-				const keys = Object.keys(options.body);
-
-				let hasFile = false;
+			if (hasFile) {
+				const formData = new FormData();
 
 				for (let i = 0; i < keys.length; i++) {
 					const key = keys[i];
@@ -108,163 +118,154 @@ const createProxy = (globalOptions: ClientOptions, paths: string[] = []) => {
 
 					const value = options.body[key];
 
-					if (
-						value instanceof File ||
-						value instanceof Blob ||
-						(Array.isArray(value) &&
-							value.length > 0 &&
-							(value[0] instanceof File ||
-								value[0] instanceof Blob))
-					) {
-						hasFile = true;
-
-						break;
-					}
-				}
-
-				if (hasFile) {
-					const formData = new FormData();
-
-					for (let i = 0; i < keys.length; i++) {
-						const key = keys[i];
-
-						if (!key) {
-							continue;
+					if (Array.isArray(value)) {
+						for (let j = 0; j < value.length; j++) {
+							formData.append(key, value[j]);
 						}
 
-						const value = options.body[key];
-
-						if (Array.isArray(value)) {
-							for (let j = 0; j < value.length; j++) {
-								formData.append(key, value[j]);
-							}
-
-							continue;
-						}
-
-						formData.append(key, value);
-					}
-
-					options.body = formData;
-				} else {
-					options.body = JSON.stringify(options.body);
-
-					options.headers["content-type"] = "application/json";
-				}
-			}
-
-			if (options.query) {
-				const keys = Object.keys(options.query);
-
-				let query = "";
-
-				for (let i = 0; i < keys.length; i++) {
-					const key = keys[i];
-
-					if (!key) {
 						continue;
 					}
 
-					const value = options.query[key];
-
-					if (query.length > 0) {
-						query += "&";
-					}
-
-					if (typeof value === "object" && value) {
-						query +=
-							encodeURIComponent(key) +
-							"=" +
-							encodeURIComponent(JSON.stringify(value));
-					} else {
-						query +=
-							encodeURIComponent(key) +
-							"=" +
-							encodeURIComponent(String(value));
-					}
+					formData.append(key, value);
 				}
+
+				options.body = formData;
+			} else {
+				options.body = JSON.stringify(options.body);
+
+				options.headers["content-type"] = "application/json";
+			}
+		}
+
+		if (options.query) {
+			const keys = Object.keys(options.query);
+
+			let query = "";
+
+			for (let i = 0; i < keys.length; i++) {
+				const key = keys[i];
+
+				if (!key) {
+					continue;
+				}
+
+				const value = options.query[key];
 
 				if (query.length > 0) {
-					url = `${url}?${query}`;
+					query += "&";
+				}
+
+				if (typeof value === "object" && value) {
+					query +=
+						encodeURIComponent(key) +
+						"=" +
+						encodeURIComponent(JSON.stringify(value));
+				} else {
+					query +=
+						encodeURIComponent(key) +
+						"=" +
+						encodeURIComponent(String(value));
 				}
 			}
 
-			if (url.indexOf("/:") !== -1) {
-				url = url.replaceAll(PARAM_REGEX_REPLACE, (_, key: string) => {
-					const param = options.params?.[
-						key.endsWith("?") ? key.slice(0, -1) : key
-					] as string | undefined;
-
-					return param ? `/${param}` : "";
-				});
+			if (query.length > 0) {
+				url = `${url}?${query}`;
 			}
+		}
 
-			if (url.indexOf("/...") !== -1) {
-				url = url.replaceAll(SPREAD_REGEX_REPLACE, (_, key: string) => {
-					const params = options.params?.[
-						key.endsWith("?") ? key.slice(0, -1) : key
-					] as string[] | undefined;
+		if (url.indexOf("/:") !== -1) {
+			url = url.replaceAll(PARAM_REGEX_REPLACE, (_, key: string) => {
+				const param = options.params?.[
+					key.endsWith("?") ? key.slice(0, -1) : key
+				] as string | undefined;
 
-					return params ? `/${params.join("/")}` : "";
-				});
-			}
+				return param ? `/${param}` : "";
+			});
+		}
 
-			options.method = paths[end];
+		if (url.indexOf("/...") !== -1) {
+			url = url.replaceAll(SPREAD_REGEX_REPLACE, (_, key: string) => {
+				const params = options.params?.[
+					key.endsWith("?") ? key.slice(0, -1) : key
+				] as string[] | undefined;
 
-			if (options.method === "ws") {
-				url = url.startsWith("https://")
-					? url.replace("https://", "wss://")
-					: url.replace("http://", "ws://");
+				return params ? `/${params.join("/")}` : "";
+			});
+		}
 
-				return (await import("@/ecosystem/client/ws")).ws(url);
-			}
+		options.method = method;
 
-			const response = await fetch(url, options);
+		if (method === "ws") {
+			url = url.startsWith("https://")
+				? url.replace("https://", "wss://")
+				: url.replace("http://", "ws://");
 
-			const contentType = response.headers.get("content-type");
+			return (await import("@/ecosystem/client/ws")).ws(url);
+		}
 
-			if (!contentType) {
-				return response.text();
-			}
+		const response = await fetch(url, options);
 
-			if (contentType.indexOf("application/json") !== -1) {
-				return response.json();
-			}
+		const contentType = response.headers.get("content-type");
 
-			if (contentType.indexOf("application/octet-stream") !== -1) {
-				return response.arrayBuffer();
-			}
-
-			if (contentType.indexOf("multipart/form-data") !== -1) {
-				const formData = await response.formData();
-
-				const result = new Empty();
-
-				for (const [key, value] of formData) {
-					result[key] = value;
-				}
-
-				return result;
-			}
-
-			if (contentType.indexOf("text/event-stream") !== -1) {
-				return (await import("@/ecosystem/client/sse")).sse(
-					response.url,
-					{
-						withCredentials: true,
-					},
-				);
-			}
-
+		if (!contentType) {
 			return response.text();
-		},
-		get(target, path: string) {
-			return createProxy(
-				globalOptions,
-				path === "index" ? paths : paths.concat(path),
-			);
-		},
-	});
+		}
+
+		if (contentType.indexOf("application/json") !== -1) {
+			return response.json();
+		}
+
+		if (contentType.indexOf("application/octet-stream") !== -1) {
+			return response.arrayBuffer();
+		}
+
+		if (contentType.indexOf("multipart/form-data") !== -1) {
+			const formData = await response.formData();
+
+			const result = new Empty();
+
+			for (const [key, value] of formData) {
+				result[key] = value;
+			}
+
+			return result;
+		}
+
+		if (contentType.indexOf("text/event-stream") !== -1) {
+			return (await import("@/ecosystem/client/sse")).sse(response.url, {
+				withCredentials: true,
+			});
+		}
+
+		return response.text();
+	},
+	get(target, prop: string) {
+		if (prop === "index") {
+			return createProxy(target._o, target._p, target._m);
+		}
+
+		const method = target._m;
+
+		return createProxy(
+			target._o,
+			method
+				? target._p
+					? `${target._p}/${method}`
+					: method
+				: target._p,
+			prop,
+		);
+	},
+};
+
+const createProxy = (globalOptions: ClientOptions, path = "", method = "") => {
+	const target = (() => {}) as any;
+
+	target._o = globalOptions;
+	target._p = path;
+	target._m = method;
+
+	return new Proxy(target, proxyHandler);
 };
 
 export const client = <const App extends AnyModule>(options: ClientOptions) => {
