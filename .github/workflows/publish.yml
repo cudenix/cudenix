@@ -25,7 +25,7 @@ jobs:
           node-version: latest
           registry-url: https://registry.npmjs.org
 
-      - run: bun install
+      - run: bun --bun install
 
       - run: bun --bun run build
 
