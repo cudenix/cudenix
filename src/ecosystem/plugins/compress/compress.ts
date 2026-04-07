@@ -1,7 +1,7 @@
 import { module } from "@/core/module";
 import { processResponse } from "@/core/response";
 import { success } from "@/core/success";
-import { selectHeader } from "@/utils/headers/select";
+import { selectHeader } from "@/utils/headers/select-header";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
 const COMPRESSIBLE_REGEXP =
