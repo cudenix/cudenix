@@ -66,9 +66,9 @@ type ClientOptions = MaybeFunction<
 
 const proxyHandler: ProxyHandler<any> = {
 	async apply(target, _thisArg, [requestOptions = FreezeEmpty]) {
-		const globalOptions = target._o;
-		const path = target._p;
-		const method = target._m;
+		const globalOptions = target._options;
+		const path = target._path;
+		const method = target._method;
 
 		const resolved =
 			typeof globalOptions === "function"
@@ -241,18 +241,18 @@ const proxyHandler: ProxyHandler<any> = {
 	},
 	get(target, prop: string) {
 		if (prop === "index") {
-			return createProxy(target._o, target._p, target._m);
+			return createProxy(target._options, target._path, target._method);
 		}
 
-		const method = target._m;
+		const method = target._method;
 
 		return createProxy(
-			target._o,
+			target._options,
 			method
-				? target._p
-					? `${target._p}/${method}`
+				? target._path
+					? `${target._path}/${method}`
 					: method
-				: target._p,
+				: target._path,
 			prop,
 		);
 	},
@@ -261,9 +261,9 @@ const proxyHandler: ProxyHandler<any> = {
 const createProxy = (globalOptions: ClientOptions, path = "", method = "") => {
 	const target = (() => {}) as any;
 
-	target._o = globalOptions;
-	target._p = path;
-	target._m = method;
+	target._options = globalOptions;
+	target._path = path;
+	target._method = method;
 
 	return new Proxy(target, proxyHandler);
 };
