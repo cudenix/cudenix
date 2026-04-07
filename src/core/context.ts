@@ -75,7 +75,7 @@ const ContextResponse = function (
 	this.content = undefined;
 
 	if (cookies) {
-		(this as any)._c = cookies;
+		(this as any)._cookies = cookies;
 	}
 } as unknown as ContextResponseConstructor;
 
@@ -83,18 +83,18 @@ Object.defineProperty(ContextResponse.prototype, "headers", {
 	configurable: true,
 	enumerable: true,
 	get() {
-		const headers = this._h;
+		const headers = this._headers;
 
 		if (headers) {
 			return headers;
 		}
 
-		this._h = new Headers();
+		this._headers = new Headers();
 
-		return this._h;
+		return this._headers;
 	},
 	set(value: Headers) {
-		this._h = value;
+		this._headers = value;
 	},
 });
 
@@ -102,18 +102,18 @@ Object.defineProperty(ContextResponse.prototype, "cookies", {
 	configurable: true,
 	enumerable: true,
 	get() {
-		const cookies = this._c;
+		const cookies = this._cookies;
 
 		if (cookies) {
 			return cookies;
 		}
 
-		this._c = new Bun.CookieMap();
+		this._cookies = new Bun.CookieMap();
 
-		return this._c;
+		return this._cookies;
 	},
 	set(value: Bun.CookieMap) {
-		this._c = value;
+		this._cookies = value;
 	},
 });
 

@@ -9,7 +9,11 @@ export const processResponse = (
 	response: ContextResponse,
 	{ serializeCookies }: ProcessResponseOptions = FreezeEmpty,
 ) => {
-	if (serializeCookies && (response as any)._c && response.cookies.size > 0) {
+	if (
+		serializeCookies &&
+		(response as any)._cookies &&
+		response.cookies.size > 0
+	) {
 		const setCookieHeaders = response.cookies.toSetCookieHeaders();
 
 		for (let i = 0; i < setCookieHeaders.length; i++) {
@@ -34,7 +38,7 @@ export const processResponse = (
 		});
 	}
 
-	const headers = (response as any)._h;
+	const headers = (response as any)._headers;
 
 	if (!content) {
 		return new Response(undefined, {
