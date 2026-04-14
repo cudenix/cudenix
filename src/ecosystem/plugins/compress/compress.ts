@@ -72,7 +72,7 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FreezeEmpty) =>
 			return;
 		}
 
-		const {body} = processedResponse;
+		const { body } = processedResponse;
 
 		let compressed: BodyInit;
 

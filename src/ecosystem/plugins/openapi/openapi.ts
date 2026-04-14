@@ -31,7 +31,7 @@ export const initializeOpenapi = (
 		version = "0.0.1",
 	}: OpenapiPluginOptions = FreezeEmpty,
 ) =>
-	function  initializeOpenapi(this: App) {
+	function initializeOpenapi(this: App) {
 		const paths = new Empty();
 		const tags = new Set<string>();
 
@@ -76,7 +76,7 @@ export const initializeOpenapi = (
 						continue;
 					}
 
-					const {keys} = link;
+					const { keys } = link;
 
 					for (let l = 0; l < keys.length; l++) {
 						const key = keys[l];
@@ -212,8 +212,8 @@ export const initializeOpenapi = (
 			openapi: "3.1.0",
 			paths,
 			tags: Array.from(tags, (tag) => ({
-					name: tag,
-				})),
+				name: tag,
+			})),
 		});
 	};
 

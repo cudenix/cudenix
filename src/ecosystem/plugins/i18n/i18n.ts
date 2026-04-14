@@ -130,7 +130,7 @@ export const replace = <Translation extends string>(
 		if (
 			translation.charCodeAt(i) === 24 &&
 			i + 1 < length &&
-			translation.charCodeAt(i + 1) === 0x7B
+			translation.charCodeAt(i + 1) === 0x7b
 		) {
 			const start = i + 2;
 			const closingIndex = translation.indexOf("}", start);

@@ -264,7 +264,8 @@ const step = (
 
 						controller.enqueue(chunk.data.content);
 					}
-				} catch {} finally {
+				} catch {
+				} finally {
 					request.signal.removeEventListener("abort", onAbort);
 
 					onAbort();
