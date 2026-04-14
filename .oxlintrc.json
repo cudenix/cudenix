@@ -26,6 +26,8 @@
 			}
 		],
 		"typescript/prefer-for-of": "off",
+		"unicorn/empty-brace-spaces": "off",
+		"unicorn/number-literal-case": "off",
 		"unicorn/prefer-includes": "off"
 	}
 }
