@@ -1,4 +1,4 @@
-import { type AnyGeneratorSSE } from "@/types/generator-sse";
+import type { AnyGeneratorSSE } from '@/types/generator-sse';
 
 export type SSE<Generator extends AnyGeneratorSSE> = Omit<EventSource, "onmessage"> & {
 	[Event in Exclude<Generator["event"], "message" | undefined> as `on${string & Event}`]: (

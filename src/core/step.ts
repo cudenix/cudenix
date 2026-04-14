@@ -264,8 +264,7 @@ const step = (
 
 						controller.enqueue(chunk.data.content);
 					}
-				} catch {
-				} finally {
+				} catch {} finally {
 					request.signal.removeEventListener("abort", onAbort);
 
 					onAbort();
@@ -326,7 +325,7 @@ export const stepAndRespond = (
 	if (returned instanceof Promise) {
 		return returned.then(() =>
 			processResponse(context.response, {
-				serializeCookies: !!endpoint.paramsRegexp,
+				serializeCookies: Boolean(endpoint.paramsRegexp),
 			}),
 		);
 	}

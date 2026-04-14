@@ -10,12 +10,12 @@ export const tryCatch = ({ debug = false }: TryCatchOptions = FreezeEmpty) =>
 	module().middleware(async (context, next) => {
 		try {
 			await next();
-		} catch (exception) {
+		} catch (_error) {
 			if (debug) {
-				console.error(exception);
+				console.error(_error);
 			}
 
-			return error(exception || "An unknown error has occurred.", {
+			return error(_error || "An unknown error has occurred.", {
 				status: 500,
 			});
 		}

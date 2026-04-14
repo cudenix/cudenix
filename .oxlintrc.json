@@ -11,12 +11,21 @@
 	},
 	"plugins": ["import", "oxc", "promise", "typescript", "unicorn"],
 	"rules": {
-		"import/consistent-type-specifier-style": ["error", "prefer-inline"],
-		"import/export-last": "off",
+		"import/consistent-type-specifier-style": "off",
+		"import/exports-last": "off",
 		"import/group-exports": "off",
 		"import/no-named-export": "off",
 		"import/prefer-default-export": "off",
-		"max-statements": ["warn", 25],
-		"typescript/prefer-for-of": "off"
+		"max-statements": "off",
+		"no-continue": "off",
+		"no-ternary": "off",
+		"sort-imports": [
+			"warn",
+			{
+				"ignoreDeclarationSort": true
+			}
+		],
+		"typescript/prefer-for-of": "off",
+		"unicorn/prefer-includes": "off"
 	}
 }

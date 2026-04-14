@@ -41,7 +41,7 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FreezeEmpty) =>
 
 		const contentLength = responseHeaders.get("content-length");
 
-		if (contentLength && +contentLength < threshold) {
+		if (contentLength && Number(contentLength) < threshold) {
 			return;
 		}
 
@@ -72,7 +72,7 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FreezeEmpty) =>
 			return;
 		}
 
-		const body = processedResponse.body;
+		const {body} = processedResponse;
 
 		let compressed: BodyInit;
 

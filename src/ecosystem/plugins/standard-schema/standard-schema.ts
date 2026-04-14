@@ -1,17 +1,15 @@
 import type { App } from "@/core/app";
 
 export const initializeStandardSchema = () =>
-	function (this: App) {
+	function  initializeStandardSchema(this: App) {
 		this.memory.set("validator", (schema: any, input: unknown) => {
 			const returned = schema["~standard"].validate(input);
 
 			if (returned instanceof Promise) {
-				return returned.then(({ issues, value }) => {
-					return {
+				return returned.then(({ issues, value }) => ({
 						content: issues ?? value,
 						success: !issues,
-					};
-				});
+					}));
 			}
 
 			return {
