@@ -6,7 +6,7 @@ type AnyEvent = Event<any>;
 
 type Constructor = new () => AnyEvent;
 
-export const Event = function  Event(this: AnyEvent) {
+export const Event = function Event(this: AnyEvent) {
 	return new EventEmitter();
 } as unknown as Constructor;
 

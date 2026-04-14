@@ -6,7 +6,8 @@ interface TryCatchOptions {
 	debug?: boolean;
 }
 
-export const tryCatch = ({ debug = false }: TryCatchOptions = FreezeEmpty) => module().middleware(async (context, next) => {
+export const tryCatch = ({ debug = false }: TryCatchOptions = FreezeEmpty) =>
+	module().middleware(async (context, next) => {
 		try {
 			await next();
 		} catch (exception) {

@@ -120,7 +120,7 @@ export const replace = <Translation extends string>(
 		return translation;
 	}
 
-	const {length} = translation;
+	const { length } = translation;
 
 	let result = firstPlaceholder > 0 ? translation.substring(0, firstPlaceholder) : "";
 
@@ -130,7 +130,7 @@ export const replace = <Translation extends string>(
 		if (
 			translation.charCodeAt(i) === 24 &&
 			i + 1 < length &&
-			translation.charCodeAt(i + 1) === 0x7B
+			translation.charCodeAt(i + 1) === 0x7b
 		) {
 			const start = i + 2;
 			const closingIndex = translation.indexOf("}", start);
@@ -169,7 +169,8 @@ export const replace = <Translation extends string>(
 	return result as Translation;
 };
 
-export const getLanguage = () => (getRequestContext()?.store.i18n as Partial<I18n>)?.language ?? STORE.language;
+export const getLanguage = () =>
+	(getRequestContext()?.store.i18n as Partial<I18n>)?.language ?? STORE.language;
 
 export const translate = <const Path extends DeepPaths<Cudenix.i18n.Translations>>(
 	path: Path,
@@ -269,7 +270,8 @@ export const initializeI18n = async (
 	);
 };
 
-export const i18n = () => module().middleware(({ request: { raw }, response: { cookies }, store }, next) => {
+export const i18n = () =>
+	module().middleware(({ request: { raw }, response: { cookies }, store }, next) => {
 		(store as Record<"i18n", Partial<I18n>>).i18n = {
 			language:
 				STORE.languages.length <= 1

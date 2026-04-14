@@ -20,7 +20,8 @@ interface CompressOptions {
 	threshold?: number;
 }
 
-export const compress = ({ threshold = 1024 }: CompressOptions = FreezeEmpty) => module().middleware(async ({ request: { raw }, response }, next) => {
+export const compress = ({ threshold = 1024 }: CompressOptions = FreezeEmpty) =>
+	module().middleware(async ({ request: { raw }, response }, next) => {
 		await next();
 
 		if (!response.content || raw.method === "HEAD") {

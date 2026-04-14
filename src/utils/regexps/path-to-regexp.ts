@@ -12,7 +12,7 @@ export const pathToRegexp = (
 		return String.raw`()\/`;
 	}
 
-	const {length} = path;
+	const { length } = path;
 
 	let pattern = "()";
 	let i = 0;
