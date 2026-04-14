@@ -1,24 +1,13 @@
-import type { AnyGeneratorSSE } from "@/types/generator-sse";
+import { type AnyGeneratorSSE } from "@/types/generator-sse";
 
-export type SSE<Generator extends AnyGeneratorSSE> = Omit<
-	EventSource,
-	"onmessage"
-> & {
-	[Event in Exclude<
-		Generator["event"],
-		"message" | undefined
-	> as `on${string & Event}`]: (
-		event: MessageEvent<
-			Extract<Generator, { data: any; event: Event }>["data"]
-		>,
+export type SSE<Generator extends AnyGeneratorSSE> = Omit<EventSource, "onmessage"> & {
+	[Event in Exclude<Generator["event"], "message" | undefined> as `on${string & Event}`]: (
+		event: MessageEvent<Extract<Generator, { data: any; event: Event }>["data"]>,
 	) => any;
 } & {
 	onmessage: (
 		event: MessageEvent<
-			Extract<
-				Generator,
-				{ data: any; event?: "message" | undefined }
-			>["data"]
+			Extract<Generator, { data: any; event?: "message" | undefined }>["data"]
 		>,
 	) => any;
 };
@@ -27,11 +16,7 @@ export type AnySSE = SSE<any>;
 
 type Constructor = new (url: string | URL, options?: EventSourceInit) => AnySSE;
 
-export const SSE = function (
-	this: AnySSE,
-	url: string | URL,
-	options?: EventSourceInit,
-) {
+export const SSE = function SSE(this: AnySSE, url: string | URL, options?: EventSourceInit) {
 	const listenerMap = new Map<string, (...args: any[]) => any>();
 	const wrapperMap = new Map<string, (...args: any[]) => any>();
 
@@ -100,6 +85,4 @@ export const SSE = function (
 export const sse = <const Generator extends AnyGeneratorSSE>(
 	url: string | URL,
 	options?: EventSourceInit,
-) => {
-	return new SSE(url, options) as SSE<Generator>;
-};
+) => new SSE(url, options) as SSE<Generator>;

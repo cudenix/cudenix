@@ -1,7 +1,7 @@
 import type { App } from "@/core/app";
 
-export const initializeStandardSchema = () => {
-	return function (this: App) {
+export const initializeStandardSchema = () =>
+	function (this: App) {
 		this.memory.set("validator", (schema: any, input: unknown) => {
 			const returned = schema["~standard"].validate(input);
 
@@ -20,4 +20,3 @@ export const initializeStandardSchema = () => {
 			};
 		});
 	};
-};

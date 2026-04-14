@@ -1,8 +1,10 @@
 {
 	"editor.codeActionsOnSave": {
-		"source.fixAll.biome": "explicit",
-		"source.organizeImports.biome": "explicit"
+		"source.fixAll.oxc": "explicit",
+		"source.format.oxc": "explicit",
+		"source.sort.json": "explicit",
+		"source.sortImports": "explicit"
 	},
-	"editor.defaultFormatter": "biomejs.biome",
+	"editor.defaultFormatter": "oxc.oxc-vscode",
 	"js/ts.inlayHints.parameterNames.enabled": "literals"
 }

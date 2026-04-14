@@ -9,11 +9,7 @@ export const processResponse = (
 	response: ContextResponse,
 	{ serializeCookies }: ProcessResponseOptions = FreezeEmpty,
 ) => {
-	if (
-		serializeCookies &&
-		(response as any)._cookies &&
-		response.cookies.size > 0
-	) {
+	if (serializeCookies && (response as any)._cookies && response.cookies.size > 0) {
 		const setCookieHeaders = response.cookies.toSetCookieHeaders();
 
 		for (let i = 0; i < setCookieHeaders.length; i++) {
@@ -21,10 +17,10 @@ export const processResponse = (
 		}
 	}
 
-	const content = response.content;
+	const { content } = response;
 
 	if (content instanceof ReadableStream) {
-		const headers = response.headers;
+		const { headers } = response;
 
 		headers.set("cache-control", "no-cache");
 		headers.set("connection", "keep-alive");

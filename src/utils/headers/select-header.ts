@@ -13,7 +13,7 @@ export const selectHeader = (
 		return;
 	}
 
-	const length = header.length;
+	const {length} = header;
 
 	let best: string | undefined;
 	let bestQ = -1;
@@ -79,7 +79,7 @@ export const selectHeader = (
 					}
 
 					if (qStart < position) {
-						const parsed = +header.substring(qStart, position);
+						const parsed = Number(header.substring(qStart, position));
 
 						if (!Number.isNaN(parsed)) {
 							q = parsed;

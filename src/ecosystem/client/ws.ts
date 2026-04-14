@@ -8,12 +8,9 @@ export type AnyWS = WS<any, any>;
 
 type Constructor = new (url: string | URL) => AnyWS;
 
-const onmessageSetter = Object.getOwnPropertyDescriptor(
-	WebSocket.prototype,
-	"onmessage",
-)?.set;
+const onmessageSetter = Object.getOwnPropertyDescriptor(WebSocket.prototype, "onmessage")?.set;
 
-export const WS = function (this: AnyWS, url: string | URL) {
+export const WS = function  WS(this: AnyWS, url: string | URL) {
 	const webSocket = new WebSocket(url);
 
 	let currentListener: ((event: MessageEvent) => any) | undefined;
@@ -42,7 +39,7 @@ export const WS = function (this: AnyWS, url: string | URL) {
 		},
 	});
 
-	const send = webSocket.send;
+	const {send} = webSocket;
 
 	Object.defineProperty(webSocket, "send", {
 		value(data: any) {
@@ -53,6 +50,4 @@ export const WS = function (this: AnyWS, url: string | URL) {
 	return webSocket;
 } as unknown as Constructor;
 
-export const ws = <const Request, const Response>(url: string | URL) => {
-	return new WS(url) as WS<Request, Response>;
-};
+export const ws = <const Request, const Response>(url: string | URL) => new WS(url) as WS<Request, Response>;

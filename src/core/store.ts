@@ -22,7 +22,7 @@ export type AnyStore = Store<any, any, any>;
 
 type Constructor = new (store: AnyStoreFn) => AnyStore;
 
-export const Store = function (this: AnyStore, store: AnyStoreFn) {
+export const Store = function Store(this: AnyStore, store: AnyStoreFn) {
 	this.store = store;
 	this.type = "STORE";
 } as unknown as Constructor;
@@ -33,6 +33,4 @@ export const store = <
 	const Validators extends Record<PropertyKey, unknown>,
 >(
 	store: StoreFn<Return, Stores, Validators>,
-) => {
-	return new Store(store) as Store<Return, Stores, Validators>;
-};
+) => new Store(store) as Store<Return, Stores, Validators>;

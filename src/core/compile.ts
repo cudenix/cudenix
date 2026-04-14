@@ -19,7 +19,7 @@ const USE_KEYWORDS = [
 	[USE_HEADERS, "headers"],
 	[USE_PARAMS, "params"],
 	[USE_QUERY, "query"],
-] as const satisfies Array<[number, string]>;
+] as const satisfies [number, string][];
 
 const KEY_TO_BIT = {
 	body: USE_BODY,
@@ -52,8 +52,7 @@ const getLinkUseBits = (link: Chain[number]) => {
 			bits |= KEY_TO_BIT[link.keys[i]!];
 		}
 	} else {
-		const text =
-			link[link.type.toLowerCase() as keyof typeof link].toString();
+		const text = link[link.type.toLowerCase() as keyof typeof link].toString();
 
 		if (text) {
 			for (let i = 0; i < USE_KEYWORDS.length; i++) {
@@ -77,13 +76,9 @@ const getLinkUseBits = (link: Chain[number]) => {
 	return bits;
 };
 
-const step = (
-	endpoints: Map<string, Endpoint[]>,
-	module: AnyModule,
-	previous: PreviousStep,
-) => {
+const step = (endpoints: Map<string, Endpoint[]>, module: AnyModule, previous: PreviousStep) => {
 	const chain = [] as Chain;
-	const merged = previous.chain.slice();
+	const merged = [...previous.chain];
 
 	let path = module.prefix;
 
@@ -99,7 +94,7 @@ const step = (
 				prefix: `${previous.path}${path === "/" ? "" : path}${link.prefix === "/" ? "" : link.prefix}`,
 			});
 
-			module.chain = merged.slice();
+			module.chain = [...merged];
 
 			step(endpoints, link.group(module), {
 				chain: [],
@@ -109,11 +104,7 @@ const step = (
 			continue;
 		}
 
-		if (
-			link.type === "MIDDLEWARE" ||
-			link.type === "STORE" ||
-			link.type === "VALIDATOR"
-		) {
+		if (link.type === "MIDDLEWARE" || link.type === "STORE" || link.type === "VALIDATOR") {
 			chain.push(link);
 
 			merged.push(link);
@@ -123,7 +114,7 @@ const step = (
 
 		if (link.type === "MODULE") {
 			const compiled = step(endpoints, link, {
-				chain: merged.slice(),
+				chain: [...merged],
 				path: `${previous.path}${path === "/" ? "" : path}`,
 			});
 
@@ -158,11 +149,7 @@ const step = (
 
 				const keyword = USE_KEYWORDS[j];
 
-				if (
-					!keyword ||
-					(useBits & keyword[0]) !== 0 ||
-					text.indexOf(keyword[1]) === -1
-				) {
+				if (!keyword || (useBits & keyword[0]) !== 0 || text.indexOf(keyword[1]) === -1) {
 					continue;
 				}
 
@@ -195,9 +182,7 @@ const step = (
 			"/";
 
 		methodEndpoints.push({
-			chain: link.validator
-				? [...merged, link.validator]
-				: merged.slice(),
+			chain: link.validator ? [...merged, link.validator] : [...merged],
 			generator: link.generator,
 			paramsRegexp:
 				finalPath.indexOf(":") !== -1 || finalPath.indexOf("...") !== -1
@@ -238,7 +223,7 @@ export const compile = (app: App, module: AnyModule) => {
 
 		const dynamicEndpoints = [] as Endpoint[];
 		const methodRegexps = [] as string[];
-		const routes = app.routes;
+		const { routes } = app;
 
 		for (let i = 0; i < methodEndpoints.length; i++) {
 			const methodEndpoint = methodEndpoints[i];
@@ -258,16 +243,10 @@ export const compile = (app: App, module: AnyModule) => {
 				continue;
 			}
 
-			routes[methodEndpoint.path] ??=
-				new Empty() as (typeof routes)[string];
+			routes[methodEndpoint.path] ??= new Empty() as (typeof routes)[string];
 
-			routes[methodEndpoint.path]![method] = (request: Request) => {
-				return app.endpoint(
-					methodEndpoint,
-					methodEndpoint.path,
-					request,
-				);
-			};
+			routes[methodEndpoint.path]![method] = (request: Request) =>
+				app.endpoint(methodEndpoint, methodEndpoint.path, request);
 		}
 
 		if (dynamicEndpoints.length === 0) {
@@ -276,9 +255,7 @@ export const compile = (app: App, module: AnyModule) => {
 
 		app.methods.set(method, {
 			endpoints: dynamicEndpoints,
-			regexp: new RegExp(
-				`^(https?:\\/\\/)[^\\s\\/]+(${methodRegexps.join("|")})(?![^?#])`,
-			),
+			regexp: new RegExp(`^(https?:\\/\\/)[^\\s\\/]+(${methodRegexps.join("|")})(?![^?#])`),
 		});
 	}
 };

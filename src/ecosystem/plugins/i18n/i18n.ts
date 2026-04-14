@@ -47,9 +47,7 @@ interface Translation {
 interface TranslateOptions<Translation> {
 	language?: string;
 	replace?: Translation extends string
-		? {
-				[Key in ExtractPlaceholders<Translation>]?: string;
-			}
+		? Partial<Record<ExtractPlaceholders<Translation>, string>>
 		: undefined;
 }
 
@@ -114,9 +112,7 @@ const loadTranslations = async (directory: string) => {
 
 export const replace = <Translation extends string>(
 	translation: Translation,
-	replacements: {
-		[Key in ExtractPlaceholders<Translation>]?: string;
-	},
+	replacements: Partial<Record<ExtractPlaceholders<Translation>, string>>,
 ) => {
 	const firstPlaceholder = translation.indexOf("${");
 
@@ -124,10 +120,9 @@ export const replace = <Translation extends string>(
 		return translation;
 	}
 
-	const length = translation.length;
+	const {length} = translation;
 
-	let result =
-		firstPlaceholder > 0 ? translation.substring(0, firstPlaceholder) : "";
+	let result = firstPlaceholder > 0 ? translation.substring(0, firstPlaceholder) : "";
 
 	let i = firstPlaceholder;
 
@@ -135,7 +130,7 @@ export const replace = <Translation extends string>(
 		if (
 			translation.charCodeAt(i) === 24 &&
 			i + 1 < length &&
-			translation.charCodeAt(i + 1) === 0x7b
+			translation.charCodeAt(i + 1) === 0x7B
 		) {
 			const start = i + 2;
 			const closingIndex = translation.indexOf("}", start);
@@ -174,23 +169,14 @@ export const replace = <Translation extends string>(
 	return result as Translation;
 };
 
-export const getLanguage = () => {
-	return (
-		(getRequestContext()?.store.i18n as Partial<I18n>)?.language ??
-		STORE.language
-	);
-};
+export const getLanguage = () => (getRequestContext()?.store.i18n as Partial<I18n>)?.language ?? STORE.language;
 
-export const translate = <
-	const Path extends DeepPaths<Cudenix.i18n.Translations>,
->(
+export const translate = <const Path extends DeepPaths<Cudenix.i18n.Translations>>(
 	path: Path,
 	{
 		language,
 		replace: replacements,
-	}: TranslateOptions<
-		DeepValue<Cudenix.i18n.Translations, Path>
-	> = FreezeEmpty,
+	}: TranslateOptions<DeepValue<Cudenix.i18n.Translations, Path>> = FreezeEmpty,
 ) => {
 	const translations = STORE.translations[language ?? getLanguage()];
 
@@ -283,25 +269,19 @@ export const initializeI18n = async (
 	);
 };
 
-export const i18n = () => {
-	return module().middleware(
-		({ request: { raw }, response: { cookies }, store }, next) => {
-			(store as Record<"i18n", Partial<I18n>>).i18n = {
-				language:
-					STORE.languages.length <= 1
-						? STORE.language
-						: (selectHeader(
-								(STORE.cookie
-									? cookies.get(STORE.cookie)
-									: undefined) ??
-									raw.headers.get(STORE.header!) ??
-									STORE.language,
-								STORE.languages,
-								PREFIX_MATCH_OPTIONS,
-							) ?? STORE.language),
-			};
+export const i18n = () => module().middleware(({ request: { raw }, response: { cookies }, store }, next) => {
+		(store as Record<"i18n", Partial<I18n>>).i18n = {
+			language:
+				STORE.languages.length <= 1
+					? STORE.language
+					: (selectHeader(
+							(STORE.cookie ? cookies.get(STORE.cookie) : undefined) ??
+								raw.headers.get(STORE.header!) ??
+								STORE.language,
+							STORE.languages,
+							PREFIX_MATCH_OPTIONS,
+						) ?? STORE.language),
+		};
 
-			return next();
-		},
-	);
-};
+		return next();
+	});

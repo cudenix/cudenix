@@ -5,11 +5,7 @@ export const cluster = (command: string) => {
 
 	const cpus = navigator.hardwareConcurrency;
 	const cmd = [...command.split(" "), "--worker"];
-	const buns = new Array(cpus) as Bun.Subprocess<
-		"inherit",
-		"inherit",
-		"inherit"
-	>[];
+	const buns = new Array(cpus) as Bun.Subprocess<"inherit", "inherit", "inherit">[];
 
 	for (let i = 0; i < cpus; i++) {
 		buns[i] = Bun.spawn({

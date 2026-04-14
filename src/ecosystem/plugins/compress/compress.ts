@@ -20,10 +20,7 @@ interface CompressOptions {
 	threshold?: number;
 }
 
-export const compress = ({
-	threshold = 1024,
-}: CompressOptions = FreezeEmpty) => {
-	return module().middleware(async ({ request: { raw }, response }, next) => {
+export const compress = ({ threshold = 1024 }: CompressOptions = FreezeEmpty) => module().middleware(async ({ request: { raw }, response }, next) => {
 		await next();
 
 		if (!response.content || raw.method === "HEAD") {
@@ -114,12 +111,8 @@ export const compress = ({
 
 		processedHeaders.set("content-encoding", encodingName);
 
-		response.content = success(
-			new Response(compressed, processedResponse),
-			{
-				status: processedResponse.status,
-				transform: false,
-			},
-		);
+		response.content = success(new Response(compressed, processedResponse), {
+			status: processedResponse.status,
+			transform: false,
+		});
 	});
-};

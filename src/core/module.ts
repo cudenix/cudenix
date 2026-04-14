@@ -1,25 +1,9 @@
 import type { MaybePromise } from "bun";
 
 import type { DeveloperContext } from "@/core/context";
-import type {
-	AnyError,
-	FilterError,
-	IgnoreError,
-	MergeErrors,
-	TransformError,
-} from "@/core/error";
-import type {
-	AnyGroup,
-	AnyGroupFn,
-	AnyGroupOptions,
-	GroupFn,
-	GroupOptions,
-} from "@/core/group";
-import type {
-	AnyMiddleware,
-	AnyMiddlewareFn,
-	MiddlewareFn,
-} from "@/core/middleware";
+import type { AnyError, FilterError, IgnoreError, MergeErrors, TransformError } from "@/core/error";
+import type { AnyGroup, AnyGroupFn, AnyGroupOptions, GroupFn, GroupOptions } from "@/core/group";
+import type { AnyMiddleware, AnyMiddlewareFn, MiddlewareFn } from "@/core/middleware";
 import type {
 	AnyRoute,
 	AnyRouteFn,
@@ -33,12 +17,7 @@ import type {
 	ValidatorsWithParams,
 } from "@/core/route";
 import type { AnyStore, AnyStoreFn, StoreFn } from "@/core/store";
-import type {
-	AnySuccess,
-	FilterSuccess,
-	MergeSuccesses,
-	TransformSuccess,
-} from "@/core/success";
+import type { AnySuccess, FilterSuccess, MergeSuccesses, TransformSuccess } from "@/core/success";
 import type {
 	AnyValidator,
 	AnyValidatorOptions,
@@ -59,14 +38,7 @@ import type { ValueOf } from "@/types/value-of";
 import { isGenerator } from "@/utils/functions/is-generator";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
-type ModuleChain = (
-	| AnyGroup
-	| AnyMiddleware
-	| AnyModule
-	| AnyRoute
-	| AnyStore
-	| AnyValidator
-)[];
+type ModuleChain = (AnyGroup | AnyMiddleware | AnyModule | AnyRoute | AnyStore | AnyValidator)[];
 
 interface ModuleExtendsOptions {
 	execute?: boolean;
@@ -116,20 +88,11 @@ export interface Module<
 		Stores & ModuleStores,
 		MergeSuccesses<Successes, ModuleSuccesses>,
 		{
-			inputs: MergeInferValidatorRequest<
-				Validators["inputs"],
-				ModuleValidators["inputs"]
-			>;
-			outputs: MergeInferValidatorRequest<
-				Validators["outputs"],
-				ModuleValidators["outputs"]
-			>;
+			inputs: MergeInferValidatorRequest<Validators["inputs"], ModuleValidators["inputs"]>;
+			outputs: MergeInferValidatorRequest<Validators["outputs"], ModuleValidators["outputs"]>;
 		}
 	>;
-	group<
-		const GroupReturn extends AnyModule,
-		const GroupPrefix extends `/${string}` = "/",
-	>(
+	group<const GroupReturn extends AnyModule, const GroupPrefix extends `/${string}` = "/">(
 		group: GroupFn<
 			Module<
 				Errors,
@@ -142,33 +105,15 @@ export interface Module<
 			GroupReturn
 		>,
 		options?: GroupOptions<GroupPrefix>,
-	): Module<
-		Errors,
-		Prefix,
-		Routes & GroupReturn["routes"],
-		Stores,
-		Successes,
-		Validators
-	>;
-	middleware<
-		const MiddlewareReturn extends MaybePromise<
-			AnyError | AnySuccess | void
-		> = void,
-	>(
-		middleware: MiddlewareFn<
-			MiddlewareReturn,
-			Stores,
-			Validators["outputs"]
-		>,
+	): Module<Errors, Prefix, Routes & GroupReturn["routes"], Stores, Successes, Validators>;
+	middleware<const MiddlewareReturn extends MaybePromise<AnyError | AnySuccess | void> = void>(
+		middleware: MiddlewareFn<MiddlewareReturn, Stores, Validators["outputs"]>,
 	): Module<
 		MergeErrors<Errors, TransformError<FilterError<MiddlewareReturn>>>,
 		Prefix,
 		Routes,
 		Stores,
-		MergeSuccesses<
-			Successes,
-			TransformSuccess<FilterSuccess<MiddlewareReturn>>
-		>,
+		MergeSuccesses<Successes, TransformSuccess<FilterSuccess<MiddlewareReturn>>>,
 		Validators
 	>;
 	prefix: string;
@@ -184,9 +129,7 @@ export interface Module<
 								RoutePath,
 								MergeInferValidatorRequest<
 									Validators["outputs"],
-									DeepInferValidatorOutput<
-										RouteValidatorOptions["request"]
-									>
+									DeepInferValidatorOutput<RouteValidatorOptions["request"]>
 								>
 							>
 						>,
@@ -194,9 +137,7 @@ export interface Module<
 					>
 				>
 			: MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
-		const RouteValidatorOptions extends ValidatorOptions<
-			Partial<ValidatorRequest>
-		>,
+		const RouteValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
 	>(
 		method: RouteMethod,
 		path: RoutePath,
@@ -211,8 +152,7 @@ export interface Module<
 			>
 		>,
 		options?: RouteOptions<RouteValidatorOptions>,
-	): MergePaths<Prefix, RoutePath> extends infer MergedPath extends
-		`/${string}`
+	): MergePaths<Prefix, RoutePath> extends infer MergedPath extends `/${string}`
 		? ExtractUrlParams<MergedPath> extends infer PathParams extends Record<
 				string,
 				string | string[]
@@ -226,9 +166,7 @@ export interface Module<
 							MergedPath,
 							MergeInferValidatorRequest<
 								Validators["inputs"],
-								DeepInferValidatorInput<
-									RouteValidatorOptions["request"]
-								>
+								DeepInferValidatorInput<RouteValidatorOptions["request"]>
 							> &
 								([NonNullable<unknown>] extends [PathParams]
 									? NonNullable<unknown>
@@ -275,10 +213,7 @@ export interface Module<
 	validator<const _ValidatorRequest extends Partial<ValidatorRequest>>(
 		options: ValidatorOptions<_ValidatorRequest>,
 	): Module<
-		MergeErrors<
-			Errors,
-			TransformValidatorError<DeepInferValidatorError<_ValidatorRequest>>
-		>,
+		MergeErrors<Errors, TransformValidatorError<DeepInferValidatorError<_ValidatorRequest>>>,
 		Prefix,
 		Routes,
 		Stores,
@@ -306,7 +241,7 @@ export type AnyModuleOptions = ModuleOptions<any>;
 
 type Constructor = new (options?: AnyModuleOptions) => AnyModule;
 
-export const Module = function (
+export const Module = function Module(
 	this: AnyModule,
 	{ prefix = "" }: AnyModuleOptions = FreezeEmpty,
 ) {
@@ -341,10 +276,7 @@ Module.prototype.group = function (
 	return this;
 };
 
-Module.prototype.middleware = function (
-	this: AnyModule,
-	middleware: AnyMiddlewareFn,
-) {
+Module.prototype.middleware = function (this: AnyModule, middleware: AnyMiddlewareFn) {
 	this.chain.push({
 		middleware,
 		type: "MIDDLEWARE" as const,
@@ -368,9 +300,7 @@ Module.prototype.route = function (
 		type: "ROUTE" as const,
 		validator: validator
 			? {
-					keys: Object.keys(
-						validator.request,
-					) as (keyof ValidatorRequest)[],
+					keys: Object.keys(validator.request) as (keyof ValidatorRequest)[],
 					request: validator.request,
 					type: "VALIDATOR" as const,
 				}
@@ -389,10 +319,7 @@ Module.prototype.store = function (this: AnyModule, store: AnyStoreFn) {
 	return this;
 };
 
-Module.prototype.validator = function (
-	this: AnyModule,
-	options: AnyValidatorOptions,
-) {
+Module.prototype.validator = function validator(this: AnyModule, options: AnyValidatorOptions) {
 	this.chain.push({
 		keys: Object.keys(options.request) as (keyof ValidatorRequest)[],
 		request: options.request,
@@ -417,13 +344,4 @@ export const module = <
 	},
 >(
 	options?: ModuleOptions<Prefix>,
-) => {
-	return new Module(options) as Module<
-		Errors,
-		Prefix,
-		Routes,
-		Stores,
-		Successes,
-		Validators
-	>;
-};
+) => new Module(options) as Module<Errors, Prefix, Routes, Stores, Successes, Validators>;

@@ -33,11 +33,7 @@ type Plugin = (...options: any[]) => void;
 
 export interface App {
 	compile(): void;
-	endpoint(
-		endpoint: Endpoint,
-		path: string,
-		request: Request,
-	): MaybePromise<Response>;
+	endpoint(endpoint: Endpoint, path: string, request: Request): MaybePromise<Response>;
 	fetch(request: Request): MaybePromise<Response>;
 	listen(options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">): App;
 	memory: Map<string, unknown>;
@@ -72,32 +68,19 @@ App.prototype.compile = function (this: App) {
 	this.memory.delete("plugins");
 };
 
-App.prototype.endpoint = function (
-	this: App,
-	endpoint: Endpoint,
-	path: string,
-	request: Request,
-) {
-	const context = new Context(
-		endpoint,
-		this.memory,
-		path,
-		request,
-		this.server!,
-	);
+App.prototype.endpoint = function (this: App, endpoint: Endpoint, path: string, request: Request) {
+	const context = new Context(endpoint, this.memory, path, request, this.server!);
 
 	const returned = context.loadRequest();
 
 	if (returned instanceof Promise) {
-		return returned.then(() => {
-			return stepAndRespond(this, context, endpoint, request);
-		});
+		return returned.then(() => stepAndRespond(this, context, endpoint, request));
 	}
 
 	return stepAndRespond(this, context, endpoint, request);
 };
 
-App.prototype.fetch = function (this: App, request: Request) {
+App.prototype.fetch = function fetch(this: App, request: Request) {
 	const data = this.methods.get(request.method);
 
 	if (!data) {
@@ -141,7 +124,7 @@ App.prototype.fetch = function (this: App, request: Request) {
 	return this.endpoint(endpoint, path, request);
 };
 
-App.prototype.listen = function (
+App.prototype.listen = function listen(
 	this: App,
 	options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
 ) {
@@ -151,9 +134,7 @@ App.prototype.listen = function (
 		development: false,
 		reusePort: true,
 		...options,
-		fetch: (request) => {
-			return this.fetch(request);
-		},
+		fetch: (request) => this.fetch(request),
 		routes: this.routes,
 		websocket: {
 			close: (ws, code, reason) => {
@@ -197,6 +178,4 @@ App.prototype.plugins = function (this: App, plugins: Plugin[]) {
 	return this;
 };
 
-export const app = (module: AnyModule) => {
-	return new App(module) as App;
-};
+export const app = (module: AnyModule) => new App(module) as App;

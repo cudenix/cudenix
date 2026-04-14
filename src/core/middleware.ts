@@ -7,10 +7,7 @@ export type MiddlewareFn<
 	Return extends MaybePromise<AnyError | AnySuccess | void>,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
-> = (
-	context: DeveloperContext<Stores, Validators>,
-	next: () => MaybePromise<void>,
-) => Return;
+> = (context: DeveloperContext<Stores, Validators>, next: () => MaybePromise<void>) => Return;
 
 export type AnyMiddlewareFn = MiddlewareFn<any, any, any>;
 
@@ -27,10 +24,7 @@ export type AnyMiddleware = Middleware<any, any, any>;
 
 type Constructor = new (middleware: AnyMiddlewareFn) => AnyMiddleware;
 
-export const Middleware = function (
-	this: AnyMiddleware,
-	middleware: AnyMiddlewareFn,
-) {
+export const Middleware = function Middleware(this: AnyMiddleware, middleware: AnyMiddlewareFn) {
 	this.middleware = middleware;
 	this.type = "MIDDLEWARE";
 } as unknown as Constructor;
@@ -41,6 +35,4 @@ export const middleware = <
 	const Validators extends Record<PropertyKey, unknown>,
 >(
 	middleware: MiddlewareFn<Return, Stores, Validators>,
-) => {
-	return new Middleware(middleware) as Middleware<Return, Stores, Validators>;
-};
+) => new Middleware(middleware) as Middleware<Return, Stores, Validators>;

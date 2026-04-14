@@ -1,32 +1,32 @@
 name: Publish
 
 on:
-  release:
-    types: [published]
+    release:
+        types: [published]
 
 permissions:
-  contents: read
-  id-token: write
+    contents: read
+    id-token: write
 
 jobs:
-  publish:
-    runs-on: ubuntu-latest
+    publish:
+        runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v6
+        steps:
+            - uses: actions/checkout@v6
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-          registry-url: https://registry.npmjs.org
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+                  registry-url: https://registry.npmjs.org
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: latest
-          registry-url: https://registry.npmjs.org
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: latest
+                  registry-url: https://registry.npmjs.org
 
-      - run: bun --bun install
+            - run: bun --bun install
 
-      - run: bun --bun run build
+            - run: bun --bun run build
 
-      - run: npm publish --provenance --access=public
+            - run: npm publish --provenance --access=public

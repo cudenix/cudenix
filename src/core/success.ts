@@ -3,9 +3,7 @@ import { FreezeEmpty } from "@/utils/objects/empty";
 
 export type FilterSuccess<Type> = Extract<Type, AnySuccess>;
 
-export type TransformSuccess<Success extends AnySuccess> = {
-	[Key in Success["status"]]: Success;
-};
+export type TransformSuccess<Success extends AnySuccess> = Record<Success["status"], Success>;
 
 export type MergeSuccesses<Successes, Success> = {
 	[Key in keyof Successes | keyof Success]: Key extends keyof Successes
@@ -27,21 +25,14 @@ export type MergeSuccesses<Successes, Success> = {
 			: never;
 };
 
-export interface SuccessOptions<
-	Status extends number,
-	Transform extends boolean,
-> {
+export interface SuccessOptions<Status extends number, Transform extends boolean> {
 	status?: Status;
 	transform?: Transform;
 }
 
 export type AnySuccessOptions = SuccessOptions<any, any>;
 
-export interface Success<
-	Content,
-	Status extends number = 200,
-	Transform extends boolean = true,
-> {
+export interface Success<Content, Status extends number = 200, Transform extends boolean = true> {
 	content: ExtractContent<Content>;
 	status: Status;
 	success: true;
@@ -50,12 +41,9 @@ export interface Success<
 
 export type AnySuccess = Success<any, any, any>;
 
-type Constructor = new (
-	content: unknown,
-	options?: AnySuccessOptions,
-) => AnySuccess;
+type Constructor = new (content: unknown, options?: AnySuccessOptions) => AnySuccess;
 
-export const Success = function (
+export const Success = function Success(
 	this: AnySuccess,
 	content: unknown,
 	{ status = 200, transform = true }: AnySuccessOptions = FreezeEmpty,
@@ -73,6 +61,4 @@ export const success = <
 >(
 	content: Content,
 	options?: SuccessOptions<Status, Transform>,
-) => {
-	return new Success(content, options) as Success<Content, Status, Transform>;
-};
+) => new Success(content, options) as Success<Content, Status, Transform>;

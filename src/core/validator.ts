@@ -10,19 +10,15 @@ export type ValidatorPlugin = (
 	success: boolean;
 }>;
 
-export type DeepInferValidatorError<Type extends Record<PropertyKey, unknown>> =
-	{
-		[Key in keyof Type]: Cudenix.InferValidatorError<Type[Key]>;
-	};
+export type DeepInferValidatorError<Type extends Record<PropertyKey, unknown>> = {
+	[Key in keyof Type]: Cudenix.InferValidatorError<Type[Key]>;
+};
 
-export type DeepInferValidatorInput<Type extends Record<PropertyKey, unknown>> =
-	{
-		[Key in keyof Type]: Cudenix.InferValidatorInput<Type[Key]>;
-	};
+export type DeepInferValidatorInput<Type extends Record<PropertyKey, unknown>> = {
+	[Key in keyof Type]: Cudenix.InferValidatorInput<Type[Key]>;
+};
 
-export type DeepInferValidatorOutput<
-	Type extends Record<PropertyKey, unknown>,
-> = {
+export type DeepInferValidatorOutput<Type extends Record<PropertyKey, unknown>> = {
 	[Key in keyof Type]: Cudenix.InferValidatorOutput<Type[Key]>;
 };
 
@@ -33,9 +29,7 @@ type ValidatorErrorDetails<Type> = {
 	};
 }[keyof Type];
 
-export interface TransformValidatorError<
-	ValidatorError extends Record<PropertyKey, unknown>,
-> {
+export interface TransformValidatorError<ValidatorError extends Record<PropertyKey, unknown>> {
 	422: Error<
 		[
 			{
@@ -51,15 +45,13 @@ export type MergeInferValidatorRequest<
 	FirstType extends Record<PropertyKey, unknown>,
 	SecondType extends Record<PropertyKey, unknown>,
 > = {
-	[Key in "body" | "cookies" | "headers" | "params" | "query" as [
-		unknown,
-	] extends [SecondType[Key]]
+	[Key in "body" | "cookies" | "headers" | "params" | "query" as [unknown] extends [
+		SecondType[Key],
+	]
 		? [unknown] extends [FirstType[Key]]
 			? never
 			: Key
-		: Key]: [unknown] extends [SecondType[Key]]
-		? FirstType[Key]
-		: SecondType[Key];
+		: Key]: [unknown] extends [SecondType[Key]] ? FirstType[Key] : SecondType[Key];
 };
 
 export interface ValidatorRequest<
@@ -92,10 +84,7 @@ export type AnyValidatorOptions = ValidatorOptions<any>;
 
 type Constructor = new (options: AnyValidatorOptions) => AnyValidator;
 
-export const Validator = function (
-	this: AnyValidator,
-	options: AnyValidatorOptions,
-) {
+export const Validator = function Validator(this: AnyValidator, options: AnyValidatorOptions) {
 	this.request = options.request;
 	this.type = "VALIDATOR";
 	this.keys = Object.keys(options.request) as (keyof ValidatorRequest)[];
@@ -103,6 +92,4 @@ export const Validator = function (
 
 export const validator = <const Request extends Partial<ValidatorRequest>>(
 	options: ValidatorOptions<Request>,
-) => {
-	return new Validator(options) as Validator<Request>;
-};
+) => new Validator(options) as Validator<Request>;

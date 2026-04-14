@@ -1,36 +1,27 @@
 export type ExtractUrlParams<
 	Path extends string,
-	Accumulated extends Record<
-		string,
-		string | string[]
-	> = NonNullable<unknown>,
+	Accumulated extends Record<string, string | string[]> = NonNullable<unknown>,
 > = Path extends `${infer First}/${infer Rest}`
 	? First extends `:${infer Param}` | `...${infer Param}`
 		? ExtractUrlParams<
 				Rest,
-				Accumulated & {
-					[Key in Param extends `${infer Name}?`
+				Accumulated & Record<Param extends `${infer Name}?`
 						? Name
-						: Param]: First extends `...${string}`
+						: Param, First extends `...${string}`
 						? Param extends `${string}?`
 							? string[] | undefined
 							: string[]
 						: Param extends `${string}?`
 							? string | undefined
-							: string;
-				}
+							: string>
 			>
 		: ExtractUrlParams<Rest, Accumulated>
 	: Path extends `:${infer Param}` | `...${infer Param}`
-		? Accumulated & {
-				[Key in Param extends `${infer Name}?`
-					? Name
-					: Param]: Path extends `...${string}`
+		? Accumulated & Record<Param extends `${infer Name}?` ? Name : Param, Path extends `...${string}`
 					? Param extends `${string}?`
 						? string[] | undefined
 						: string[]
 					: Param extends `${string}?`
 						? string | undefined
-						: string;
-			}
+						: string>
 		: Accumulated;

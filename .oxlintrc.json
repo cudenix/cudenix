@@ -1,0 +1,22 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"categories": {
+		"correctness": "error",
+		"perf": "warn",
+		"style": "warn"
+	},
+	"ignorePatterns": ["dist", "node_modules"],
+	"options": {
+		"reportUnusedDisableDirectives": "error"
+	},
+	"plugins": ["import", "oxc", "promise", "typescript", "unicorn"],
+	"rules": {
+		"import/consistent-type-specifier-style": ["error", "prefer-inline"],
+		"import/export-last": "off",
+		"import/group-exports": "off",
+		"import/no-named-export": "off",
+		"import/prefer-default-export": "off",
+		"max-statements": ["warn", 25],
+		"typescript/prefer-for-of": "off"
+	}
+}

@@ -18,16 +18,9 @@ import type { MaybePromise } from "@/types/maybe-promise";
 import { isGenerator } from "@/utils/functions/is-generator";
 import { FreezeEmpty } from "@/utils/objects/empty";
 
-export type PathToObject<
-	Path extends string,
-	Value,
-> = Path extends `${infer First}/${infer Rest}`
-	? {
-			[Key in First]: PathToObject<Rest, Value>;
-		}
-	: {
-			[Key in Path]: Value;
-		};
+export type PathToObject<Path extends string, Value> = Path extends `${infer First}/${infer Rest}`
+	? Record<First, PathToObject<Rest, Value>>
+	: Record<Path, Value>;
 
 export type ParseRoute<
 	Method extends HttpMethod,
@@ -36,27 +29,22 @@ export type ParseRoute<
 	Response,
 > = PathToObject<
 	Path extends "/" ? "index" : Path extends `/${infer Rest}` ? Rest : Path,
-	{
-		[Key in Lowercase<Method>]: {
+	Record<
+		Lowercase<Method>,
+		{
 			method: Uppercase<Method>;
 			path: Path;
 			request: Request;
 			response: Response;
-		};
-	}
+		}
+	>
 >;
 
 export type RouteFnReturnWS<Context> = WebSocketHandler<Context>;
 
 export type RouteFnReturnGenerator =
-	| Generator<
-			GeneratorSSE<AnyError | AnySuccess, string>,
-			AnyError | AnySuccess | void
-	  >
-	| AsyncGenerator<
-			GeneratorSSE<AnyError | AnySuccess, string>,
-			AnyError | AnySuccess | void
-	  >;
+	| Generator<GeneratorSSE<AnyError | AnySuccess, string>, AnyError | AnySuccess | void>
+	| AsyncGenerator<GeneratorSSE<AnyError | AnySuccess, string>, AnyError | AnySuccess | void>;
 
 export type ValidatorsWithParams<
 	Path extends string,
@@ -79,20 +67,12 @@ export type RouteFn<
 	Path extends string,
 	Return extends Method extends "WS"
 		? RouteFnReturnWS<
-				Omit<
-					DeveloperContext<
-						Stores,
-						ValidatorsWithParams<Path, Validators>
-					>,
-					"response"
-				>
+				Omit<DeveloperContext<Stores, ValidatorsWithParams<Path, Validators>>, "response">
 			>
 		: MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
-> = (
-	context: DeveloperContext<Stores, ValidatorsWithParams<Path, Validators>>,
-) => Return;
+> = (context: DeveloperContext<Stores, ValidatorsWithParams<Path, Validators>>) => Return;
 
 export type AnyRouteFn = RouteFn<any, any, any, any, any>;
 
@@ -108,9 +88,7 @@ export interface Route<
 							Path,
 							MergeInferValidatorRequest<
 								Validators,
-								DeepInferValidatorOutput<
-									_ValidatorOptions["request"]
-								>
+								DeepInferValidatorOutput<_ValidatorOptions["request"]>
 							>
 						>
 					>,
@@ -156,7 +134,7 @@ type Constructor = new (
 	options?: AnyRouteOptions,
 ) => AnyRoute;
 
-export const Route = function (
+export const Route = function Route(
 	this: AnyRoute,
 	method: HttpMethod,
 	path: `/${string}`,
@@ -183,9 +161,7 @@ export const route = <
 							Path,
 							MergeInferValidatorRequest<
 								Validators,
-								DeepInferValidatorOutput<
-									_ValidatorOptions["request"]
-								>
+								DeepInferValidatorOutput<_ValidatorOptions["request"]>
 							>
 						>
 					>,
@@ -210,8 +186,8 @@ export const route = <
 		>
 	>,
 	options?: RouteOptions<_ValidatorOptions>,
-) => {
-	return new Route(method, path, route, options) as Route<
+) =>
+	new Route(method, path, route, options) as Route<
 		Method,
 		Path,
 		Return,
@@ -219,4 +195,3 @@ export const route = <
 		_ValidatorOptions,
 		Validators
 	>;
-};
