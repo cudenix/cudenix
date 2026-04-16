@@ -61,7 +61,9 @@ export const initializeOpenapi = (
 					}
 
 					paramNames.push(name);
-					paramOptional!.push(match.charCodeAt(match.length - 1) === 63);
+					paramOptional!.push(
+						match.charCodeAt(match.length - 1) === 63,
+					);
 					paramSpread!.push(match.charCodeAt(0) === 46);
 
 					return `{${name}}`;
@@ -92,15 +94,28 @@ export const initializeOpenapi = (
 							operation.parameters ??= [];
 
 							if (schema.type === "object") {
-								const properties = schema.properties as Record<string, unknown>;
-								const required = schema.required as string[] | undefined;
+								const properties = schema.properties as Record<
+									string,
+									unknown
+								>;
+								const required = schema.required as
+									| string[]
+									| undefined;
 
 								for (const propKey in properties) {
-									(operation.parameters as Record<string, unknown>[]).push({
+									(
+										operation.parameters as Record<
+											string,
+											unknown
+										>[]
+									).push({
 										in: _in,
 										name: propKey,
 										required:
-											(required && required.indexOf(propKey) !== -1) || false,
+											(required &&
+												required.indexOf(propKey) !==
+													-1) ||
+											false,
 										schema: properties[propKey],
 									});
 								}
@@ -108,7 +123,12 @@ export const initializeOpenapi = (
 								continue;
 							}
 
-							(operation.parameters as Record<string, unknown>[]).push({
+							(
+								operation.parameters as Record<
+									string,
+									unknown
+								>[]
+							).push({
 								in: _in,
 								schema,
 							});
@@ -122,8 +142,9 @@ export const initializeOpenapi = (
 
 						const bodySchema = toJsonSchema(link.request[key]);
 
-						const content = (operation.requestBody as Record<string, unknown>)
-							.content as Record<string, unknown>;
+						const content = (
+							operation.requestBody as Record<string, unknown>
+						).content as Record<string, unknown>;
 
 						content["application/json"] = {
 							schema: bodySchema,
@@ -173,7 +194,9 @@ export const initializeOpenapi = (
 
 						operation.parameters ??= [];
 
-						(operation.parameters as Record<string, unknown>[]).push({
+						(
+							operation.parameters as Record<string, unknown>[]
+						).push({
 							in: "path",
 							name,
 							required: !paramOptional?.[k],
@@ -188,7 +211,9 @@ export const initializeOpenapi = (
 				if (path.charCodeAt(0) === 47 && path.charCodeAt(1) !== 123) {
 					const slashIndex = path.indexOf("/", 1);
 					const tag =
-						slashIndex === -1 ? path.substring(1) : path.substring(1, slashIndex);
+						slashIndex === -1
+							? path.substring(1)
+							: path.substring(1, slashIndex);
 
 					if (tag) {
 						operation.tags = [tag];
@@ -199,7 +224,8 @@ export const initializeOpenapi = (
 
 				paths[path] ??= new Empty();
 
-				(paths[path] as Record<string, unknown>)[lowerMethod] = operation;
+				(paths[path] as Record<string, unknown>)[lowerMethod] =
+					operation;
 			}
 		}
 
@@ -211,9 +237,11 @@ export const initializeOpenapi = (
 			},
 			openapi: "3.1.0",
 			paths,
-			tags: Array.from(tags, (tag) => ({
-				name: tag,
-			})),
+			tags: Array.from(tags, (tag) => {
+				return {
+					name: tag,
+				};
+			}),
 		});
 	};
 
@@ -230,7 +258,11 @@ export const openapi = ({ path }: OpenapiModuleOptions = FreezeEmpty) => {
 			if (!cachedHtml) {
 				cachedJson ??= JSON.stringify(memory.get("openapi"));
 
-				cachedHtml = scalar("Cudenix Documentation", cachedJson, JSON.stringify({}));
+				cachedHtml = scalar(
+					"Cudenix Documentation",
+					cachedJson,
+					JSON.stringify({}),
+				);
 			}
 
 			return success(cachedHtml, {

@@ -122,7 +122,8 @@ export const replace = <Translation extends string>(
 
 	const { length } = translation;
 
-	let result = firstPlaceholder > 0 ? translation.substring(0, firstPlaceholder) : "";
+	let result =
+		firstPlaceholder > 0 ? translation.substring(0, firstPlaceholder) : "";
 
 	let i = firstPlaceholder;
 
@@ -170,14 +171,19 @@ export const replace = <Translation extends string>(
 };
 
 export const getLanguage = () =>
-	(getRequestContext()?.store.i18n as Partial<I18n>)?.language ?? STORE.language;
+	(getRequestContext()?.store.i18n as Partial<I18n>)?.language ??
+	STORE.language;
 
-export const translate = <const Path extends DeepPaths<Cudenix.i18n.Translations>>(
+export const translate = <
+	const Path extends DeepPaths<Cudenix.i18n.Translations>,
+>(
 	path: Path,
 	{
 		language,
 		replace: replacements,
-	}: TranslateOptions<DeepValue<Cudenix.i18n.Translations, Path>> = FreezeEmpty,
+	}: TranslateOptions<
+		DeepValue<Cudenix.i18n.Translations, Path>
+	> = FreezeEmpty,
 ) => {
 	const translations = STORE.translations[language ?? getLanguage()];
 
@@ -271,19 +277,23 @@ export const initializeI18n = async (
 };
 
 export const i18n = () =>
-	module().middleware(({ request: { raw }, response: { cookies }, store }, next) => {
-		(store as Record<"i18n", Partial<I18n>>).i18n = {
-			language:
-				STORE.languages.length <= 1
-					? STORE.language
-					: (selectHeader(
-							(STORE.cookie ? cookies.get(STORE.cookie) : undefined) ??
-								raw.headers.get(STORE.header!) ??
-								STORE.language,
-							STORE.languages,
-							PREFIX_MATCH_OPTIONS,
-						) ?? STORE.language),
-		};
+	module().middleware(
+		({ request: { raw }, response: { cookies }, store }, next) => {
+			(store as Record<"i18n", Partial<I18n>>).i18n = {
+				language:
+					STORE.languages.length <= 1
+						? STORE.language
+						: (selectHeader(
+								(STORE.cookie
+									? cookies.get(STORE.cookie)
+									: undefined) ??
+									raw.headers.get(STORE.header!) ??
+									STORE.language,
+								STORE.languages,
+								PREFIX_MATCH_OPTIONS,
+							) ?? STORE.language),
+			};
 
-		return next();
-	});
+			return next();
+		},
+	);

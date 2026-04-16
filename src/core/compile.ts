@@ -52,7 +52,8 @@ const getLinkUseBits = (link: Chain[number]) => {
 			bits |= KEY_TO_BIT[link.keys[i]!];
 		}
 	} else {
-		const text = link[link.type.toLowerCase() as keyof typeof link].toString();
+		const text =
+			link[link.type.toLowerCase() as keyof typeof link].toString();
 
 		if (text) {
 			for (let i = 0; i < USE_KEYWORDS.length; i++) {
@@ -76,7 +77,11 @@ const getLinkUseBits = (link: Chain[number]) => {
 	return bits;
 };
 
-const step = (endpoints: Map<string, Endpoint[]>, module: AnyModule, previous: PreviousStep) => {
+const step = (
+	endpoints: Map<string, Endpoint[]>,
+	module: AnyModule,
+	previous: PreviousStep,
+) => {
 	const chain = [] as Chain;
 	const merged = [...previous.chain];
 
@@ -104,7 +109,11 @@ const step = (endpoints: Map<string, Endpoint[]>, module: AnyModule, previous: P
 			continue;
 		}
 
-		if (link.type === "MIDDLEWARE" || link.type === "STORE" || link.type === "VALIDATOR") {
+		if (
+			link.type === "MIDDLEWARE" ||
+			link.type === "STORE" ||
+			link.type === "VALIDATOR"
+		) {
 			chain.push(link);
 
 			merged.push(link);
@@ -149,7 +158,11 @@ const step = (endpoints: Map<string, Endpoint[]>, module: AnyModule, previous: P
 
 				const keyword = USE_KEYWORDS[j];
 
-				if (!keyword || (useBits & keyword[0]) !== 0 || text.indexOf(keyword[1]) === -1) {
+				if (
+					!keyword ||
+					(useBits & keyword[0]) !== 0 ||
+					text.indexOf(keyword[1]) === -1
+				) {
 					continue;
 				}
 
@@ -221,9 +234,10 @@ export const compile = (app: App, module: AnyModule) => {
 
 		app.routes ??= new Empty() as NonNullable<App["routes"]>;
 
+		const { routes } = app;
+
 		const dynamicEndpoints = [] as Endpoint[];
 		const methodRegexps = [] as string[];
-		const { routes } = app;
 
 		for (let i = 0; i < methodEndpoints.length; i++) {
 			const methodEndpoint = methodEndpoints[i];
@@ -243,10 +257,16 @@ export const compile = (app: App, module: AnyModule) => {
 				continue;
 			}
 
-			routes[methodEndpoint.path] ??= new Empty() as (typeof routes)[string];
+			routes[methodEndpoint.path] ??=
+				new Empty() as (typeof routes)[string];
 
-			routes[methodEndpoint.path]![method] = (request: Request) =>
-				app.endpoint(methodEndpoint, methodEndpoint.path, request);
+			routes[methodEndpoint.path]![method] = (request: Request) => {
+				return app.endpoint(
+					methodEndpoint,
+					methodEndpoint.path,
+					request,
+				);
+			};
 		}
 
 		if (dynamicEndpoints.length === 0) {
@@ -255,7 +275,9 @@ export const compile = (app: App, module: AnyModule) => {
 
 		app.methods.set(method, {
 			endpoints: dynamicEndpoints,
-			regexp: new RegExp(`^(https?:\\/\\/)[^\\s\\/]+(${methodRegexps.join("|")})(?![^?#])`),
+			regexp: new RegExp(
+				`^(https?:\\/\\/)[^\\s\\/]+(${methodRegexps.join("|")})(?![^?#])`,
+			),
 		});
 	}
 };

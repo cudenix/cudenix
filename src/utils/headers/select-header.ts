@@ -79,7 +79,9 @@ export const selectHeader = (
 					}
 
 					if (qStart < position) {
-						const parsed = Number(header.substring(qStart, position));
+						const parsed = Number(
+							header.substring(qStart, position),
+						);
 
 						if (!Number.isNaN(parsed)) {
 							q = parsed;

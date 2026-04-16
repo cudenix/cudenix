@@ -6,10 +6,12 @@ export const initializeStandardSchema = () =>
 			const returned = schema["~standard"].validate(input);
 
 			if (returned instanceof Promise) {
-				return returned.then(({ issues, value }) => ({
-					content: issues ?? value,
-					success: !issues,
-				}));
+				return returned.then(({ issues, value }) => {
+					return {
+						content: issues ?? value,
+						success: !issues,
+					};
+				});
 			}
 
 			return {

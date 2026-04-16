@@ -1,5 +1,11 @@
 import type { Endpoint } from "@/core/app";
-import { USE_BODY, USE_COOKIES, USE_HEADERS, USE_PARAMS, USE_QUERY } from "@/core/compile";
+import {
+	USE_BODY,
+	USE_COOKIES,
+	USE_HEADERS,
+	USE_PARAMS,
+	USE_QUERY,
+} from "@/core/compile";
 import type { AnyError } from "@/core/error";
 import type { AnySuccess } from "@/core/success";
 import type { MaybePromise } from "@/types/maybe-promise";
@@ -58,9 +64,14 @@ export interface Context {
 	store: Record<PropertyKey, unknown>;
 }
 
-type ContextResponseConstructor = new (cookies?: Bun.CookieMap) => ContextResponse;
+type ContextResponseConstructor = new (
+	cookies?: Bun.CookieMap,
+) => ContextResponse;
 
-const ContextResponse = function (this: ContextResponse, cookies?: Bun.CookieMap) {
+const ContextResponse = function (
+	this: ContextResponse,
+	cookies?: Bun.CookieMap,
+) {
 	this.content = undefined;
 
 	if (cookies) {
@@ -164,7 +175,9 @@ Context.prototype.loadRequest = function loadRequest(this: Context) {
 	}
 };
 
-Context.prototype.loadRequestBody = async function loadRequestBody(this: Context) {
+Context.prototype.loadRequestBody = async function loadRequestBody(
+	this: Context,
+) {
 	const rawContentType = this.request.raw.headers.get("content-type");
 
 	if (!rawContentType) {
@@ -174,7 +187,10 @@ Context.prototype.loadRequestBody = async function loadRequestBody(this: Context
 	}
 
 	const semiIndex = rawContentType.indexOf(";");
-	const contentType = semiIndex === -1 ? rawContentType : rawContentType.substring(0, semiIndex);
+	const contentType =
+		semiIndex === -1
+			? rawContentType
+			: rawContentType.substring(0, semiIndex);
 
 	if (contentType === "application/json") {
 		this.request.body = await this.request.raw.json();
@@ -220,7 +236,9 @@ Context.prototype.loadRequestBody = async function loadRequestBody(this: Context
 	this.request.body = await this.request.raw.text();
 };
 
-Context.prototype.loadRequestCookies = function loadRequestCookies(this: Context) {
+Context.prototype.loadRequestCookies = function loadRequestCookies(
+	this: Context,
+) {
 	const header = this.request.raw.headers.get("cookie");
 
 	if (!header) {
@@ -230,7 +248,9 @@ Context.prototype.loadRequestCookies = function loadRequestCookies(this: Context
 	this.request.cookies = parseCookies(header);
 };
 
-Context.prototype.loadRequestHeaders = function loadRequestHeaders(this: Context) {
+Context.prototype.loadRequestHeaders = function loadRequestHeaders(
+	this: Context,
+) {
 	if (this.request.raw.headers.count === 0) {
 		return;
 	}
@@ -238,7 +258,9 @@ Context.prototype.loadRequestHeaders = function loadRequestHeaders(this: Context
 	this.request.headers = this.request.raw.headers.toJSON();
 };
 
-Context.prototype.loadRequestParams = function loadRequestParams(this: Context) {
+Context.prototype.loadRequestParams = function loadRequestParams(
+	this: Context,
+) {
 	if (!this.endpoint.paramsRegexp) {
 		return;
 	}
@@ -353,7 +375,8 @@ Context.prototype.loadRequestQuery = function loadRequestQuery(this: Context) {
 			}
 
 			const firstChar = value.charCodeAt(0);
-			const parsed = firstChar === 123 || firstChar === 91 ? tryParse(value) : value;
+			const parsed =
+				firstChar === 123 || firstChar === 91 ? tryParse(value) : value;
 
 			if (params[key] === undefined) {
 				params[key] = parsed;
@@ -386,4 +409,6 @@ export const context = (
 	path: string,
 	request: Request,
 	server: Bun.Server<unknown>,
-) => new Context(endpoint, memory, path, request, server);
+) => {
+	return new Context(endpoint, memory, path, request, server);
+};

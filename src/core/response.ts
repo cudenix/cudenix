@@ -9,7 +9,11 @@ export const processResponse = (
 	response: ContextResponse,
 	{ serializeCookies }: ProcessResponseOptions = FreezeEmpty,
 ) => {
-	if (serializeCookies && (response as any)._cookies && response.cookies.size > 0) {
+	if (
+		serializeCookies &&
+		(response as any)._cookies &&
+		response.cookies.size > 0
+	) {
 		const setCookieHeaders = response.cookies.toSetCookieHeaders();
 
 		for (let i = 0; i < setCookieHeaders.length; i++) {

@@ -3,7 +3,11 @@ import type { Context } from "@/core/context";
 import { Error } from "@/core/error";
 import { processResponse } from "@/core/response";
 import type { RouteFnReturnGenerator } from "@/core/route";
-import type { AnyValidator, ValidatorPlugin, ValidatorRequest } from "@/core/validator";
+import type {
+	AnyValidator,
+	ValidatorPlugin,
+	ValidatorRequest,
+} from "@/core/validator";
 import type { MaybePromise } from "@/types/maybe-promise";
 import type { WSData } from "@/types/ws";
 import { Empty } from "@/utils/objects/empty";
@@ -27,12 +31,15 @@ const applyValidation = (
 	state: ValidatorState,
 ) => {
 	if (validated.success) {
-		context.request[key as keyof typeof context.request] = validated.content as any;
+		context.request[key as keyof typeof context.request] =
+			validated.content as any;
 
 		return;
 	}
 
-	const content = Array.isArray(validated.content) ? validated.content : [validated.content];
+	const content = Array.isArray(validated.content)
+		? validated.content
+		: [validated.content];
 
 	state.errors ??= [];
 	state.index ??= new Empty() as Record<string, number>;
@@ -79,7 +86,13 @@ const processValidators = (
 			return validated.then((resolved) => {
 				applyValidation(resolved, key, context, state);
 
-				return processValidators(context, link, validatorPlugin, i + 1, state);
+				return processValidators(
+					context,
+					link,
+					validatorPlugin,
+					i + 1,
+					state,
+				);
 			});
 		}
 
@@ -103,12 +116,25 @@ const resolveRoute = (
 	if (endpoint.route.method === "WS") {
 		app.server?.upgrade(request, {
 			data: {
-				close: (ws: Bun.ServerWebSocket<unknown>, code: number, reason: string) =>
-					(returned as WSData)?.close?.(ws, code, reason),
-				drain: (ws: Bun.ServerWebSocket<unknown>) => (returned as WSData)?.drain?.(ws),
-				message: (ws: Bun.ServerWebSocket<unknown>, message: string) =>
-					(returned as WSData)?.message?.(ws, message),
-				open: (ws: Bun.ServerWebSocket<unknown>) => (returned as WSData)?.open?.(ws),
+				close: (
+					ws: Bun.ServerWebSocket<unknown>,
+					code: number,
+					reason: string,
+				) => {
+					return (returned as WSData)?.close?.(ws, code, reason);
+				},
+				drain: (ws: Bun.ServerWebSocket<unknown>) => {
+					return (returned as WSData)?.drain?.(ws);
+				},
+				message: (
+					ws: Bun.ServerWebSocket<unknown>,
+					message: string,
+				) => {
+					return (returned as WSData)?.message?.(ws, message);
+				},
+				open: (ws: Bun.ServerWebSocket<unknown>) => {
+					return (returned as WSData)?.open?.(ws);
+				},
 			},
 		});
 
@@ -143,9 +169,17 @@ const step = (
 		}
 
 		if (link.type === "MIDDLEWARE") {
-			const middleware = link.middleware(context, () =>
-				step(app, context, endpoint, request, chain, i + 1, validatorPlugin),
-			);
+			const middleware = link.middleware(context, () => {
+				return step(
+					app,
+					context,
+					endpoint,
+					request,
+					chain,
+					i + 1,
+					validatorPlugin,
+				);
+			});
 
 			if (middleware instanceof Promise) {
 				return middleware.then((resolved) => {
@@ -174,9 +208,20 @@ const step = (
 						return;
 					}
 
-					merge(context.store, resolved as Record<PropertyKey, unknown>);
+					merge(
+						context.store,
+						resolved as Record<PropertyKey, unknown>,
+					);
 
-					return step(app, context, endpoint, request, chain, i + 1, validatorPlugin);
+					return step(
+						app,
+						context,
+						endpoint,
+						request,
+						chain,
+						i + 1,
+						validatorPlugin,
+					);
 				});
 			}
 
@@ -210,7 +255,15 @@ const step = (
 					return;
 				}
 
-				return step(app, context, endpoint, request, chain, i + 1, validatorPlugin);
+				return step(
+					app,
+					context,
+					endpoint,
+					request,
+					chain,
+					i + 1,
+					validatorPlugin,
+				);
 			});
 		}
 	}
@@ -254,10 +307,14 @@ const step = (
 							}
 
 							if (chunk.retry) {
-								controller.enqueue(`retry: ${chunk.retry.toString()}\n`);
+								controller.enqueue(
+									`retry: ${chunk.retry.toString()}\n`,
+								);
 							}
 
-							controller.enqueue(`data: ${JSON.stringify(chunk.data)}\n\n`);
+							controller.enqueue(
+								`data: ${JSON.stringify(chunk.data)}\n\n`,
+							);
 
 							continue;
 						}
@@ -324,11 +381,11 @@ export const stepAndRespond = (
 	);
 
 	if (returned instanceof Promise) {
-		return returned.then(() =>
-			processResponse(context.response, {
+		return returned.then(() => {
+			return processResponse(context.response, {
 				serializeCookies: Boolean(endpoint.paramsRegexp),
-			}),
-		);
+			});
+		});
 	}
 
 	return processResponse(context.response, {

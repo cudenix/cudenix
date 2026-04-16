@@ -112,8 +112,11 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FreezeEmpty) =>
 
 		processedHeaders.set("content-encoding", encodingName);
 
-		response.content = success(new Response(compressed, processedResponse), {
-			status: processedResponse.status,
-			transform: false,
-		});
+		response.content = success(
+			new Response(compressed, processedResponse),
+			{
+				status: processedResponse.status,
+				transform: false,
+			},
+		);
 	});

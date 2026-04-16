@@ -33,4 +33,6 @@ export const store = <
 	const Validators extends Record<PropertyKey, unknown>,
 >(
 	store: StoreFn<Return, Stores, Validators>,
-) => new Store(store) as Store<Return, Stores, Validators>;
+) => {
+	return new Store(store) as Store<Return, Stores, Validators>;
+};

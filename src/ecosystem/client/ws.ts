@@ -8,7 +8,10 @@ export type AnyWS = WS<any, any>;
 
 type Constructor = new (url: string | URL) => AnyWS;
 
-const onmessageSetter = Object.getOwnPropertyDescriptor(WebSocket.prototype, "onmessage")?.set;
+const onmessageSetter = Object.getOwnPropertyDescriptor(
+	WebSocket.prototype,
+	"onmessage",
+)?.set;
 
 export const WS = function WS(this: AnyWS, url: string | URL) {
 	const webSocket = new WebSocket(url);

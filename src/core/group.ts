@@ -25,7 +25,10 @@ export interface GroupOptions<Prefix extends `/${string}`> {
 
 export type AnyGroupOptions = GroupOptions<any>;
 
-type Constructor = new (group: AnyGroupFn, options?: AnyGroupOptions) => AnyGroup;
+type Constructor = new (
+	group: AnyGroupFn,
+	options?: AnyGroupOptions,
+) => AnyGroup;
 
 export const Group = function Group(
 	this: AnyGroup,
@@ -44,4 +47,6 @@ export const group = <
 >(
 	group: GroupFn<Module, Return>,
 	options?: GroupOptions<Prefix>,
-) => new Group(group, options) as Group<Module, Prefix, Return>;
+) => {
+	return new Group(group, options) as Group<Module, Prefix, Return>;
+};

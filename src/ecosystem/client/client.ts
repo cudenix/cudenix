@@ -41,7 +41,11 @@ type ClientChain<Routes extends Record<PropertyKey, unknown>> = {
 				request: infer Request;
 				response: infer Response;
 			}
-			? RouteHandler<Key extends string ? Uppercase<Key> : never, Request, Response>
+			? RouteHandler<
+					Key extends string ? Uppercase<Key> : never,
+					Request,
+					Response
+				>
 			: ClientChain<Routes[Key]>
 		: never;
 };
@@ -67,7 +71,9 @@ const proxyHandler: ProxyHandler<any> = {
 		const method = target._method;
 
 		const resolved =
-			typeof globalOptions === "function" ? await globalOptions() : globalOptions;
+			typeof globalOptions === "function"
+				? await globalOptions()
+				: globalOptions;
 
 		const options = { ...resolved, ...requestOptions };
 
@@ -151,9 +157,14 @@ const proxyHandler: ProxyHandler<any> = {
 
 				if (typeof value === "object" && value) {
 					query +=
-						encodeURIComponent(key) + "=" + encodeURIComponent(JSON.stringify(value));
+						encodeURIComponent(key) +
+						"=" +
+						encodeURIComponent(JSON.stringify(value));
 				} else {
-					query += encodeURIComponent(key) + "=" + encodeURIComponent(String(value));
+					query +=
+						encodeURIComponent(key) +
+						"=" +
+						encodeURIComponent(String(value));
 				}
 			}
 
@@ -164,9 +175,9 @@ const proxyHandler: ProxyHandler<any> = {
 
 		if (url.indexOf("/:") !== -1) {
 			url = url.replaceAll(PARAM_REGEX_REPLACE, (_, key: string) => {
-				const param = options.params?.[key.endsWith("?") ? key.slice(0, -1) : key] as
-					| string
-					| undefined;
+				const param = options.params?.[
+					key.endsWith("?") ? key.slice(0, -1) : key
+				] as string | undefined;
 
 				return param ? `/${param}` : "";
 			});
@@ -174,9 +185,9 @@ const proxyHandler: ProxyHandler<any> = {
 
 		if (url.indexOf("/...") !== -1) {
 			url = url.replaceAll(SPREAD_REGEX_REPLACE, (_, key: string) => {
-				const params = options.params?.[key.endsWith("?") ? key.slice(0, -1) : key] as
-					| string[]
-					| undefined;
+				const params = options.params?.[
+					key.endsWith("?") ? key.slice(0, -1) : key
+				] as string[] | undefined;
 
 				return params ? `/${params.join("/")}` : "";
 			});
@@ -237,7 +248,11 @@ const proxyHandler: ProxyHandler<any> = {
 
 		return createProxy(
 			target._options,
-			method ? (target._path ? `${target._path}/${method}` : method) : target._path,
+			method
+				? target._path
+					? `${target._path}/${method}`
+					: method
+				: target._path,
 			prop,
 		);
 	},
@@ -253,5 +268,6 @@ const createProxy = (globalOptions: ClientOptions, path = "", method = "") => {
 	return new Proxy(target, proxyHandler);
 };
 
-export const client = <const App extends AnyModule>(options: ClientOptions) =>
-	createProxy(options) as unknown as ClientChain<App["routes"]>;
+export const client = <const App extends AnyModule>(options: ClientOptions) => {
+	return createProxy(options) as unknown as ClientChain<App["routes"]>;
+};

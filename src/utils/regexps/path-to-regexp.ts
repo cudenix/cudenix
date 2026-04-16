@@ -39,7 +39,11 @@ export const pathToRegexp = (
 
 		if (first === 58) {
 			segment = `\\/${captureParamGroups ? `(?<${path.substring(i + 1, end)}>` : ""}[^/\\s?#]+${captureParamGroups ? ")" : ""}`;
-		} else if (first === 46 && path.charCodeAt(i + 1) === 46 && path.charCodeAt(i + 2) === 46) {
+		} else if (
+			first === 46 &&
+			path.charCodeAt(i + 1) === 46 &&
+			path.charCodeAt(i + 2) === 46
+		) {
 			segment = `\\/${captureParamGroups ? `(?<${path.substring(i + 3, end)}>` : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${captureParamGroups ? ")" : ""}`;
 		} else {
 			segment = `\\/${RegExp.escape(path.substring(i, end))}`;

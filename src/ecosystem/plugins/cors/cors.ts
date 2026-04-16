@@ -16,7 +16,10 @@ interface CorsOptions {
 	maxAge?: string;
 	origin?:
 		| string
-		| ((origin: string | undefined, context: AnyDeveloperContext) => string | undefined);
+		| ((
+				origin: string | undefined,
+				context: AnyDeveloperContext,
+		  ) => string | undefined);
 }
 
 export const cors = ({
@@ -49,7 +52,9 @@ export const cors = ({
 		}
 
 		if (needsMirrorHeaders) {
-			const requestHeaders = rawHeaders.get("access-control-request-headers");
+			const requestHeaders = rawHeaders.get(
+				"access-control-request-headers",
+			);
 
 			if (requestHeaders !== null) {
 				headers.set("access-control-allow-headers", requestHeaders);
@@ -71,7 +76,10 @@ export const cors = ({
 					const requestOrigin = rawHeaders.get("origin");
 
 					if (requestOrigin !== null) {
-						headers.set("access-control-allow-origin", requestOrigin);
+						headers.set(
+							"access-control-allow-origin",
+							requestOrigin,
+						);
 						headers.append("vary", "Origin");
 					} else {
 						headers.set("access-control-allow-origin", "*");
@@ -80,7 +88,10 @@ export const cors = ({
 					headers.set("access-control-allow-credentials", "true");
 
 					if (exposeHeaders) {
-						headers.set("access-control-expose-headers", exposeHeaders);
+						headers.set(
+							"access-control-expose-headers",
+							exposeHeaders,
+						);
 					}
 
 					if (raw.method === "OPTIONS") {
@@ -90,7 +101,9 @@ export const cors = ({
 					return next();
 				})
 
-				.route("OPTIONS", "/...path?", () => OPTIONS_RESPONSE);
+				.route("OPTIONS", "/...path?", () => {
+					return OPTIONS_RESPONSE;
+				});
 		}
 
 		return module()
@@ -119,7 +132,9 @@ export const cors = ({
 				return next();
 			})
 
-			.route("OPTIONS", "/...path?", () => OPTIONS_RESPONSE);
+			.route("OPTIONS", "/...path?", () => {
+				return OPTIONS_RESPONSE;
+			});
 	}
 
 	return module()
@@ -128,7 +143,8 @@ export const cors = ({
 			const { headers } = context.response;
 			const rawOrigin = raw.headers.get("origin");
 			const resolvedOrigin =
-				origin(rawOrigin !== null ? rawOrigin : undefined, context) ?? "*";
+				origin(rawOrigin !== null ? rawOrigin : undefined, context) ??
+				"*";
 
 			headers.set("access-control-allow-origin", resolvedOrigin);
 
@@ -151,5 +167,7 @@ export const cors = ({
 			return next();
 		})
 
-		.route("OPTIONS", "/...path?", () => OPTIONS_RESPONSE);
+		.route("OPTIONS", "/...path?", () => {
+			return OPTIONS_RESPONSE;
+		});
 };

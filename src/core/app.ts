@@ -33,7 +33,11 @@ type Plugin = (...options: any[]) => void;
 
 export interface App {
 	compile(): void;
-	endpoint(endpoint: Endpoint, path: string, request: Request): MaybePromise<Response>;
+	endpoint(
+		endpoint: Endpoint,
+		path: string,
+		request: Request,
+	): MaybePromise<Response>;
 	fetch(request: Request): MaybePromise<Response>;
 	listen(options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">): App;
 	memory: Map<string, unknown>;
@@ -68,13 +72,26 @@ App.prototype.compile = function (this: App) {
 	this.memory.delete("plugins");
 };
 
-App.prototype.endpoint = function (this: App, endpoint: Endpoint, path: string, request: Request) {
-	const context = new Context(endpoint, this.memory, path, request, this.server!);
+App.prototype.endpoint = function (
+	this: App,
+	endpoint: Endpoint,
+	path: string,
+	request: Request,
+) {
+	const context = new Context(
+		endpoint,
+		this.memory,
+		path,
+		request,
+		this.server!,
+	);
 
 	const returned = context.loadRequest();
 
 	if (returned instanceof Promise) {
-		return returned.then(() => stepAndRespond(this, context, endpoint, request));
+		return returned.then(() => {
+			return stepAndRespond(this, context, endpoint, request);
+		});
 	}
 
 	return stepAndRespond(this, context, endpoint, request);
@@ -134,7 +151,9 @@ App.prototype.listen = function listen(
 		development: false,
 		reusePort: true,
 		...options,
-		fetch: (request) => this.fetch(request),
+		fetch: (request) => {
+			return this.fetch(request);
+		},
 		routes: this.routes,
 		websocket: {
 			close: (ws, code, reason) => {
@@ -178,4 +197,6 @@ App.prototype.plugins = function (this: App, plugins: Plugin[]) {
 	return this;
 };
 
-export const app = (module: AnyModule) => new App(module) as App;
+export const app = (module: AnyModule) => {
+	return new App(module) as App;
+};

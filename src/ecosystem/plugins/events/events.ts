@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 
-type Event<Events extends Record<keyof Events, unknown[]>> = EventEmitter<Events>;
+type Event<Events extends Record<keyof Events, unknown[]>> =
+	EventEmitter<Events>;
 
 type AnyEvent = Event<any>;
 
@@ -12,6 +13,8 @@ export const Event = function Event(this: AnyEvent) {
 
 export const event = <
 	const Events extends Record<keyof Events, unknown[]> = Cudenix.Events.List,
->() => new Event() as Event<Events>;
+>() => {
+	return new Event() as Event<Events>;
+};
 
 export const events = event();
