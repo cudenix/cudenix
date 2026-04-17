@@ -212,21 +212,21 @@ Context.prototype.loadRequestBody = async function loadRequestBody(
 
 		const body = new Empty();
 
-		for (const [key, value] of formData) {
+		formData.forEach((value, key) => {
 			if (body[key] === undefined) {
 				body[key] = value;
 
-				continue;
+				return;
 			}
 
 			if (Array.isArray(body[key])) {
 				body[key].push(value);
 
-				continue;
+				return;
 			}
 
 			body[key] = [body[key], value];
-		}
+		});
 
 		this.request.body = body;
 
