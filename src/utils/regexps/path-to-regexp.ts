@@ -39,6 +39,8 @@ export const pathToRegexp = (
 
 		if (first === 58) {
 			segment = `\\/${captureParamGroups ? `(?<${path.substring(i + 1, end)}>` : ""}[^/\\s?#]+${captureParamGroups ? ")" : ""}`;
+		} else if (first === 42 && end - i === 1) {
+			segment = `\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)`;
 		} else if (
 			first === 46 &&
 			path.charCodeAt(i + 1) === 46 &&
