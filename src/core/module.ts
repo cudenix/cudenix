@@ -215,7 +215,7 @@ export interface Module<
 		`/${string}`
 		? ExtractUrlParams<MergedPath> extends infer PathParams extends Record<
 				string,
-				string | string[]
+				string | string[] | undefined
 			>
 			? Module<
 					Errors,
