@@ -145,7 +145,9 @@ export const Context = function (
 		raw: request,
 	};
 	this.response = new ContextResponse(
-		endpoint.paramsRegexp ? undefined : (request as Bun.BunRequest).cookies,
+		endpoint.router === "bun"
+			? (request as Bun.BunRequest).cookies
+			: undefined,
 	);
 	this.server = server;
 	this.store = new Empty();
@@ -261,11 +263,19 @@ Context.prototype.loadRequestHeaders = function loadRequestHeaders(
 Context.prototype.loadRequestParams = function loadRequestParams(
 	this: Context,
 ) {
-	if (!this.endpoint.paramsRegexp) {
+	const endpoint = this.endpoint;
+
+	if (endpoint.router === "bun") {
+		this.request.params = (this.request.raw as Bun.BunRequest).params;
+
 		return;
 	}
 
-	const match = this.endpoint.paramsRegexp.exec(this.request.path);
+	if (!endpoint.paramsRegexp) {
+		return;
+	}
+
+	const match = endpoint.paramsRegexp.exec(this.request.path);
 
 	if (!match) {
 		return;
@@ -277,17 +287,27 @@ Context.prototype.loadRequestParams = function loadRequestParams(
 		return;
 	}
 
+	const params = groups as unknown as Record<string, string | string[]>;
+	const restKeys = endpoint.restKeys;
+
 	for (const key in groups) {
 		const value = groups[key];
 
-		if (value === undefined || value.indexOf("%") === -1) {
+		if (value === undefined) {
 			continue;
 		}
 
-		groups[key] = decodeURIComponent(value);
+		const decoded =
+			value.indexOf("%") === -1 ? value : decodeURIComponent(value);
+
+		if (restKeys !== undefined && restKeys.indexOf(key) !== -1) {
+			params[key] = decoded.split("/");
+		} else if (decoded !== value) {
+			params[key] = decoded;
+		}
 	}
 
-	this.request.params = groups;
+	this.request.params = params;
 };
 
 Context.prototype.loadRequestQuery = function loadRequestQuery(this: Context) {
