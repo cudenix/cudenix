@@ -34,6 +34,53 @@ interface PreviousStep {
 	path: string;
 }
 
+const needsCudenixRouter = (path: string) => {
+	return path.indexOf("?") !== -1 || path.indexOf("...") !== -1;
+};
+
+const extractRestKeys = (path: string) => {
+	let keys: string[] | undefined;
+
+	const length = path.length;
+
+	let i = 0;
+
+	while (i < length) {
+		if (path.charCodeAt(i) === 47) {
+			i++;
+
+			continue;
+		}
+
+		let segEnd = i;
+
+		while (segEnd < length && path.charCodeAt(segEnd) !== 47) {
+			segEnd++;
+		}
+
+		if (
+			path.charCodeAt(i) === 46 &&
+			path.charCodeAt(i + 1) === 46 &&
+			path.charCodeAt(i + 2) === 46
+		) {
+			const name = path.substring(
+				i + 3,
+				path.charCodeAt(segEnd - 1) === 63 ? segEnd - 1 : segEnd,
+			);
+
+			if (!keys) {
+				keys = [];
+			}
+
+			keys.push(name);
+		}
+
+		i = segEnd;
+	}
+
+	return keys;
+};
+
 const getLinkUseBits = (link: Chain[number]) => {
 	let bits = LINK_USE_BITS_CACHE.get(link);
 
@@ -194,19 +241,22 @@ const step = (
 			`${previous.path}${path === "/" ? "" : path}${link.path === "/" ? "" : link.path}` ||
 			"/";
 
+		const cudenix = needsCudenixRouter(finalPath);
+
 		methodEndpoints.push({
 			chain: link.validator ? [...merged, link.validator] : [...merged],
 			generator: link.generator,
-			paramsRegexp:
-				finalPath.indexOf(":") !== -1 || finalPath.indexOf("...") !== -1
-					? new RegExp(
-							`^${pathToRegexp(finalPath, {
-								captureParamGroups: true,
-							})}$`,
-						)
-					: undefined,
+			paramsRegexp: cudenix
+				? new RegExp(
+						`^${pathToRegexp(finalPath, {
+							captureParamGroups: true,
+						})}$`,
+					)
+				: undefined,
 			path: finalPath,
+			restKeys: cudenix ? extractRestKeys(finalPath) : undefined,
 			route: link,
+			router: cudenix ? "cudenix" : "bun",
 			use: useBits,
 		});
 	}
@@ -246,10 +296,7 @@ export const compile = (app: App, module: AnyModule) => {
 				continue;
 			}
 
-			if (
-				methodEndpoint.path.indexOf(":") !== -1 ||
-				methodEndpoint.path.indexOf("...") !== -1
-			) {
+			if (needsCudenixRouter(methodEndpoint.path)) {
 				methodRegexps.push(pathToRegexp(methodEndpoint.path));
 
 				dynamicEndpoints.push(methodEndpoint);
