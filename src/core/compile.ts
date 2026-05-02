@@ -246,13 +246,6 @@ const step = (
 		methodEndpoints.push({
 			chain: link.validator ? [...merged, link.validator] : [...merged],
 			generator: link.generator,
-			paramsRegexp: cudenix
-				? new RegExp(
-						`^${pathToRegexp(finalPath, {
-							captureParamGroups: true,
-						})}$`,
-					)
-				: undefined,
 			path: finalPath,
 			restKeys: cudenix ? extractRestKeys(finalPath) : undefined,
 			route: link,
@@ -284,10 +277,15 @@ export const compile = (app: App, module: AnyModule) => {
 
 		app.routes ??= new Empty() as NonNullable<App["routes"]>;
 
-		const { routes } = app;
+		const routes = app.routes;
 
 		const dynamicEndpoints = [] as Endpoint[];
 		const methodRegexps = [] as string[];
+
+		// Capture group offset inside the combined regex.
+		// Group 1 = protocol, group 2 = outer path alternation, group 3+
+		// belong to the inner alternatives left-to-right.
+		let groupOffset = 3;
 
 		for (let i = 0; i < methodEndpoints.length; i++) {
 			const methodEndpoint = methodEndpoints[i];
@@ -297,8 +295,19 @@ export const compile = (app: App, module: AnyModule) => {
 			}
 
 			if (needsCudenixRouter(methodEndpoint.path)) {
-				methodRegexps.push(pathToRegexp(methodEndpoint.path));
+				const { pattern, paramKeys } = pathToRegexp(
+					methodEndpoint.path,
+					{
+						capture: true,
+					},
+				);
 
+				methodEndpoint.markerIndex = groupOffset;
+				methodEndpoint.paramKeys = paramKeys;
+
+				groupOffset += 1 + paramKeys.length;
+
+				methodRegexps.push(pattern);
 				dynamicEndpoints.push(methodEndpoint);
 
 				continue;

@@ -57,6 +57,7 @@ export interface Context {
 	loadRequestHeaders(): void;
 	loadRequestParams(): void;
 	loadRequestQuery(): void;
+	match?: RegExpExecArray;
 	memory: Map<string, unknown>;
 	request: ContextRequest;
 	response: ContextResponse;
@@ -123,6 +124,7 @@ type Constructor = new (
 	path: string,
 	request: Request,
 	server: Bun.Server<unknown>,
+	match?: RegExpExecArray,
 ) => Context;
 
 export const Context = function (
@@ -132,8 +134,10 @@ export const Context = function (
 	path: string,
 	request: Request,
 	server: Bun.Server<unknown>,
+	match?: RegExpExecArray,
 ) {
 	this.endpoint = endpoint;
+	this.match = match;
 	this.memory = memory;
 	this.request = {
 		body: undefined,
@@ -154,7 +158,7 @@ export const Context = function (
 } as unknown as Constructor;
 
 Context.prototype.loadRequest = function loadRequest(this: Context) {
-	const { use } = this.endpoint;
+	const use = this.endpoint.use;
 
 	if (use & USE_HEADERS) {
 		this.loadRequestHeaders();
@@ -271,39 +275,32 @@ Context.prototype.loadRequestParams = function loadRequestParams(
 		return;
 	}
 
-	if (!endpoint.paramsRegexp) {
+	const match = this.match;
+	const paramKeys = endpoint.paramKeys;
+
+	if (!match || !paramKeys || paramKeys.length === 0) {
 		return;
 	}
 
-	const match = endpoint.paramsRegexp.exec(this.request.path);
-
-	if (!match) {
-		return;
-	}
-
-	const { groups } = match;
-
-	if (!groups) {
-		return;
-	}
-
-	const params = groups as unknown as Record<string, string | string[]>;
+	const params = new Empty() as Record<string, string | string[]>;
 	const restKeys = endpoint.restKeys;
+	const offset = endpoint.markerIndex! + 1;
 
-	for (const key in groups) {
-		const value = groups[key];
+	for (let i = 0; i < paramKeys.length; i++) {
+		const value = match[offset + i];
 
 		if (value === undefined) {
 			continue;
 		}
 
+		const name = paramKeys[i]!;
 		const decoded =
 			value.indexOf("%") === -1 ? value : decodeURIComponent(value);
 
-		if (restKeys !== undefined && restKeys.indexOf(key) !== -1) {
-			params[key] = decoded.split("/");
-		} else if (decoded !== value) {
-			params[key] = decoded;
+		if (restKeys !== undefined && restKeys.indexOf(name) !== -1) {
+			params[name] = decoded.split("/");
+		} else {
+			params[name] = decoded;
 		}
 	}
 

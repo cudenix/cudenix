@@ -1,18 +1,24 @@
 import { FreezeEmpty } from "@/utils/objects/empty";
 
 interface PathToRegexpOptions {
-	captureParamGroups?: boolean;
+	capture?: boolean;
+}
+
+export interface PathToRegexpResult {
+	paramKeys: string[];
+	pattern: string;
 }
 
 export const pathToRegexp = (
 	path: string,
-	{ captureParamGroups }: PathToRegexpOptions = FreezeEmpty,
-) => {
+	{ capture }: PathToRegexpOptions = FreezeEmpty,
+): PathToRegexpResult => {
 	if (path === "/") {
-		return String.raw`()\/`;
+		return { paramKeys: [], pattern: String.raw`()\/` };
 	}
 
-	const { length } = path;
+	const length = path.length;
+	const paramKeys = [] as string[];
 
 	let pattern = "()";
 	let i = 0;
@@ -38,7 +44,13 @@ export const pathToRegexp = (
 		let segment: string;
 
 		if (first === 58) {
-			segment = `\\/${captureParamGroups ? `(?<${path.substring(i + 1, end)}>` : ""}[^/\\s?#]+${captureParamGroups ? ")" : ""}`;
+			const name = path.substring(i + 1, end);
+
+			if (capture) {
+				paramKeys.push(name);
+			}
+
+			segment = `\\/${capture ? "(" : ""}[^/\\s?#]+${capture ? ")" : ""}`;
 		} else if (first === 42 && end - i === 1) {
 			segment = `\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)`;
 		} else if (
@@ -46,7 +58,13 @@ export const pathToRegexp = (
 			path.charCodeAt(i + 1) === 46 &&
 			path.charCodeAt(i + 2) === 46
 		) {
-			segment = `\\/${captureParamGroups ? `(?<${path.substring(i + 3, end)}>` : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${captureParamGroups ? ")" : ""}`;
+			const name = path.substring(i + 3, end);
+
+			if (capture) {
+				paramKeys.push(name);
+			}
+
+			segment = `\\/${capture ? "(" : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${capture ? ")" : ""}`;
 		} else {
 			segment = `\\/${RegExp.escape(path.substring(i, end))}`;
 		}
@@ -60,5 +78,8 @@ export const pathToRegexp = (
 		i = segEnd;
 	}
 
-	return pattern;
+	return {
+		paramKeys,
+		pattern,
+	};
 };

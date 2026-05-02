@@ -20,7 +20,8 @@ export type Router = "bun" | "cudenix";
 export interface Endpoint {
 	chain: Chain;
 	generator: boolean;
-	paramsRegexp?: RegExp;
+	markerIndex?: number;
+	paramKeys?: string[];
 	path: string;
 	restKeys?: string[];
 	route: AnyRoute;
@@ -41,6 +42,7 @@ export interface App {
 		endpoint: Endpoint,
 		path: string,
 		request: Request,
+		match?: RegExpExecArray,
 	): MaybePromise<Response>;
 	fetch(request: Request): MaybePromise<Response>;
 	listen(options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">): App;
@@ -81,6 +83,7 @@ App.prototype.endpoint = function (
 	endpoint: Endpoint,
 	path: string,
 	request: Request,
+	match?: RegExpExecArray,
 ) {
 	const context = new Context(
 		endpoint,
@@ -88,6 +91,7 @@ App.prototype.endpoint = function (
 		path,
 		request,
 		this.server!,
+		match,
 	);
 
 	const returned = context.loadRequest();
@@ -120,29 +124,25 @@ App.prototype.fetch = function fetch(this: App, request: Request) {
 		return NOT_FOUND.clone();
 	}
 
-	let index = -1;
+	const endpoints = data.endpoints;
 
-	for (let i = 3; i < match.length; i++) {
-		if (match[i] === undefined) {
-			continue;
+	let endpoint: Endpoint | undefined;
+
+	for (let i = 0; i < endpoints.length; i++) {
+		const candidate = endpoints[i]!;
+
+		if (match[candidate.markerIndex!] !== undefined) {
+			endpoint = candidate;
+
+			break;
 		}
-
-		index = i - 3;
-
-		break;
 	}
-
-	if (index === -1) {
-		return NOT_FOUND.clone();
-	}
-
-	const endpoint = data.endpoints[index];
 
 	if (!endpoint) {
 		return NOT_FOUND.clone();
 	}
 
-	return this.endpoint(endpoint, path, request);
+	return this.endpoint(endpoint, path, request, match);
 };
 
 App.prototype.listen = function listen(
