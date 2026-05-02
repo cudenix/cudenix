@@ -358,7 +358,7 @@ export const stepAndRespond = (
 				context.response.content = resolved;
 
 				return processResponse(context.response, {
-					serializeCookies: Boolean(endpoint.paramsRegexp),
+					serializeCookies: endpoint.router === "cudenix",
 				});
 			});
 		}
@@ -366,7 +366,7 @@ export const stepAndRespond = (
 		context.response.content = returned;
 
 		return processResponse(context.response, {
-			serializeCookies: Boolean(endpoint.paramsRegexp),
+			serializeCookies: endpoint.router === "cudenix",
 		});
 	}
 
@@ -383,12 +383,12 @@ export const stepAndRespond = (
 	if (returned instanceof Promise) {
 		return returned.then(() => {
 			return processResponse(context.response, {
-				serializeCookies: Boolean(endpoint.paramsRegexp),
+				serializeCookies: endpoint.router === "cudenix",
 			});
 		});
 	}
 
 	return processResponse(context.response, {
-		serializeCookies: Boolean(endpoint.paramsRegexp),
+		serializeCookies: endpoint.router === "cudenix",
 	});
 };
