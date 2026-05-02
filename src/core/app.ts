@@ -15,12 +15,16 @@ const NOT_FOUND = new Response(undefined, {
 
 export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
+export type Router = "bun" | "cudenix";
+
 export interface Endpoint {
 	chain: Chain;
 	generator: boolean;
 	paramsRegexp?: RegExp;
 	path: string;
+	restKeys?: string[];
 	route: AnyRoute;
+	router: Router;
 	use: number;
 }
 
