@@ -42,8 +42,7 @@ export interface TransformValidatorError<
 				details: [ValidatorErrorDetails<ValidatorError>];
 			},
 		],
-		422,
-		true
+		422
 	>;
 }
 
