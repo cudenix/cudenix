@@ -120,7 +120,7 @@ export const replace = <Translation extends string>(
 		return translation;
 	}
 
-	const { length } = translation;
+	const length = translation.length;
 
 	let result =
 		firstPlaceholder > 0 ? translation.substring(0, firstPlaceholder) : "";

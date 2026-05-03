@@ -13,7 +13,7 @@ export const selectHeader = (
 		return;
 	}
 
-	const { length } = header;
+	const length = header.length;
 
 	let best: string | undefined;
 	let bestQ = -1;

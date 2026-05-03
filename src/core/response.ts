@@ -21,10 +21,10 @@ export const processResponse = (
 		}
 	}
 
-	const { content } = response;
+	const content = response.content;
 
 	if (content instanceof ReadableStream) {
-		const { headers } = response;
+		const headers = response.headers;
 
 		headers.set("cache-control", "no-cache");
 		headers.set("connection", "keep-alive");

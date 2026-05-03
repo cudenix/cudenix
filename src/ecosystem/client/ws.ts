@@ -42,7 +42,7 @@ export const WS = function WS(this: AnyWS, url: string | URL) {
 		},
 	});
 
-	const { send } = webSocket;
+	const send = webSocket.send;
 
 	Object.defineProperty(webSocket, "send", {
 		value(data: any) {

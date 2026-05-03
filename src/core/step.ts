@@ -45,7 +45,7 @@ const applyValidation = (
 	state.index ??= new Empty() as Record<string, number>;
 
 	if (state.index[key] !== undefined) {
-		const { details } = state.errors[state.index[key]]!;
+		const details = state.errors[state.index[key]]!.details;
 
 		for (let i = 0; i < content.length; i++) {
 			details.push(content[i]);

@@ -78,7 +78,7 @@ export const initializeOpenapi = (
 						continue;
 					}
 
-					const { keys } = link;
+					const keys = link.keys;
 
 					for (let l = 0; l < keys.length; l++) {
 						const key = keys[l];

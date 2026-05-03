@@ -308,7 +308,7 @@ Context.prototype.loadRequestParams = function loadRequestParams(
 };
 
 Context.prototype.loadRequestQuery = function loadRequestQuery(this: Context) {
-	const { url } = this.request.raw;
+	const url = this.request.raw.url;
 	const queryIndex = url.indexOf("?");
 
 	if (queryIndex === -1) {

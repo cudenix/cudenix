@@ -70,8 +70,8 @@ export const cors = ({
 		if (origin === "*" && credentials === true) {
 			return module()
 				.middleware((context, next) => {
-					const { raw } = context.request;
-					const { headers } = context.response;
+					const raw = context.request.raw;
+					const headers = context.response.headers;
 					const rawHeaders = raw.headers;
 					const requestOrigin = rawHeaders.get("origin");
 
@@ -108,8 +108,8 @@ export const cors = ({
 
 		return module()
 			.middleware((context, next) => {
-				const { raw } = context.request;
-				const { headers } = context.response;
+				const raw = context.request.raw;
+				const headers = context.response.headers;
 
 				headers.set("access-control-allow-origin", origin);
 
@@ -139,8 +139,8 @@ export const cors = ({
 
 	return module()
 		.middleware((context, next) => {
-			const { raw } = context.request;
-			const { headers } = context.response;
+			const raw = context.request.raw;
+			const headers = context.response.headers;
 			const rawOrigin = raw.headers.get("origin");
 			const resolvedOrigin =
 				origin(rawOrigin !== null ? rawOrigin : undefined, context) ??
