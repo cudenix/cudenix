@@ -297,29 +297,23 @@ const step = (
 							break;
 						}
 
-						if (chunk.data.transform) {
-							if (chunk.id) {
-								controller.enqueue(`id: ${chunk.id}\n`);
-							}
-
-							if (chunk.event) {
-								controller.enqueue(`event: ${chunk.event}\n`);
-							}
-
-							if (chunk.retry) {
-								controller.enqueue(
-									`retry: ${chunk.retry.toString()}\n`,
-								);
-							}
-
-							controller.enqueue(
-								`data: ${JSON.stringify(chunk.data)}\n\n`,
-							);
-
-							continue;
+						if (chunk.id) {
+							controller.enqueue(`id: ${chunk.id}\n`);
 						}
 
-						controller.enqueue(chunk.data.content);
+						if (chunk.event) {
+							controller.enqueue(`event: ${chunk.event}\n`);
+						}
+
+						if (chunk.retry) {
+							controller.enqueue(
+								`retry: ${chunk.retry.toString()}\n`,
+							);
+						}
+
+						controller.enqueue(
+							`data: ${JSON.stringify(chunk.data.content)}\n\n`,
+						);
 					}
 				} catch {
 				} finally {
