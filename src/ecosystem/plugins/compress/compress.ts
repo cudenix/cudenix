@@ -116,7 +116,6 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FreezeEmpty) =>
 			new Response(compressed, processedResponse),
 			{
 				status: processedResponse.status,
-				transform: false,
 			},
 		);
 	});
