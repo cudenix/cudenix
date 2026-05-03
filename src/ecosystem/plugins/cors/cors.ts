@@ -5,7 +5,6 @@ import { FreezeEmpty } from "@/utils/objects/empty";
 
 const OPTIONS_RESPONSE = success(undefined, {
 	status: 204,
-	transform: false,
 });
 
 interface CorsOptions {
