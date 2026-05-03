@@ -30,25 +30,19 @@ export type MergeErrors<Errors, Error> = {
 			: never;
 };
 
-interface ErrorOptions<Status extends number, Transform extends boolean> {
+interface ErrorOptions<Status extends number> {
 	status?: Status;
-	transform?: Transform;
 }
 
-type AnyErrorOptions = ErrorOptions<any, any>;
+type AnyErrorOptions = ErrorOptions<any>;
 
-export interface Error<
-	Content,
-	Status extends number = 400,
-	Transform extends boolean = true,
-> {
+export interface Error<Content, Status extends number = 400> {
 	content: ExtractContent<Content>;
 	status: Status;
 	success: false;
-	transform: Transform;
 }
 
-export type AnyError = Error<any, any, any>;
+export type AnyError = Error<any, any>;
 
 type Constructor = new (
 	content: unknown,
@@ -58,21 +52,16 @@ type Constructor = new (
 export const Error = function Error(
 	this: AnyError,
 	content: unknown,
-	{ status = 400, transform = true }: AnyErrorOptions = FreezeEmpty,
+	{ status = 400 }: AnyErrorOptions = FreezeEmpty,
 ) {
 	this.content = content;
 	this.status = status;
 	this.success = false;
-	this.transform = transform;
 } as unknown as Constructor;
 
-export const error = <
-	const Content,
-	const Status extends number = 400,
-	const Transform extends boolean = true,
->(
+export const error = <const Content, const Status extends number = 400>(
 	content: Content,
-	options?: ErrorOptions<Status, Transform>,
+	options?: ErrorOptions<Status>,
 ) => {
-	return new Error(content, options) as Error<Content, Status, Transform>;
+	return new Error(content, options) as Error<Content, Status>;
 };

@@ -28,28 +28,19 @@ export type MergeSuccesses<Successes, Success> = {
 			: never;
 };
 
-export interface SuccessOptions<
-	Status extends number,
-	Transform extends boolean,
-> {
+export interface SuccessOptions<Status extends number> {
 	status?: Status;
-	transform?: Transform;
 }
 
-export type AnySuccessOptions = SuccessOptions<any, any>;
+export type AnySuccessOptions = SuccessOptions<any>;
 
-export interface Success<
-	Content,
-	Status extends number = 200,
-	Transform extends boolean = true,
-> {
+export interface Success<Content, Status extends number = 200> {
 	content: ExtractContent<Content>;
 	status: Status;
 	success: true;
-	transform: Transform;
 }
 
-export type AnySuccess = Success<any, any, any>;
+export type AnySuccess = Success<any, any>;
 
 type Constructor = new (
 	content: unknown,
@@ -59,21 +50,16 @@ type Constructor = new (
 export const Success = function Success(
 	this: AnySuccess,
 	content: unknown,
-	{ status = 200, transform = true }: AnySuccessOptions = FreezeEmpty,
+	{ status = 200 }: AnySuccessOptions = FreezeEmpty,
 ) {
 	this.content = content;
 	this.status = status;
 	this.success = true;
-	this.transform = transform;
 } as unknown as Constructor;
 
-export const success = <
-	const Content,
-	const Status extends number = 200,
-	const Transform extends boolean = true,
->(
+export const success = <const Content, const Status extends number = 200>(
 	content: Content,
-	options?: SuccessOptions<Status, Transform>,
+	options?: SuccessOptions<Status>,
 ) => {
-	return new Success(content, options) as Success<Content, Status, Transform>;
+	return new Success(content, options) as Success<Content, Status>;
 };
