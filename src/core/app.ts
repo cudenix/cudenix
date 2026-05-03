@@ -109,19 +109,19 @@ App.prototype.fetch = function fetch(this: App, request: Request) {
 	const data = this.methods.get(request.method);
 
 	if (!data) {
-		return NOT_FOUND.clone();
+		return NOT_FOUND;
 	}
 
 	const match = data.regexp.exec(request.url);
 
 	if (!match) {
-		return NOT_FOUND.clone();
+		return NOT_FOUND;
 	}
 
 	const path = match[2];
 
 	if (!path) {
-		return NOT_FOUND.clone();
+		return NOT_FOUND;
 	}
 
 	const endpoints = data.endpoints;
@@ -139,7 +139,7 @@ App.prototype.fetch = function fetch(this: App, request: Request) {
 	}
 
 	if (!endpoint) {
-		return NOT_FOUND.clone();
+		return NOT_FOUND;
 	}
 
 	return this.endpoint(endpoint, path, request, match);
