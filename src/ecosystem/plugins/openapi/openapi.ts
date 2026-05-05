@@ -265,18 +265,16 @@ export const openapi = ({ path }: OpenapiModuleOptions = FreezeEmpty) => {
 				);
 			}
 
-			return success(cachedHtml, {
-				transform: false,
-			});
+			return success(cachedHtml);
 		})
 
-		.route("GET", `${url}/json`, ({ memory }) => {
+		.route("GET", `${url}/json`, ({ memory, response: { headers } }) => {
 			if (!cachedJson) {
 				cachedJson = JSON.stringify(memory.get("openapi"));
 			}
 
-			return success(cachedJson, {
-				transform: false,
-			});
+			headers.set("Content-Type", "application/json");
+
+			return success(cachedJson);
 		});
 };
