@@ -4,15 +4,10 @@ interface PathToRegexpOptions {
 	capture?: boolean;
 }
 
-export interface PathToRegexpResult {
-	paramKeys: string[];
-	pattern: string;
-}
-
 export const pathToRegexp = (
 	path: string,
 	{ capture }: PathToRegexpOptions = FreezeEmpty,
-): PathToRegexpResult => {
+) => {
 	if (path === "/") {
 		return { paramKeys: [], pattern: String.raw`()\/` };
 	}
