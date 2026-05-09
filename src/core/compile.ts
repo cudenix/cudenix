@@ -1,5 +1,5 @@
 import type { App, Chain, Endpoint } from "@/core/app";
-import { compileEndpointFetch } from "@/core/jit";
+import { type CompiledEndpointFetch, compileEndpointFetch } from "@/core/jit";
 import { memoizeRequest } from "@/core/memoize";
 import { type AnyModule, Module } from "@/core/module";
 import { Empty } from "@/utils/objects/empty";
@@ -263,6 +263,45 @@ const step = (
 	};
 };
 
+const generateDispatcher = (app: App, endpoint: Endpoint) => {
+	const safeStatic =
+		endpoint.route.static &&
+		endpoint.chain.length === 0 &&
+		endpoint.use === 0;
+
+	const fallback = (request: Request, match?: RegExpExecArray) => {
+		return app.endpoint(
+			endpoint,
+			match?.[2] ?? endpoint.path,
+			request,
+			match,
+		);
+	};
+
+	let dispatcher = fallback;
+
+	if (endpoint.jit && !safeStatic) {
+		dispatcher = compileEndpointFetch(endpoint, app);
+
+		endpoint.compiled = dispatcher;
+	}
+
+	if (safeStatic && endpoint.route.literal) {
+		return {
+			constant: dispatcher(undefined as any) as Response,
+			dispatcher,
+		};
+	}
+
+	if (safeStatic) {
+		dispatcher = memoizeRequest(dispatcher);
+	}
+
+	return {
+		dispatcher,
+	};
+};
+
 export const compile = (app: App) => {
 	const endpoints = new Map<string, Endpoint[]>();
 
@@ -292,6 +331,11 @@ export const compile = (app: App) => {
 				continue;
 			}
 
+			const { constant, dispatcher } = generateDispatcher(
+				app,
+				methodEndpoint,
+			);
+
 			methodEndpoint.jit = methodEndpoint.route.jit ?? app.jit;
 
 			if (needsCudenixRouter(methodEndpoint.path)) {
@@ -310,58 +354,20 @@ export const compile = (app: App) => {
 				methodRegexps.push(pattern);
 				dynamicEndpoints.push(methodEndpoint);
 
+				methodEndpoint.compiled = constant
+					? () => {
+							return constant.clone();
+						}
+					: dispatcher;
+
 				continue;
 			}
 
 			routes[methodEndpoint.path] ??=
 				new Empty() as (typeof routes)[string];
 
-			const safeStatic =
-				methodEndpoint.route.static &&
-				methodEndpoint.chain.length === 0 &&
-				methodEndpoint.use === 0;
-
-			const fallbackDispatcher = (request: Request) => {
-				return app.endpoint(
-					methodEndpoint,
-					methodEndpoint.path,
-					request,
-				);
-			};
-
-			if (safeStatic && methodEndpoint.route.literal) {
-				const result = fallbackDispatcher(
-					new Request(`http://localhost${methodEndpoint.path}`),
-				);
-
-				if (result instanceof Response) {
-					routes[methodEndpoint.path]![method] = result;
-
-					continue;
-				}
-			}
-
-			let dispatcher: (request: Request) => unknown;
-
-			if (methodEndpoint.jit && !safeStatic) {
-				const compiled = compileEndpointFetch(methodEndpoint, app);
-
-				methodEndpoint.compiled = compiled;
-
-				dispatcher = compiled as (request: Request) => unknown;
-			} else {
-				dispatcher = fallbackDispatcher;
-			}
-
-			routes[methodEndpoint.path]![method] = safeStatic
-				? memoizeRequest(
-						dispatcher as (
-							request: Request,
-						) => Response | Promise<Response>,
-					)
-				: (dispatcher as (
-						request: Request,
-					) => Response | Promise<Response>);
+			routes[methodEndpoint.path]![method] =
+				constant ?? (dispatcher as Bun.Serve.Handler<any, any, any>);
 		}
 
 		if (dynamicEndpoints.length === 0) {
