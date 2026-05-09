@@ -132,15 +132,39 @@ export interface Route<
 			DeepInferValidatorOutput<_ValidatorOptions["request"]>
 		>
 	>;
+	static: boolean;
 	type: "ROUTE";
 	validator?: AnyValidator | undefined;
 }
 
 export type AnyRoute = Route<any, any, any, any, any, any>;
 
+export type RouteHandler<
+	Method extends HttpMethod,
+	Path extends `/${string}`,
+	Return extends Method extends "WS"
+		? RouteFnReturnWS<
+				Omit<
+					DeveloperContext<
+						Stores,
+						ValidatorsWithParams<Path, Validators>
+					>,
+					"response"
+				>
+			>
+		: MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
+	Stores extends Record<PropertyKey, unknown>,
+	Validators extends Record<PropertyKey, unknown>,
+> =
+	| RouteFn<Method, Path, Return, Stores, Validators>
+	| Extract<Awaited<Return>, AnyError | AnySuccess>;
+
+export type AnyRouteHandler = RouteHandler<any, any, any, any, any>;
+
 export interface RouteOptions<
 	_ValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
 > {
+	static?: boolean;
 	validator?: _ValidatorOptions;
 }
 
@@ -149,7 +173,7 @@ export type AnyRouteOptions = RouteOptions<any>;
 type Constructor = new (
 	method: HttpMethod,
 	path: `/${string}`,
-	route: AnyRouteFn,
+	handler: AnyRouteHandler,
 	options?: AnyRouteOptions,
 ) => AnyRoute;
 
@@ -157,13 +181,21 @@ export const Route = function Route(
 	this: AnyRoute,
 	method: HttpMethod,
 	path: `/${string}`,
-	route: AnyRouteFn,
-	{ validator }: AnyRouteOptions = FreezeEmpty,
+	handler: AnyRouteHandler,
+	{ static: staticOption, validator }: AnyRouteOptions = FreezeEmpty,
 ) {
-	this.generator = isGenerator(route);
+	const isFn = typeof handler === "function";
+
+	this.generator = isGenerator(handler as AnyRouteFn);
 	this.method = method;
 	this.path = path;
-	this.route = route;
+	this.route = isFn
+		? (handler as AnyRouteFn)
+		: () => {
+				return handler as AnyError | AnySuccess;
+			};
+	this.static =
+		method !== "WS" && !this.generator && (!isFn || staticOption === true);
 	this.type = "ROUTE";
 	this.validator = validator ? new Validator(validator) : undefined;
 } as unknown as Constructor;
@@ -196,7 +228,7 @@ export const route = <
 >(
 	method: Method,
 	path: Path,
-	route: RouteFn<
+	handler: RouteHandler<
 		Method,
 		Path,
 		Return,
@@ -208,7 +240,7 @@ export const route = <
 	>,
 	options?: RouteOptions<_ValidatorOptions>,
 ) => {
-	return new Route(method, path, route, options) as Route<
+	return new Route(method, path, handler, options) as Route<
 		Method,
 		Path,
 		Return,

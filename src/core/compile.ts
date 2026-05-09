@@ -1,4 +1,5 @@
 import type { App, Chain, Endpoint } from "@/core/app";
+import { memoizeRequest } from "@/core/memoize";
 import { type AnyModule, Module } from "@/core/module";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
@@ -316,13 +317,17 @@ export const compile = (app: App, module: AnyModule) => {
 			routes[methodEndpoint.path] ??=
 				new Empty() as (typeof routes)[string];
 
-			routes[methodEndpoint.path]![method] = (request: Request) => {
+			const dispatcher = (request: Request) => {
 				return app.endpoint(
 					methodEndpoint,
 					methodEndpoint.path,
 					request,
 				);
 			};
+
+			routes[methodEndpoint.path]![method] = methodEndpoint.route.static
+				? memoizeRequest(dispatcher)
+				: dispatcher;
 		}
 
 		if (dynamicEndpoints.length === 0) {

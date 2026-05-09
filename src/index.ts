@@ -4,6 +4,7 @@ export * from "@/core/context";
 export * from "@/core/error";
 export * from "@/core/global";
 export * from "@/core/group";
+export * from "@/core/memoize";
 export * from "@/core/middleware";
 export * from "@/core/module";
 export * from "@/core/response";

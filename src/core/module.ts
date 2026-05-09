@@ -23,12 +23,13 @@ import type {
 import type {
 	AnyRoute,
 	AnyRouteFn,
+	AnyRouteHandler,
 	AnyRouteOptions,
 	ParseRoute,
 	PathToObject,
-	RouteFn,
 	RouteFnReturnGenerator,
 	RouteFnReturnWS,
+	RouteHandler,
 	RouteOptions,
 	ValidatorsWithParams,
 } from "@/core/route";
@@ -200,7 +201,7 @@ export interface Module<
 	>(
 		method: RouteMethod,
 		path: RoutePath,
-		route: RouteFn<
+		handler: RouteHandler<
 			RouteMethod,
 			RoutePath,
 			RouteReturn,
@@ -357,14 +358,23 @@ Module.prototype.route = function (
 	this: AnyModule,
 	method: HttpMethod,
 	path: `/${string}`,
-	route: AnyRouteFn,
-	{ validator }: AnyRouteOptions = FreezeEmpty,
+	handler: AnyRouteHandler,
+	{ static: staticOption, validator }: AnyRouteOptions = FreezeEmpty,
 ) {
+	const isFn = typeof handler === "function";
+	const generator = isGenerator(handler as AnyRouteFn);
+
 	this.chain.push({
-		generator: isGenerator(route),
+		generator,
 		method,
 		path,
-		route,
+		route: isFn
+			? (handler as AnyRouteFn)
+			: () => {
+					return handler as AnyError | AnySuccess;
+				},
+		static:
+			method !== "WS" && !generator && (!isFn || staticOption === true),
 		type: "ROUTE" as const,
 		validator: validator
 			? {
