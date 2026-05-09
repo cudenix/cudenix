@@ -201,12 +201,6 @@ const step = (
 			continue;
 		}
 
-		let useBits = bits;
-
-		if (useBits !== USE_ALL) {
-			useBits |= getLinkUseBits(link);
-		}
-
 		const method = link.method === "WS" ? "GET" : link.method;
 
 		let methodEndpoints = endpoints.get(method);
@@ -231,7 +225,7 @@ const step = (
 			restKeys: cudenix ? extractRestKeys(finalPath) : undefined,
 			route: link,
 			router: cudenix ? "cudenix" : "bun",
-			use: useBits,
+			use: bits === USE_ALL ? USE_ALL : bits | getLinkUseBits(link),
 		});
 	}
 
