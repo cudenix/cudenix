@@ -119,7 +119,7 @@ const getLinkUseBits = (link: Chain[number]) => {
 			bits |= keyword[0];
 		}
 
-		if (link.type === "ROUTE" && link.validator && bits !== USE_ALL) {
+		if (bits !== USE_ALL && link.type === "ROUTE" && link.validator) {
 			for (let i = 0; i < link.validator.keys.length; i++) {
 				if (bits === USE_ALL) {
 					break;
