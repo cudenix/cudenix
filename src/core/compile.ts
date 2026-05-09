@@ -1,5 +1,5 @@
 import type { App, Chain, Endpoint } from "@/core/app";
-import { type CompiledEndpointFetch, compileEndpointFetch } from "@/core/jit";
+import { compileEndpointFetch } from "@/core/jit";
 import { memoizeRequest } from "@/core/memoize";
 import { type AnyModule, Module } from "@/core/module";
 import { Empty } from "@/utils/objects/empty";
@@ -263,7 +263,7 @@ const step = (
 	};
 };
 
-const generateDispatcher = (app: App, endpoint: Endpoint) => {
+const getDispatcher = (app: App, endpoint: Endpoint) => {
 	const safeStatic =
 		endpoint.route.static &&
 		endpoint.chain.length === 0 &&
@@ -331,10 +331,7 @@ export const compile = (app: App) => {
 				continue;
 			}
 
-			const { constant, dispatcher } = generateDispatcher(
-				app,
-				methodEndpoint,
-			);
+			const { constant, dispatcher } = getDispatcher(app, methodEndpoint);
 
 			methodEndpoint.jit = methodEndpoint.route.jit ?? app.jit;
 
