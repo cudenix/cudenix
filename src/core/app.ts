@@ -1,5 +1,6 @@
 import { compile } from "@/core/compile";
 import { Context } from "@/core/context";
+import type { CompiledEndpointFetch } from "@/core/jit";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
 import type { AnyRoute } from "@/core/route";
@@ -8,6 +9,7 @@ import type { AnyStore } from "@/core/store";
 import type { AnyValidator } from "@/core/validator";
 import type { MaybePromise } from "@/types/maybe-promise";
 import type { WSData } from "@/types/ws";
+import { Empty, FreezeEmpty } from "@/utils/objects/empty";
 
 const NOT_FOUND = new Response(undefined, {
 	status: 404,
@@ -19,7 +21,9 @@ export type Router = "bun" | "cudenix";
 
 export interface Endpoint {
 	chain: Chain;
+	compiled?: CompiledEndpointFetch;
 	generator: boolean;
+	jit: boolean;
 	markerIndex?: number;
 	paramKeys?: string[];
 	path: string;
@@ -36,6 +40,10 @@ interface MethodData {
 
 type Plugin = (...options: any[]) => void;
 
+interface AppOptions {
+	jit?: boolean;
+}
+
 export interface App {
 	compile(): void;
 	endpoint(
@@ -45,25 +53,32 @@ export interface App {
 		match?: RegExpExecArray,
 	): MaybePromise<Response>;
 	fetch(request: Request): MaybePromise<Response>;
+	jit: boolean;
 	listen(options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">): App;
 	memory: Map<string, unknown>;
 	methods: Map<string, MethodData>;
 	plugins(plugins: Plugin[]): App;
-	routes?: Record<string, Bun.Serve.Routes<unknown, string>>;
+	routes: Record<string, Bun.Serve.Routes<unknown, string>>;
 	server?: Bun.Server<unknown>;
 }
 
-type Constructor = new (module: AnyModule) => App;
+type Constructor = new (module: AnyModule, options?: AppOptions) => App;
 
-export const App = function (this: App, module: AnyModule) {
+export const App = function (
+	this: App,
+	module: AnyModule,
+	{ jit = true }: AppOptions = FreezeEmpty,
+) {
+	this.jit = jit;
 	this.memory = new Map();
 	this.methods = new Map();
+	this.routes = new Empty() as NonNullable<App["routes"]>;
 
 	this.memory.set("module", module);
 } as unknown as Constructor;
 
 App.prototype.compile = function (this: App) {
-	compile(this, this.memory.get("module") as AnyModule);
+	compile(this);
 
 	if (this.memory.has("plugins")) {
 		const plugins = this.memory.get("plugins") as Plugin[];
@@ -142,6 +157,10 @@ App.prototype.fetch = function fetch(this: App, request: Request) {
 		return NOT_FOUND;
 	}
 
+	if (endpoint.compiled) {
+		return endpoint.compiled(request, match);
+	}
+
 	return this.endpoint(endpoint, path, request, match);
 };
 
@@ -160,6 +179,8 @@ App.prototype.listen = function listen(
 		},
 		routes: this.routes,
 		websocket: {
+			perMessageDeflate: true,
+			...options?.websocket,
 			close: (ws, code, reason) => {
 				(ws.data as WSData)?.close?.(ws, code, reason);
 			},
@@ -172,7 +193,6 @@ App.prototype.listen = function listen(
 			open: (ws) => {
 				(ws.data as WSData)?.open?.(ws);
 			},
-			perMessageDeflate: true,
 		},
 	});
 
@@ -201,6 +221,6 @@ App.prototype.plugins = function (this: App, plugins: Plugin[]) {
 	return this;
 };
 
-export const app = (module: AnyModule) => {
-	return new App(module) as App;
+export const app = (module: AnyModule, options?: AppOptions) => {
+	return new App(module, options) as App;
 };
