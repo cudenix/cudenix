@@ -104,20 +104,18 @@ const getLinkUseBits = (link: Chain[number]) => {
 		const text =
 			link[link.type.toLowerCase() as keyof typeof link].toString();
 
-		if (text) {
-			for (let i = 0; i < USE_KEYWORDS.length; i++) {
-				if (bits === USE_ALL) {
-					break;
-				}
-
-				const keyword = USE_KEYWORDS[i];
-
-				if (!keyword || text.indexOf(keyword[1]) === -1) {
-					continue;
-				}
-
-				bits |= keyword[0];
+		for (let i = 0; i < USE_KEYWORDS.length; i++) {
+			if (bits === USE_ALL) {
+				break;
 			}
+
+			const keyword = USE_KEYWORDS[i];
+
+			if (!keyword || text.indexOf(keyword[1]) === -1) {
+				continue;
+			}
+
+			bits |= keyword[0];
 		}
 	}
 
@@ -248,7 +246,7 @@ const step = (
 		methodEndpoints.push({
 			chain: link.validator ? [...merged, link.validator] : [...merged],
 			generator: link.generator,
-			jit: false,
+			jit: link.jit,
 			path: finalPath,
 			restKeys: cudenix ? extractRestKeys(finalPath) : undefined,
 			route: link,
