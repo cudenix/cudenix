@@ -32,6 +32,7 @@ const KEY_TO_BIT = {
 } as const satisfies Record<string, number>;
 
 interface PreviousStep {
+	bits: number;
 	chain: Chain;
 	path: string;
 }
@@ -117,6 +118,16 @@ const getLinkUseBits = (link: Chain[number]) => {
 
 			bits |= keyword[0];
 		}
+
+		if (link.type === "ROUTE" && link.validator && bits !== USE_ALL) {
+			for (let i = 0; i < link.validator.keys.length; i++) {
+				if (bits === USE_ALL) {
+					break;
+				}
+
+				bits |= KEY_TO_BIT[link.validator.keys[i]!];
+			}
+		}
 	}
 
 	LINK_USE_BITS_CACHE.set(link, bits);
@@ -132,6 +143,7 @@ const step = (
 	const chain = [] as Chain;
 	const merged = [...previous.chain];
 
+	let bits = previous.bits;
 	let path = module.prefix;
 
 	for (let i = 0; i < module.chain.length; i++) {
@@ -149,6 +161,7 @@ const step = (
 			module.chain = [...merged];
 
 			step(endpoints, link.group(module), {
+				bits,
 				chain: [],
 				path: "",
 			});
@@ -165,11 +178,14 @@ const step = (
 
 			merged.push(link);
 
+			bits |= getLinkUseBits(link);
+
 			continue;
 		}
 
 		if (link.type === "MODULE") {
 			const compiled = step(endpoints, link, {
+				bits,
 				chain: [...merged],
 				path: `${previous.path}${path === "/" ? "" : path}`,
 			});
@@ -185,46 +201,10 @@ const step = (
 			continue;
 		}
 
-		let useBits = 0;
-
-		for (let j = 0; j < merged.length; j++) {
-			if (useBits === USE_ALL) {
-				break;
-			}
-
-			useBits |= getLinkUseBits(merged[j]!);
-		}
+		let useBits = bits;
 
 		if (useBits !== USE_ALL) {
-			const text = link.route.toString();
-
-			for (let j = 0; j < USE_KEYWORDS.length; j++) {
-				if (useBits === USE_ALL) {
-					break;
-				}
-
-				const keyword = USE_KEYWORDS[j];
-
-				if (
-					!keyword ||
-					(useBits & keyword[0]) !== 0 ||
-					text.indexOf(keyword[1]) === -1
-				) {
-					continue;
-				}
-
-				useBits |= keyword[0];
-			}
-		}
-
-		if (link.validator && useBits !== USE_ALL) {
-			for (let j = 0; j < link.validator.keys.length; j++) {
-				if (useBits === USE_ALL) {
-					break;
-				}
-
-				useBits |= KEY_TO_BIT[link.validator.keys[j]!];
-			}
+			useBits |= getLinkUseBits(link);
 		}
 
 		const method = link.method === "WS" ? "GET" : link.method;
@@ -304,6 +284,7 @@ export const compile = (app: App) => {
 	const endpoints = new Map<string, Endpoint[]>();
 
 	step(endpoints, app.memory.get("module") as AnyModule, {
+		bits: 0,
 		chain: [],
 		path: "",
 	});
