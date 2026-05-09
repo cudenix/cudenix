@@ -361,11 +361,13 @@ Module.prototype.route = function (
 	handler: AnyRouteHandler,
 	{ static: staticOption, validator }: AnyRouteOptions = FreezeEmpty,
 ) {
-	const isFn = typeof handler === "function";
 	const generator = isGenerator(handler as AnyRouteFn);
+	const isFn = typeof handler === "function";
+	const literal = !isFn;
 
 	this.chain.push({
 		generator,
+		literal,
 		method,
 		path,
 		route: isFn
@@ -374,7 +376,7 @@ Module.prototype.route = function (
 					return handler as AnyError | AnySuccess;
 				},
 		static:
-			method !== "WS" && !generator && (!isFn || staticOption === true),
+			method !== "WS" && !generator && (staticOption ?? literal) === true,
 		type: "ROUTE" as const,
 		validator: validator
 			? {

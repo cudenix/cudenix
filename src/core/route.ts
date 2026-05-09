@@ -120,6 +120,7 @@ export interface Route<
 	Validators extends Record<PropertyKey, unknown>,
 > {
 	generator: boolean;
+	literal: boolean;
 	method: Method;
 	path: Path;
 	route: RouteFn<
@@ -187,6 +188,7 @@ export const Route = function Route(
 	const isFn = typeof handler === "function";
 
 	this.generator = isGenerator(handler as AnyRouteFn);
+	this.literal = !isFn;
 	this.method = method;
 	this.path = path;
 	this.route = isFn
@@ -195,7 +197,9 @@ export const Route = function Route(
 				return handler as AnyError | AnySuccess;
 			};
 	this.static =
-		method !== "WS" && !this.generator && (!isFn || staticOption === true);
+		method !== "WS" &&
+		!this.generator &&
+		(staticOption ?? this.literal) === true;
 	this.type = "ROUTE";
 	this.validator = validator ? new Validator(validator) : undefined;
 } as unknown as Constructor;

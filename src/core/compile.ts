@@ -283,9 +283,6 @@ export const compile = (app: App, module: AnyModule) => {
 		const dynamicEndpoints = [] as Endpoint[];
 		const methodRegexps = [] as string[];
 
-		// Capture group offset inside the combined regex.
-		// Group 1 = protocol, group 2 = outer path alternation, group 3+
-		// belong to the inner alternatives left-to-right.
 		let groupOffset = 3;
 
 		for (let i = 0; i < methodEndpoints.length; i++) {
@@ -325,7 +322,24 @@ export const compile = (app: App, module: AnyModule) => {
 				);
 			};
 
-			routes[methodEndpoint.path]![method] = methodEndpoint.route.static
+			const safeStatic =
+				methodEndpoint.route.static &&
+				methodEndpoint.chain.length === 0 &&
+				methodEndpoint.use === 0;
+
+			if (safeStatic && methodEndpoint.route.literal) {
+				const result = dispatcher(
+					new Request(`http://localhost${methodEndpoint.path}`),
+				);
+
+				if (result instanceof Response) {
+					routes[methodEndpoint.path]![method] = result;
+
+					continue;
+				}
+			}
+
+			routes[methodEndpoint.path]![method] = safeStatic
 				? memoizeRequest(dispatcher)
 				: dispatcher;
 		}
