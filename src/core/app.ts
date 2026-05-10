@@ -25,7 +25,7 @@ export interface Endpoint {
 	markerIndex?: number;
 	paramKeys?: string[];
 	path: string;
-	restKeys?: string[];
+	restKeys?: Set<string>;
 	route: AnyRoute;
 	router: "bun" | "cudenix";
 	use: number;
