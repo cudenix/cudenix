@@ -9,12 +9,17 @@ export const pathToRegexp = (
 	{ capture }: PathToRegexpOptions = FreezeEmpty,
 ) => {
 	if (path === "/") {
-		return { paramKeys: [], pattern: String.raw`()\/` };
+		return {
+			paramKeys: [],
+			pattern: String.raw`()\/`,
+			restKeys: undefined as Set<string> | undefined,
+		};
 	}
 
 	const length = path.length;
 	const paramKeys = [] as string[];
 
+	let restKeys: Set<string> | undefined;
 	let pattern = "()";
 	let i = 0;
 
@@ -57,6 +62,10 @@ export const pathToRegexp = (
 
 			if (capture) {
 				paramKeys.push(name);
+
+				restKeys ??= new Set();
+
+				restKeys.add(name);
 			}
 
 			segment = `\\/${capture ? "(" : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${capture ? ")" : ""}`;
@@ -76,5 +85,6 @@ export const pathToRegexp = (
 	return {
 		paramKeys,
 		pattern,
+		restKeys,
 	};
 };
