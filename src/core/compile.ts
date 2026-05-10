@@ -3,6 +3,7 @@ import type { App, Chain, Endpoint } from "@/core/app";
 import { compileEndpointFetch } from "@/core/jit";
 import { memoizeRequest } from "@/core/memoize";
 import { type AnyModule, Module } from "@/core/module";
+import { cloneAppend } from "@/utils/arrays/clone-append";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 
@@ -18,7 +19,7 @@ const step = (
 	previous: PreviousStep,
 ) => {
 	const chain = [] as Chain;
-	const merged = [...previous.chain];
+	const merged = previous.chain.slice();
 
 	let bits = previous.bits;
 	let path = module.prefix;
@@ -35,7 +36,7 @@ const step = (
 				prefix: `${previous.path}${path === "/" ? "" : path}${link.prefix === "/" ? "" : link.prefix}`,
 			});
 
-			module.chain = [...merged];
+			module.chain = merged.slice();
 
 			step(endpoints, link.group(module), {
 				bits,
@@ -93,7 +94,9 @@ const step = (
 			"/";
 
 		methodEndpoints.push({
-			chain: link.validator ? [...merged, link.validator] : [...merged],
+			chain: link.validator
+				? cloneAppend(merged, link.validator)
+				: merged.slice(),
 			generator: link.generator,
 			jit: link.jit,
 			path: finalPath,
@@ -115,8 +118,8 @@ const step = (
 const getDispatcher = (app: App, endpoint: Endpoint) => {
 	const safeStatic =
 		endpoint.route.static &&
-		endpoint.chain.length === 0 &&
-		endpoint.use === 0;
+		endpoint.use === 0 &&
+		endpoint.chain.length === 0;
 
 	const fallback = (request: Request, match?: RegExpExecArray) => {
 		return app.endpoint(
