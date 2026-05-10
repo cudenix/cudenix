@@ -17,8 +17,6 @@ const NOT_FOUND = new Response(undefined, {
 
 export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
-type Router = "bun" | "cudenix";
-
 export interface Endpoint {
 	chain: Chain;
 	compiled?: CompiledEndpointFetch;
@@ -29,7 +27,7 @@ export interface Endpoint {
 	path: string;
 	restKeys?: string[];
 	route: AnyRoute;
-	router: Router;
+	router: "bun" | "cudenix";
 	use: number;
 }
 
