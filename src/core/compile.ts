@@ -1,3 +1,4 @@
+import { getLinkInfo, USE_ALL } from "@/core/analyzer";
 import type { App, Chain, Endpoint } from "@/core/app";
 import { compileEndpointFetch } from "@/core/jit";
 import { memoizeRequest } from "@/core/memoize";
@@ -5,135 +6,11 @@ import { type AnyModule, Module } from "@/core/module";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 
-const LINK_USE_BITS_CACHE = new WeakMap<object, number>();
-
-export const USE_BODY = 1;
-export const USE_COOKIES = 2;
-export const USE_HEADERS = 4;
-export const USE_PARAMS = 8;
-export const USE_QUERY = 16;
-
-const USE_ALL = USE_BODY | USE_COOKIES | USE_HEADERS | USE_PARAMS | USE_QUERY;
-
-const USE_KEYWORDS = [
-	[USE_BODY, "body"],
-	[USE_COOKIES, "cookies"],
-	[USE_HEADERS, "headers"],
-	[USE_PARAMS, "params"],
-	[USE_QUERY, "query"],
-] as const satisfies [number, string][];
-
-const KEY_TO_BIT = {
-	body: USE_BODY,
-	cookies: USE_COOKIES,
-	headers: USE_HEADERS,
-	params: USE_PARAMS,
-	query: USE_QUERY,
-} as const satisfies Record<string, number>;
-
 interface PreviousStep {
 	bits: number;
 	chain: Chain;
 	path: string;
 }
-
-const needsCudenixRouter = (path: string) => {
-	return path.indexOf("?") !== -1 || path.indexOf("...") !== -1;
-};
-
-const extractRestKeys = (path: string) => {
-	let keys: string[] | undefined;
-
-	const length = path.length;
-
-	let i = 0;
-
-	while (i < length) {
-		if (path.charCodeAt(i) === 47) {
-			i++;
-
-			continue;
-		}
-
-		let segEnd = i;
-
-		while (segEnd < length && path.charCodeAt(segEnd) !== 47) {
-			segEnd++;
-		}
-
-		if (
-			path.charCodeAt(i) === 46 &&
-			path.charCodeAt(i + 1) === 46 &&
-			path.charCodeAt(i + 2) === 46
-		) {
-			const name = path.substring(
-				i + 3,
-				path.charCodeAt(segEnd - 1) === 63 ? segEnd - 1 : segEnd,
-			);
-
-			if (!keys) {
-				keys = [];
-			}
-
-			keys.push(name);
-		}
-
-		i = segEnd;
-	}
-
-	return keys;
-};
-
-const getLinkUseBits = (link: Chain[number]) => {
-	let bits = LINK_USE_BITS_CACHE.get(link);
-
-	if (bits !== undefined) {
-		return bits;
-	}
-
-	bits = 0;
-
-	if (link.type === "VALIDATOR") {
-		for (let i = 0; i < link.keys.length; i++) {
-			if (bits === USE_ALL) {
-				break;
-			}
-
-			bits |= KEY_TO_BIT[link.keys[i]!];
-		}
-	} else {
-		const text =
-			link[link.type.toLowerCase() as keyof typeof link].toString();
-
-		for (let i = 0; i < USE_KEYWORDS.length; i++) {
-			if (bits === USE_ALL) {
-				break;
-			}
-
-			const keyword = USE_KEYWORDS[i];
-
-			if (!keyword || text.indexOf(keyword[1]) === -1) {
-				continue;
-			}
-
-			bits |= keyword[0];
-		}
-
-		if (bits !== USE_ALL && link.type === "ROUTE" && link.validator) {
-			for (let i = 0; i < link.validator.keys.length; i++) {
-				if (bits === USE_ALL) {
-					break;
-				}
-
-				bits |= KEY_TO_BIT[link.validator.keys[i]!];
-			}
-		}
-	}
-
-	LINK_USE_BITS_CACHE.set(link, bits);
-
-	return bits;
-};
 
 const step = (
 	endpoints: Map<string, Endpoint[]>,
@@ -178,7 +55,7 @@ const step = (
 
 			merged.push(link);
 
-			bits |= getLinkUseBits(link);
+			bits |= getLinkInfo(link).bits;
 
 			continue;
 		}
@@ -186,7 +63,7 @@ const step = (
 		if (link.type === "MODULE") {
 			const compiled = step(endpoints, link, {
 				bits,
-				chain: [...merged],
+				chain: merged,
 				path: `${previous.path}${path === "/" ? "" : path}`,
 			});
 
@@ -215,17 +92,17 @@ const step = (
 			`${previous.path}${path === "/" ? "" : path}${link.path === "/" ? "" : link.path}` ||
 			"/";
 
-		const cudenix = needsCudenixRouter(finalPath);
-
 		methodEndpoints.push({
 			chain: link.validator ? [...merged, link.validator] : [...merged],
 			generator: link.generator,
 			jit: link.jit,
 			path: finalPath,
-			restKeys: cudenix ? extractRestKeys(finalPath) : undefined,
 			route: link,
-			router: cudenix ? "cudenix" : "bun",
-			use: bits === USE_ALL ? USE_ALL : bits | getLinkUseBits(link),
+			router:
+				finalPath.indexOf("?") !== -1 || finalPath.indexOf("...") !== -1
+					? "cudenix"
+					: "bun",
+			use: bits === USE_ALL ? USE_ALL : bits | getLinkInfo(link).bits,
 		});
 	}
 
@@ -308,14 +185,18 @@ export const compile = (app: App) => {
 
 			methodEndpoint.jit = methodEndpoint.route.jit ?? app.jit;
 
-			if (needsCudenixRouter(methodEndpoint.path)) {
-				const { pattern, paramKeys } = pathToRegexp(
+			if (
+				methodEndpoint.path.indexOf("?") !== -1 ||
+				methodEndpoint.path.indexOf("...") !== -1
+			) {
+				const { restKeys, paramKeys, pattern } = pathToRegexp(
 					methodEndpoint.path,
 					{
 						capture: true,
 					},
 				);
 
+				methodEndpoint.restKeys = restKeys;
 				methodEndpoint.markerIndex = groupOffset;
 				methodEndpoint.paramKeys = paramKeys;
 
