@@ -315,17 +315,19 @@ Context.prototype.loadRequestQuery = function loadRequestQuery(this: Context) {
 		return;
 	}
 
+	const length = url.length;
+
 	const params = new Empty();
 
 	let hasParams = false;
 	let i = queryIndex + 1;
 
-	while (i < url.length) {
+	while (i < length) {
 		const keyStart = i;
 
 		let flags = 0;
 
-		while (i < url.length) {
+		while (i < length) {
 			const char = url.charCodeAt(i);
 
 			if (char === 61 || char === 38 || char === 35) {
@@ -341,7 +343,7 @@ Context.prototype.loadRequestQuery = function loadRequestQuery(this: Context) {
 			i++;
 		}
 
-		const hasValue = i < url.length && url.charCodeAt(i) === 61;
+		const hasValue = i < length && url.charCodeAt(i) === 61;
 
 		let key = url.substring(keyStart, i);
 		let value: string;
@@ -351,7 +353,7 @@ Context.prototype.loadRequestQuery = function loadRequestQuery(this: Context) {
 
 			const valueStart = i;
 
-			while (i < url.length) {
+			while (i < length) {
 				const char = url.charCodeAt(i);
 
 				if (char === 38 || char === 35) {
@@ -406,7 +408,7 @@ Context.prototype.loadRequestQuery = function loadRequestQuery(this: Context) {
 			hasParams = true;
 		}
 
-		if (i >= url.length || url.charCodeAt(i) === 35) {
+		if (i >= length || url.charCodeAt(i) === 35) {
 			break;
 		}
 
