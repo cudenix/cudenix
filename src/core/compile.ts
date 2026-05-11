@@ -98,7 +98,7 @@ const step = (
 				? cloneAppend(merged, link.validator)
 				: merged.slice(),
 			generator: link.generator,
-			jit: link.jit,
+			jit: link.jit ?? true,
 			path: finalPath,
 			route: link,
 			router:
