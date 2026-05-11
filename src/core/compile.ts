@@ -4,6 +4,7 @@ import { compileEndpointFetch } from "@/core/jit";
 import { memoizeRequest } from "@/core/memoize";
 import { type AnyModule, Module } from "@/core/module";
 import { cloneAppend } from "@/utils/arrays/clone-append";
+import { pushAll } from "@/utils/arrays/push-all";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 
@@ -68,9 +69,7 @@ const step = (
 				path: `${previous.path}${path === "/" ? "" : path}`,
 			});
 
-			for (let j = 0; j < compiled.chain.length; j++) {
-				chain.push(compiled.chain[j]!);
-			}
+			pushAll(chain, compiled.chain);
 
 			if (compiled.path !== "/") {
 				path = `${path === "/" ? "" : path}${compiled.path}`;
