@@ -9,6 +9,7 @@ import type { AnyStore } from "@/core/store";
 import type { AnyValidator } from "@/core/validator";
 import type { MaybePromise } from "@/types/maybe-promise";
 import type { WSData } from "@/types/ws";
+import { pushAll } from "@/utils/arrays/push-all";
 import { Empty, FreezeEmpty } from "@/utils/objects/empty";
 
 const NOT_FOUND = new Response(undefined, {
@@ -212,9 +213,7 @@ App.prototype.plugins = function (this: App, plugins: Plugin[]) {
 
 	const memoryPlugins = this.memory.get("plugins") as Plugin[];
 
-	for (let i = 0; i < plugins.length; i++) {
-		memoryPlugins.push(plugins[i]!);
-	}
+	pushAll(memoryPlugins, plugins);
 
 	return this;
 };
