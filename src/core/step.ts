@@ -10,6 +10,7 @@ import type {
 } from "@/core/validator";
 import type { MaybePromise } from "@/types/maybe-promise";
 import type { WSData } from "@/types/ws";
+import { pushAll } from "@/utils/arrays/push-all";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 
@@ -45,11 +46,7 @@ const applyValidation = (
 	state.index ??= new Empty() as Record<string, number>;
 
 	if (state.index[key] !== undefined) {
-		const details = state.errors[state.index[key]]!.details;
-
-		for (let i = 0; i < content.length; i++) {
-			details.push(content[i]);
-		}
+		pushAll(state.errors[state.index[key]]!.details, content);
 
 		return;
 	}
@@ -62,7 +59,7 @@ const applyValidation = (
 	});
 };
 
-const processValidators = (
+export const processValidators = (
 	context: Context,
 	link: AnyValidator,
 	validatorPlugin: ValidatorPlugin,
