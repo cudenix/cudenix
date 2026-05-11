@@ -1,11 +1,11 @@
-import type { Endpoint } from "@/core/app";
 import {
 	USE_BODY,
 	USE_COOKIES,
 	USE_HEADERS,
 	USE_PARAMS,
 	USE_QUERY,
-} from "@/core/compile";
+} from "@/core/analyzer";
+import type { Endpoint } from "@/core/app";
 import type { AnyError } from "@/core/error";
 import type { AnySuccess } from "@/core/success";
 import type { MaybePromise } from "@/types/maybe-promise";
@@ -297,7 +297,7 @@ Context.prototype.loadRequestParams = function loadRequestParams(
 		const decoded =
 			value.indexOf("%") === -1 ? value : decodeURIComponent(value);
 
-		if (restKeys !== undefined && restKeys.indexOf(name) !== -1) {
+		if (restKeys?.has(name)) {
 			params[name] = decoded.split("/");
 		} else {
 			params[name] = decoded;
@@ -418,14 +418,4 @@ Context.prototype.loadRequestQuery = function loadRequestQuery(this: Context) {
 	}
 
 	this.request.query = params;
-};
-
-export const context = (
-	endpoint: Endpoint,
-	memory: Map<string, unknown>,
-	path: string,
-	request: Request,
-	server: Bun.Server<unknown>,
-) => {
-	return new Context(endpoint, memory, path, request, server);
 };
