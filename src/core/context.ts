@@ -192,52 +192,40 @@ Context.prototype.loadRequestBody = async function loadRequestBody(
 		return;
 	}
 
-	if (rawContentType === "application/json") {
-		this.request.body = await this.request.raw.json();
+	const first = rawContentType.charCodeAt(0);
 
-		return;
-	}
+	let isForm = false;
 
-	if (rawContentType === "application/octet-stream") {
-		this.request.body = await this.request.raw.arrayBuffer();
+	if (first === 97) {
+		const length = rawContentType.length;
 
-		return;
-	}
+		if (
+			(length === 16 || rawContentType.charCodeAt(16) === 59) &&
+			rawContentType.startsWith("application/json")
+		) {
+			this.request.body = await this.request.raw.json();
 
-	let isForm =
-		rawContentType === "multipart/form-data" ||
-		rawContentType === "application/x-www-form-urlencoded";
-
-	if (!isForm) {
-		const semiIndex = rawContentType.indexOf(";");
-
-		if (semiIndex !== -1) {
-			if (
-				semiIndex === 16 &&
-				rawContentType.startsWith("application/json")
-			) {
-				this.request.body = await this.request.raw.json();
-
-				return;
-			}
-
-			if (
-				semiIndex === 24 &&
-				rawContentType.startsWith("application/octet-stream")
-			) {
-				this.request.body = await this.request.raw.arrayBuffer();
-
-				return;
-			}
-
-			isForm =
-				(semiIndex === 19 &&
-					rawContentType.startsWith("multipart/form-data")) ||
-				(semiIndex === 33 &&
-					rawContentType.startsWith(
-						"application/x-www-form-urlencoded",
-					));
+			return;
 		}
+
+		if (
+			(length === 24 || rawContentType.charCodeAt(24) === 59) &&
+			rawContentType.startsWith("application/octet-stream")
+		) {
+			this.request.body = await this.request.raw.arrayBuffer();
+
+			return;
+		}
+
+		isForm =
+			(length === 33 || rawContentType.charCodeAt(33) === 59) &&
+			rawContentType.startsWith("application/x-www-form-urlencoded");
+	} else if (first === 109) {
+		const length = rawContentType.length;
+
+		isForm =
+			(length === 19 || rawContentType.charCodeAt(19) === 59) &&
+			rawContentType.startsWith("multipart/form-data");
 	}
 
 	if (isForm) {
