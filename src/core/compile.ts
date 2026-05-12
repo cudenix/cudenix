@@ -156,13 +156,13 @@ const getDispatcher = (app: App, endpoint: Endpoint) => {
 export const compile = (app: App) => {
 	const endpoints = new Map<string, Endpoint[]>();
 
-	step(endpoints, app.memory.get("module") as AnyModule, {
+	step(endpoints, app.memory.module as AnyModule, {
 		bits: 0,
 		chain: [],
 		path: "",
 	});
 
-	app.memory.set("endpoints", endpoints);
+	app.memory.endpoints = endpoints;
 
 	for (const [method, methodEndpoints] of endpoints) {
 		if (methodEndpoints.length === 0) {
@@ -227,11 +227,11 @@ export const compile = (app: App) => {
 			continue;
 		}
 
-		app.methods.set(method, {
+		app.methods.method = {
 			endpoints: dynamicEndpoints,
 			regexp: new RegExp(
 				`^(https?:\\/\\/)[^\\s\\/]+(${methodRegexps.join("|")})(?![^?#])`,
 			),
-		});
+		};
 	}
 };
