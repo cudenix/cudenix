@@ -192,28 +192,55 @@ Context.prototype.loadRequestBody = async function loadRequestBody(
 		return;
 	}
 
-	const semiIndex = rawContentType.indexOf(";");
-	const contentType =
-		semiIndex === -1
-			? rawContentType
-			: rawContentType.substring(0, semiIndex);
-
-	if (contentType === "application/json") {
+	if (rawContentType === "application/json") {
 		this.request.body = await this.request.raw.json();
 
 		return;
 	}
 
-	if (contentType === "application/octet-stream") {
+	if (rawContentType === "application/octet-stream") {
 		this.request.body = await this.request.raw.arrayBuffer();
 
 		return;
 	}
 
-	if (
-		contentType === "multipart/form-data" ||
-		contentType === "application/x-www-form-urlencoded"
-	) {
+	let isForm =
+		rawContentType === "multipart/form-data" ||
+		rawContentType === "application/x-www-form-urlencoded";
+
+	if (!isForm) {
+		const semiIndex = rawContentType.indexOf(";");
+
+		if (semiIndex !== -1) {
+			if (
+				semiIndex === 16 &&
+				rawContentType.startsWith("application/json")
+			) {
+				this.request.body = await this.request.raw.json();
+
+				return;
+			}
+
+			if (
+				semiIndex === 24 &&
+				rawContentType.startsWith("application/octet-stream")
+			) {
+				this.request.body = await this.request.raw.arrayBuffer();
+
+				return;
+			}
+
+			isForm =
+				(semiIndex === 19 &&
+					rawContentType.startsWith("multipart/form-data")) ||
+				(semiIndex === 33 &&
+					rawContentType.startsWith(
+						"application/x-www-form-urlencoded",
+					));
+		}
+	}
+
+	if (isForm) {
 		const formData = await this.request.raw.formData();
 
 		const body = new Empty();
@@ -394,8 +421,19 @@ Context.prototype.loadRequestQuery = function loadRequestQuery(this: Context) {
 			}
 
 			const firstChar = value.charCodeAt(0);
-			const parsed =
-				firstChar === 123 || firstChar === 91 ? tryParse(value) : value;
+
+			let parsed = value as unknown;
+
+			if (firstChar === 123 || firstChar === 91) {
+				const lastChar = value.charCodeAt(value.length - 1);
+
+				if (
+					(firstChar === 123 && lastChar === 125) ||
+					(firstChar === 91 && lastChar === 93)
+				) {
+					parsed = tryParse(value);
+				}
+			}
 
 			if (params[key] === undefined) {
 				params[key] = parsed;
