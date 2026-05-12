@@ -54,8 +54,8 @@ export interface App {
 	fetch(request: Request): MaybePromise<Response>;
 	jit: boolean;
 	listen(options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">): App;
-	memory: Map<string, unknown>;
-	methods: Map<string, MethodData>;
+	memory: Record<string, unknown>;
+	methods: Record<string, MethodData>;
 	plugins(plugins: Plugin[]): App;
 	routes: Record<string, Bun.Serve.Routes<unknown, string>>;
 	server?: Bun.Server<unknown>;
@@ -69,27 +69,27 @@ export const App = function (
 	{ jit = true }: AppOptions = FreezeEmpty,
 ) {
 	this.jit = jit;
-	this.memory = new Map();
-	this.methods = new Map();
+	this.memory = new Empty();
+	this.methods = new Empty() as App["methods"];
 	this.routes = new Empty() as NonNullable<App["routes"]>;
 
-	this.memory.set("module", module);
+	this.memory.module = module;
 } as unknown as Constructor;
 
 App.prototype.compile = function (this: App) {
 	compile(this);
 
-	if (this.memory.has("plugins")) {
-		const plugins = this.memory.get("plugins") as Plugin[];
+	if ("plugins" in this.memory) {
+		const plugins = this.memory.plugins as Plugin[];
 
 		for (let i = 0; i < plugins.length; i++) {
 			plugins[i]!.call(this);
 		}
 	}
 
-	this.memory.delete("module");
+	delete this.memory.module;
 
-	this.memory.delete("plugins");
+	delete this.memory.plugins;
 };
 
 App.prototype.endpoint = function (
@@ -120,7 +120,7 @@ App.prototype.endpoint = function (
 };
 
 App.prototype.fetch = function fetch(this: App, request: Request) {
-	const data = this.methods.get(request.method);
+	const data = this.methods[request.method];
 
 	if (!data) {
 		return NOT_FOUND;
@@ -207,13 +207,11 @@ App.prototype.listen = function listen(
 };
 
 App.prototype.plugins = function (this: App, plugins: Plugin[]) {
-	if (!this.memory.has("plugins")) {
-		this.memory.set("plugins", []);
+	if (!("plugins" in this.memory)) {
+		this.memory.plugins = [];
 	}
 
-	const memoryPlugins = this.memory.get("plugins") as Plugin[];
-
-	pushAll(memoryPlugins, plugins);
+	pushAll(this.memory.plugins as Plugin[], plugins);
 
 	return this;
 };
