@@ -1,5 +1,10 @@
 import type { AnyModule } from "@/core/module";
-import { FreezeEmpty } from "@/utils/objects/empty";
+
+export interface GroupOptions<Prefix extends `/${string}`> {
+	prefix?: Prefix;
+}
+
+export type AnyGroupOptions = GroupOptions<any>;
 
 export type GroupFn<Module extends AnyModule, Return extends AnyModule> = (
 	module: Module,
@@ -18,35 +23,3 @@ export interface Group<
 }
 
 export type AnyGroup = Group<any, any, any>;
-
-export interface GroupOptions<Prefix extends `/${string}`> {
-	prefix?: Prefix;
-}
-
-export type AnyGroupOptions = GroupOptions<any>;
-
-type Constructor = new (
-	group: AnyGroupFn,
-	options?: AnyGroupOptions,
-) => AnyGroup;
-
-export const Group = function Group(
-	this: AnyGroup,
-	group: AnyGroupFn,
-	{ prefix = "" }: AnyGroupOptions = FreezeEmpty,
-) {
-	this.group = group;
-	this.prefix = prefix;
-	this.type = "GROUP";
-} as unknown as Constructor;
-
-export const group = <
-	const Module extends AnyModule,
-	const Prefix extends `/${string}`,
-	const Return extends AnyModule,
->(
-	group: GroupFn<Module, Return>,
-	options?: GroupOptions<Prefix>,
-) => {
-	return new Group(group, options) as Group<Module, Prefix, Return>;
-};
