@@ -19,6 +19,7 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
 export interface Endpoint {
 	chain: Chain;
+	jit: boolean;
 	matchOffset?: number;
 	paramKeys?: string[];
 	path: string;
