@@ -19,20 +19,3 @@ export interface Store<
 }
 
 export type AnyStore = Store<any, any, any>;
-
-type Constructor = new (store: AnyStoreFn) => AnyStore;
-
-export const Store = function Store(this: AnyStore, store: AnyStoreFn) {
-	this.store = store;
-	this.type = "STORE";
-} as unknown as Constructor;
-
-export const store = <
-	const Return extends Record<PropertyKey, unknown> | AnyError,
-	const Stores extends Record<PropertyKey, unknown>,
-	const Validators extends Record<PropertyKey, unknown>,
->(
-	store: StoreFn<Return, Stores, Validators>,
-) => {
-	return new Store(store) as Store<Return, Stores, Validators>;
-};
