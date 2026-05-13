@@ -24,23 +24,3 @@ export interface Middleware<
 }
 
 export type AnyMiddleware = Middleware<any, any, any>;
-
-type Constructor = new (middleware: AnyMiddlewareFn) => AnyMiddleware;
-
-export const Middleware = function Middleware(
-	this: AnyMiddleware,
-	middleware: AnyMiddlewareFn,
-) {
-	this.middleware = middleware;
-	this.type = "MIDDLEWARE";
-} as unknown as Constructor;
-
-export const middleware = <
-	const Return extends MaybePromise<AnyError | AnySuccess | void>,
-	const Stores extends Record<PropertyKey, unknown>,
-	const Validators extends Record<PropertyKey, unknown>,
->(
-	middleware: MiddlewareFn<Return, Stores, Validators>,
-) => {
-	return new Middleware(middleware) as Middleware<Return, Stores, Validators>;
-};
