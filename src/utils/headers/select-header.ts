@@ -48,20 +48,17 @@ export const selectHeader = (
 	candidates: readonly string[],
 	{ prefixMatch }: SelectHeaderOptions = FreezeEmpty,
 ) => {
-	if (!header) {
+	if (!header || candidates.length === 0) {
 		return;
 	}
 
 	const candidatesLength = candidates.length;
-
-	if (candidatesLength === 0) {
-		return;
-	}
-
 	const length = header.length;
+	const listed = new Uint8Array(candidatesLength);
 
 	let best: string | undefined;
 	let bestQ = -1;
+	let wildcardQ = -1;
 	let position = 0;
 
 	while (position < length) {
@@ -103,7 +100,7 @@ export const selectHeader = (
 
 				if (
 					position + 1 < length &&
-					(header.charCodeAt(position) | 32) === 113 &&
+					header.charCodeAt(position) === 113 &&
 					header.charCodeAt(position + 1) === 61
 				) {
 					position += 2;
@@ -173,55 +170,83 @@ export const selectHeader = (
 			position++;
 		}
 
-		if (nameEnd === nameStart || q <= 0) {
+		if (nameEnd === nameStart) {
 			continue;
 		}
 
-		if (q > bestQ) {
-			const candIdx = findCandidateIdxCi(
-				header,
-				nameStart,
-				nameEnd,
-				candidates,
-			);
+		if (nameEnd - nameStart === 1 && header.charCodeAt(nameStart) === 42) {
+			if (q > 0 && q > wildcardQ) {
+				wildcardQ = q;
+			}
 
-			if (candIdx !== -1) {
-				best = candidates[candIdx];
+			continue;
+		}
+
+		const candIdx = findCandidateIdxCi(
+			header,
+			nameStart,
+			nameEnd,
+			candidates,
+		);
+
+		if (candIdx !== -1) {
+			listed[candIdx] = 1;
+
+			if (q > 0 && q > bestQ) {
 				bestQ = q;
-			} else if (prefixMatch) {
-				let endIdx = nameEnd;
+				best = candidates[candIdx];
+			}
 
-				while (endIdx > nameStart) {
-					let lastDash = -1;
+			continue;
+		}
 
-					for (let i = endIdx - 1; i >= nameStart; i--) {
-						if (header.charCodeAt(i) === 45) {
-							lastDash = i;
+		if (prefixMatch) {
+			let endIdx = nameEnd;
 
-							break;
-						}
-					}
+			while (endIdx > nameStart) {
+				let lastDash = -1;
 
-					if (lastDash === -1) {
-						break;
-					}
-
-					endIdx = lastDash;
-
-					const prefixIdx = findCandidateIdxCi(
-						header,
-						nameStart,
-						endIdx,
-						candidates,
-					);
-
-					if (prefixIdx !== -1) {
-						best = candidates[prefixIdx];
-						bestQ = q;
+				for (let i = endIdx - 1; i >= nameStart; i--) {
+					if (header.charCodeAt(i) === 45) {
+						lastDash = i;
 
 						break;
 					}
 				}
+
+				if (lastDash === -1) {
+					break;
+				}
+
+				endIdx = lastDash;
+
+				const prefixIdx = findCandidateIdxCi(
+					header,
+					nameStart,
+					endIdx,
+					candidates,
+				);
+
+				if (prefixIdx !== -1) {
+					listed[prefixIdx] = 1;
+
+					if (q > 0 && q > bestQ) {
+						bestQ = q;
+						best = candidates[prefixIdx];
+					}
+
+					break;
+				}
+			}
+		}
+	}
+
+	if (wildcardQ > bestQ) {
+		for (let i = 0; i < candidatesLength; i++) {
+			if (!listed[i]) {
+				best = candidates[i];
+
+				break;
 			}
 		}
 	}
