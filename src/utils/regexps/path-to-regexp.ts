@@ -1,5 +1,10 @@
 import { FreezeEmpty } from "@/utils/objects/empty";
 
+const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
+const PARAM_NO_CAPTURE = "\\/[^/\\s?#]+";
+const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
+const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
+
 interface PathToRegexpOptions {
 	capture?: boolean;
 }
@@ -30,10 +35,10 @@ export const pathToRegexp = (
 			continue;
 		}
 
-		let segEnd = i;
+		let segEnd = path.indexOf("/", i);
 
-		while (segEnd < length && path.charCodeAt(segEnd) !== 47) {
-			segEnd++;
+		if (segEnd === -1) {
+			segEnd = length;
 		}
 
 		const isOptional = path.charCodeAt(segEnd - 1) === 63;
@@ -43,23 +48,21 @@ export const pathToRegexp = (
 		let segment: string;
 
 		if (first === 58) {
-			const name = path.substring(i + 1, end);
-
 			if (capture) {
-				paramKeys.push(name);
+				paramKeys.push(path.substring(i + 1, end));
 			}
 
-			segment = `\\/${capture ? "(" : ""}[^/\\s?#]+${capture ? ")" : ""}`;
+			segment = capture ? PARAM_CAPTURE : PARAM_NO_CAPTURE;
 		} else if (first === 42 && end - i === 1) {
-			segment = `\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)`;
+			segment = WILDCARD;
 		} else if (
 			first === 46 &&
 			path.charCodeAt(i + 1) === 46 &&
 			path.charCodeAt(i + 2) === 46
 		) {
-			const name = path.substring(i + 3, end);
-
 			if (capture) {
+				const name = path.substring(i + 3, end);
+
 				paramKeys.push(name);
 
 				if (!restKeys) {
@@ -69,7 +72,7 @@ export const pathToRegexp = (
 				restKeys.push(name);
 			}
 
-			segment = `\\/${capture ? "(" : ""}(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)${capture ? ")" : ""}`;
+			segment = capture ? REST_CAPTURE : WILDCARD;
 		} else {
 			segment = `\\/${RegExp.escape(path.substring(i, end))}`;
 		}
