@@ -4,6 +4,43 @@ interface SelectHeaderOptions {
 	prefixMatch?: boolean;
 }
 
+const findCandidateCi = (
+	header: string,
+	start: number,
+	end: number,
+	candidates: readonly string[],
+) => {
+	const length = end - start;
+
+	for (let i = 0; i < candidates.length; i++) {
+		const candidate = candidates[i];
+
+		if (!candidate || candidate.length !== length) {
+			continue;
+		}
+
+		let ok = true;
+
+		for (let j = 0; j < length; j++) {
+			let h = header.charCodeAt(start + j);
+
+			if (h >= 65 && h <= 90) {
+				h += 32;
+			}
+
+			if (h !== candidate.charCodeAt(j)) {
+				ok = false;
+
+				break;
+			}
+		}
+
+		if (ok) {
+			return candidate;
+		}
+	}
+};
+
 export const selectHeader = (
 	header: string,
 	candidates: readonly string[],
@@ -43,7 +80,7 @@ export const selectHeader = (
 			position++;
 		}
 
-		const rawName = header.substring(nameStart, position);
+		const nameEnd = position;
 
 		while (position < length && header.charCodeAt(position) <= 32) {
 			position++;
@@ -68,6 +105,13 @@ export const selectHeader = (
 
 					const qStart = position;
 
+					let qInt = 0;
+					let qFrac = 0;
+					let qDiv = 1;
+					let qHasDigit = false;
+					let qDecimal = false;
+					let qNonStandard = false;
+
 					while (position < length) {
 						const char = header.charCodeAt(position);
 
@@ -75,16 +119,35 @@ export const selectHeader = (
 							break;
 						}
 
+						if (char >= 48 && char <= 57) {
+							if (qDecimal) {
+								qFrac = qFrac * 10 + (char - 48);
+								qDiv *= 10;
+							} else {
+								qInt = qInt * 10 + (char - 48);
+							}
+
+							qHasDigit = true;
+						} else if (char === 46 && !qDecimal) {
+							qDecimal = true;
+						} else {
+							qNonStandard = true;
+						}
+
 						position++;
 					}
 
 					if (qStart < position) {
-						const parsed = Number(
-							header.substring(qStart, position),
-						);
+						if (qNonStandard) {
+							const parsed = Number(
+								header.substring(qStart, position),
+							);
 
-						if (!Number.isNaN(parsed)) {
-							q = parsed;
+							if (!Number.isNaN(parsed)) {
+								q = parsed;
+							}
+						} else if (qHasDigit) {
+							q = qInt + qFrac / qDiv;
 						}
 					}
 
@@ -105,33 +168,56 @@ export const selectHeader = (
 			position++;
 		}
 
-		if (!rawName || q <= 0) {
+		if (nameEnd === nameStart || q <= 0) {
 			order++;
 
 			continue;
 		}
 
 		if (q > bestQ || (q === bestQ && order < bestOrder)) {
-			const name = rawName.toLowerCase();
-
-			if (name === "*") {
+			if (
+				nameEnd - nameStart === 1 &&
+				header.charCodeAt(nameStart) === 42
+			) {
 				best = candidates[0];
 				bestQ = q;
 				bestOrder = order;
-			} else if (candidates.indexOf(name) !== -1) {
-				best = name;
-				bestQ = q;
-				bestOrder = order;
-			} else if (prefixMatch) {
-				const dashIndex = name.indexOf("-");
+			} else {
+				const matched = findCandidateCi(
+					header,
+					nameStart,
+					nameEnd,
+					candidates,
+				);
 
-				if (dashIndex !== -1) {
-					const prefix = name.substring(0, dashIndex);
+				if (matched !== undefined) {
+					best = matched;
+					bestQ = q;
+					bestOrder = order;
+				} else if (prefixMatch) {
+					let dashIdx = -1;
 
-					if (candidates.indexOf(prefix) !== -1) {
-						best = prefix;
-						bestQ = q;
-						bestOrder = order;
+					for (let i = nameStart; i < nameEnd; i++) {
+						if (header.charCodeAt(i) === 45) {
+							dashIdx = i;
+
+							break;
+						}
+					}
+
+					if (dashIdx !== -1) {
+						const prefixMatched = findCandidateCi(
+							header,
+							nameStart,
+							dashIdx,
+							candidates,
+						);
+
+						if (prefixMatched !== undefined) {
+							best = prefixMatched;
+							bestQ = q;
+							bestOrder = order;
+						}
 					}
 				}
 			}
