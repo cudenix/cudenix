@@ -1,12 +1,14 @@
-const AsyncGeneratorFunction = async function* AsyncGeneratorFunction() {}
-	.constructor as (...args: any[]) => unknown;
+const GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(function* () {});
 
-const GeneratorFunction = function* GeneratorFunction() {}.constructor as (
-	...args: any[]
-) => unknown;
+const ASYNC_GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(
+	async function* () {},
+);
 
 export const isGenerator = (fn: (...args: any[]) => unknown) => {
+	const prototype = Object.getPrototypeOf(fn);
+
 	return (
-		fn instanceof AsyncGeneratorFunction || fn instanceof GeneratorFunction
+		prototype === GENERATOR_FUNCTION_PROTOTYPE ||
+		prototype === ASYNC_GENERATOR_FUNCTION_PROTOTYPE
 	);
 };
