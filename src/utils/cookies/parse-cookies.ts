@@ -3,22 +3,28 @@ import { Empty } from "@/utils/objects/empty";
 export const parseCookies = (header: string) => {
 	const cookies = new Empty() as Record<string, string>;
 
-	const parts = header.split("; ");
+	const length = header.length;
 
-	for (let i = 0; i < parts.length; i++) {
-		const part = parts[i];
+	let start = 0;
 
-		if (part === undefined) {
-			continue;
+	while (start < length) {
+		const sep = header.indexOf("; ", start);
+		const end = sep === -1 ? length : sep;
+
+		const eq = header.indexOf("=", start);
+
+		if (eq !== -1 && eq < end) {
+			cookies[header.substring(start, eq)] = header.substring(
+				eq + 1,
+				end,
+			);
 		}
 
-		const eq = part.indexOf("=");
-
-		if (eq === -1) {
-			continue;
+		if (sep === -1) {
+			break;
 		}
 
-		cookies[part.substring(0, eq)] = part.substring(eq + 1);
+		start = sep + 2;
 	}
 
 	return cookies;
