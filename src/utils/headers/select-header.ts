@@ -4,7 +4,7 @@ interface SelectHeaderOptions {
 	prefixMatch?: boolean;
 }
 
-const findCandidateCi = (
+const findCandidateIdxCi = (
 	header: string,
 	start: number,
 	end: number,
@@ -36,9 +36,11 @@ const findCandidateCi = (
 		}
 
 		if (ok) {
-			return candidate;
+			return i;
 		}
 	}
+
+	return -1;
 };
 
 export const selectHeader = (
@@ -50,11 +52,16 @@ export const selectHeader = (
 		return;
 	}
 
+	const candidatesLength = candidates.length;
+
+	if (candidatesLength === 0) {
+		return;
+	}
+
 	const length = header.length;
 
 	let best: string | undefined;
 	let bestQ = -1;
-
 	let position = 0;
 
 	while (position < length) {
@@ -96,7 +103,7 @@ export const selectHeader = (
 
 				if (
 					position + 1 < length &&
-					header.charCodeAt(position) === 113 &&
+					(header.charCodeAt(position) | 32) === 113 &&
 					header.charCodeAt(position + 1) === 61
 				) {
 					position += 2;
@@ -104,6 +111,8 @@ export const selectHeader = (
 					let qInt = 0;
 					let qFrac = 0;
 					let qDiv = 1;
+					let qIntDigits = 0;
+					let qFracDigits = 0;
 					let qHasDigit = false;
 					let qDecimal = false;
 					let qInvalid = false;
@@ -119,8 +128,10 @@ export const selectHeader = (
 							if (qDecimal) {
 								qFrac = qFrac * 10 + (char - 48);
 								qDiv *= 10;
+								qFracDigits++;
 							} else {
 								qInt = qInt * 10 + (char - 48);
+								qIntDigits++;
 							}
 
 							qHasDigit = true;
@@ -135,7 +146,13 @@ export const selectHeader = (
 						position++;
 					}
 
-					if (qHasDigit && !qInvalid) {
+					if (
+						qHasDigit &&
+						!qInvalid &&
+						qIntDigits === 1 &&
+						qFracDigits <= 3 &&
+						(qInt === 0 || (qInt === 1 && qFrac === 0))
+					) {
 						q = qInt + qFrac / qDiv;
 					}
 
@@ -161,46 +178,48 @@ export const selectHeader = (
 		}
 
 		if (q > bestQ) {
-			if (
-				nameEnd - nameStart === 1 &&
-				header.charCodeAt(nameStart) === 42
-			) {
-				best = candidates[0];
+			const candIdx = findCandidateIdxCi(
+				header,
+				nameStart,
+				nameEnd,
+				candidates,
+			);
+
+			if (candIdx !== -1) {
+				best = candidates[candIdx];
 				bestQ = q;
-			} else {
-				const matched = findCandidateCi(
-					header,
-					nameStart,
-					nameEnd,
-					candidates,
-				);
+			} else if (prefixMatch) {
+				let endIdx = nameEnd;
 
-				if (matched !== undefined) {
-					best = matched;
-					bestQ = q;
-				} else if (prefixMatch) {
-					let dashIdx = -1;
+				while (endIdx > nameStart) {
+					let lastDash = -1;
 
-					for (let i = nameStart; i < nameEnd; i++) {
+					for (let i = endIdx - 1; i >= nameStart; i--) {
 						if (header.charCodeAt(i) === 45) {
-							dashIdx = i;
+							lastDash = i;
 
 							break;
 						}
 					}
 
-					if (dashIdx !== -1) {
-						const prefixMatched = findCandidateCi(
-							header,
-							nameStart,
-							dashIdx,
-							candidates,
-						);
+					if (lastDash === -1) {
+						break;
+					}
 
-						if (prefixMatched !== undefined) {
-							best = prefixMatched;
-							bestQ = q;
-						}
+					endIdx = lastDash;
+
+					const prefixIdx = findCandidateIdxCi(
+						header,
+						nameStart,
+						endIdx,
+						candidates,
+					);
+
+					if (prefixIdx !== -1) {
+						best = candidates[prefixIdx];
+						bestQ = q;
+
+						break;
 					}
 				}
 			}
