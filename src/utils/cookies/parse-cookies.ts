@@ -11,9 +11,17 @@ export const parseCookies = (header: string) => {
 		const sep = header.indexOf("; ", start);
 		const end = sep === -1 ? length : sep;
 
-		const eq = header.indexOf("=", start);
+		let eq = -1;
 
-		if (eq !== -1 && eq < end && eq > start) {
+		for (let i = start; i < end; i++) {
+			if (header.charCodeAt(i) === 61) {
+				eq = i;
+
+				break;
+			}
+		}
+
+		if (eq > start) {
 			cookies[header.substring(start, eq)] = header.substring(
 				eq + 1,
 				end,
