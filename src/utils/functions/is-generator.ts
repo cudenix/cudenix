@@ -1,5 +1,4 @@
 const GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(function* () {});
-
 const ASYNC_GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(
 	async function* () {},
 );
