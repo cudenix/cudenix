@@ -4,7 +4,9 @@ export const pushAll = <Type>(target: Type[], source: Type[]) => {
 
 	target.length = baseLength + sourceLength;
 
+	let j = baseLength;
+
 	for (let i = 0; i < sourceLength; i++) {
-		target[baseLength + i] = source[i]!;
+		target[j++] = source[i]!;
 	}
 };
