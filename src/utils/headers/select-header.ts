@@ -54,10 +54,8 @@ export const selectHeader = (
 
 	let best: string | undefined;
 	let bestQ = -1;
-	let bestOrder = Infinity;
 
 	let position = 0;
-	let order = 0;
 
 	while (position < length) {
 		while (position < length && header.charCodeAt(position) <= 32) {
@@ -103,14 +101,12 @@ export const selectHeader = (
 				) {
 					position += 2;
 
-					const qStart = position;
-
 					let qInt = 0;
 					let qFrac = 0;
 					let qDiv = 1;
 					let qHasDigit = false;
 					let qDecimal = false;
-					let qNonStandard = false;
+					let qInvalid = false;
 
 					while (position < length) {
 						const char = header.charCodeAt(position);
@@ -131,24 +127,16 @@ export const selectHeader = (
 						} else if (char === 46 && !qDecimal) {
 							qDecimal = true;
 						} else {
-							qNonStandard = true;
+							qInvalid = true;
+
+							break;
 						}
 
 						position++;
 					}
 
-					if (qStart < position) {
-						if (qNonStandard) {
-							const parsed = Number(
-								header.substring(qStart, position),
-							);
-
-							if (!Number.isNaN(parsed)) {
-								q = parsed;
-							}
-						} else if (qHasDigit) {
-							q = qInt + qFrac / qDiv;
-						}
+					if (qHasDigit && !qInvalid) {
+						q = qInt + qFrac / qDiv;
 					}
 
 					break;
@@ -169,19 +157,16 @@ export const selectHeader = (
 		}
 
 		if (nameEnd === nameStart || q <= 0) {
-			order++;
-
 			continue;
 		}
 
-		if (q > bestQ || (q === bestQ && order < bestOrder)) {
+		if (q > bestQ) {
 			if (
 				nameEnd - nameStart === 1 &&
 				header.charCodeAt(nameStart) === 42
 			) {
 				best = candidates[0];
 				bestQ = q;
-				bestOrder = order;
 			} else {
 				const matched = findCandidateCi(
 					header,
@@ -193,7 +178,6 @@ export const selectHeader = (
 				if (matched !== undefined) {
 					best = matched;
 					bestQ = q;
-					bestOrder = order;
 				} else if (prefixMatch) {
 					let dashIdx = -1;
 
@@ -216,14 +200,11 @@ export const selectHeader = (
 						if (prefixMatched !== undefined) {
 							best = prefixMatched;
 							bestQ = q;
-							bestOrder = order;
 						}
 					}
 				}
 			}
 		}
-
-		order++;
 	}
 
 	return best;
