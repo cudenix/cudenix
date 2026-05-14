@@ -13,7 +13,7 @@ export const parseCookies = (header: string) => {
 
 		const eq = header.indexOf("=", start);
 
-		if (eq !== -1 && eq < end) {
+		if (eq !== -1 && eq < end && eq > start) {
 			cookies[header.substring(start, eq)] = header.substring(
 				eq + 1,
 				end,
