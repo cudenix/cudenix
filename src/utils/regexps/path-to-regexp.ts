@@ -1,7 +1,71 @@
+/**
+ * @module
+ * Compile route-style paths into capture-group patterns.
+ */
+
+/**
+ * Regex fragment that captures a single named parameter (`:name`).
+ *
+ * Forbids `/`, whitespace, `?` and `#` to stop the segment from spilling into
+ * the next path component or the query string.
+ */
 const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
+
+/**
+ * Regex fragment that captures a rest parameter (`...name`).
+ *
+ * Greedily consumes one or more slash-delimited segments while still
+ * stopping before query and fragment markers.
+ */
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
+
+/**
+ * Non-capturing variant of {@link REST_CAPTURE} used for the catch-all `*`
+ * segment when no key is exposed to the caller.
+ */
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
 
+/**
+ * Compile a route pattern into a regex source string and the metadata needed
+ * to bind matches back to named parameters.
+ *
+ * Supported segment syntax:
+ *
+ * - `:name` — required named parameter.
+ * - `:name?` — optional named parameter (the leading `/` is also optional).
+ * - `...name` — rest parameter capturing one or more remaining segments.
+ * - `*` — wildcard segment, matches one or more segments without capturing.
+ * - Any other literal — matched verbatim after `RegExp.escape`.
+ *
+ * The function walks the string once with `charCodeAt` comparisons against
+ * the relevant ASCII codes (`/` 47, `?` 63, `:` 58, `*` 42, `.` 46) to avoid
+ * per-character `substring` allocations. The leading empty `()` capture
+ * keeps every parameter aligned at odd-indexed groups in the resulting
+ * regex.
+ *
+ * @param path - Route pattern to compile. Use `/` for the root path.
+ * @returns Compiled artefacts:
+ *
+ * - `pattern` — regex source string ready for `new RegExp(pattern)`.
+ * - `paramKeys` — names of every captured `:name` and `...name` segment, in
+ *   left-to-right order.
+ * - `restKeys` — names of rest parameters only, or `undefined` when the path
+ *   contains none.
+ * @example
+ * ```typescript
+ * pathToRegexp("/");
+ * // { pattern: "()\\/", paramKeys: [], restKeys: undefined }
+ *
+ * pathToRegexp("/users/:id");
+ * // { pattern: "()\\/users\\/([^/\\s?#]+)", paramKeys: ["id"], restKeys: undefined }
+ *
+ * pathToRegexp("/files/...path");
+ * // { paramKeys: ["path"], restKeys: ["path"], pattern: "()\\/files\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))" }
+ *
+ * pathToRegexp("/posts/:slug?");
+ * // optional segment wrapped as (?:\\/([^/\\s?#]+))?
+ * ```
+ */
 export const pathToRegexp = (path: string) => {
 	if (path === "/") {
 		return {
