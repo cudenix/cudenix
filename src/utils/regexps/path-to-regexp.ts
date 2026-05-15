@@ -39,9 +39,10 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  *
  * The function walks the string once with `charCodeAt` comparisons against
  * the relevant ASCII codes (`/` 47, `?` 63, `:` 58, `*` 42, `.` 46) to avoid
- * per-character `substring` allocations. The leading empty `()` capture
- * keeps every parameter aligned at odd-indexed groups in the resulting
- * regex.
+ * per-character `substring` allocations. The pattern is seeded with an
+ * empty `()` capture so each compiled path contributes exactly
+ * `1 + paramKeys.length` groups — the offset arithmetic used by callers
+ * that concatenate several patterns into one regex.
  *
  * @param path - Route pattern to compile. Use `/` for the root path.
  * @returns Compiled artefacts:
@@ -63,7 +64,7 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  * // { paramKeys: ["path"], restKeys: ["path"], pattern: "()\\/files\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))" }
  *
  * pathToRegexp("/posts/:slug?");
- * // optional segment wrapped as (?:\\/([^/\\s?#]+))?
+ * // { paramKeys: ["slug"], restKeys: undefined, pattern: "()\\/posts(?:\\/([^/\\s?#]+))?" }
  * ```
  */
 export const pathToRegexp = (path: string) => {
