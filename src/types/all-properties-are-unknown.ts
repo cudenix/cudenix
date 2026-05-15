@@ -9,9 +9,11 @@
  *
  * The mapped type rewrites each member to the literal `true` or `false`
  * depending on whether `unknown` is assignable to the value type. The
- * resulting union is then collapsed: if the only members are `true` — or
- * `undefined`, which appears when `Type` has no keys at all — the predicate
- * succeeds.
+ * resulting union is then matched against `true | undefined`: the `true`
+ * branch covers homogeneous-`unknown` objects, and the `| undefined`
+ * branch absorbs the vacuous cases — for example, indexed accesses that
+ * resolve to `undefined` — so the predicate stays `true` for empty or
+ * synthetic shapes instead of falling through to `false`.
  *
  * Useful as a sentinel for detecting completely-unrefined generics, e.g.
  * picking a default branch when a validator schema was never supplied.
