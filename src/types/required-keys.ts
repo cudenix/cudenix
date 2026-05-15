@@ -11,9 +11,11 @@
  * declared with `?` or because the value type itself includes `undefined`
  * — is treated as optional and excluded from the result.
  *
- * The `-?` modifier strips optionality from every key during the probe so
- * the mapped type sees the *value* type, not the implicit `T | undefined`
- * that optional members would otherwise carry.
+ * The `-?` modifier strips optionality from the mapped output. Without it,
+ * an optional source key would survive as an optional key in the probe
+ * and contribute an implicit `undefined` to the final indexed-access union,
+ * which would then leak into the result alongside the legitimate key
+ * names.
  *
  * @typeParam Type - Object type whose keys are partitioned.
  * @example
