@@ -11,7 +11,10 @@
  * one direction, so it accepts subtypes that are not actually the same
  * type. Comparing the tuples `[Type, Extends]` against `[Extends, Type]`
  * forces the relation to hold both ways — equivalent to a strict equality
- * probe at the type level while still distributing over unions naturally.
+ * probe at the type level. The tuple wrapping also suppresses the implicit
+ * distribution that conditional types perform over naked union operands,
+ * so the comparison treats `Type` as a single shape rather than splitting
+ * it member-by-member.
  *
  * @typeParam Type - Candidate type to test.
  * @typeParam Extends - Reference type compared against `Type`.
