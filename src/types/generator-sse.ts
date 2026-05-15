@@ -28,7 +28,7 @@ import type { AnySuccess } from "@/core/success";
  * @example
  * ```typescript
  * function* stream(): Generator<GeneratorSSE<AnySuccess, "tick">> {
- *   yield { data: success({ time: Date.now() }), event: "tick" };
+ *   yield { data: new Success({ time: Date.now() }), event: "tick" };
  * }
  * ```
  */
