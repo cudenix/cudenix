@@ -7,7 +7,6 @@ import { stepAndRespond } from "@/core/step";
 import type { AnyStore } from "@/core/store";
 import type { AnyValidator } from "@/core/validator";
 import type { MaybePromise } from "@/types/maybe-promise";
-import type { WSData } from "@/types/ws";
 import { pushAll } from "@/utils/arrays/push-all";
 import { Empty, FreezeEmpty } from "@/utils/objects/empty";
 
@@ -50,7 +49,15 @@ export interface Cudenix {
 	fetch(request: Request): MaybePromise<Response>;
 	jit: boolean;
 	listen(
-		options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
+		options?: Omit<
+			Extract<
+				Bun.Serve.Options<unknown>,
+				{
+					websocket?: never;
+				}
+			>,
+			"fetch" | "unix"
+		>,
 	): Omit<Cudenix, "listen">;
 	memory: Record<string, unknown>;
 	methods: Record<string, MethodData>;
@@ -158,7 +165,15 @@ Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
 
 Cudenix.prototype.listen = function listen(
 	this: Cudenix,
-	options?: Omit<Bun.Serve.Options<unknown>, "fetch" | "unix">,
+	options?: Omit<
+		Extract<
+			Bun.Serve.Options<unknown>,
+			{
+				websocket?: never;
+			}
+		>,
+		"fetch" | "unix"
+	>,
 ) {
 	this.compile();
 
@@ -170,28 +185,10 @@ Cudenix.prototype.listen = function listen(
 			return this.fetch(request);
 		},
 		routes: this.routes,
-		websocket: {
-			perMessageDeflate: true,
-			...options?.websocket,
-			close: (ws, code, reason) => {
-				(ws.data as WSData)?.close?.(ws, code, reason);
-			},
-			drain: (ws) => {
-				(ws.data as WSData)?.drain?.(ws);
-			},
-			message: (ws, message) => {
-				(ws.data as WSData)?.message?.(ws, message);
-			},
-			open: (ws) => {
-				(ws.data as WSData)?.open?.(ws);
-			},
-		},
 	});
 
 	process.once("beforeExit", () => {
-		this.server?.stop(true);
-
-		this.server = undefined;
+		this.server?.stop();
 	});
 
 	Bun.gc();
