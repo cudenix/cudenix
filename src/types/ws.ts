@@ -4,7 +4,7 @@
  */
 
 /**
- * Optional bag of WebSocket lifecycle callbacks that a route can attach when
+ * Bag of WebSocket lifecycle callbacks that a route can attach when
  * upgrading a connection.
  *
  * Each key matches an event the underlying server emits on the active
@@ -15,9 +15,9 @@
  * - `drain` — fires when the send buffer empties, useful for backpressure.
  * - `close` — fires once when the connection is torn down.
  *
- * Every entry is independently optional so handlers can opt into just the
- * events they care about. The whole type is itself `| undefined` to let
- * routes omit WebSocket configuration entirely.
+ * The four keys are required, but each value may be `undefined` so handlers
+ * can opt out of events they do not care about. The whole type is itself
+ * `| undefined` to let routes omit WebSocket configuration entirely.
  *
  * @example
  * ```typescript
