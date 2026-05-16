@@ -10,9 +10,6 @@ import type { AnySuccess } from "@/core/success";
  * Single frame yielded by a streaming handler that targets the
  * `text/event-stream` protocol.
  *
- * The shape mirrors the
- * [SSE specification](https://html.spec.whatwg.org/multipage/server-sent-events.html):
- *
  * - `data` carries the payload, restricted to the framework's `AnyError` /
  *   `AnySuccess` envelopes so transport metadata flows downstream untouched.
  * - `event` names the channel listeners on `EventSource.addEventListener`
