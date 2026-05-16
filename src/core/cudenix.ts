@@ -6,6 +6,7 @@ import type { AnyRoute } from "@/core/route";
 import { stepAndRespond } from "@/core/step";
 import type { AnyStore } from "@/core/store";
 import type { AnyValidator } from "@/core/validator";
+import type { HttpMethod } from "@/types/http-method";
 import type { MaybePromise } from "@/types/maybe-promise";
 import { pushAll } from "@/utils/arrays/push-all";
 import { Empty, FreezeEmpty } from "@/utils/objects/empty";
@@ -28,8 +29,9 @@ const NOT_FOUND = new Response(undefined, {
 });
 
 /**
- * Flat list of executable units attached to one endpoint, in declaration
- * order and terminated by the route handler.
+ * Flat list of middleware, store and validator units that run for one
+ * endpoint, in declaration order, before the route handler in
+ * {@link Endpoint.route} is invoked.
  */
 export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
@@ -59,23 +61,26 @@ interface MethodData {
 
 /**
  * Function registered through {@link Cudenix.plugins}, invoked with the
- * instance bound as `this` once {@link Cudenix.compile} has finished.
+ * instance bound as `this` during {@link Cudenix.compile} after the
+ * routing tables have been produced.
  */
 type Plugin = (...options: any[]) => void;
 
 /**
  * Options accepted by the {@link Cudenix} constructor.
  *
- * `jit` defaults to `true`; set to `false` for benchmarks or to simplify
- * stack traces while debugging.
+ * `jit` defaults to `true` and is the application-wide default for whether
+ * an endpoint's dispatcher is produced through the JIT-compiled fast path.
+ * Routes that set their own `jit` option override it.
  */
 interface CudenixOptions {
 	jit?: boolean;
 }
 
 /**
- * Public surface of a compiled application instance, returned by
- * `new Cudenix(module, options)`.
+ * Public surface of an application instance returned by
+ * `new Cudenix(module, options)`. The instance is uncompiled until
+ * {@link Cudenix.compile} or {@link Cudenix.listen} runs.
  */
 export interface Cudenix {
 	compile(): void;
@@ -99,7 +104,7 @@ export interface Cudenix {
 		>,
 	): Omit<Cudenix, "listen">;
 	memory: Record<string, unknown>;
-	methods: Record<string, MethodData>;
+	methods: Record<HttpMethod, MethodData>;
 	plugins(plugins: Plugin[]): Cudenix;
 	routes: Record<string, Bun.Serve.Routes<unknown, string>>;
 	server?: Bun.Server<unknown>;
@@ -166,17 +171,15 @@ export const Cudenix = function (
  *    per `(method, path)` pair, writing the results into `methods` and
  *    `routes` and stamping each endpoint's `use` bitmask.
  * 2. Every plugin queued through {@link Cudenix.plugins} is invoked with
- *    the instance bound as `this`, giving it access to the freshly
- *    compiled tables for OpenAPI generation, metrics wiring, or any other
- *    introspection.
+ *    the instance bound as `this`, so it can read the freshly compiled
+ *    tables for introspection or to attach long-lived data to `memory`.
  * 3. The transient slots `memory.module` and `memory.plugins` are deleted
  *    so the original module tree and the plugin list can be reclaimed by
  *    the garbage collector before the server starts handling traffic.
  *
- * Called automatically by {@link Cudenix.listen}; call it manually only
- * when starting the server through a custom transport. It is not safe to
- * invoke twice on the same instance because `memory.module` has been
- * cleared after the first run.
+ * Called automatically by {@link Cudenix.listen}. It is not safe to invoke
+ * twice on the same instance because `memory.module` has been cleared
+ * after the first run.
  */
 Cudenix.prototype.compile = function (this: Cudenix) {
 	compile(this);
@@ -194,28 +197,24 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 };
 
 /**
- * Build a {@link Context} for `endpoint` and execute its chain.
+ * Build a {@link Context} for `endpoint` and execute it.
  *
- * Wraps the request in a fresh context, primes whichever request fields
- * the chain marked as required through `endpoint.use`
- * (`Context.loadRequest` consults the same bitmask to skip parsers
- * nothing depends on), then hands the context off to `stepAndRespond` to
- * walk each unit and serialize the final response.
- *
- * Exposed on the prototype so plugins and tests can replay an endpoint
- * without going through the regex match in {@link Cudenix.fetch} — useful
- * when the caller has already resolved the endpoint through some other
- * mechanism, such as an external router or a replay harness.
+ * Wraps the request in a fresh context and runs `Context.loadRequest`,
+ * which consults `endpoint.use` to parse only the request fields the
+ * chain and route handler will read. Then hands the context off to
+ * `stepAndRespond` to walk the chain, invoke the route handler and
+ * serialize the final response.
  *
  * @param endpoint - Compiled endpoint descriptor to run.
  * @param path - Concrete request path; passed straight through to the
  *   context so downstream parsers do not have to recompute it.
  * @param request - Original `Request` driving the call.
- * @param match - Regex execution result that selected `endpoint`. Required
- *   when the path declares parameters so the context can decode them on
- *   demand; omit it for parameterless paths.
- * @returns The HTTP response produced by the chain, once every unit has
- *   resolved.
+ * @param match - Regex execution result that selected `endpoint`. Used by
+ *   `Context.loadRequestParams` to decode path parameters from the URL;
+ *   may be omitted for paths without parameters or when params are
+ *   sourced from Bun's static router.
+ * @returns The HTTP response produced by the chain, once every unit and
+ *   the route handler have resolved.
  */
 Cudenix.prototype.endpoint = async function (
 	this: Cudenix,
@@ -245,11 +244,11 @@ Cudenix.prototype.endpoint = async function (
  * {@link Cudenix.listen}. Lookup proceeds in four short-circuiting steps,
  * each falling back to {@link NOT_FOUND}:
  *
- * 1. The HTTP method must have at least one registered endpoint — the
- *    `methods` table is consulted directly without a hash dance.
+ * 1. The HTTP method must have at least one registered endpoint, found by
+ *    a direct lookup in the `methods` table.
  * 2. The merged regex for that method must match the request URL.
- * 3. The path slot of the regex (`match[2]`) must be populated — guards
- *    against the few patterns whose only match is the prefix.
+ * 3. The path capture (`match[2]`) must be a non-empty string; a
+ *    defensive guard against degenerate match results.
  * 4. One endpoint's seed capture group must be defined in the regex
  *    match. The slot indexed by `matchOffset` is unique per endpoint, so
  *    the first non-`undefined` entry identifies the winning candidate in
@@ -259,13 +258,13 @@ Cudenix.prototype.endpoint = async function (
  * with the regex result so path parameters can be decoded lazily.
  *
  * @param request - Incoming HTTP request.
- * @returns Either the shared 404 sentinel for misses or the response
- *   produced by the endpoint chain. The return type is
- *   {@link MaybePromise} because the chain only `await`s asynchronous
- *   work when an endpoint actually requires it.
+ * @returns Either the shared 404 sentinel for misses, returned
+ *   synchronously, or the `Promise<Response>` produced by
+ *   {@link Cudenix.endpoint} for matched dispatches — hence the
+ *   {@link MaybePromise} return type.
  */
 Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
-	const data = this.methods[request.method];
+	const data = this.methods[request.method as HttpMethod];
 
 	if (!data) {
 		return NOT_FOUND;
@@ -325,8 +324,8 @@ Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
  *
  * @param options - Bun server options. WebSockets are configured through
  *   the route definitions rather than on the server, so the `websocket`
- *   field is excluded from the type. `fetch` and `unix` are excluded
- *   because the runtime owns them.
+ *   field is excluded from the type, along with `fetch` (which the runtime
+ *   wires itself) and `unix`.
  * @returns The same instance, narrowed to hide `listen` itself so it
  *   cannot be invoked twice.
  * @example
@@ -380,12 +379,6 @@ Cudenix.prototype.listen = function listen(
  * @param plugins - Plugins appended to the queue, executed in the order
  *   they were registered.
  * @returns The same instance, for chaining.
- * @example
- * ```typescript
- * new Cudenix(module)
- *   .plugins([openapi(), metrics()])
- *   .listen({ port: 3000 });
- * ```
  */
 Cudenix.prototype.plugins = function (this: Cudenix, plugins: Plugin[]) {
 	if (!("plugins" in this.memory)) {
