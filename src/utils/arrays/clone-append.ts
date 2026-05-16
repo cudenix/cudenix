@@ -1,15 +1,19 @@
 /**
  * @module
- * Immutable array append helper.
+ * Fast immutable array append tuned for hot paths.
  */
 
 /**
  * Return a new array containing every element of `array` followed by `item`.
  *
- * The input is never mutated, which makes the helper safe to use when the
- * source array is shared across multiple contexts. Empty and single-element
- * inputs short-circuit through array literals so the common cases avoid the
- * `new Array(length + 1)` allocation path.
+ * Equivalent in effect to `[...array, item]` or `array.concat([item])` but
+ * consistently faster: the spread form materialises a variadic argument list
+ * and `concat` goes through a generic boxed path, while this helper
+ * pre-sizes the output with `new Array(length + 1)` and fills it with an
+ * indexed write loop that stays on the engine's monomorphic dense-array
+ * store path. Empty and single-element inputs short-circuit through array
+ * literals so the common cases skip the `new Array` allocation entirely.
+ * The input is never mutated.
  *
  * @typeParam Type - Element type of the source array and the appended item.
  * @param array - Source array to clone. Left untouched.
@@ -17,7 +21,7 @@
  * @returns A freshly allocated array of length `array.length + 1`.
  * @example
  * ```typescript
- * cloneAppend([], "a"); // ["a"]
+ * cloneAppend([], "a"); // ["a"] — faster than `[...[], "a"]`
  * cloneAppend(["a"], "b"); // ["a", "b"]
  * cloneAppend(["a", "b"], "c"); // ["a", "b", "c"]
  * ```
