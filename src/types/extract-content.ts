@@ -8,7 +8,7 @@
  * resolve to `Content` itself.
  *
  * Lets a slot accept either a concrete value or a thunk / async factory and
- * normalise both to the eventual concrete type at the type level. The
+ * normalize both to the eventual concrete type at the type level. The
  * function branch uses `...args: any[]` so the awaited return-type
  * extraction works regardless of the factory's parameter signature.
  *

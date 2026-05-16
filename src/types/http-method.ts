@@ -4,7 +4,7 @@
  */
 
 /**
- * Union of every HTTP method recognised by the router, plus a string brand
+ * Union of every HTTP method recognized by the router, plus a string brand
  * for custom verbs.
  *
  * The trailing `Uppercase<string> & NonNullable<unknown>` keeps the named

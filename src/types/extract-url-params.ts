@@ -7,7 +7,7 @@
  * Walk a route pattern at the type level and accumulate the named
  * parameters it declares.
  *
- * Recognises the same segment vocabulary as the runtime `pathToRegexp`
+ * Recognizes the same segment vocabulary as the runtime `pathToRegexp`
  * helper:
  *
  * - `:name` — required string parameter.

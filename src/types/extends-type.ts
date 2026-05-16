@@ -21,7 +21,7 @@
  * @typeParam True - Branch returned when both types are mutually assignable.
  *   Defaults to `Type`, so by default a match passes the input through.
  * @typeParam False - Branch returned otherwise. Defaults to `Type`, making
- *   the default behaviour "pass through" rather than producing `never`.
+ *   the default behavior "pass through" rather than producing `never`.
  * @example
  * ```typescript
  * type A = ExtendsType<string, string, "yes", "no">; // "yes"

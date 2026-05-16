@@ -10,7 +10,7 @@
  * Internal helper used by {@link MergePaths} to keep joined results free of
  * accidental double slashes when either side carries a trailing separator.
  *
- * @typeParam Type - Path-shaped string literal to normalise.
+ * @typeParam Type - Path-shaped string literal to normalize.
  */
 type RemoveTrailingSlash<Type extends string> = Type extends "/"
 	? Type
