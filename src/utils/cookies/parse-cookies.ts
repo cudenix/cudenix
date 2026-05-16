@@ -14,11 +14,9 @@ import { Empty } from "@/utils/objects/empty";
  * dropped, and duplicate names keep the last value because each iteration
  * unconditionally writes into the result object.
  *
- * The result is built on top of {@link Empty}, so reserved prototype names
- * such as `__proto__` are safe to use as cookie names without leaking onto
- * `Object.prototype`.
+ * The result is built on top of {@link Empty}.
  *
- * @param header - Raw `Cookie` header value (`"a=1; b=2"`-shaped).
+ * @param header - Raw `Cookie` header value (`"a=1; b=2"`).
  * @returns Dictionary mapping cookie name to its raw, undecoded value.
  *   Returns an empty {@link Empty} instance when the header carries no
  *   parseable pairs.
