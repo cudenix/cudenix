@@ -45,7 +45,7 @@ export interface Cudenix {
 		path: string,
 		request: Request,
 		match?: RegExpExecArray,
-	): MaybePromise<Response>;
+	): Promise<Response>;
 	fetch(request: Request): MaybePromise<Response>;
 	jit: boolean;
 	listen(
@@ -66,7 +66,9 @@ export interface Cudenix {
 	server?: Bun.Server<unknown>;
 }
 
-type Constructor = new (module: AnyModule, options?: CudenixOptions) => Cudenix;
+interface CudenixConstructor {
+	new (module: AnyModule, options?: CudenixOptions): Cudenix;
+}
 
 export const Cudenix = function (
 	this: Cudenix,
@@ -79,7 +81,7 @@ export const Cudenix = function (
 	this.routes = new Empty() as NonNullable<Cudenix["routes"]>;
 
 	this.memory.module = module;
-} as unknown as Constructor;
+} as unknown as CudenixConstructor;
 
 Cudenix.prototype.compile = function (this: Cudenix) {
 	compile(this);
@@ -96,7 +98,7 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 	delete this.memory.plugins;
 };
 
-Cudenix.prototype.endpoint = function (
+Cudenix.prototype.endpoint = async function (
 	this: Cudenix,
 	endpoint: Endpoint,
 	path: string,
@@ -112,13 +114,7 @@ Cudenix.prototype.endpoint = function (
 		match,
 	);
 
-	const returned = context.loadRequest();
-
-	if (returned instanceof Promise) {
-		return returned.then(() => {
-			return stepAndRespond(this, context, endpoint, request);
-		});
-	}
+	await context.loadRequest();
 
 	return stepAndRespond(this, context, endpoint, request);
 };
