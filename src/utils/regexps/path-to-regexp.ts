@@ -32,7 +32,7 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  * Supported segment syntax:
  *
  * - `:name` — required named parameter.
- * - `:name?` — optional named parameter (the leading `/` is also optional).
+ * - `:name?` — optional named parameter.
  * - `...name` — rest parameter capturing one or more remaining segments.
  * - `*` — wildcard segment, matches one or more segments without capturing.
  * - Any other literal — matched verbatim after `RegExp.escape`.
