@@ -13,9 +13,9 @@
  * @typeParam Type - Dictionary whose value types are unioned.
  * @example
  * ```typescript
- * const Status = { Ready: "ready", Done: "done" } as const;
+ * const status = { ready: "ready", done: "done" } as const;
  *
- * type Status = ValueOf<typeof Status>;
+ * type Status = ValueOf<typeof status>;
  * // "ready" | "done"
  * ```
  */
