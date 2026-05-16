@@ -4,7 +4,7 @@
  */
 
 /**
- * Copy every enumerable own and inherited key from `object2` onto `object1`.
+ * Copy every enumerable own and inherited key from `object2` to `object1`.
  *
  * The merge happens in place — `object1` is mutated and no new container is
  * allocated. Values in `object2` overwrite matching keys in `object1`, and
