@@ -15,23 +15,23 @@
  * - `drain` — fires when the send buffer empties, useful for backpressure.
  * - `close` — fires once when the connection is torn down.
  *
- * The four keys are required, but each value may be `undefined` so handlers
- * can opt out of events they do not care about. The whole type is itself
- * `| undefined` to let routes omit WebSocket configuration entirely.
+ * All keys are optional, so handlers can opt out of events they do not care
+ * about by simply omitting them. The whole type is itself `| undefined` to
+ * let routes omit WebSocket configuration entirely.
  *
  * @example
  * ```typescript
  * const ws: WSData = {
  *   open: () => console.log("connected"),
  *   message: (_, payload) => console.log("recv", payload),
- *   drain: undefined,
- *   close: undefined,
  * };
  * ```
  */
 export type WSData =
-	| Record<
-			"close" | "drain" | "message" | "open",
-			((...options: any[]) => any) | undefined
+	| Partial<
+			Record<
+				"close" | "drain" | "message" | "open",
+				(...options: any[]) => any
+			>
 	  >
 	| undefined;
