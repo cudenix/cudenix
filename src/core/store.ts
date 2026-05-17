@@ -53,15 +53,15 @@ export type StoreFn<
  * Convenience alias matching any {@link StoreFn} regardless of return,
  * stores, or validators parameters.
  *
- * Reach for it where the concrete generics are irrelevant — for example,
- * the runtime dispatcher that invokes whichever store sits in the chain
- * without caring about the keys it contributes.
+ * Reach for it where the concrete generics are erased — for example, the
+ * parameter type of `Module.prototype.store`, which receives whichever
+ * store the caller registered without seeing the keys it produces.
  */
 export type AnyStoreFn = StoreFn<any, any, any>;
 
 /**
- * Compiled descriptor for a store unit, as it appears inside an endpoint
- * {@link Chain}.
+ * Internal descriptor for a store unit, pushed onto a module's chain by
+ * `Module.store` and consumed by the runtime on every request.
  *
  * `store` holds the user-supplied function; `type` is the discriminant
  * the runtime uses to tell store units apart from middlewares, validators,
