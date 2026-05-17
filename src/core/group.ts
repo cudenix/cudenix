@@ -43,8 +43,10 @@ export type AnyGroupOptions = GroupOptions<any>;
  * function is expected to return a module — typically the same instance,
  * with routes (and optionally further units) chained on. At compile time
  * the routes from the returned module are folded into the parent's route
- * tree under the merged prefix, while the parent's own chain remains
- * untouched.
+ * tree under the merged prefix, while any middlewares, stores, and
+ * validators registered inside the group stay scoped to routes defined
+ * inside it and do not affect units declared elsewhere in the parent's
+ * chain.
  *
  * @typeParam Module - Type of the module handed to the group, already
  *   carrying the merged prefix and the parent's inherited chain state.
