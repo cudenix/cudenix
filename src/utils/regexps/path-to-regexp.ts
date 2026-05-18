@@ -35,7 +35,8 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  * - `:name?` — optional named parameter.
  * - `...name` — rest parameter capturing one or more remaining segments.
  * - `*` — wildcard segment, matches one or more segments without capturing.
- * - Any other literal — matched verbatim after `RegExp.escape`.
+ * - Any other literal — matched after `RegExp.escape`, so the generated
+ *   source may contain escaped code points such as `\\x75`.
  *
  * The function walks the string once with `charCodeAt` comparisons against
  * the relevant ASCII codes (`/` 47, `?` 63, `:` 58, `*` 42, `.` 46) to avoid
@@ -58,13 +59,13 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  * // { pattern: "()\\/", paramKeys: [], restKeys: undefined }
  *
  * pathToRegexp("/users/:id");
- * // { pattern: "()\\/users\\/([^/\\s?#]+)", paramKeys: ["id"], restKeys: undefined }
+ * // { pattern: "()\\/\\x75sers\\/([^/\\s?#]+)", paramKeys: ["id"], restKeys: undefined }
  *
  * pathToRegexp("/files/...path");
- * // { paramKeys: ["path"], restKeys: ["path"], pattern: "()\\/files\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))" }
+ * // { paramKeys: ["path"], restKeys: ["path"], pattern: "()\\/\\x66iles\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))" }
  *
  * pathToRegexp("/posts/:slug?");
- * // { paramKeys: ["slug"], restKeys: undefined, pattern: "()\\/posts(?:\\/([^/\\s?#]+))?" }
+ * // { paramKeys: ["slug"], restKeys: undefined, pattern: "()\\/\\x70osts(?:\\/([^/\\s?#]+))?" }
  * ```
  */
 export const pathToRegexp = (path: string) => {
