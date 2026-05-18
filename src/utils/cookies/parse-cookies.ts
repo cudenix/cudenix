@@ -2,17 +2,18 @@ import { Empty } from "@/utils/objects/empty";
 
 /**
  * @module
- * `Cookie` header parser.
+ * `Cookie` header parser for semicolon-space separated pairs.
  */
 
 /**
  * Parse the value of a `Cookie` request header into a key/value dictionary.
  *
  * Walks the header once with `indexOf`/`charCodeAt` (61 is `=`) instead of
- * the more idiomatic `split("; ")` so no intermediate array is allocated.
- * Entries without an `=` are skipped, entries with a leading `=` are
- * dropped, and duplicate names keep the last value because each iteration
- * unconditionally writes into the result object.
+ * `split("; ")` so no intermediate array is allocated. The delimiter is the
+ * exact `"; "` sequence; entries separated by `";"` without the following
+ * space stay inside the current value. Entries without an `=` are skipped,
+ * entries with an empty name are dropped, and duplicate names keep the last
+ * value because each iteration unconditionally writes into the result object.
  *
  * The result is built on top of {@link Empty}.
  *
@@ -25,8 +26,11 @@ import { Empty } from "@/utils/objects/empty";
  * parseCookies("sid=abc123; theme=dark");
  * // { sid: "abc123", theme: "dark" }
  *
- * parseCookies("flag; sid=abc"); // valueless entries are ignored
+ * parseCookies("flag; sid=abc"); // entries without `=` are ignored
  * // { sid: "abc" }
+ *
+ * parseCookies("a=1;b=2"); // only `; ` separates entries
+ * // { a: "1;b=2" }
  *
  * parseCookies("");
  * // {}
