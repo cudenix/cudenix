@@ -81,11 +81,43 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/users")).toBe(true);
 		});
 
+		test("normalizes a path without a leading '/' the same as one with it", () => {
+			const withSlash = pathToRegexp("/users/:id");
+			const withoutSlash = pathToRegexp("users/:id");
+
+			expect(withoutSlash.pattern).toBe(withSlash.pattern);
+			expect(withoutSlash.paramKeys).toEqual(withSlash.paramKeys);
+
+			const { regex } = compile("users/:id");
+
+			expect("/users/abc".match(regex)![2]).toBe("abc");
+		});
+
 		test("escapes regex-special characters in literal segments", () => {
 			const { regex } = compile("/a.b");
 
 			expect(regex.test("/a.b")).toBe(true);
 			expect(regex.test("/aXb")).toBe(false);
+		});
+
+		test("escapes additional regex-special characters in literals", () => {
+			const symbols = ["+", "(", ")", "[", "]", "{", "}", "^", "$", "|"];
+
+			for (let i = 0; i < symbols.length; i++) {
+				const path = `/a${symbols[i]}b`;
+
+				const { regex } = compile(path);
+
+				expect(regex.test(path)).toBe(true);
+			}
+		});
+
+		test("a '+' in a literal does not act as regex repetition", () => {
+			const { regex } = compile("/a+b");
+
+			expect(regex.test("/a+b")).toBe(true);
+			expect(regex.test("/aaab")).toBe(false);
+			expect(regex.test("/ab")).toBe(false);
 		});
 
 		test("treats a single leading '.' as a literal (not a rest param)", () => {
@@ -120,36 +152,12 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/users")).toBe(true);
 		});
 
-		test("escapes additional regex-special characters in literals", () => {
-			const symbols = ["+", "(", ")", "[", "]", "{", "}", "^", "$", "|"];
+		test("a trailing '/?' on a literal makes the trailing slash optional", () => {
+			const { regex } = compile("/foo/?");
 
-			for (let i = 0; i < symbols.length; i++) {
-				const path = `/a${symbols[i]}b`;
-
-				const { regex } = compile(path);
-
-				expect(regex.test(path)).toBe(true);
-			}
-		});
-
-		test("a '+' in a literal does not act as regex repetition", () => {
-			const { regex } = compile("/a+b");
-
-			expect(regex.test("/a+b")).toBe(true);
-			expect(regex.test("/aaab")).toBe(false);
-			expect(regex.test("/ab")).toBe(false);
-		});
-
-		test("normalizes a path without a leading '/' the same as one with it", () => {
-			const withSlash = pathToRegexp("/users/:id");
-			const withoutSlash = pathToRegexp("users/:id");
-
-			expect(withoutSlash.pattern).toBe(withSlash.pattern);
-			expect(withoutSlash.paramKeys).toEqual(withSlash.paramKeys);
-
-			const { regex } = compile("users/:id");
-
-			expect("/users/abc".match(regex)![2]).toBe("abc");
+			expect(regex.test("/foo")).toBe(true);
+			expect(regex.test("/foo/")).toBe(true);
+			expect(regex.test("/foo/bar")).toBe(false);
 		});
 
 		test("a lone '?' segment compiles to an optional empty literal", () => {
@@ -161,14 +169,6 @@ describe("pathToRegexp", () => {
 			expect(regex.test("")).toBe(true);
 			expect(regex.test("/")).toBe(true);
 			expect(regex.test("/a")).toBe(false);
-		});
-
-		test("a trailing '/?' on a literal makes the trailing slash optional", () => {
-			const { regex } = compile("/foo/?");
-
-			expect(regex.test("/foo")).toBe(true);
-			expect(regex.test("/foo/")).toBe(true);
-			expect(regex.test("/foo/bar")).toBe(false);
 		});
 	});
 
@@ -266,42 +266,6 @@ describe("pathToRegexp", () => {
 			expect("/files/a/b/c".match(regex)![2]).toBe("a/b/c");
 		});
 
-		test("requires at least one segment after the prefix", () => {
-			const { regex } = compile("/files/...path");
-
-			expect(regex.test("/files")).toBe(false);
-			expect(regex.test("/files/")).toBe(false);
-		});
-
-		test("collects every rest param key (covers the !restKeys false branch)", () => {
-			const { paramKeys, restKeys } = compile("/...a/middle/...b");
-
-			expect(paramKeys).toEqual(["a", "b"]);
-			expect(restKeys).toEqual(["a", "b"]);
-		});
-
-		test("supports an empty rest name", () => {
-			const { paramKeys, restKeys } = compile("/...");
-
-			expect(paramKeys).toEqual([""]);
-			expect(restKeys).toEqual([""]);
-		});
-
-		test("rejects forbidden characters in rest segments", () => {
-			const { regex } = compile("/files/...path");
-
-			expect(regex.test("/files/a b")).toBe(false);
-			expect(regex.test("/files/a?b")).toBe(false);
-			expect(regex.test("/files/a#b")).toBe(false);
-		});
-
-		test("treats more than three leading dots as part of the rest name", () => {
-			const { paramKeys, restKeys } = compile("/....name");
-
-			expect(paramKeys).toEqual([".name"]);
-			expect(restKeys).toEqual([".name"]);
-		});
-
 		test("rest backtracks correctly when followed by literal segments", () => {
 			const { paramKeys, regex, restKeys } = compile("/...rest/end");
 
@@ -319,6 +283,42 @@ describe("pathToRegexp", () => {
 			expect(shallow![2]).toBe("a");
 
 			expect(regex.test("/a/b/c")).toBe(false);
+		});
+
+		test("requires at least one segment after the prefix", () => {
+			const { regex } = compile("/files/...path");
+
+			expect(regex.test("/files")).toBe(false);
+			expect(regex.test("/files/")).toBe(false);
+		});
+
+		test("rejects forbidden characters in rest segments", () => {
+			const { regex } = compile("/files/...path");
+
+			expect(regex.test("/files/a b")).toBe(false);
+			expect(regex.test("/files/a?b")).toBe(false);
+			expect(regex.test("/files/a#b")).toBe(false);
+		});
+
+		test("collects every rest param key (covers the !restKeys false branch)", () => {
+			const { paramKeys, restKeys } = compile("/...a/middle/...b");
+
+			expect(paramKeys).toEqual(["a", "b"]);
+			expect(restKeys).toEqual(["a", "b"]);
+		});
+
+		test("supports an empty rest name", () => {
+			const { paramKeys, restKeys } = compile("/...");
+
+			expect(paramKeys).toEqual([""]);
+			expect(restKeys).toEqual([""]);
+		});
+
+		test("treats more than three leading dots as part of the rest name", () => {
+			const { paramKeys, restKeys } = compile("/....name");
+
+			expect(paramKeys).toEqual([".name"]);
+			expect(restKeys).toEqual([".name"]);
 		});
 	});
 
