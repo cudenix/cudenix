@@ -6,11 +6,11 @@
 /**
  * Append every element of `source` to the end of `target`, in order.
  *
- * Equivalent in effect to `target.push(...source)` for ordinary arrays and,
- * in most hot-path cases, faster: the spread form has to materialize the
- * source as a variadic argument list and invoke `push` as a variadic call.
- * A straight indexed write loop can stay on the engine's dense-array store
- * path and skips the per-call overhead of `push`. Mutates `target` in place.
+ * Leaves `target` with the same appended elements as `target.push(...source)`
+ * for ordinary arrays, but this helper intentionally returns `void` instead
+ * of the new length. It is designed for hot paths: direct indexed writes avoid
+ * building a variadic argument list and calling `push` for each batch. Mutates
+ * `target` in place.
  *
  * @typeParam Type - Element type shared by both arrays.
  * @param target - Array that is mutated to receive new elements.
@@ -19,7 +19,7 @@
  * ```typescript
  * const target = [1, 2];
  *
- * pushAll(target, [3, 4, 5]); // faster than `push(...items)` in most hot paths
+ * pushAll(target, [3, 4, 5]); // appends without a variadic `push` call
  *
  * target; // [1, 2, 3, 4, 5]
  * ```
