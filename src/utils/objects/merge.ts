@@ -4,11 +4,13 @@
  */
 
 /**
- * Copy every enumerable own and inherited key from `object2` to `object1`.
+ * Copy every enumerable own and inherited string key from `object2` to
+ * `object1`.
  *
  * The merge happens in place — `object1` is mutated and no new container is
  * allocated. Values in `object2` overwrite matching keys in `object1`, and
- * the iteration relies on `for..in` so prototype chains are walked.
+ * the iteration relies on `for..in` so prototype chains are walked. Symbol
+ * keys are not copied because `for..in` does not visit them.
  *
  * @param object1 - Target dictionary that receives the keys.
  * @param object2 - Source dictionary whose entries are copied into `object1`.
