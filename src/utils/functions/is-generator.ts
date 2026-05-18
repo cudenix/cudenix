@@ -25,7 +25,7 @@ const ASYNC_GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(
  *
  * The test compares the function's prototype against the cached generator
  * prototypes, so it is robust against bundlers that rename functions and
- * cheaper than inspecting `fn.constructor.name`.
+ * usually cheaper than inspecting `fn.constructor.name`.
  *
  * @param fn - Function to inspect.
  * @returns `true` if `fn` was declared with `function*` or `async function*`,
