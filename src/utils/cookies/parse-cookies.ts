@@ -8,12 +8,14 @@ import { Empty } from "@/utils/objects/empty";
 /**
  * Parse the value of a `Cookie` request header into a key/value dictionary.
  *
- * Walks the header once with `indexOf`/`charCodeAt` (61 is `=`) instead of
- * `split("; ")` so no intermediate array is allocated. The delimiter is the
- * exact `"; "` sequence; entries separated by `";"` without the following
- * space stay inside the current value. Entries without an `=` are skipped,
- * entries with an empty name are dropped, and duplicate names keep the last
- * value because each iteration unconditionally writes into the result object.
+ * Scans the header with `indexOf`/`charCodeAt` (61 is `=`) instead of
+ * `split("; ")`, avoiding the intermediate array of cookie pairs. The
+ * delimiter is the exact `"; "` sequence; entries separated by `";"` without
+ * the following space stay inside the current value. The first `=` in each
+ * entry separates the name from the value, so later `=` characters remain in
+ * the value. Entries without an `=` are skipped, entries with an empty name
+ * are dropped, and duplicate names keep the last value because each iteration
+ * unconditionally writes into the result object.
  *
  * The result is built on top of {@link Empty}.
  *
