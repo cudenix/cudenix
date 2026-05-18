@@ -4,18 +4,19 @@
  */
 
 /**
- * Constructor that allocates empty dictionaries quickly in most hot paths.
+ * Constructor that allocates empty dictionaries for hot-path use.
  *
- * All instances share the same hidden class, so the engine can keep property
- * accesses on a monomorphic inline-cache path instead of the polymorphic path
- * that can grow out of repeated `{}` literals. The constructor prototype has a
- * `null` prototype as a side effect of the technique — it removes the
- * `Object.prototype` lookup chain, which can trim a few extra cycles per miss.
+ * Fresh instances start from the same constructor/prototype shape, which lets
+ * mainstream JavaScript engines keep common property-access paths stable when
+ * callers add keys consistently. As a second deliberate step, the constructor's
+ * prototype is reassigned to an object whose own prototype is `null`.
+ * Instances still inherit from `Empty.prototype`, but `Object.prototype` is
+ * not in their lookup chain.
  *
  * @returns A fresh dictionary keyed by `PropertyKey` and valued as `unknown`.
  * @example
  * ```typescript
- * const map = new Empty(); // usually faster than `{}` in tight loops
+ * const map = new Empty(); // empty dictionary without Object.prototype lookup
  * ```
  */
 export const Empty = function Empty() {} as unknown as new () => Record<
