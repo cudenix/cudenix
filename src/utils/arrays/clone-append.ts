@@ -6,13 +6,14 @@
 /**
  * Return a new array containing every element of `array` followed by `item`.
  *
- * Equivalent in effect to `[...array, item]` for ordinary arrays and, in most
- * hot-path cases, faster: the spread form materialises an iterator result and
- * `concat` goes through a generic path, while this helper pre-sizes the output
- * with `new Array(length + 1)` and fills it with an indexed write loop that can
- * stay on the engine's dense-array store path. Empty and single-element inputs
- * short-circuit through array literals so the common cases skip the `new Array`
- * allocation entirely. The input is never mutated.
+ * Equivalent in content to `[...array, item]` for ordinary arrays. Unlike
+ * `array.concat(item)`, this always appends `item` as a single element, even
+ * when `item` is itself an array or another concat-spreadable value.
+ *
+ * The implementation is designed for hot paths: empty and single-element
+ * inputs use array literals, while longer inputs pre-size the output with
+ * `new Array(length + 1)` and fill it through indexed writes. The input is
+ * never mutated.
  *
  * @typeParam Type - Element type of the source array and the appended item.
  * @param array - Source array to clone. Left untouched.
@@ -20,7 +21,7 @@
  * @returns A freshly allocated array of length `array.length + 1`.
  * @example
  * ```typescript
- * cloneAppend([], "a"); // ["a"] — usually faster than `[...[], "a"]`
+ * cloneAppend([], "a"); // ["a"]
  * cloneAppend(["a"], "b"); // ["a", "b"]
  * cloneAppend(["a", "b"], "c"); // ["a", "b", "c"]
  * ```
