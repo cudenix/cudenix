@@ -1,21 +1,21 @@
 /**
  * @module
- * Fast empty-object factory tuned for hot paths.
+ * Hot-path empty-object factory.
  */
 
 /**
- * Constructor that allocates empty dictionaries faster than `{}`.
+ * Constructor that allocates empty dictionaries quickly in most hot paths.
  *
- * All instances share the same hidden class, so the engine keeps property
- * accesses on a monomorphic inline-cache path instead of paying the
- * polymorphic cost that grows out of repeated `{}` literals. The `null`
- * prototype is a side effect of the technique — it removes the
- * `Object.prototype` lookup chain, which trims a few extra cycles per miss.
+ * All instances share the same hidden class, so the engine can keep property
+ * accesses on a monomorphic inline-cache path instead of the polymorphic path
+ * that can grow out of repeated `{}` literals. The constructor prototype has a
+ * `null` prototype as a side effect of the technique — it removes the
+ * `Object.prototype` lookup chain, which can trim a few extra cycles per miss.
  *
  * @returns A fresh dictionary keyed by `PropertyKey` and valued as `unknown`.
  * @example
  * ```typescript
- * const map = new Empty(); // faster than `const map = {}` in tight loops
+ * const map = new Empty(); // usually faster than `{}` in tight loops
  * ```
  */
 export const Empty = function Empty() {} as unknown as new () => Record<
