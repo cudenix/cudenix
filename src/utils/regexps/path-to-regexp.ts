@@ -34,16 +34,21 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  * - `:name` — required named parameter.
  * - `:name?` — optional named parameter.
  * - `...name` — rest parameter capturing one or more remaining segments.
+ * - `...name?` — optional rest parameter.
  * - `*` — wildcard segment, matches one or more segments without capturing.
  * - Any other literal — matched after `RegExp.escape`, so the generated
  *   source may contain escaped code points such as `\\x75`.
  *
- * The function walks the string once with `charCodeAt` comparisons against
- * the relevant ASCII codes (`/` 47, `?` 63, `:` 58, `*` 42, `.` 46) to avoid
- * per-character `substring` allocations. The pattern is seeded with an
- * empty `()` capture so each compiled path contributes exactly
- * `1 + paramKeys.length` groups — the offset arithmetic used by callers
- * that concatenate several patterns into one regex.
+ * Optionality is applied after segment parsing; a trailing `?` therefore also
+ * makes literal or wildcard segments optional if those forms are used.
+ *
+ * The function advances segment by segment, using `indexOf("/")` for
+ * boundaries and `charCodeAt` comparisons against the relevant ASCII codes
+ * (`/` 47, `?` 63, `:` 58, `*` 42, `.` 46) for dispatch. It only creates
+ * substrings for captured names and literal segments. The pattern is seeded
+ * with an empty `()` capture so each compiled path contributes exactly
+ * `1 + paramKeys.length` groups — a fixed count that the offset arithmetic
+ * relies on when callers concatenate several patterns into one regex.
  *
  * @param path - Route pattern to compile. Use `/` for the root path.
  * @returns Compiled artefacts:
@@ -56,16 +61,16 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  * @example
  * ```typescript
  * pathToRegexp("/");
- * // { pattern: "()\\/", paramKeys: [], restKeys: undefined }
+ * // { paramKeys: [], pattern: "()\\/", restKeys: undefined }
  *
  * pathToRegexp("/users/:id");
- * // { pattern: "()\\/\\x75sers\\/([^/\\s?#]+)", paramKeys: ["id"], restKeys: undefined }
+ * // { paramKeys: ["id"], pattern: "()\\/\\x75sers\\/([^/\\s?#]+)", restKeys: undefined }
  *
  * pathToRegexp("/files/...path");
- * // { paramKeys: ["path"], restKeys: ["path"], pattern: "()\\/\\x66iles\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))" }
+ * // { paramKeys: ["path"], pattern: "()\\/\\x66iles\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))", restKeys: ["path"] }
  *
  * pathToRegexp("/posts/:slug?");
- * // { paramKeys: ["slug"], restKeys: undefined, pattern: "()\\/\\x70osts(?:\\/([^/\\s?#]+))?" }
+ * // { paramKeys: ["slug"], pattern: "()\\/\\x70osts(?:\\/([^/\\s?#]+))?", restKeys: undefined }
  * ```
  */
 export const pathToRegexp = (path: string) => {
