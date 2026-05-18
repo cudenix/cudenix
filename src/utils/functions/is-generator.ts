@@ -23,12 +23,12 @@ const ASYNC_GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(
 /**
  * Check whether `fn` is a generator function — sync or async.
  *
- * The test compares the function's prototype against the cached generator
- * prototypes, so it is robust against bundlers that rename functions and
- * usually cheaper than inspecting `fn.constructor.name`.
+ * The test compares the function object's prototype against the cached
+ * generator-function prototypes, so it is robust against bundlers that rename
+ * functions and does not rely on `fn.constructor.name`.
  *
  * @param fn - Function to inspect.
- * @returns `true` if `fn` was declared with `function*` or `async function*`,
+ * @returns `true` if `fn` was created as a `function*` or `async function*`,
  *   otherwise `false`.
  * @example
  * ```typescript
