@@ -119,6 +119,57 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/users/details")).toBe(true);
 			expect(regex.test("/users")).toBe(true);
 		});
+
+		test("escapes additional regex-special characters in literals", () => {
+			const symbols = ["+", "(", ")", "[", "]", "{", "}", "^", "$", "|"];
+
+			for (let i = 0; i < symbols.length; i++) {
+				const path = `/a${symbols[i]}b`;
+
+				const { regex } = compile(path);
+
+				expect(regex.test(path)).toBe(true);
+			}
+		});
+
+		test("a '+' in a literal does not act as regex repetition", () => {
+			const { regex } = compile("/a+b");
+
+			expect(regex.test("/a+b")).toBe(true);
+			expect(regex.test("/aaab")).toBe(false);
+			expect(regex.test("/ab")).toBe(false);
+		});
+
+		test("normalizes a path without a leading '/' the same as one with it", () => {
+			const withSlash = pathToRegexp("/users/:id");
+			const withoutSlash = pathToRegexp("users/:id");
+
+			expect(withoutSlash.pattern).toBe(withSlash.pattern);
+			expect(withoutSlash.paramKeys).toEqual(withSlash.paramKeys);
+
+			const { regex } = compile("users/:id");
+
+			expect("/users/abc".match(regex)![2]).toBe("abc");
+		});
+
+		test("a lone '?' segment compiles to an optional empty literal", () => {
+			const { paramKeys, pattern, regex, restKeys } = compile("/?");
+
+			expect(paramKeys).toEqual([]);
+			expect(restKeys).toBeUndefined();
+			expect(pattern).toBe(String.raw`()(?:\/)?`);
+			expect(regex.test("")).toBe(true);
+			expect(regex.test("/")).toBe(true);
+			expect(regex.test("/a")).toBe(false);
+		});
+
+		test("a trailing '/?' on a literal makes the trailing slash optional", () => {
+			const { regex } = compile("/foo/?");
+
+			expect(regex.test("/foo")).toBe(true);
+			expect(regex.test("/foo/")).toBe(true);
+			expect(regex.test("/foo/bar")).toBe(false);
+		});
 	});
 
 	describe(":name parameter", () => {
@@ -166,6 +217,14 @@ describe("pathToRegexp", () => {
 			const { paramKeys } = compile("/:");
 
 			expect(paramKeys).toEqual([""]);
+		});
+
+		test("supports a ':' segment with empty name at a non-root position", () => {
+			const { paramKeys, regex } = compile("/foo/:");
+
+			expect(paramKeys).toEqual([""]);
+			expect(regex.test("/foo/anything")).toBe(true);
+			expect("/foo/value".match(regex)![2]).toBe("value");
 		});
 	});
 
@@ -235,6 +294,32 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/files/a?b")).toBe(false);
 			expect(regex.test("/files/a#b")).toBe(false);
 		});
+
+		test("treats more than three leading dots as part of the rest name", () => {
+			const { paramKeys, restKeys } = compile("/....name");
+
+			expect(paramKeys).toEqual([".name"]);
+			expect(restKeys).toEqual([".name"]);
+		});
+
+		test("rest backtracks correctly when followed by literal segments", () => {
+			const { paramKeys, regex, restKeys } = compile("/...rest/end");
+
+			expect(paramKeys).toEqual(["rest"]);
+			expect(restKeys).toEqual(["rest"]);
+
+			const deep = "/a/b/c/end".match(regex);
+
+			expect(deep).not.toBeNull();
+			expect(deep![2]).toBe("a/b/c");
+
+			const shallow = "/a/end".match(regex);
+
+			expect(shallow).not.toBeNull();
+			expect(shallow![2]).toBe("a");
+
+			expect(regex.test("/a/b/c")).toBe(false);
+		});
 	});
 
 	describe("...name? optional rest parameter", () => {
@@ -252,6 +337,25 @@ describe("pathToRegexp", () => {
 			expect(match![2]).toBe("a/b");
 
 			const missing = "/files".match(regex);
+
+			expect(missing![2]).toBeUndefined();
+		});
+
+		test("supports an optional rest with no name", () => {
+			const { paramKeys, regex, restKeys } = compile("/...?");
+
+			expect(paramKeys).toEqual([""]);
+			expect(restKeys).toEqual([""]);
+
+			expect(regex.test("")).toBe(true);
+			expect(regex.test("/a")).toBe(true);
+			expect(regex.test("/a/b/c")).toBe(true);
+
+			const match = "/a/b/c".match(regex);
+
+			expect(match![2]).toBe("a/b/c");
+
+			const missing = "".match(regex);
 
 			expect(missing![2]).toBeUndefined();
 		});
@@ -292,6 +396,14 @@ describe("pathToRegexp", () => {
 
 			expect(regex.test("/static")).toBe(true);
 			expect(regex.test("/static/a/b")).toBe(true);
+		});
+
+		test("the optional wildcard adds no extra capture groups when present", () => {
+			const { paramKeys, regex } = compile("/static/*?");
+
+			expect(paramKeys).toEqual([]);
+			expect("/static/a/b".match(regex)!.length).toBe(2);
+			expect("/static".match(regex)!.length).toBe(2);
 		});
 	});
 
@@ -338,6 +450,28 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/u/alice")).toBe(true);
 			expect(regex.test("/u/alice/settings")).toBe(true);
 			expect("/u/alice/settings".match(regex)![3]).toBe("settings");
+		});
+	});
+
+	describe("pattern string (JSDoc examples)", () => {
+		test("matches the documented pattern for '/users/:id'", () => {
+			const { pattern } = pathToRegexp("/users/:id");
+
+			expect(pattern).toBe(String.raw`()\/\x75sers\/([^/\s?#]+)`);
+		});
+
+		test("matches the documented pattern for '/files/...path'", () => {
+			const { pattern } = pathToRegexp("/files/...path");
+
+			expect(pattern).toBe(
+				String.raw`()\/\x66iles\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))`,
+			);
+		});
+
+		test("matches the documented pattern for '/posts/:slug?'", () => {
+			const { pattern } = pathToRegexp("/posts/:slug?");
+
+			expect(pattern).toBe(String.raw`()\/\x70osts(?:\/([^/\s?#]+))?`);
 		});
 	});
 
