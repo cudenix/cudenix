@@ -92,19 +92,52 @@ describe("MergePaths", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should strip a trailing slash from the path when the prefix is root", () => {
+			const check: ExtendsType<
+				MergePaths<"/", "/users/">,
+				"/users"
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should strip a trailing slash from the prefix when the path is root", () => {
+			const check: ExtendsType<MergePaths<"/api/", "/">, "/api"> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("structural relations", () => {
-		test('should resolve `"/" + "/"` to literal `"/"`', () => {
-			type Result = MergePaths<"/", "/">;
+		test("should distribute over a union of prefixes", () => {
+			type Result = MergePaths<"/api" | "/admin", "/users">;
 
-			const check: ExtendsType<Result, "/"> = true;
+			const check: ExtendsType<Result, "/api/users" | "/admin/users"> =
+				true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should distribute over a union of paths", () => {
+			type Result = MergePaths<"/api", "/users" | "/posts">;
+
+			const check: ExtendsType<Result, "/api/users" | "/api/posts"> =
+				true;
 
 			expect(check).toBe(true);
 		});
 
 		test("should produce a string-literal type, not a widened `string`", () => {
 			type Result = MergePaths<"/a", "/b">;
+
+			const check: ExtendsType<Result, string> = false;
+
+			expect(check).toBe(false);
+		});
+
+		test("should preserve literal-ness when both sides carry trailing slashes", () => {
+			type Result = MergePaths<"/api/", "/users/">;
 
 			const check: ExtendsType<Result, string> = false;
 
