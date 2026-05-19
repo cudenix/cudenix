@@ -81,6 +81,15 @@ describe("AssignableTo", () => {
 			expect(check).toBe(true);
 		});
 
+		test("should resolve to true when a primitive flows into a union that contains it (JSDoc example)", () => {
+			const check: ExtendsType<
+				AssignableTo<number, number | string>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
 		test("should resolve to true for two structurally equal unions", () => {
 			const check: ExtendsType<
 				AssignableTo<"a" | "b", "a" | "b">,
@@ -163,6 +172,182 @@ describe("AssignableTo", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should resolve to false when an optional candidate flows into a required key", () => {
+			const check: ExtendsType<
+				AssignableTo<{ a?: string }, { a: string }>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when any object shape flows into the empty object", () => {
+			const check: ExtendsType<
+				AssignableTo<{ a: string }, NonNullable<unknown>>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when the empty object flows into a shape with required keys", () => {
+			const check: ExtendsType<
+				AssignableTo<NonNullable<unknown>, { a: string }>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("array types", () => {
+		test("should resolve to true for equal array element types", () => {
+			const check: ExtendsType<
+				AssignableTo<string[], string[]>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when a narrow element array flows into a widened element union (covariance)", () => {
+			const check: ExtendsType<
+				AssignableTo<string[], (string | number)[]>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when a widened element union flows into a narrower element array", () => {
+			const check: ExtendsType<
+				AssignableTo<(string | number)[], string[]>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when a mutable array flows into its `readonly` form", () => {
+			const check: ExtendsType<
+				AssignableTo<string[], readonly string[]>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when a `readonly` array flows into its mutable form", () => {
+			const check: ExtendsType<
+				AssignableTo<readonly string[], string[]>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when a tuple flows into an array of its element type", () => {
+			const check: ExtendsType<
+				AssignableTo<[string], string[]>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when an array flows into a same-element tuple", () => {
+			const check: ExtendsType<
+				AssignableTo<string[], [string]>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("tuple types", () => {
+		test("should resolve to true for equal tuple shapes", () => {
+			const check: ExtendsType<
+				AssignableTo<[string, number], [string, number]>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false for tuples of different length", () => {
+			const check: ExtendsType<
+				AssignableTo<[string, number], [string]>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("function types", () => {
+		test("should resolve to true for equal function signatures", () => {
+			type Fn = (value: string) => number;
+
+			const check: ExtendsType<AssignableTo<Fn, Fn>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when a function returns a subtype of the expected return type", () => {
+			type Wide = () => string;
+			type Narrow = () => "foo";
+
+			const check: ExtendsType<AssignableTo<Narrow, Wide>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when a function accepts a wider parameter than expected (contravariance)", () => {
+			type Wide = (value: string | number) => void;
+			type Narrow = (value: string) => void;
+
+			const check: ExtendsType<AssignableTo<Wide, Narrow>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when a function accepts a narrower parameter than expected", () => {
+			type Wide = (value: string | number) => void;
+			type Narrow = (value: string) => void;
+
+			const check: ExtendsType<AssignableTo<Narrow, Wide>, false> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when a function takes fewer parameters than expected", () => {
+			type Fewer = () => void;
+			type More = (value: string) => void;
+
+			const check: ExtendsType<AssignableTo<Fewer, More>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when a function takes more parameters than expected", () => {
+			type Fewer = () => void;
+			type More = (value: string) => void;
+
+			const check: ExtendsType<AssignableTo<More, Fewer>, false> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when parameter types are unrelated", () => {
+			type Left = (value: string) => void;
+			type Right = (value: number) => void;
+
+			const check: ExtendsType<AssignableTo<Left, Right>, false> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("top, bottom and exotic types", () => {
@@ -201,40 +386,54 @@ describe("AssignableTo", () => {
 
 			expect(check).toBe(true);
 		});
-	});
 
-	describe("tuple and function types", () => {
-		test("should resolve to true for equal tuple shapes", () => {
+		test("should resolve to true for `any` vs `any`", () => {
+			const check: ExtendsType<AssignableTo<any, any>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for `unknown` vs `unknown`", () => {
 			const check: ExtendsType<
-				AssignableTo<[string, number], [string, number]>,
+				AssignableTo<unknown, unknown>,
 				true
 			> = true;
 
 			expect(check).toBe(true);
 		});
 
-		test("should resolve to false for tuples of different length", () => {
-			const check: ExtendsType<
-				AssignableTo<[string, number], [string]>,
-				false
-			> = true;
+		test("should resolve to true for `never` vs `never`", () => {
+			const check: ExtendsType<AssignableTo<never, never>, true> = true;
 
 			expect(check).toBe(true);
 		});
 
-		test("should resolve to true for equal function signatures", () => {
-			type Fn = (value: string) => number;
-
-			const check: ExtendsType<AssignableTo<Fn, Fn>, true> = true;
+		test("should resolve to true for `any` flowing into `unknown`", () => {
+			const check: ExtendsType<AssignableTo<any, unknown>, true> = true;
 
 			expect(check).toBe(true);
 		});
 
-		test("should resolve to true when a function returns a subtype of the expected return type", () => {
-			type Wide = () => string;
-			type Narrow = () => "foo";
+		test("should resolve to true for `unknown` flowing into `any`", () => {
+			const check: ExtendsType<AssignableTo<unknown, any>, true> = true;
 
-			const check: ExtendsType<AssignableTo<Narrow, Wide>, true> = true;
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for `never` flowing into `any`", () => {
+			const check: ExtendsType<AssignableTo<never, any>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for `never` flowing into `unknown`", () => {
+			const check: ExtendsType<AssignableTo<never, unknown>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when `any` flows into `never` because tuple wrapping suppresses any-distribution", () => {
+			const check: ExtendsType<AssignableTo<any, never>, false> = true;
 
 			expect(check).toBe(true);
 		});
@@ -262,6 +461,24 @@ describe("AssignableTo", () => {
 		test("should resolve to false when comparing primitive to object", () => {
 			const check: ExtendsType<
 				AssignableTo<string, { a: string }>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when `null` flows into `undefined`", () => {
+			const check: ExtendsType<
+				AssignableTo<null, undefined>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when `undefined` flows into `null`", () => {
+			const check: ExtendsType<
+				AssignableTo<undefined, null>,
 				false
 			> = true;
 
