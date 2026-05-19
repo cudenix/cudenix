@@ -14,6 +14,15 @@ describe("ExtractUrlParams", () => {
 			expect(check).toBe(true);
 		});
 
+		test("should resolve to an empty record for the empty path", () => {
+			const check: ExtendsType<
+				ExtractUrlParams<"">,
+				NonNullable<unknown>
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
 		test("should resolve to an empty record for a fully literal path", () => {
 			const check: ExtendsType<
 				ExtractUrlParams<"/health">,
@@ -52,10 +61,37 @@ describe("ExtractUrlParams", () => {
 			expect(check).toBe(true);
 		});
 
+		test("should capture two consecutive required params", () => {
+			const check: ExtendsType<
+				ExtractUrlParams<"/:a/:b">,
+				{ a: string; b: string }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
 		test("should capture a required param that is the only segment", () => {
 			const check: ExtendsType<
 				ExtractUrlParams<":only">,
 				{ only: string }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should capture a required param when the path has no leading slash", () => {
+			const check: ExtendsType<
+				ExtractUrlParams<"users/:id">,
+				{ id: string }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should capture a required param when the path has a trailing slash", () => {
+			const check: ExtendsType<
+				ExtractUrlParams<"/users/:id/">,
+				{ id: string }
 			> = true;
 
 			expect(check).toBe(true);
@@ -76,6 +112,24 @@ describe("ExtractUrlParams", () => {
 			const check: ExtendsType<
 				ExtractUrlParams<"/users/:id?">,
 				{ id: string | undefined }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve an optional param as the only segment", () => {
+			const check: ExtendsType<
+				ExtractUrlParams<":only?">,
+				{ only: string | undefined }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should accumulate two consecutive optional params", () => {
+			const check: ExtendsType<
+				ExtractUrlParams<"/:a?/:b?">,
+				{ a: string | undefined; b: string | undefined }
 			> = true;
 
 			expect(check).toBe(true);
@@ -101,10 +155,46 @@ describe("ExtractUrlParams", () => {
 			expect(check).toBe(true);
 		});
 
+		test("should capture a required rest followed by a literal segment", () => {
+			const check: ExtendsType<
+				ExtractUrlParams<"/...rest/end">,
+				{ rest: string[] }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should capture every rest param when multiple are present", () => {
+			type Result = ExtractUrlParams<"/...a/middle/...b">;
+
+			const check: ExtendsType<Result, { a: string[]; b: string[] }> =
+				true;
+
+			expect(check).toBe(true);
+		});
+
 		test("should resolve an optional rest to `string[] | undefined`", () => {
 			const check: ExtendsType<
 				ExtractUrlParams<"/files/...path?">,
 				{ path: string[] | undefined }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve an optional rest as the only segment", () => {
+			const check: ExtendsType<
+				ExtractUrlParams<"...rest?">,
+				{ rest: string[] | undefined }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should capture an optional rest followed by a literal segment", () => {
+			const check: ExtendsType<
+				ExtractUrlParams<"/foo/...rest?/bar">,
+				{ rest: string[] | undefined }
 			> = true;
 
 			expect(check).toBe(true);
@@ -116,6 +206,15 @@ describe("ExtractUrlParams", () => {
 			const check: ExtendsType<
 				ExtractUrlParams<"/api/:version/files/...path">,
 				{ version: string; path: string[] }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should accumulate a required param immediately followed by a rest", () => {
+			const check: ExtendsType<
+				ExtractUrlParams<"/:user/...path">,
+				{ user: string; path: string[] }
 			> = true;
 
 			expect(check).toBe(true);
