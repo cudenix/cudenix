@@ -5,7 +5,7 @@ import type { ExtendsType } from "@/types/extends-type";
 import type { HttpMethod } from "@/types/http-method";
 
 describe("HttpMethod", () => {
-	describe("named methods", () => {
+	describe("canonical named methods", () => {
 		test("should accept `GET`", () => {
 			const method: HttpMethod = "GET";
 
@@ -55,8 +55,8 @@ describe("HttpMethod", () => {
 		});
 	});
 
-	describe("custom upper-case verbs", () => {
-		test("should accept an arbitrary uppercase verb via the string brand", () => {
+	describe("custom upper-case verbs via the string brand", () => {
+		test("should accept an arbitrary uppercase verb", () => {
 			const method: HttpMethod = "PURGE";
 
 			expect(method).toBe("PURGE");
@@ -100,19 +100,19 @@ describe("HttpMethod", () => {
 	});
 
 	describe("subtype relations", () => {
-		test('should accept `"GET"` as a subtype of HttpMethod', () => {
+		test('should accept `"GET"` as a subtype', () => {
 			const check: AssignableTo<"GET", HttpMethod> = true;
 
 			expect(check).toBe(true);
 		});
 
-		test('should accept `"POST"` as a subtype of HttpMethod', () => {
+		test('should accept `"POST"` as a subtype', () => {
 			const check: AssignableTo<"POST", HttpMethod> = true;
 
 			expect(check).toBe(true);
 		});
 
-		test('should accept the synthetic `"WS"` as a subtype of HttpMethod', () => {
+		test('should accept the synthetic `"WS"` as a subtype', () => {
 			const check: AssignableTo<"WS", HttpMethod> = true;
 
 			expect(check).toBe(true);
@@ -124,32 +124,46 @@ describe("HttpMethod", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should reject `number` as a subtype", () => {
-			const check: AssignableTo<123, HttpMethod> = false;
+		test("should include all canonical named methods as assignable values", () => {
+			type Named =
+				| "DELETE"
+				| "GET"
+				| "HEAD"
+				| "OPTIONS"
+				| "PATCH"
+				| "POST"
+				| "PUT"
+				| "WS";
 
-			expect(check).toBe(false);
+			const check: AssignableTo<Named, HttpMethod> = true;
+
+			expect(check).toBe(true);
 		});
 
-		test("should reject `boolean` as a subtype", () => {
-			const check: AssignableTo<true, HttpMethod> = false;
+		test("should accept `Uppercase<string>` (the underlying brand)", () => {
+			const check: AssignableTo<Uppercase<string>, HttpMethod> = true;
 
-			expect(check).toBe(false);
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("supertype relations", () => {
+		test("should itself be assignable to `string` (every member is a string)", () => {
+			const check: AssignableTo<HttpMethod, string> = true;
+
+			expect(check).toBe(true);
 		});
 
-		test("should reject `null` as a subtype", () => {
-			const check: AssignableTo<null, HttpMethod> = false;
+		test("should itself be assignable to `Uppercase<string>`", () => {
+			const check: AssignableTo<HttpMethod, Uppercase<string>> = true;
 
-			expect(check).toBe(false);
+			expect(check).toBe(true);
 		});
+	});
 
-		test("should reject `undefined` as a subtype", () => {
-			const check: AssignableTo<undefined, HttpMethod> = false;
-
-			expect(check).toBe(false);
-		});
-
-		test("should reject plain `string` as a subtype (too wide for the brand)", () => {
-			const check: AssignableTo<string, HttpMethod> = false;
+	describe("brand preservation", () => {
+		test("should not be exactly equal to `string` (the brand preserves literals)", () => {
+			const check: ExtendsType<HttpMethod, string> = false;
 
 			expect(check).toBe(false);
 		});
@@ -181,43 +195,33 @@ describe("HttpMethod", () => {
 		});
 	});
 
-	describe("union membership", () => {
-		test("should include all canonical named methods as assignable values", () => {
-			type Named =
-				| "DELETE"
-				| "GET"
-				| "HEAD"
-				| "OPTIONS"
-				| "PATCH"
-				| "POST"
-				| "PUT"
-				| "WS";
+	describe("non-assignable types", () => {
+		test("should reject `number` as a subtype", () => {
+			const check: AssignableTo<123, HttpMethod> = false;
 
-			const check: AssignableTo<Named, HttpMethod> = true;
-
-			expect(check).toBe(true);
+			expect(check).toBe(false);
 		});
 
-		test("should accept `Uppercase<string>` (the underlying brand)", () => {
-			const check: AssignableTo<Uppercase<string>, HttpMethod> = true;
+		test("should reject `boolean` as a subtype", () => {
+			const check: AssignableTo<true, HttpMethod> = false;
 
-			expect(check).toBe(true);
+			expect(check).toBe(false);
 		});
 
-		test("should itself be assignable to `string` (every member is a string)", () => {
-			const check: AssignableTo<HttpMethod, string> = true;
+		test("should reject `null` as a subtype", () => {
+			const check: AssignableTo<null, HttpMethod> = false;
 
-			expect(check).toBe(true);
+			expect(check).toBe(false);
 		});
 
-		test("should itself be assignable to `Uppercase<string>`", () => {
-			const check: AssignableTo<HttpMethod, Uppercase<string>> = true;
+		test("should reject `undefined` as a subtype", () => {
+			const check: AssignableTo<undefined, HttpMethod> = false;
 
-			expect(check).toBe(true);
+			expect(check).toBe(false);
 		});
 
-		test("should not be exactly equal to `string` (the brand preserves literals)", () => {
-			const check: ExtendsType<HttpMethod, string> = false;
+		test("should reject plain `string` as a subtype (too wide for the brand)", () => {
+			const check: AssignableTo<string, HttpMethod> = false;
 
 			expect(check).toBe(false);
 		});
