@@ -52,6 +52,12 @@
 				"recommended": true,
 				"useBlockStatements": "error",
 				"useConsistentArrowReturn": "error",
+				"useConsistentTypeDefinitions": {
+					"level": "error",
+					"options": {
+						"style": "interface"
+					}
+				},
 				"useShorthandAssign": "error"
 			},
 			"suspicious": {
