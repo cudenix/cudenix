@@ -1,10 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 
 import { isGenerator } from "@/utils/functions/is-generator";
 
+const asFn = (value: unknown) => {
+	return value as (...args: any[]) => unknown;
+};
+
 describe("isGenerator", () => {
-	describe("returns true for sync generators", () => {
-		test("a synchronous generator function declaration", () => {
+	describe("synchronous generator functions", () => {
+		test("should return true for a generator function declaration", () => {
 			function* gen() {
 				yield 1;
 			}
@@ -12,7 +16,7 @@ describe("isGenerator", () => {
 			expect(isGenerator(gen)).toBe(true);
 		});
 
-		test("a synchronous generator function expression", () => {
+		test("should return true for a generator function expression", () => {
 			const gen = function* () {
 				yield 1;
 			};
@@ -20,7 +24,7 @@ describe("isGenerator", () => {
 			expect(isGenerator(gen)).toBe(true);
 		});
 
-		test("a generator method on an object literal", () => {
+		test("should return true for a generator method on an object literal", () => {
 			const obj = {
 				*gen() {
 					yield 1;
@@ -30,17 +34,7 @@ describe("isGenerator", () => {
 			expect(isGenerator(obj.gen)).toBe(true);
 		});
 
-		test("a generator method on a class", () => {
-			class Streamer {
-				*stream() {
-					yield 1;
-				}
-			}
-
-			expect(isGenerator(new Streamer().stream)).toBe(true);
-		});
-
-		test("a generator that has already yielded values (function reference, not instance)", () => {
+		test("should still detect the function reference after its instance has yielded values", () => {
 			function* gen() {
 				yield 1;
 				yield 2;
@@ -54,8 +48,8 @@ describe("isGenerator", () => {
 		});
 	});
 
-	describe("returns true for async generators", () => {
-		test("an asynchronous generator function declaration", () => {
+	describe("asynchronous generator functions", () => {
+		test("should return true for an async generator function declaration", () => {
 			async function* gen() {
 				yield 1;
 			}
@@ -63,7 +57,7 @@ describe("isGenerator", () => {
 			expect(isGenerator(gen)).toBe(true);
 		});
 
-		test("an asynchronous generator function expression", () => {
+		test("should return true for an async generator function expression", () => {
 			const gen = async function* () {
 				yield 1;
 			};
@@ -71,17 +65,7 @@ describe("isGenerator", () => {
 			expect(isGenerator(gen)).toBe(true);
 		});
 
-		test("an async generator method on a class", () => {
-			class Streamer {
-				async *stream() {
-					yield 1;
-				}
-			}
-
-			expect(isGenerator(new Streamer().stream)).toBe(true);
-		});
-
-		test("an async generator method on an object literal", () => {
+		test("should return true for an async generator method on an object literal", () => {
 			const obj = {
 				async *gen() {
 					yield 1;
@@ -92,8 +76,37 @@ describe("isGenerator", () => {
 		});
 	});
 
-	describe("returns false for non-generator functions", () => {
-		test("a regular function declaration", () => {
+	describe("generator methods on a class", () => {
+		let streamer: {
+			stream: () => Generator<number>;
+			streamAsync: () => AsyncGenerator<number>;
+		};
+
+		beforeAll(() => {
+			class Streamer {
+				*stream() {
+					yield 1;
+				}
+
+				async *streamAsync() {
+					yield 1;
+				}
+			}
+
+			streamer = new Streamer();
+		});
+
+		test("should return true for a sync generator method", () => {
+			expect(isGenerator(streamer.stream)).toBe(true);
+		});
+
+		test("should return true for an async generator method", () => {
+			expect(isGenerator(streamer.streamAsync)).toBe(true);
+		});
+	});
+
+	describe("regular (non-generator) functions", () => {
+		test("should return false for a function declaration", () => {
 			function regular() {
 				return 1;
 			}
@@ -101,55 +114,19 @@ describe("isGenerator", () => {
 			expect(isGenerator(regular)).toBe(false);
 		});
 
-		test("a regular function expression", () => {
-			const regular = function () {
-				return 1;
-			};
+		test("should return false for a function expression", () => {
+			const regular = () => 1;
 
 			expect(isGenerator(regular)).toBe(false);
 		});
 
-		test("an arrow function", () => {
+		test("should return false for an arrow function", () => {
 			const arrow = () => 1;
 
 			expect(isGenerator(arrow)).toBe(false);
 		});
 
-		test("an async arrow function", () => {
-			const asyncArrow = async () => 1;
-
-			expect(isGenerator(asyncArrow)).toBe(false);
-		});
-
-		test("an async function declaration", () => {
-			async function asyncFn() {
-				return 1;
-			}
-
-			expect(isGenerator(asyncFn)).toBe(false);
-		});
-
-		test("an async function expression", () => {
-			const asyncFn = async function () {
-				return 1;
-			};
-
-			expect(isGenerator(asyncFn)).toBe(false);
-		});
-
-		test("a class declaration", () => {
-			class Foo {}
-
-			expect(
-				isGenerator(Foo as unknown as (...args: any[]) => unknown),
-			).toBe(false);
-		});
-
-		test("a built-in function (Math.max)", () => {
-			expect(isGenerator(Math.max)).toBe(false);
-		});
-
-		test("a regular method on an object", () => {
+		test("should return false for a regular method on an object literal", () => {
 			const obj = {
 				method() {
 					return 1;
@@ -159,7 +136,41 @@ describe("isGenerator", () => {
 			expect(isGenerator(obj.method)).toBe(false);
 		});
 
-		test("a bound function", () => {
+		test("should return false for a built-in function such as Math.max", () => {
+			expect(isGenerator(Math.max)).toBe(false);
+		});
+	});
+
+	describe("async (non-generator) functions", () => {
+		test("should return false for an async function declaration", () => {
+			async function asyncFn() {
+				return 1;
+			}
+
+			expect(isGenerator(asyncFn)).toBe(false);
+		});
+
+		test("should return false for an async function expression", () => {
+			const asyncFn = async () => 1;
+
+			expect(isGenerator(asyncFn)).toBe(false);
+		});
+
+		test("should return false for an async arrow function", () => {
+			const asyncArrow = async () => 1;
+
+			expect(isGenerator(asyncArrow)).toBe(false);
+		});
+	});
+
+	describe("classes and exotic function objects", () => {
+		test("should return false for a class declaration", () => {
+			class Foo {}
+
+			expect(isGenerator(asFn(Foo))).toBe(false);
+		});
+
+		test("should return false for a bound function", () => {
 			function regular() {
 				return 1;
 			}
@@ -167,34 +178,22 @@ describe("isGenerator", () => {
 			expect(isGenerator(regular.bind(null))).toBe(false);
 		});
 
-		test("a proxy around a regular function", () => {
-			const dynamic = new Proxy(() => 1, {}) as (
-				...args: any[]
-			) => unknown;
+		test("should return false for a Proxy wrapping a regular function", () => {
+			const dynamic = asFn(new Proxy(() => 1, {}));
 
 			expect(isGenerator(dynamic)).toBe(false);
 		});
 
-		test("a function with a manually overridden prototype", () => {
-			const fn = (() => {}) as (...args: any[]) => unknown;
+		test("should return false for a function whose prototype was overridden to null", () => {
+			const fn = asFn(() => {});
 
 			Object.setPrototypeOf(fn, null);
 
 			expect(isGenerator(fn)).toBe(false);
 		});
 
-		test("a generator object instance", () => {
-			function* gen() {
-				yield 1;
-			}
-
-			expect(
-				isGenerator(gen() as unknown as (...args: any[]) => unknown),
-			).toBe(false);
-		});
-
-		test("a function with an own generator-looking toStringTag", () => {
-			const fn = (() => {}) as (...args: any[]) => unknown;
+		test("should not be fooled by a function spoofing GeneratorFunction via Symbol.toStringTag", () => {
+			const fn = asFn(() => {});
 
 			Object.defineProperty(fn, Symbol.toStringTag, {
 				value: "GeneratorFunction",
@@ -202,42 +201,45 @@ describe("isGenerator", () => {
 
 			expect(isGenerator(fn)).toBe(false);
 		});
+
+		test("should return false for a generator object instance (not the function)", () => {
+			function* gen() {
+				yield 1;
+			}
+
+			expect(isGenerator(asFn(gen()))).toBe(false);
+		});
 	});
 
-	describe("unexpected input types", () => {
-		test("throws for null", () => {
-			expect(() =>
-				isGenerator(null as unknown as (...args: any[]) => unknown),
-			).toThrow(TypeError);
+	describe("non-function values", () => {
+		test("should return false for a number primitive", () => {
+			expect(isGenerator(asFn(1))).toBe(false);
 		});
 
-		test("throws for undefined", () => {
-			expect(() =>
-				isGenerator(
-					undefined as unknown as (...args: any[]) => unknown,
-				),
-			).toThrow(TypeError);
+		test("should return false for a string primitive", () => {
+			expect(isGenerator(asFn("text"))).toBe(false);
 		});
 
-		test("returns false for primitive values", () => {
-			expect(
-				isGenerator(1 as unknown as (...args: any[]) => unknown),
-			).toBe(false);
-			expect(
-				isGenerator("text" as unknown as (...args: any[]) => unknown),
-			).toBe(false);
-			expect(
-				isGenerator(true as unknown as (...args: any[]) => unknown),
-			).toBe(false);
+		test("should return false for a boolean primitive", () => {
+			expect(isGenerator(asFn(true))).toBe(false);
 		});
 
-		test("returns false for non-function objects and arrays", () => {
-			expect(
-				isGenerator({} as unknown as (...args: any[]) => unknown),
-			).toBe(false);
-			expect(
-				isGenerator([] as unknown as (...args: any[]) => unknown),
-			).toBe(false);
+		test("should return false for a plain object", () => {
+			expect(isGenerator(asFn({}))).toBe(false);
+		});
+
+		test("should return false for an array", () => {
+			expect(isGenerator(asFn([]))).toBe(false);
+		});
+	});
+
+	describe("nullish inputs", () => {
+		test("should throw a TypeError for null", () => {
+			expect(() => isGenerator(asFn(null))).toThrow(TypeError);
+		});
+
+		test("should throw a TypeError for undefined", () => {
+			expect(() => isGenerator(asFn(undefined))).toThrow(TypeError);
 		});
 	});
 });
