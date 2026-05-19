@@ -52,6 +52,16 @@ describe("ValueOf", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should resolve to the union of boolean literal values", () => {
+			const flags = { off: false, on: true } as const;
+
+			type Flag = ValueOf<typeof flags>;
+
+			const check: ExtendsType<Flag, true | false> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("mixed value types", () => {
@@ -92,6 +102,132 @@ describe("ValueOf", () => {
 			type Source = Record<string, unknown>;
 
 			const check: ExtendsType<ValueOf<Source>, unknown> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to the index value type for `Record<number, V>`", () => {
+			type Source = Record<number, boolean>;
+
+			const check: ExtendsType<ValueOf<Source>, boolean> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to the index value type for `Record<symbol, V>`", () => {
+			type Source = Record<symbol, "x">;
+
+			const check: ExtendsType<ValueOf<Source>, "x"> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to `any` for `Record<string, any>`", () => {
+			type Source = Record<string, any>;
+
+			const check: ExtendsType<ValueOf<Source>, any> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to `never` for `Record<string, never>`", () => {
+			type Source = Record<string, never>;
+
+			const check: ExtendsType<ValueOf<Source>, never> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("modifiers", () => {
+		test("should include `undefined` for a `?`-optional key", () => {
+			type Source = { keep: string; maybe?: number };
+
+			const check: ExtendsType<
+				ValueOf<Source>,
+				string | number | undefined
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should ignore the `readonly` modifier when collecting value types", () => {
+			type Source = { readonly a: string; readonly b: number };
+
+			const check: ExtendsType<ValueOf<Source>, string | number> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("special key kinds", () => {
+		test("should preserve values keyed by `symbol`", () => {
+			const sym = Symbol("key");
+
+			type Source = { [sym]: boolean; named: string };
+
+			const check: ExtendsType<ValueOf<Source>, boolean | string> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should preserve values keyed by numeric literals", () => {
+			type Source = { 1: "one"; 2: "two" };
+
+			const check: ExtendsType<ValueOf<Source>, "one" | "two"> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("complex value types", () => {
+		test("should preserve function value types", () => {
+			type Run = () => void;
+			type Format = (input: string) => string;
+
+			type Source = { format: Format; run: Run };
+
+			const check: ExtendsType<ValueOf<Source>, Run | Format> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should preserve nested object value types", () => {
+			type Source = { a: { x: number }; b: { y: string } };
+
+			const check: ExtendsType<
+				ValueOf<Source>,
+				{ x: number } | { y: string }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should preserve `null` and `undefined` as explicit value types", () => {
+			type Source = { a: null; b: undefined; c: string };
+
+			const check: ExtendsType<
+				ValueOf<Source>,
+				null | undefined | string
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("edge cases", () => {
+		test("should resolve to `never` for an empty object", () => {
+			type Source = NonNullable<unknown>;
+
+			const check: ExtendsType<ValueOf<Source>, never> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should union value types across an intersection of objects", () => {
+			type Source = { a: string } & { b: number };
+
+			const check: ExtendsType<ValueOf<Source>, string | number> = true;
 
 			expect(check).toBe(true);
 		});
