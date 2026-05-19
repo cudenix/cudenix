@@ -87,7 +87,7 @@ describe("Empty", () => {
 			expect("toString" in instance).toBe(false);
 			expect("hasOwnProperty" in instance).toBe(false);
 			expect("constructor" in instance).toBe(false);
-			expect(instance["toString"]).toBeUndefined();
+			expect(instance.toString).toBeUndefined();
 		});
 
 		test("should not expose additional Object.prototype keys", () => {
@@ -95,8 +95,8 @@ describe("Empty", () => {
 			expect("propertyIsEnumerable" in instance).toBe(false);
 			expect("isPrototypeOf" in instance).toBe(false);
 			expect("toLocaleString" in instance).toBe(false);
-			expect(instance["valueOf"]).toBeUndefined();
-			expect(instance["propertyIsEnumerable"]).toBeUndefined();
+			expect(instance.valueOf).toBeUndefined();
+			expect(instance.propertyIsEnumerable).toBeUndefined();
 		});
 
 		test("should leave __proto__ accessor undefined on instances", () => {
