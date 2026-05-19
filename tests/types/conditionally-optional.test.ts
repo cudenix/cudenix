@@ -104,6 +104,117 @@ describe("ConditionallyOptional", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should not relax a key whose value is a strict subtype of the marker", () => {
+			interface Source {
+				narrow: "foo";
+				wide: string;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOptional<Source, string>,
+				{ narrow: "foo"; wide?: string }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("special marker types", () => {
+		test("should leave the type unchanged when the marker is `never` because the check distributes over `never`", () => {
+			interface Source {
+				a: string;
+				b: number;
+				c: boolean;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOptional<Source, never>,
+				{ a: string; b: number; c: boolean }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should distribute a union marker across each key's assignability check", () => {
+			interface Source {
+				nullable: string | null;
+				strict: boolean;
+				undefinable: number | undefined;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOptional<Source, null | undefined>,
+				{
+					strict: boolean;
+					nullable?: string | null;
+					undefinable?: number | undefined;
+				}
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("special value types", () => {
+		test("should relax a key whose value is `unknown` because any marker assigns to it", () => {
+			interface Source {
+				any: unknown;
+				specific: number;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOptional<Source, undefined>,
+				{ specific: number; any?: unknown }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should leave a `never`-valued key untouched when the marker is not `never`", () => {
+			interface Source {
+				impossible: never;
+				present: string | undefined;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOptional<Source, undefined>,
+				{ impossible: never; present?: string | undefined }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should keep an already-optional source key optional when its value admits the marker", () => {
+			interface Source {
+				existing?: string;
+				required: number;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOptional<Source, undefined>,
+				{ required: number; existing?: string | undefined }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should preserve the `readonly` modifier on a key promoted to optional", () => {
+			interface Source {
+				readonly locked: string | undefined;
+				open: number | undefined;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOptional<Source, undefined>,
+				{
+					readonly locked?: string | undefined;
+					open?: number | undefined;
+				}
+			> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("edge cases", () => {
