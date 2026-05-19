@@ -168,9 +168,9 @@ describe("Empty", () => {
 		test("should accept symbol-keyed assignment", () => {
 			const key = Symbol("k");
 
-			instance[key] = 42;
+			instance[key] = 1;
 
-			expect(instance[key]).toBe(42);
+			expect(instance[key]).toBe(1);
 		});
 
 		test("should accept numeric-string keys", () => {
