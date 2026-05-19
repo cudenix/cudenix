@@ -49,6 +49,35 @@ describe("Merge", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should let the second operand broaden a narrow value type", () => {
+			interface A {
+				mode: "auto";
+			}
+			interface B {
+				mode: string;
+			}
+
+			const check: ExtendsType<Merge<A, B>, { mode: string }> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should replace a nested object entirely instead of deep-merging", () => {
+			interface A {
+				user: { id: string; name: string };
+			}
+			interface B {
+				user: { age: number };
+			}
+
+			const check: ExtendsType<
+				Merge<A, B>,
+				{ user: { age: number } }
+			> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("union of keys", () => {
@@ -123,6 +152,19 @@ describe("Merge", () => {
 			expect(check).toBe(true);
 		});
 
+		test("should let the second operand tighten an optional key to required", () => {
+			interface A {
+				x?: string;
+			}
+			interface B {
+				x: string;
+			}
+
+			const check: ExtendsType<Merge<A, B>, { x: string }> = true;
+
+			expect(check).toBe(true);
+		});
+
 		test("should be a no-op when the second operand is empty", () => {
 			interface A {
 				a: 1;
@@ -169,6 +211,86 @@ describe("Merge", () => {
 			const check: ExtendsType<
 				Merge<A, B>,
 				{ readonly id: string }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should let the second operand strip `readonly` from a shared key", () => {
+			interface A {
+				readonly id: string;
+			}
+			interface B {
+				id: string;
+			}
+
+			const check: ExtendsType<Merge<A, B>, { id: string }> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("key kinds", () => {
+		test("should let the second operand override a `symbol`-keyed property", () => {
+			const sym = Symbol("k");
+			type Sym = typeof sym;
+
+			interface A {
+				[sym]: string;
+			}
+			interface B {
+				[sym]: number;
+			}
+
+			const check: ExtendsType<Merge<A, B>, Record<Sym, number>> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should override a numeric-literal key while keeping unrelated ones", () => {
+			interface A {
+				0: string;
+				1: number;
+			}
+			interface B {
+				1: boolean;
+			}
+
+			const check: ExtendsType<
+				Merge<A, B>,
+				{ 0: string; 1: boolean }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should let the second operand's index signature override the first's", () => {
+			interface A {
+				[k: string]: number;
+			}
+			interface B {
+				[k: string]: string;
+			}
+
+			const check: ExtendsType<
+				Merge<A, B>,
+				{ [k: string]: string }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should let the second operand override a method-syntax property", () => {
+			interface A {
+				process(value: string): number;
+			}
+			interface B {
+				process(value: number): string;
+			}
+
+			const check: ExtendsType<
+				Merge<A, B>,
+				{ process(value: number): string }
 			> = true;
 
 			expect(check).toBe(true);
