@@ -167,7 +167,7 @@ describe("WSData", () => {
 
 		test("should not accept a known key whose value is not a function", () => {
 			interface Bad {
-				open: 42;
+				open: 1;
 			}
 
 			const check: ExtendsType<AssignableTo<Bad, WSData>, false> = true;
