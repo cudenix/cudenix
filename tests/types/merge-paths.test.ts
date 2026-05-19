@@ -14,7 +14,7 @@ describe("MergePaths", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should join multi-segment prefix with multi-segment path", () => {
+		test("should join a multi-segment prefix with a multi-segment path", () => {
 			const check: ExtendsType<
 				MergePaths<"/api/v1", "/users/list">,
 				"/api/v1/users/list"
@@ -66,82 +66,97 @@ describe("MergePaths", () => {
 	});
 
 	describe("trailing-slash normalization", () => {
-		test("should strip a trailing slash from the prefix", () => {
-			const check: ExtendsType<
-				MergePaths<"/api/", "/users">,
-				"/api/users"
-			> = true;
+		describe("on a single side", () => {
+			test("should strip a trailing slash from the prefix", () => {
+				const check: ExtendsType<
+					MergePaths<"/api/", "/users">,
+					"/api/users"
+				> = true;
 
-			expect(check).toBe(true);
+				expect(check).toBe(true);
+			});
+
+			test("should strip a trailing slash from the path", () => {
+				const check: ExtendsType<
+					MergePaths<"/api", "/users/">,
+					"/api/users"
+				> = true;
+
+				expect(check).toBe(true);
+			});
 		});
 
-		test("should strip a trailing slash from the path", () => {
-			const check: ExtendsType<
-				MergePaths<"/api", "/users/">,
-				"/api/users"
-			> = true;
+		describe("on both sides", () => {
+			test("should strip a trailing slash from both sides", () => {
+				const check: ExtendsType<
+					MergePaths<"/api/", "/users/">,
+					"/api/users"
+				> = true;
 
-			expect(check).toBe(true);
+				expect(check).toBe(true);
+			});
 		});
 
-		test("should strip a trailing slash from both sides", () => {
-			const check: ExtendsType<
-				MergePaths<"/api/", "/users/">,
-				"/api/users"
-			> = true;
+		describe("combined with root handling", () => {
+			test("should strip a trailing slash from the path when the prefix is root", () => {
+				const check: ExtendsType<
+					MergePaths<"/", "/users/">,
+					"/users"
+				> = true;
 
-			expect(check).toBe(true);
-		});
+				expect(check).toBe(true);
+			});
 
-		test("should strip a trailing slash from the path when the prefix is root", () => {
-			const check: ExtendsType<
-				MergePaths<"/", "/users/">,
-				"/users"
-			> = true;
+			test("should strip a trailing slash from the prefix when the path is root", () => {
+				const check: ExtendsType<
+					MergePaths<"/api/", "/">,
+					"/api"
+				> = true;
 
-			expect(check).toBe(true);
-		});
-
-		test("should strip a trailing slash from the prefix when the path is root", () => {
-			const check: ExtendsType<MergePaths<"/api/", "/">, "/api"> = true;
-
-			expect(check).toBe(true);
+				expect(check).toBe(true);
+			});
 		});
 	});
 
 	describe("structural relations", () => {
-		test("should distribute over a union of prefixes", () => {
-			type Result = MergePaths<"/api" | "/admin", "/users">;
+		describe("union distribution", () => {
+			test("should distribute over a union of prefixes", () => {
+				type Result = MergePaths<"/api" | "/admin", "/users">;
 
-			const check: ExtendsType<Result, "/api/users" | "/admin/users"> =
-				true;
+				const check: ExtendsType<
+					Result,
+					"/api/users" | "/admin/users"
+				> = true;
 
-			expect(check).toBe(true);
+				expect(check).toBe(true);
+			});
+
+			test("should distribute over a union of paths", () => {
+				type Result = MergePaths<"/api", "/users" | "/posts">;
+
+				const check: ExtendsType<Result, "/api/users" | "/api/posts"> =
+					true;
+
+				expect(check).toBe(true);
+			});
 		});
 
-		test("should distribute over a union of paths", () => {
-			type Result = MergePaths<"/api", "/users" | "/posts">;
+		describe("literal-type preservation", () => {
+			test("should produce a string-literal type, not a widened `string`", () => {
+				type Result = MergePaths<"/a", "/b">;
 
-			const check: ExtendsType<Result, "/api/users" | "/api/posts"> =
-				true;
+				const check: ExtendsType<Result, string> = false;
 
-			expect(check).toBe(true);
-		});
+				expect(check).toBe(false);
+			});
 
-		test("should produce a string-literal type, not a widened `string`", () => {
-			type Result = MergePaths<"/a", "/b">;
+			test("should preserve literal-ness when both sides carry trailing slashes", () => {
+				type Result = MergePaths<"/api/", "/users/">;
 
-			const check: ExtendsType<Result, string> = false;
+				const check: ExtendsType<Result, string> = false;
 
-			expect(check).toBe(false);
-		});
-
-		test("should preserve literal-ness when both sides carry trailing slashes", () => {
-			type Result = MergePaths<"/api/", "/users/">;
-
-			const check: ExtendsType<Result, string> = false;
-
-			expect(check).toBe(false);
+				expect(check).toBe(false);
+			});
 		});
 	});
 });
