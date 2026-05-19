@@ -142,6 +142,7 @@ describe("RequiredKeys", () => {
 
 		test("should exclude a key whose value is `void`", () => {
 			interface Source {
+				// biome-ignore lint/suspicious/noConfusingVoidType: This is intentional to test that `void` is treated as a top type that includes `undefined`.
 				keep: void;
 				other: string;
 			}
