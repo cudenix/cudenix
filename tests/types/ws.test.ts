@@ -1,26 +1,35 @@
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 
+import type { AssignableTo } from "@/types/assignable-to";
 import type { ExtendsType } from "@/types/extends-type";
 import type { WSData } from "@/types/ws";
 
-type AssignableTo<Sub, Super> = [Sub] extends [Super] ? true : false;
+type Inner = Partial<
+	Record<"close" | "drain" | "message" | "open", (...options: any[]) => any>
+>;
 
 describe("WSData", () => {
-	describe("structural conformance", () => {
-		test("should accept a config with every lifecycle handler", () => {
-			const value: WSData = {
+	describe("full lifecycle config", () => {
+		let value: WSData;
+
+		beforeAll(() => {
+			value = {
 				close: () => undefined,
 				drain: () => undefined,
 				message: () => undefined,
 				open: () => undefined,
 			};
+		});
 
+		test("should accept a config with every lifecycle handler", () => {
 			expect(typeof value?.open).toBe("function");
 			expect(typeof value?.close).toBe("function");
 			expect(typeof value?.drain).toBe("function");
 			expect(typeof value?.message).toBe("function");
 		});
+	});
 
+	describe("single-handler configs", () => {
 		test("should accept a config with only the `open` handler", () => {
 			const value: WSData = { open: () => undefined };
 
@@ -49,24 +58,6 @@ describe("WSData", () => {
 			expect(typeof value?.drain).toBe("function");
 			expect(value?.message).toBeUndefined();
 		});
-
-		test("should accept a handler explicitly set to `undefined` (Partial makes values nullable)", () => {
-			const value: WSData = { open: undefined };
-
-			expect(value?.open).toBeUndefined();
-		});
-
-		test("should accept the empty object (no handlers)", () => {
-			const value: WSData = {};
-
-			expect(value).toEqual({});
-		});
-
-		test("should accept `undefined` to opt out of websocket configuration entirely", () => {
-			const value: WSData = undefined;
-
-			expect(value).toBeUndefined();
-		});
 	});
 
 	describe("handler signature flexibility", () => {
@@ -90,14 +81,27 @@ describe("WSData", () => {
 		});
 	});
 
-	describe("structural relations", () => {
-		type Inner = Partial<
-			Record<
-				"close" | "drain" | "message" | "open",
-				(...options: any[]) => any
-			>
-		>;
+	describe("empty and undefined inputs", () => {
+		test("should accept the empty object (no handlers)", () => {
+			const value: WSData = {};
 
+			expect(value).toEqual({});
+		});
+
+		test("should accept a handler explicitly set to `undefined` (Partial makes values nullable)", () => {
+			const value: WSData = { open: undefined };
+
+			expect(value?.open).toBeUndefined();
+		});
+
+		test("should accept `undefined` to opt out of websocket configuration entirely", () => {
+			const value: WSData = undefined;
+
+			expect(value).toBeUndefined();
+		});
+	});
+
+	describe("assignability of valid supertypes", () => {
 		test("should permit `undefined` as a member of the WSData union", () => {
 			const check: AssignableTo<undefined, WSData> = true;
 
@@ -116,12 +120,27 @@ describe("WSData", () => {
 			expect(check).toBe(true);
 		});
 
+		test("should tolerate extra unknown keys when paired with a recognized key (TypeScript width subtyping)", () => {
+			interface Mixed {
+				open: () => void;
+				unexpected: () => void;
+			}
+
+			const check: AssignableTo<Mixed, WSData> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("type-level invariants", () => {
 		test("should not collapse to its non-undefined branch", () => {
 			const check: ExtendsType<WSData, Inner> = false;
 
 			expect(check).toBe(false);
 		});
+	});
 
+	describe("rejected inputs", () => {
 		test("should not accept `null` (only undefined is in the union)", () => {
 			const check: AssignableTo<null, WSData> = false;
 
@@ -147,7 +166,9 @@ describe("WSData", () => {
 		});
 
 		test("should not accept a known key whose value is not a function", () => {
-			type Bad = { open: 42 };
+			interface Bad {
+				open: 42;
+			}
 
 			const check: ExtendsType<AssignableTo<Bad, WSData>, false> = true;
 
@@ -155,17 +176,11 @@ describe("WSData", () => {
 		});
 
 		test("should reject a config whose only key is unknown (TypeScript weak-type rule)", () => {
-			type Bad = { unexpected: () => void };
+			interface Bad {
+				unexpected: () => void;
+			}
 
 			const check: ExtendsType<AssignableTo<Bad, WSData>, false> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should tolerate extra unknown keys when paired with a recognized key (TypeScript width subtyping)", () => {
-			type Mixed = { open: () => void; unexpected: () => void };
-
-			const check: AssignableTo<Mixed, WSData> = true;
 
 			expect(check).toBe(true);
 		});
