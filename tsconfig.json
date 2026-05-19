@@ -11,9 +11,7 @@
 		"noUncheckedIndexedAccess": true,
 		"noUncheckedSideEffectImports": true,
 		"outDir": "./dist",
-		"paths": {
-			"@/*": ["./src/*"]
-		},
+		"paths": { "@/*": ["./src/*"] },
 		"rootDir": "./src",
 		"skipLibCheck": true,
 		"sourceMap": true,
@@ -23,7 +21,5 @@
 		"verbatimModuleSyntax": true
 	},
 	"include": ["./src/**/*.ts*"],
-	"tsc-alias": {
-		"resolveFullPaths": true
-	}
+	"tsc-alias": { "resolveFullPaths": true }
 }
