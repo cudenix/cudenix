@@ -93,6 +93,26 @@ describe("parseCookies", () => {
 			expect(result[""]).toBeUndefined();
 			expect(Object.keys(result)).toEqual(["sid"]);
 		});
+
+		test("drops an empty-name entry in a non-leading position", () => {
+			const result = parseCookies("a=1; =bad; b=2");
+
+			expect(result).toEqual({ a: "1", b: "2" });
+			expect(result[""]).toBeUndefined();
+		});
+
+		test("drops a bare '=' entry surrounded by valid pairs", () => {
+			const result = parseCookies("a=1; =; b=2");
+
+			expect(result).toEqual({ a: "1", b: "2" });
+			expect(result[""]).toBeUndefined();
+		});
+
+		test("returns an empty dictionary for a whitespace-only header", () => {
+			const result = parseCookies("   ");
+
+			expect(Object.keys(result)).toHaveLength(0);
+		});
 	});
 
 	describe("separator handling", () => {
@@ -173,6 +193,13 @@ describe("parseCookies", () => {
 			expect(result.café).toBe("☕");
 			expect(result.foo).toBe("bar");
 		});
+
+		test("preserves surrogate-pair characters (codepoints outside the BMP)", () => {
+			const result = parseCookies("a=𝕊; b=😀");
+
+			expect(result.a).toBe("𝕊");
+			expect(result.b).toBe("😀");
+		});
 	});
 
 	describe("duplicate names", () => {
@@ -234,6 +261,12 @@ describe("parseCookies", () => {
 			const b = parseCookies("sid=abc");
 
 			expect(a).not.toBe(b);
+		});
+
+		test("preserves insertion order regardless of name ordering", () => {
+			const result = parseCookies("z=1; a=2; m=3");
+
+			expect(Object.keys(result)).toEqual(["z", "a", "m"]);
 		});
 	});
 });
