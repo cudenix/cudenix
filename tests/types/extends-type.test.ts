@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import type { ExtendsType } from "@/types/extends-type";
 
 describe("ExtendsType", () => {
-	describe("identical primitive types", () => {
+	describe("primitive types", () => {
 		test("should resolve to true for `string` vs `string`", () => {
 			const check: ExtendsType<ExtendsType<string, string>, true> = true;
 
@@ -39,9 +39,7 @@ describe("ExtendsType", () => {
 
 			expect(check).toBe(true);
 		});
-	});
 
-	describe("strict subtype relations", () => {
 		test("should resolve to false when comparing a literal to its widening primitive", () => {
 			const check: ExtendsType<ExtendsType<"foo", string>, false> = true;
 
@@ -67,7 +65,7 @@ describe("ExtendsType", () => {
 		});
 	});
 
-	describe("union types (non-distributive)", () => {
+	describe("union types", () => {
 		test("should resolve to true for two structurally equal unions", () => {
 			const check: ExtendsType<
 				ExtendsType<"a" | "b", "a" | "b">,
@@ -140,62 +138,6 @@ describe("ExtendsType", () => {
 		});
 	});
 
-	describe("top, bottom and exotic types", () => {
-		test("should resolve to true for `any` vs `any`", () => {
-			const check: ExtendsType<ExtendsType<any, any>, true> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to true for `unknown` vs `unknown`", () => {
-			const check: ExtendsType<
-				ExtendsType<unknown, unknown>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to true for `never` vs `never`", () => {
-			const check: ExtendsType<ExtendsType<never, never>, true> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to false comparing `unknown` to a concrete type", () => {
-			const check: ExtendsType<
-				ExtendsType<unknown, string>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to false comparing `never` to a concrete type", () => {
-			const check: ExtendsType<ExtendsType<never, string>, false> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to true for `any` vs `unknown` due to bidirectional any-compatibility", () => {
-			const check: ExtendsType<ExtendsType<any, unknown>, true> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to true for `any` vs a concrete type due to bidirectional any-compatibility", () => {
-			const check: ExtendsType<ExtendsType<any, string>, true> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to false for `any` vs `never`", () => {
-			const check: ExtendsType<ExtendsType<any, never>, false> = true;
-
-			expect(check).toBe(true);
-		});
-	});
-
 	describe("array types", () => {
 		test("should resolve to true for equal array element types", () => {
 			const check: ExtendsType<
@@ -234,7 +176,7 @@ describe("ExtendsType", () => {
 		});
 	});
 
-	describe("tuple and function types", () => {
+	describe("tuple types", () => {
 		test("should resolve to true for equal tuple shapes", () => {
 			const check: ExtendsType<
 				ExtendsType<[string, number], [string, number]>,
@@ -252,7 +194,9 @@ describe("ExtendsType", () => {
 
 			expect(check).toBe(true);
 		});
+	});
 
+	describe("function types", () => {
 		test("should resolve to true for equal function signatures", () => {
 			type Fn = (value: string) => number;
 
@@ -289,7 +233,63 @@ describe("ExtendsType", () => {
 		});
 	});
 
-	describe("unrelated shapes", () => {
+	describe("top, bottom and exotic types", () => {
+		test("should resolve to true for `any` vs `any`", () => {
+			const check: ExtendsType<ExtendsType<any, any>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for `unknown` vs `unknown`", () => {
+			const check: ExtendsType<
+				ExtendsType<unknown, unknown>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for `never` vs `never`", () => {
+			const check: ExtendsType<ExtendsType<never, never>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for `any` vs `unknown` due to bidirectional any-compatibility", () => {
+			const check: ExtendsType<ExtendsType<any, unknown>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for `any` vs a concrete type due to bidirectional any-compatibility", () => {
+			const check: ExtendsType<ExtendsType<any, string>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false comparing `unknown` to a concrete type", () => {
+			const check: ExtendsType<
+				ExtendsType<unknown, string>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false comparing `never` to a concrete type", () => {
+			const check: ExtendsType<ExtendsType<never, string>, false> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false for `any` vs `never`", () => {
+			const check: ExtendsType<ExtendsType<any, never>, false> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("cross-category comparisons", () => {
 		test("should resolve to false when comparing `string` and `number`", () => {
 			const check: ExtendsType<ExtendsType<string, number>, false> = true;
 
