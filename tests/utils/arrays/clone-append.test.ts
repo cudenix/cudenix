@@ -185,6 +185,7 @@ describe("cloneAppend", () => {
 
 		test("should treat holes in sparse sources as undefined slots", () => {
 			const sparse = new Array<number | undefined>(3);
+
 			sparse[0] = 1;
 			sparse[2] = 3;
 
