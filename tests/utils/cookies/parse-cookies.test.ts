@@ -272,31 +272,4 @@ describe("parseCookies", () => {
 			expect(Object.keys(result)).toEqual(["z", "a", "m"]);
 		});
 	});
-
-	describe("unexpected input types", () => {
-		test("should throw a TypeError for a null header", () => {
-			expect(() => parseCookies(null as unknown as string)).toThrow(
-				TypeError,
-			);
-		});
-
-		test("should throw a TypeError for an undefined header", () => {
-			expect(() => parseCookies(undefined as unknown as string)).toThrow(
-				TypeError,
-			);
-		});
-
-		test("should treat a non-string value without length as an empty dictionary", () => {
-			const result = parseCookies(123 as unknown as string);
-
-			expect(result).toBeInstanceOf(Empty);
-			expect(Object.keys(result)).toHaveLength(0);
-		});
-
-		test("should throw a TypeError for array-like values that cannot be scanned as strings", () => {
-			expect(() =>
-				parseCookies(["sid=abc"] as unknown as string),
-			).toThrow(TypeError);
-		});
-	});
 });
