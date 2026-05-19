@@ -73,7 +73,7 @@ describe("merge", () => {
 
 			merge(target, { inner });
 
-			expect(target["inner"]).toBe(inner);
+			expect(target.inner).toBe(inner);
 		});
 
 		test("should treat undefined source values as explicit assignments", () => {
@@ -82,7 +82,7 @@ describe("merge", () => {
 			merge(target, { a: undefined });
 
 			expect("a" in target).toBe(true);
-			expect(target["a"]).toBeUndefined();
+			expect(target.a).toBeUndefined();
 		});
 
 		test("should treat null source values as explicit assignments", () => {
@@ -90,7 +90,7 @@ describe("merge", () => {
 
 			merge(target, { a: null });
 
-			expect(target["a"]).toBeNull();
+			expect(target.a).toBeNull();
 		});
 	});
 
@@ -146,8 +146,8 @@ describe("merge", () => {
 
 			merge(target, source);
 
-			expect(target["own"]).toBe("fromOwn");
-			expect(target["inherited"]).toBe("fromProto");
+			expect(target.own).toBe("fromOwn");
+			expect(target.inherited).toBe("fromProto");
 		});
 
 		test("should walk multi-level prototype chains", () => {
@@ -191,7 +191,7 @@ describe("merge", () => {
 
 			merge(target, new Foo() as unknown as Record<string, unknown>);
 
-			expect(target["instanceProp"]).toBe("inst");
+			expect(target.instanceProp).toBe("inst");
 			expect("method" in target).toBe(false);
 		});
 	});
@@ -211,7 +211,7 @@ describe("merge", () => {
 
 			merge(target, source);
 
-			expect(target["visible"]).toBe(1);
+			expect(target.visible).toBe(1);
 			expect(target[sym]).toBeUndefined();
 			expect(Object.getOwnPropertySymbols(target)).toHaveLength(0);
 		});
@@ -224,11 +224,11 @@ describe("merge", () => {
 				value: "nope",
 			});
 
-			source["visible"] = "yes";
+			source.visible = "yes";
 
 			merge(target, source);
 
-			expect(target["visible"]).toBe("yes");
+			expect(target.visible).toBe("yes");
 			expect("hidden" in target).toBe(false);
 		});
 	});
@@ -253,7 +253,7 @@ describe("merge", () => {
 			merge(target, source);
 
 			expect(reads).toBe(1);
-			expect(target["computed"]).toBe(42);
+			expect(target.computed).toBe(42);
 			expect(
 				Object.getOwnPropertyDescriptor(target, "computed")?.get,
 			).toBeUndefined();
@@ -278,7 +278,7 @@ describe("merge", () => {
 			merge(target, { x: 7 });
 
 			expect(captured).toBe(7);
-			expect(target["x"]).toBe(7);
+			expect(target.x).toBe(7);
 		});
 	});
 
@@ -367,8 +367,8 @@ describe("merge", () => {
 			merge(target, malicious);
 
 			expect(Object.getPrototypeOf(target)).toEqual({ polluted: "yes" });
-			expect((target as Record<string, unknown>)["polluted"]).toBe("yes");
-			expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+			expect((target as Record<string, unknown>).polluted).toBe("yes");
+			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
 		});
 	});
 });
