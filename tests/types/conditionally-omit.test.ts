@@ -4,7 +4,7 @@ import type { ConditionallyOmit } from "@/types/conditionally-omit";
 import type { ExtendsType } from "@/types/extends-type";
 
 describe("ConditionallyOmit", () => {
-	describe("omitting `never`-valued keys", () => {
+	describe("with marker `never`", () => {
 		test("should drop a single `never` key and keep the rest", () => {
 			interface Source {
 				count: number;
@@ -51,8 +51,8 @@ describe("ConditionallyOmit", () => {
 		});
 	});
 
-	describe("omitting `unknown`-valued keys", () => {
-		test("should drop a single `unknown` key when omitting `unknown`", () => {
+	describe("with marker `unknown`", () => {
+		test("should drop a single `unknown` key", () => {
 			interface Source {
 				drop: unknown;
 				keep: string;
@@ -82,7 +82,69 @@ describe("ConditionallyOmit", () => {
 		});
 	});
 
-	describe("structural (mutual-assignability) match", () => {
+	describe("with marker `null`", () => {
+		test("should drop a `null`-valued key", () => {
+			interface Source {
+				drop: null;
+				keep: string;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, null>,
+				{ keep: string }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("with marker `undefined`", () => {
+		test("should drop an `undefined`-valued key", () => {
+			interface Source {
+				drop: undefined;
+				keep: string;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, undefined>,
+				{ keep: string }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("`any` collapses mutual assignability", () => {
+		test("should drop every key when the marker is `any`", () => {
+			interface Source {
+				a: string;
+				b: number;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, any>,
+				NonNullable<unknown>
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should drop an `any`-valued key even under a narrow marker", () => {
+			interface Source {
+				drop: any;
+				keep: number;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, string>,
+				{ keep: number }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("structural mutual-assignability match", () => {
 		test("should only drop keys whose value is mutually assignable with the marker", () => {
 			interface Source {
 				broad: string;
@@ -125,9 +187,37 @@ describe("ConditionallyOmit", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should drop only the union-valued key whose union matches the marker exactly", () => {
+			interface Source {
+				full: "a" | "b";
+				member: "a";
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, "a" | "b">,
+				{ member: "a" }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should drop a key whose object value is structurally identical to the object marker", () => {
+			interface Source {
+				match: { x: number };
+				other: string;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, { x: number }>,
+				{ other: string }
+			> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
-	describe("preservation of unrelated keys", () => {
+	describe("preservation of retained keys and modifiers", () => {
 		test("should keep all keys when the marker matches none of them", () => {
 			interface Source {
 				a: string;
@@ -143,7 +233,7 @@ describe("ConditionallyOmit", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should preserve optional modifier on retained keys", () => {
+		test("should preserve the optional modifier on retained keys", () => {
 			interface Source {
 				drop: never;
 				keep?: string;
@@ -152,6 +242,20 @@ describe("ConditionallyOmit", () => {
 			const check: ExtendsType<
 				ConditionallyOmit<Source, never>,
 				{ keep?: string }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should preserve the `readonly` modifier on retained keys", () => {
+			interface Source {
+				drop: never;
+				readonly locked: string;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, never>,
+				{ readonly locked: string }
 			> = true;
 
 			expect(check).toBe(true);
@@ -179,6 +283,20 @@ describe("ConditionallyOmit", () => {
 			const check: ExtendsType<
 				ConditionallyOmit<Source, never>,
 				NonNullable<unknown>
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should leave an optional `never` key untouched because indexed access widens it to `undefined`", () => {
+			interface Source {
+				keep: string;
+				maybe?: never;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, never>,
+				{ keep: string; maybe?: never }
 			> = true;
 
 			expect(check).toBe(true);
