@@ -337,9 +337,7 @@ describe("merge", () => {
 		test("should throw TypeError when target is frozen and source adds a new key", () => {
 			const target = Object.freeze({ a: 1 }) as Record<string, unknown>;
 
-			expect(() => {
-				return merge(target, { b: 2 });
-			}).toThrow(TypeError);
+			expect(() => merge(target, { b: 2 })).toThrow(TypeError);
 		});
 
 		test("should throw when target is null and source has enumerable keys", () => {
