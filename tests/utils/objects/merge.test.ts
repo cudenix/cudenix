@@ -130,6 +130,7 @@ describe("merge", () => {
 		test("walks the prototype chain of source (for..in)", () => {
 			const proto = { inherited: "fromProto" };
 			const source = Object.create(proto);
+
 			source.own = "fromOwn";
 
 			const target: Record<string, unknown> = {};
@@ -143,6 +144,7 @@ describe("merge", () => {
 		test("does not copy symbol-keyed properties", () => {
 			const sym = Symbol("ignored");
 			const source: Record<PropertyKey, unknown> = { visible: 1 };
+
 			source[sym] = "skipped";
 
 			const target: Record<PropertyKey, unknown> = {};
@@ -156,10 +158,12 @@ describe("merge", () => {
 
 		test("skips non-enumerable properties (for..in only visits enumerable)", () => {
 			const source: Record<string, unknown> = {};
+
 			Object.defineProperty(source, "hidden", {
 				enumerable: false,
 				value: "nope",
 			});
+
 			source["visible"] = "yes";
 
 			const target: Record<string, unknown> = {};
@@ -172,6 +176,7 @@ describe("merge", () => {
 
 		test("source with a null prototype still has its own keys copied", () => {
 			const source = Object.create(null);
+
 			source.a = 1;
 			source.b = 2;
 
@@ -185,8 +190,11 @@ describe("merge", () => {
 		test("multi-level prototype chains are walked", () => {
 			const grand = { fromGrand: "g" };
 			const parent = Object.create(grand);
+
 			parent.fromParent = "p";
+
 			const source = Object.create(parent);
+
 			source.fromOwn = "o";
 
 			const target: Record<string, unknown> = {};
@@ -203,6 +211,7 @@ describe("merge", () => {
 		test("copies enumerable instance fields of a class source but skips its prototype methods", () => {
 			class Foo {
 				instanceProp = "inst";
+
 				method() {
 					return "m";
 				}
@@ -220,11 +229,14 @@ describe("merge", () => {
 	describe("accessors and descriptors", () => {
 		test("invokes source getters at copy time and stores the resolved value", () => {
 			let reads = 0;
+
 			const source: Record<string, unknown> = {};
+
 			Object.defineProperty(source, "computed", {
 				enumerable: true,
 				get() {
 					reads += 1;
+
 					return 42;
 				},
 			});
@@ -242,7 +254,9 @@ describe("merge", () => {
 
 		test("invokes target's own setter when the key is overwritten", () => {
 			let captured: unknown;
+
 			const target: Record<string, unknown> = {};
+
 			Object.defineProperty(target, "x", {
 				configurable: true,
 				enumerable: true,
@@ -263,7 +277,9 @@ describe("merge", () => {
 		test("throws TypeError when target is frozen and source adds a new key", () => {
 			const target = Object.freeze({ a: 1 }) as Record<string, unknown>;
 
-			expect(() => merge(target, { b: 2 })).toThrow(TypeError);
+			expect(() => {
+				return merge(target, { b: 2 });
+			}).toThrow(TypeError);
 		});
 	});
 
@@ -311,10 +327,10 @@ describe("merge", () => {
 		test("copies enumerable index keys from an array source and skips its non-enumerable length", () => {
 			const target: Record<PropertyKey, unknown> = {};
 
-			merge(
-				target,
-				[10, 20, 30] as unknown as Record<PropertyKey, unknown>,
-			);
+			merge(target, [10, 20, 30] as unknown as Record<
+				PropertyKey,
+				unknown
+			>);
 
 			expect(target).toEqual({ 0: 10, 1: 20, 2: 30 });
 			expect("length" in target).toBe(false);
@@ -341,9 +357,7 @@ describe("merge", () => {
 
 			expect(Object.getPrototypeOf(target)).toEqual({ polluted: "yes" });
 			expect((target as Record<string, unknown>)["polluted"]).toBe("yes");
-			expect(
-				({} as Record<string, unknown>)["polluted"],
-			).toBeUndefined();
+			expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
 		});
 	});
 });
