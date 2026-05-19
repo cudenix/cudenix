@@ -36,6 +36,26 @@ describe("WSData", () => {
 			expect(typeof value?.message).toBe("function");
 		});
 
+		test("should accept a config with only the `close` handler", () => {
+			const value: WSData = { close: () => undefined };
+
+			expect(typeof value?.close).toBe("function");
+			expect(value?.open).toBeUndefined();
+		});
+
+		test("should accept a config with only the `drain` handler", () => {
+			const value: WSData = { drain: () => undefined };
+
+			expect(typeof value?.drain).toBe("function");
+			expect(value?.message).toBeUndefined();
+		});
+
+		test("should accept a handler explicitly set to `undefined` (Partial makes values nullable)", () => {
+			const value: WSData = { open: undefined };
+
+			expect(value?.open).toBeUndefined();
+		});
+
 		test("should accept the empty object (no handlers)", () => {
 			const value: WSData = {};
 
@@ -71,6 +91,13 @@ describe("WSData", () => {
 	});
 
 	describe("structural relations", () => {
+		type Inner = Partial<
+			Record<
+				"close" | "drain" | "message" | "open",
+				(...options: any[]) => any
+			>
+		>;
+
 		test("should permit `undefined` as a member of the WSData union", () => {
 			const check: AssignableTo<undefined, WSData> = true;
 
@@ -83,16 +110,62 @@ describe("WSData", () => {
 			expect(check).toBe(true);
 		});
 
+		test("should accept the underlying `Partial<Record<…>>` shape as a subtype", () => {
+			const check: AssignableTo<Inner, WSData> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should not collapse to its non-undefined branch", () => {
+			const check: ExtendsType<WSData, Inner> = false;
+
+			expect(check).toBe(false);
+		});
+
 		test("should not accept `null` (only undefined is in the union)", () => {
 			const check: AssignableTo<null, WSData> = false;
 
 			expect(check).toBe(false);
 		});
 
-		test("should not accept a config with an unknown event key", () => {
+		test("should not accept a `number` value", () => {
+			const check: AssignableTo<123, WSData> = false;
+
+			expect(check).toBe(false);
+		});
+
+		test("should not accept a `string` value", () => {
+			const check: AssignableTo<"ws", WSData> = false;
+
+			expect(check).toBe(false);
+		});
+
+		test("should not accept a `boolean` value", () => {
+			const check: AssignableTo<true, WSData> = false;
+
+			expect(check).toBe(false);
+		});
+
+		test("should not accept a known key whose value is not a function", () => {
+			type Bad = { open: 42 };
+
+			const check: ExtendsType<AssignableTo<Bad, WSData>, false> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should reject a config whose only key is unknown (TypeScript weak-type rule)", () => {
 			type Bad = { unexpected: () => void };
 
 			const check: ExtendsType<AssignableTo<Bad, WSData>, false> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should tolerate extra unknown keys when paired with a recognized key (TypeScript width subtyping)", () => {
+			type Mixed = { open: () => void; unexpected: () => void };
+
+			const check: AssignableTo<Mixed, WSData> = true;
 
 			expect(check).toBe(true);
 		});
