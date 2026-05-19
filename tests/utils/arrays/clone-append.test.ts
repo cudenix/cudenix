@@ -32,6 +32,13 @@ describe("cloneAppend", () => {
 
 			expect(Object.keys(result)).toEqual(["0"]);
 		});
+
+		test("appends an array item as a single element (no spreading)", () => {
+			const result = cloneAppend<unknown>([], [1, 2]);
+
+			expect(result).toHaveLength(1);
+			expect(result[0]).toEqual([1, 2]);
+		});
 	});
 
 	describe("length === 1 branch", () => {
@@ -64,6 +71,32 @@ describe("cloneAppend", () => {
 			const result = cloneAppend(source, { id: 2 });
 
 			expect(result[0]).toBe(only);
+		});
+
+		test("preserves object identity for the appended item", () => {
+			const item = { id: 2 };
+
+			const result = cloneAppend([{ id: 1 }], item);
+
+			expect(result[1]).toBe(item);
+		});
+
+		test("appends an array item as a single element (no spreading)", () => {
+			const result = cloneAppend<unknown>([1], [2, 3]);
+
+			expect(result).toHaveLength(2);
+			expect(result[1]).toEqual([2, 3]);
+		});
+
+		test("materializes a hole at index 0 of a sparse source as undefined", () => {
+			const sparse = new Array<number | undefined>(1);
+
+			const result = cloneAppend<number | undefined>(sparse, 2);
+
+			expect(result).toHaveLength(2);
+			expect(result[0]).toBeUndefined();
+			expect(result[1]).toBe(2);
+			expect(0 in result).toBe(true);
 		});
 	});
 
@@ -122,6 +155,14 @@ describe("cloneAppend", () => {
 			expect(result[1]).toBe(b);
 			expect(result[2]).toBe(c);
 		});
+
+		test("preserves object identity for the appended item", () => {
+			const item = { id: 3 };
+
+			const result = cloneAppend([{ id: 1 }, { id: 2 }], item);
+
+			expect(result[2]).toBe(item);
+		});
 	});
 
 	describe("type behavior", () => {
@@ -174,6 +215,7 @@ describe("cloneAppend", () => {
 			expect(result[1]).toBeUndefined();
 			expect(result[2]).toBe(3);
 			expect(result[3]).toBe(4);
+			expect(1 in result).toBe(true);
 		});
 
 		test("the returned array is a plain Array instance", () => {
