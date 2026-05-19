@@ -126,12 +126,7 @@ describe("Merge", () => {
 
 			const check: ExtendsType<
 				Merge<A, B>,
-				{
-					id: string;
-					tags: readonly string[];
-					first: 1;
-					total: number;
-				}
+				{ id: string; tags: readonly string[]; first: 1; total: number }
 			> = true;
 
 			expect(check).toBe(true);
