@@ -5,12 +5,7 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 const compile = (path: string) => {
 	const { paramKeys, pattern, restKeys } = pathToRegexp(path);
 
-	return {
-		paramKeys,
-		pattern,
-		regex: new RegExp(`^${pattern}$`),
-		restKeys,
-	};
+	return { paramKeys, pattern, regex: new RegExp(`^${pattern}$`), restKeys };
 };
 
 describe("pathToRegexp", () => {
