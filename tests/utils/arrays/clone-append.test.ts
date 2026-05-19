@@ -28,7 +28,7 @@ describe("cloneAppend", () => {
 		});
 
 		test("should produce a dense array literal with no holes", () => {
-			const result = cloneAppend([], 42);
+			const result = cloneAppend([], 1);
 
 			expect(Object.keys(result)).toEqual(["0"]);
 		});
