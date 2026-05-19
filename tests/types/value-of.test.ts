@@ -33,10 +33,7 @@ describe("ValueOf", () => {
 
 	describe("`as const` enum objects", () => {
 		test("should resolve to the union of string literal values", () => {
-			const status = {
-				done: "done",
-				ready: "ready",
-			} as const;
+			const status = { done: "done", ready: "ready" } as const;
 
 			type Status = ValueOf<typeof status>;
 
@@ -46,11 +43,7 @@ describe("ValueOf", () => {
 		});
 
 		test("should resolve to the union of numeric literal values", () => {
-			const codes = {
-				error: 500,
-				notFound: 404,
-				ok: 200,
-			} as const;
+			const codes = { error: 500, notFound: 404, ok: 200 } as const;
 
 			type Code = ValueOf<typeof codes>;
 
