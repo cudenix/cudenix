@@ -18,6 +18,12 @@ describe("MaybePromise", () => {
 			expect(value).toBeNull();
 		});
 
+		test("should accept an `undefined` value when wrapping `T | undefined`", () => {
+			const value: MaybePromise<string | undefined> = undefined;
+
+			expect(value).toBeUndefined();
+		});
+
 		test("should accept a structured value when wrapping an object type", () => {
 			interface User {
 				id: string;
@@ -96,6 +102,98 @@ describe("MaybePromise", () => {
 
 			expect(check).toBe(true);
 			expect(result).toBe(7);
+		});
+
+		test("should collapse to the wrapped type under `Awaited<...>`", () => {
+			const check: ExtendsType<
+				Awaited<MaybePromise<number>>,
+				number
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("`void` specialization", () => {
+		test("should accept `undefined` as the synchronous arm", () => {
+			const value: MaybePromise<void> = undefined;
+
+			expect(value).toBeUndefined();
+		});
+
+		test("should accept `Promise<void>` as the asynchronous arm", async () => {
+			const value: MaybePromise<void> = Promise.resolve();
+
+			expect(await value).toBeUndefined();
+		});
+
+		test("should resolve to `void | Promise<void>`", () => {
+			const check: ExtendsType<
+				MaybePromise<void>,
+				void | Promise<void>
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("wrapping a union of value types", () => {
+		test("should accept either member of the wrapped union (sync)", () => {
+			const asString: MaybePromise<string | number> = "hello";
+			const asNumber: MaybePromise<string | number> = 42;
+
+			expect(asString).toBe("hello");
+			expect(asNumber).toBe(42);
+		});
+
+		test("should accept a `Promise<Member>` via promise covariance", async () => {
+			const value: MaybePromise<string | number> = Promise.resolve(42);
+
+			expect(await value).toBe(42);
+		});
+
+		test("should resolve to `(A | B) | Promise<A | B>` without distributing", () => {
+			const check: ExtendsType<
+				MaybePromise<string | number>,
+				(string | number) | Promise<string | number>
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should not decompose into `A | Promise<A> | B | Promise<B>`", () => {
+			const check: ExtendsType<
+				MaybePromise<string | number>,
+				string | Promise<string> | number | Promise<number>
+			> = false;
+
+			expect(check).toBe(false);
+		});
+	});
+
+	describe("rejected assignments", () => {
+		test("should reject a bare value of an unrelated type", () => {
+			const check: AssignableTo<string, MaybePromise<number>> = false;
+
+			expect(check).toBe(false);
+		});
+
+		test("should reject a `Promise<U>` where `U` does not extend the wrapped type", () => {
+			const check: AssignableTo<
+				Promise<string>,
+				MaybePromise<number>
+			> = false;
+
+			expect(check).toBe(false);
+		});
+
+		test("should reject a `PromiseLike<T>` in place of a real `Promise<T>`", () => {
+			const check: AssignableTo<
+				PromiseLike<number>,
+				MaybePromise<number>
+			> = false;
+
+			expect(check).toBe(false);
 		});
 	});
 });
