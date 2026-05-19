@@ -376,9 +376,7 @@ describe("FreezeEmpty", () => {
 
 		test("should reject defining new properties via Object.defineProperty", () => {
 			expect(() =>
-				Object.defineProperty(FreezeEmpty, "x", {
-					value: 1,
-				}),
+				Object.defineProperty(FreezeEmpty, "x", { value: 1 }),
 			).toThrow(TypeError);
 		});
 
@@ -407,10 +405,7 @@ describe("FreezeEmpty", () => {
 		}: {
 			flag?: boolean;
 			count?: number;
-		} = FreezeEmpty) => ({
-			count,
-			flag,
-		});
+		} = FreezeEmpty) => ({ count, flag });
 
 		test("should fall back to defaults when no options are passed", () => {
 			expect(fn()).toEqual({ count: 0, flag: false });
