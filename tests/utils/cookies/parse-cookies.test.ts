@@ -44,13 +44,7 @@ describe("parseCookies", () => {
 		test("should support many cookies in a single header", () => {
 			const result = parseCookies("a=1; b=2; c=3; d=4; e=5");
 
-			expect(result).toEqual({
-				a: "1",
-				b: "2",
-				c: "3",
-				d: "4",
-				e: "5",
-			});
+			expect(result).toEqual({ a: "1", b: "2", c: "3", d: "4", e: "5" });
 		});
 	});
 
