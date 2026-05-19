@@ -58,6 +58,42 @@ describe("ExtractContent", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should pass `undefined` through unchanged", () => {
+			const check: ExtendsType<
+				ExtractContent<undefined>,
+				undefined
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should pass a mutable array type through unchanged", () => {
+			const check: ExtendsType<ExtractContent<number[]>, number[]> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should pass `bigint` through unchanged", () => {
+			const check: ExtendsType<ExtractContent<bigint>, bigint> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should pass `symbol` through unchanged", () => {
+			const check: ExtendsType<ExtractContent<symbol>, symbol> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should pass a `Promise` type through unchanged when not wrapped in a factory", () => {
+			const check: ExtendsType<
+				ExtractContent<Promise<string>>,
+				Promise<string>
+			> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("synchronous factory", () => {
@@ -87,6 +123,57 @@ describe("ExtractContent", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should resolve to `void` for a void-returning factory", () => {
+			type Factory = () => void;
+
+			const check: ExtendsType<ExtractContent<Factory>, void> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to `never` for a never-returning factory", () => {
+			type Factory = () => never;
+
+			const check: ExtendsType<ExtractContent<Factory>, never> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to `null` for a null-returning factory", () => {
+			type Factory = () => null;
+
+			const check: ExtendsType<ExtractContent<Factory>, null> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should not recursively unwrap a function returned by another function", () => {
+			type Factory = () => () => number;
+
+			const check: ExtendsType<
+				ExtractContent<Factory>,
+				() => number
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to the return type when the factory uses rest parameters", () => {
+			type Factory = (...args: number[]) => string;
+
+			const check: ExtendsType<ExtractContent<Factory>, string> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to the return type when the factory has an optional parameter", () => {
+			type Factory = (a?: number) => string;
+
+			const check: ExtendsType<ExtractContent<Factory>, string> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("asynchronous factory", () => {
@@ -113,6 +200,30 @@ describe("ExtractContent", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should unwrap triply-nested promises via Awaited", () => {
+			type Factory = () => Promise<Promise<Promise<number>>>;
+
+			const check: ExtendsType<ExtractContent<Factory>, number> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should unwrap a `PromiseLike` returned from a factory", () => {
+			type Factory = () => PromiseLike<string>;
+
+			const check: ExtendsType<ExtractContent<Factory>, string> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to `void` for an async factory returning `Promise<void>`", () => {
+			type Factory = () => Promise<void>;
+
+			const check: ExtendsType<ExtractContent<Factory>, void> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("mixed return shapes", () => {
@@ -130,6 +241,77 @@ describe("ExtractContent", () => {
 			const check: ExtendsType<
 				ExtractContent<Factory>,
 				number | string
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("top, bottom and exotic types", () => {
+		test("should resolve to `any` when given `any`", () => {
+			const check: ExtendsType<ExtractContent<any>, any> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to `never` when given `never`", () => {
+			const check: ExtendsType<ExtractContent<never>, never> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to `unknown` when given `unknown`", () => {
+			const check: ExtendsType<ExtractContent<unknown>, unknown> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("union distribution", () => {
+		test("should distribute over a union of a value and a factory", () => {
+			const check: ExtendsType<
+				ExtractContent<string | (() => number)>,
+				string | number
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should distribute over a union of two factories with different return types", () => {
+			const check: ExtendsType<
+				ExtractContent<(() => string) | (() => number)>,
+				string | number
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("function-shaped values", () => {
+		test("should treat an object with a call signature as a factory and drop its properties", () => {
+			interface Callable {
+				meta: "foo";
+				(): string;
+			}
+
+			const check: ExtendsType<ExtractContent<Callable>, string> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to `any` for the built-in `Function` type", () => {
+			// biome-ignore lint/complexity/noBannedTypes: probing the built-in Function type is the point of the test
+			const check: ExtendsType<ExtractContent<Function>, any> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should pass a constructor-only type through unchanged", () => {
+			class Foo {}
+
+			const check: ExtendsType<
+				ExtractContent<typeof Foo>,
+				typeof Foo
 			> = true;
 
 			expect(check).toBe(true);
