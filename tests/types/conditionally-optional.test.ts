@@ -4,7 +4,7 @@ import type { ConditionallyOptional } from "@/types/conditionally-optional";
 import type { ExtendsType } from "@/types/extends-type";
 
 describe("ConditionallyOptional", () => {
-	describe("making `undefined`-assignable keys optional", () => {
+	describe("`undefined` marker on a single key", () => {
 		test("should mark a key whose value includes `undefined` as optional", () => {
 			interface Source {
 				id: string;
@@ -14,21 +14,6 @@ describe("ConditionallyOptional", () => {
 			const check: ExtendsType<
 				ConditionallyOptional<Source, undefined>,
 				{ id: string; nickname?: string | undefined }
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should mark every key that admits `undefined` as optional", () => {
-			interface Source {
-				a: string | undefined;
-				b: number | undefined;
-				c: boolean;
-			}
-
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{ a?: string | undefined; b?: number | undefined; c: boolean }
 			> = true;
 
 			expect(check).toBe(true);
@@ -46,10 +31,8 @@ describe("ConditionallyOptional", () => {
 
 			expect(check).toBe(true);
 		});
-	});
 
-	describe("preservation of value types", () => {
-		test("should retain the original union when relaxing a key to optional", () => {
+		test("should retain the original union as the optional value type", () => {
 			interface Source {
 				x: number | undefined;
 			}
@@ -60,8 +43,39 @@ describe("ConditionallyOptional", () => {
 
 			expect(check).toBe(true);
 		});
+	});
 
-		test("should preserve a required key's exact value type", () => {
+	describe("`undefined` marker on multiple keys", () => {
+		test("should mark only the keys whose value admits `undefined` as optional", () => {
+			interface Source {
+				a: string | undefined;
+				b: number | undefined;
+				c: boolean;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOptional<Source, undefined>,
+				{ a?: string | undefined; b?: number | undefined; c: boolean }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should mark every key as optional when every value admits the marker", () => {
+			interface Source {
+				a: string | undefined;
+				b: number | undefined;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOptional<Source, undefined>,
+				{ a?: string | undefined; b?: number | undefined }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should preserve a required key's exact literal type when another is relaxed", () => {
 			interface Source {
 				loose: undefined;
 				required: "literal";
@@ -76,8 +90,8 @@ describe("ConditionallyOptional", () => {
 		});
 	});
 
-	describe("non-undefined markers", () => {
-		test("should make `null`-bearing keys optional when the marker is `null`", () => {
+	describe("non-`undefined` markers", () => {
+		test("should mark `null`-bearing keys optional when the marker is `null`", () => {
 			interface Source {
 				a: string | null;
 				b: number;
@@ -91,7 +105,7 @@ describe("ConditionallyOptional", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should make a literal-bearing key optional when the marker matches the literal", () => {
+		test("should mark a literal-bearing key optional when the marker matches the literal", () => {
 			interface Source {
 				flag: boolean;
 				mode: "auto" | "manual";
@@ -100,37 +114,6 @@ describe("ConditionallyOptional", () => {
 			const check: ExtendsType<
 				ConditionallyOptional<Source, "auto">,
 				{ mode?: "auto" | "manual"; flag: boolean }
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should not relax a key whose value is a strict subtype of the marker", () => {
-			interface Source {
-				narrow: "foo";
-				wide: string;
-			}
-
-			const check: ExtendsType<
-				ConditionallyOptional<Source, string>,
-				{ narrow: "foo"; wide?: string }
-			> = true;
-
-			expect(check).toBe(true);
-		});
-	});
-
-	describe("special marker types", () => {
-		test("should leave the type unchanged when the marker is `never` because the check distributes over `never`", () => {
-			interface Source {
-				a: string;
-				b: number;
-				c: boolean;
-			}
-
-			const check: ExtendsType<
-				ConditionallyOptional<Source, never>,
-				{ a: string; b: number; c: boolean }
 			> = true;
 
 			expect(check).toBe(true);
@@ -156,35 +139,7 @@ describe("ConditionallyOptional", () => {
 		});
 	});
 
-	describe("special value types", () => {
-		test("should relax a key whose value is `unknown` because any marker assigns to it", () => {
-			interface Source {
-				any: unknown;
-				specific: number;
-			}
-
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{ specific: number; any?: unknown }
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should leave a `never`-valued key untouched when the marker is not `never`", () => {
-			interface Source {
-				impossible: never;
-				present: string | undefined;
-			}
-
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{ impossible: never; present?: string | undefined }
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
+	describe("preservation of source key modifiers", () => {
 		test("should keep an already-optional source key optional when its value admits the marker", () => {
 			interface Source {
 				existing?: string;
@@ -218,6 +173,17 @@ describe("ConditionallyOptional", () => {
 	});
 
 	describe("edge cases", () => {
+		test("should leave an empty object as-is", () => {
+			type Source = NonNullable<unknown>;
+
+			const check: ExtendsType<
+				ConditionallyOptional<Source, undefined>,
+				NonNullable<unknown>
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
 		test("should leave an object with no matching keys completely unchanged", () => {
 			interface Source {
 				a: string;
@@ -232,26 +198,58 @@ describe("ConditionallyOptional", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should leave an empty object as-is", () => {
-			type Source = NonNullable<unknown>;
+		test("should not relax a key whose value is a strict subtype of the marker", () => {
+			interface Source {
+				narrow: "foo";
+				wide: string;
+			}
 
 			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				NonNullable<unknown>
+				ConditionallyOptional<Source, string>,
+				{ narrow: "foo"; wide?: string }
 			> = true;
 
 			expect(check).toBe(true);
 		});
 
-		test("should make every key optional when every value admits the marker", () => {
+		test("should relax a key whose value is `unknown` because any marker assigns to it", () => {
 			interface Source {
-				a: string | undefined;
-				b: number | undefined;
+				any: unknown;
+				specific: number;
 			}
 
 			const check: ExtendsType<
 				ConditionallyOptional<Source, undefined>,
-				{ a?: string | undefined; b?: number | undefined }
+				{ specific: number; any?: unknown }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should leave a `never`-valued key untouched when the marker is not `never`", () => {
+			interface Source {
+				impossible: never;
+				present: string | undefined;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOptional<Source, undefined>,
+				{ impossible: never; present?: string | undefined }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should leave the type unchanged when the marker is `never` because the check distributes over `never`", () => {
+			interface Source {
+				a: string;
+				b: number;
+				c: boolean;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOptional<Source, never>,
+				{ a: string; b: number; c: boolean }
 			> = true;
 
 			expect(check).toBe(true);
