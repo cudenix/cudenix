@@ -9,42 +9,26 @@
 			}
 		}
 	},
-	"files": {
-		"ignoreUnknown": true,
-		"includes": ["**/*.json", "**/*.ts*"]
-	},
+	"files": { "ignoreUnknown": true, "includes": ["**/*.json", "**/*.ts*"] },
 	"formatter": {
 		"enabled": true,
+		"expand": "never",
 		"indentStyle": "tab",
 		"indentWidth": 4
 	},
-	"javascript": {
-		"formatter": {
-			"quoteStyle": "double"
-		}
-	},
+	"javascript": { "formatter": { "quoteStyle": "double" } },
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"a11y": {
-				"recommended": true
-			},
+			"a11y": { "recommended": true },
 			"complexity": {
 				"noUselessUndefined": "error",
 				"recommended": true
 			},
-			"correctness": {
-				"recommended": true
-			},
-			"nursery": {
-				"recommended": true
-			},
-			"performance": {
-				"recommended": true
-			},
-			"security": {
-				"recommended": true
-			},
+			"correctness": { "recommended": true },
+			"nursery": { "recommended": true },
+			"performance": { "recommended": true },
+			"security": { "recommended": true },
 			"style": {
 				"noUnusedTemplateLiteral": "error",
 				"noUselessElse": "error",
@@ -54,9 +38,7 @@
 				"useConsistentArrowReturn": "error",
 				"useConsistentTypeDefinitions": {
 					"level": "error",
-					"options": {
-						"style": "interface"
-					}
+					"options": { "style": "interface" }
 				},
 				"useShorthandAssign": "error"
 			},
@@ -66,9 +48,5 @@
 			}
 		}
 	},
-	"vcs": {
-		"clientKind": "git",
-		"enabled": true,
-		"useIgnoreFile": true
-	}
+	"vcs": { "clientKind": "git", "enabled": true, "useIgnoreFile": true }
 }
