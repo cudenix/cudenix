@@ -30,6 +30,7 @@
 				"recommended": true
 			},
 			"complexity": {
+				"noUselessUndefined": "error",
 				"recommended": true
 			},
 			"correctness": {
@@ -45,8 +46,13 @@
 				"recommended": true
 			},
 			"style": {
+				"noUnusedTemplateLiteral": "error",
+				"noUselessElse": "error",
+				"noYodaExpression": "error",
 				"recommended": true,
-				"useBlockStatements": "error"
+				"useBlockStatements": "error",
+				"useConsistentArrowReturn": "error",
+				"useShorthandAssign": "error"
 			},
 			"suspicious": {
 				"noShadowRestrictedNames": "info",
