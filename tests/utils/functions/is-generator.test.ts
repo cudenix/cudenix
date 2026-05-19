@@ -2,9 +2,7 @@ import { beforeAll, describe, expect, test } from "bun:test";
 
 import { isGenerator } from "@/utils/functions/is-generator";
 
-const asFn = (value: unknown) => {
-	return value as (...args: any[]) => unknown;
-};
+const asFn = (value: unknown) => value as (...args: any[]) => unknown;
 
 describe("isGenerator", () => {
 	describe("synchronous generator functions", () => {
