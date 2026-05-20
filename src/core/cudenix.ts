@@ -41,13 +41,30 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
  * Compiled descriptor for a single route, produced by
  * {@link Cudenix.compile} and consumed by the runtime on every request.
  *
- * `generator` mirrors the source route's `generator` flag so
- * {@link stepAndRespond} can pick the SSE-streaming branch without
- * re-inspecting the handler. `router` records whether the path was
- * registered against Bun's static router (`"bun"`) or fell back to the
- * regex-based runtime router (`"cudenix"`); downstream stages use it to
- * decide between Bun's pre-parsed primitives and the runtime's own
- * parsers.
+ * - `chain` — flat pipeline of middleware, store and validator entries that
+ *   runs before {@link Endpoint.route} on every dispatch. See {@link Chain}
+ *   for the full union rationale.
+ * - `generator` mirrors the source route's `generator` flag so
+ *   {@link stepAndRespond} can pick the SSE-streaming branch without
+ *   re-inspecting the handler.
+ * - `jit` — effective JIT decision, route-level override falling back to
+ *   {@link Cudenix.jit}.
+ * - `matchOffset` — index of this endpoint's seed capture group in the
+ *   method's merged regex; absent for endpoints registered through Bun's
+ *   static router.
+ * - `paramKeys` — left-to-right names of every `:name` and `...name`
+ *   segment, decoded by `pathToRegexp`; absent when the path declares no
+ *   parameters.
+ * - `path` — final route path after module/group prefix merging.
+ * - `restKeys` — subset of `paramKeys` that came from `...name` segments;
+ *   absent when the path declares no rest parameters.
+ * - `route` — original {@link AnyRoute} link the endpoint compiled from.
+ * - `router` records whether the path was registered against Bun's static
+ *   router (`"bun"`) or fell back to the regex-based runtime router
+ *   (`"cudenix"`); downstream stages use it to decide between Bun's
+ *   pre-parsed primitives and the runtime's own parsers.
+ * - `use` — bitmask of request fields consulted by the chain and the route
+ *   handler, used by {@link Context.loadRequest} to skip unused parsers.
  */
 export interface Endpoint {
 	chain: Chain;
@@ -195,11 +212,9 @@ export const Cudenix = function (
  *    so the original module tree and the plugin list can be reclaimed by
  *    the garbage collector before the server starts handling traffic.
  *
- * Called automatically by {@link Cudenix.listen}. It is not safe to invoke
- * twice on the same instance because `memory.module` has been cleared
+ * Called automatically by {@link Cudenix.listen}. Mutates the instance in
+ * place and is not safe to invoke twice — `memory.module` has been cleared
  * after the first run.
- *
- * @returns Nothing; mutates the instance in place.
  */
 Cudenix.prototype.compile = function (this: Cudenix) {
 	compile(this);
@@ -229,10 +244,11 @@ Cudenix.prototype.compile = function (this: Cudenix) {
  * @param path - Concrete request path; passed straight through to the
  *   context so downstream parsers do not have to recompute it.
  * @param request - Original `Request` driving the call.
- * @param match - Regex execution result that selected `endpoint`. Used by
- *   {@link Context.loadRequestParams} to decode path parameters from the
- *   URL; may be omitted for paths without parameters or when params are
- *   sourced from Bun's static router.
+ * @param match - Regex execution result that selected `endpoint`. Forwarded
+ *   to the {@link Context} constructor so {@link Context.loadRequestParams}
+ *   can decode path parameters from the URL on demand; may be omitted for
+ *   paths without parameters or when params are sourced from Bun's static
+ *   router.
  * @returns The HTTP response produced by the chain, once every unit and
  *   the route handler have resolved.
  */
@@ -394,6 +410,12 @@ Cudenix.prototype.listen = function listen(
  * @param plugins - Plugins appended to the queue, executed in the order
  *   they were registered.
  * @returns The same instance, for chaining.
+ * @example
+ * ```typescript
+ * new Cudenix(module)
+ *   .plugins([cors(), compress()])
+ *   .listen({ port: 3000 });
+ * ```
  */
 Cudenix.prototype.plugins = function (this: Cudenix, plugins: Plugin[]) {
 	if (!("plugins" in this.memory)) {
