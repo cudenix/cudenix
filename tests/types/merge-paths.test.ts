@@ -96,6 +96,18 @@ describe("MergePaths", () => {
 			});
 		});
 
+		describe("input constraint", () => {
+			test("should reject a prefix without a leading slash at compile time", () => {
+				// @ts-expect-error - Prefix must start with '/'
+				type _A = MergePaths<"api", "/users">;
+			});
+
+			test("should reject a path without a leading slash at compile time", () => {
+				// @ts-expect-error - Path must start with '/'
+				type _B = MergePaths<"/api", "users">;
+			});
+		});
+
 		describe("literal-type preservation", () => {
 			test("should produce a string-literal type, not a widened `string`", () => {
 				expectTypeOf<
