@@ -51,9 +51,9 @@ describe("ExtractContent", () => {
 		});
 
 		test("should pass a readonly array type through unchanged (arrays are not callable)", () => {
-			expectTypeOf<
-				ExtractContent<readonly number[]>
-			>().toEqualTypeOf<readonly number[]>();
+			expectTypeOf<ExtractContent<readonly number[]>>().toEqualTypeOf<
+				readonly number[]
+			>();
 		});
 
 		test("should pass a union of primitives through unchanged", () => {
@@ -133,9 +133,7 @@ describe("ExtractContent", () => {
 		test("should unwrap a promise returned from an async factory", () => {
 			type Factory = () => Promise<{ ok: 1 }>;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<{
-				ok: 1;
-			}>();
+			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<{ ok: 1 }>();
 		});
 
 		test("should unwrap a promise from a synchronous function that returns a promise", () => {
