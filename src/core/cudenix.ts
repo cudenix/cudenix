@@ -27,24 +27,38 @@ import { Empty, FrozenEmpty } from "@/utils/objects/empty";
 const NOT_FOUND = new Response(undefined, { status: 404 });
 
 /**
- * Flat list of middleware, store and validator units that run for one
- * endpoint, in declaration order, before the route handler in
- * {@link Endpoint.route} is invoked.
+ * Flat list of pipeline units that run for one endpoint, in declaration
+ * order, before the route handler in {@link Endpoint.route} is invoked.
+ *
+ * The union accepts {@link AnyRoute} for symmetry with the iteration code
+ * in {@link stepAndRespond}, but {@link compile} only ever emits
+ * middleware, store and validator entries; route links live separately on
+ * {@link Endpoint.route}.
  */
 export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
 /**
  * Compiled descriptor for a single route, produced by
  * {@link Cudenix.compile} and consumed by the runtime on every request.
+ *
+ * `generator` mirrors the source route's `generator` flag so
+ * {@link stepAndRespond} can pick the SSE-streaming branch without
+ * re-inspecting the handler. `router` records whether the path was
+ * registered against Bun's static router (`"bun"`) or fell back to the
+ * regex-based runtime router (`"cudenix"`); downstream stages use it to
+ * decide between Bun's pre-parsed primitives and the runtime's own
+ * parsers.
  */
 export interface Endpoint {
 	chain: Chain;
+	generator: boolean;
 	jit: boolean;
 	matchOffset?: number;
 	paramKeys?: string[];
 	path: string;
 	restKeys?: string[];
 	route: AnyRoute;
+	router: "bun" | "cudenix";
 	use: number;
 }
 
@@ -61,6 +75,10 @@ interface MethodData {
  * Function registered through {@link Cudenix.plugins}, invoked with the
  * instance bound as `this` during {@link Cudenix.compile} after the
  * routing tables have been produced.
+ *
+ * The variadic `options` parameter exists so plugin authors can keep
+ * their own configuration shape on the curried factory they hand over;
+ * the runtime itself always dispatches with no arguments.
  */
 type Plugin = (...options: any[]) => void;
 
@@ -120,6 +138,9 @@ interface CudenixConstructor {
  * stashes the source module under `memory.module` so it stays reachable
  * until compilation finishes and the slot is freed:
  *
+ * - `jit` is the application-wide default that {@link Cudenix.compile}
+ *   reads when an endpoint does not pin its own value through
+ *   {@link CudenixOptions}.
  * - `memory` is the runtime scratch space, used both for transient
  *   compile-time state (the source module, the plugin queue) and for any
  *   long-lived data plugins decide to attach.
@@ -162,7 +183,11 @@ export const Cudenix = function (
  *
  * 1. {@link compile} flattens modules and groups into one {@link Endpoint}
  *    per `(method, path)` pair, writing the results into `methods` and
- *    `routes` and stamping each endpoint's `use` bitmask.
+ *    `routes`. Each endpoint is then stamped with the fields required at
+ *    dispatch time: the `use` bitmask, the effective `jit` decision
+ *    (route-level override falling back to {@link Cudenix.jit}),
+ *    `matchOffset` for the merged regex, and the decoded `paramKeys` and
+ *    `restKeys` returned by the path-to-regexp pass.
  * 2. Every plugin queued through {@link Cudenix.plugins} is invoked with
  *    the instance bound as `this`, so it can read the freshly compiled
  *    tables for introspection or to attach long-lived data to `memory`.
@@ -173,6 +198,8 @@ export const Cudenix = function (
  * Called automatically by {@link Cudenix.listen}. It is not safe to invoke
  * twice on the same instance because `memory.module` has been cleared
  * after the first run.
+ *
+ * @returns Nothing; mutates the instance in place.
  */
 Cudenix.prototype.compile = function (this: Cudenix) {
 	compile(this);
@@ -192,19 +219,19 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 /**
  * Build a {@link Context} for `endpoint` and execute it.
  *
- * Wraps the request in a fresh context and runs `Context.loadRequest`,
- * which consults `endpoint.use` to parse only the request fields the
- * chain and route handler will read. Then hands the context off to
- * `stepAndRespond` to walk the chain, invoke the route handler and
- * serialize the final response.
+ * Wraps the request in a fresh context and runs
+ * {@link Context.loadRequest}, which consults `endpoint.use` to parse
+ * only the request fields the chain and route handler will read. Then
+ * hands the context off to {@link stepAndRespond} to walk the chain,
+ * invoke the route handler and serialize the final response.
  *
  * @param endpoint - Compiled endpoint descriptor to run.
  * @param path - Concrete request path; passed straight through to the
  *   context so downstream parsers do not have to recompute it.
  * @param request - Original `Request` driving the call.
  * @param match - Regex execution result that selected `endpoint`. Used by
- *   `Context.loadRequestParams` to decode path parameters from the URL;
- *   may be omitted for paths without parameters or when params are
+ *   {@link Context.loadRequestParams} to decode path parameters from the
+ *   URL; may be omitted for paths without parameters or when params are
  *   sourced from Bun's static router.
  * @returns The HTTP response produced by the chain, once every unit and
  *   the route handler have resolved.
@@ -240,8 +267,9 @@ Cudenix.prototype.endpoint = async function (
  * 1. The HTTP method must have at least one registered endpoint, found by
  *    a direct lookup in the `methods` table.
  * 2. The merged regex for that method must match the request URL.
- * 3. The path capture (`match[2]`) must be a non-empty string; a
- *    defensive guard against degenerate match results.
+ * 3. The path capture (`match[2]`) must be defined and non-empty; the
+ *    falsy guard rejects both `undefined` and `""` as degenerate match
+ *    results.
  * 4. One endpoint's seed capture group must be defined in the regex
  *    match. The slot indexed by `matchOffset` is unique per endpoint, so
  *    the first non-`undefined` entry identifies the winning candidate in
@@ -312,8 +340,9 @@ Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
  * 3. A `beforeExit` listener stops the server on process shutdown so
  *    sockets are released cleanly without callers having to wire up a
  *    custom shutdown hook.
- * 4. `Bun.gc()` is invoked once to reclaim the transient compilation
- *    state freed in step 1 before the first request lands.
+ * 4. `Bun.gc()` is invoked once to hint the collector to reclaim the
+ *    transient compilation state freed in step 1 before the first
+ *    request lands.
  *
  * @param options - Bun server options. WebSockets are configured through
  *   the route definitions rather than on the server, so the `websocket`
