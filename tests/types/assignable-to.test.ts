@@ -284,6 +284,42 @@ describe("AssignableTo", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should resolve to true when a mutable tuple flows into a readonly tuple", () => {
+			const check: ExtendsType<
+				AssignableTo<[string, number], readonly [string, number]>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when a readonly tuple flows into a mutable tuple", () => {
+			const check: ExtendsType<
+				AssignableTo<readonly [string, number], [string, number]>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when a fixed tuple flows into one with an optional trailing element", () => {
+			const check: ExtendsType<
+				AssignableTo<[string, number], [string, number?]>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when a fixed tuple flows into one with rest elements of the matching type", () => {
+			const check: ExtendsType<
+				AssignableTo<[string, number, number], [string, ...number[]]>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("function types", () => {
@@ -444,6 +480,24 @@ describe("AssignableTo", () => {
 
 		test("should resolve to false when `any` flows into `never` because tuple wrapping suppresses any-distribution", () => {
 			const check: ExtendsType<AssignableTo<any, never>, false> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for `void` vs `void`", () => {
+			const check: ExtendsType<AssignableTo<void, void>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when `undefined` flows into `void`", () => {
+			const check: ExtendsType<AssignableTo<undefined, void>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when a concrete type flows into `void`", () => {
+			const check: ExtendsType<AssignableTo<string, void>, false> = true;
 
 			expect(check).toBe(true);
 		});
