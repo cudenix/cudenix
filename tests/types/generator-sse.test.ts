@@ -1,9 +1,7 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, expectTypeOf, test } from "bun:test";
 
 import type { AnyError, Error } from "@/core/error";
 import type { AnySuccess, Success } from "@/core/success";
-import type { AssignableTo } from "@/types/assignable-to";
-import type { ExtendsType } from "@/types/extends-type";
 import type { AnyGeneratorSSE, GeneratorSSE } from "@/types/generator-sse";
 import type { RequiredKeys } from "@/types/required-keys";
 
@@ -85,9 +83,7 @@ describe("GeneratorSSE", () => {
 			type Default = GeneratorSSE<AnySuccess>;
 			type Explicit = GeneratorSSE<AnySuccess, "message">;
 
-			const check: ExtendsType<Default, Explicit> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Default>().toEqualTypeOf<Explicit>();
 		});
 
 		describe("with channel literal 'tick'", () => {
@@ -100,19 +96,16 @@ describe("GeneratorSSE", () => {
 			});
 
 			test("should narrow `event` to the channel literal plus `undefined`", () => {
-				const check: ExtendsType<Frame["event"], "tick" | undefined> =
-					true;
-
-				expect(check).toBe(true);
+				expectTypeOf<Frame["event"]>().toEqualTypeOf<
+					"tick" | undefined
+				>();
 			});
 
 			test("should reject an `event` value outside the channel literal", () => {
-				const check: AssignableTo<
-					{ data: AnySuccess; event: "other" },
-					Frame
-				> = false;
-
-				expect(check).toBe(false);
+				expectTypeOf<{
+					data: AnySuccess;
+					event: "other";
+				}>().not.toExtend<Frame>();
 			});
 		});
 
@@ -154,9 +147,7 @@ describe("GeneratorSSE", () => {
 		});
 
 		test("should type `id` as `string | undefined`", () => {
-			const check: ExtendsType<Frame["id"], string | undefined> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Frame["id"]>().toEqualTypeOf<string | undefined>();
 		});
 	});
 
@@ -170,9 +161,7 @@ describe("GeneratorSSE", () => {
 		});
 
 		test("should type `retry` as `number | undefined`", () => {
-			const check: ExtendsType<Frame["retry"], number | undefined> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Frame["retry"]>().toEqualTypeOf<number | undefined>();
 		});
 	});
 
@@ -180,9 +169,7 @@ describe("GeneratorSSE", () => {
 		test("should mark only `data` as required on the parametrized form", () => {
 			type Frame = GeneratorSSE<AnySuccess, "tick">;
 
-			const check: ExtendsType<RequiredKeys<Frame>, "data"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Frame>>().toEqualTypeOf<"data">();
 		});
 	});
 
@@ -215,13 +202,7 @@ describe("GeneratorSSE", () => {
 
 	describe("AnyGeneratorSSE", () => {
 		test("should keep `data` required even on the relaxed alias", () => {
-			type HasDataKey = "data" extends keyof AnyGeneratorSSE
-				? true
-				: false;
-
-			const check: ExtendsType<HasDataKey, true> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<AnyGeneratorSSE>().toHaveProperty("data");
 		});
 
 		test("should accept a frame whose `data` is `AnyError`", () => {
@@ -253,18 +234,14 @@ describe("GeneratorSSE", () => {
 		test("should accept any concrete `GeneratorSSE<X, Y>` as a subtype", () => {
 			type Frame = GeneratorSSE<Success<{ ok: true }, 200>, "tick">;
 
-			const check: AssignableTo<Frame, AnyGeneratorSSE> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Frame>().toExtend<AnyGeneratorSSE>();
 		});
 
 		test("should accept a `Success` subtype through `data` covariance", () => {
 			type Specific = GeneratorSSE<Success<{ ok: true }, 200>>;
 			type Generic = GeneratorSSE<AnySuccess>;
 
-			const check: AssignableTo<Specific, Generic> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Specific>().toExtend<Generic>();
 		});
 	});
 });
