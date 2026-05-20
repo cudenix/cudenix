@@ -1,6 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expectTypeOf, test } from "bun:test";
 
-import type { ExtendsType } from "@/types/extends-type";
 import type { Merge } from "@/types/merge";
 
 describe("Merge", () => {
@@ -8,9 +7,7 @@ describe("Merge", () => {
 		type Empty = NonNullable<unknown>;
 
 		test("should resolve to an empty object when both operands are empty", () => {
-			const check: ExtendsType<Merge<Empty, Empty>, Empty> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<Empty, Empty>>().branded.toEqualTypeOf<Empty>();
 		});
 
 		test("should be a no-op when the second operand is empty", () => {
@@ -19,9 +16,10 @@ describe("Merge", () => {
 				b: 2;
 			}
 
-			const check: ExtendsType<Merge<A, Empty>, { a: 1; b: 2 }> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, Empty>>().branded.toEqualTypeOf<{
+				a: 1;
+				b: 2;
+			}>();
 		});
 
 		test("should resolve to the second operand when the first is empty", () => {
@@ -30,9 +28,10 @@ describe("Merge", () => {
 				b: 2;
 			}
 
-			const check: ExtendsType<Merge<Empty, B>, { a: 1; b: 2 }> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<Empty, B>>().branded.toEqualTypeOf<{
+				a: 1;
+				b: 2;
+			}>();
 		});
 	});
 
@@ -45,12 +44,10 @@ describe("Merge", () => {
 				other: string;
 			}
 
-			const check: ExtendsType<
-				Merge<A, B>,
-				{ keep: number; other: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				keep: number;
+				other: string;
+			}>();
 		});
 
 		test("should include keys present only in the second operand", () => {
@@ -61,12 +58,10 @@ describe("Merge", () => {
 				total: number;
 			}
 
-			const check: ExtendsType<
-				Merge<A, B>,
-				{ id: string; total: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				id: string;
+				total: number;
+			}>();
 		});
 	});
 
@@ -79,12 +74,9 @@ describe("Merge", () => {
 				tags: readonly string[];
 			}
 
-			const check: ExtendsType<
-				Merge<A, B>,
-				{ tags: readonly string[] }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				tags: readonly string[];
+			}>();
 		});
 
 		test("should let the second operand replace the value type entirely", () => {
@@ -95,9 +87,9 @@ describe("Merge", () => {
 				id: number;
 			}
 
-			const check: ExtendsType<Merge<A, B>, { id: number }> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				id: number;
+			}>();
 		});
 
 		test("should let the second operand narrow a wide value type", () => {
@@ -108,12 +100,9 @@ describe("Merge", () => {
 				mode: "auto" | "manual";
 			}
 
-			const check: ExtendsType<
-				Merge<A, B>,
-				{ mode: "auto" | "manual" }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				mode: "auto" | "manual";
+			}>();
 		});
 
 		test("should let the second operand broaden a narrow value type", () => {
@@ -124,9 +113,9 @@ describe("Merge", () => {
 				mode: string;
 			}
 
-			const check: ExtendsType<Merge<A, B>, { mode: string }> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				mode: string;
+			}>();
 		});
 	});
 
@@ -142,12 +131,12 @@ describe("Merge", () => {
 				total: number;
 			}
 
-			const check: ExtendsType<
-				Merge<A, B>,
-				{ id: string; tags: readonly string[]; first: 1; total: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				id: string;
+				tags: readonly string[];
+				first: 1;
+				total: number;
+			}>();
 		});
 	});
 
@@ -160,9 +149,9 @@ describe("Merge", () => {
 				x?: string;
 			}
 
-			const check: ExtendsType<Merge<A, B>, { x?: string }> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				x?: string;
+			}>();
 		});
 
 		test("should let the second operand tighten an optional key to required", () => {
@@ -173,9 +162,7 @@ describe("Merge", () => {
 				x: string;
 			}
 
-			const check: ExtendsType<Merge<A, B>, { x: string }> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ x: string }>();
 		});
 	});
 
@@ -188,12 +175,9 @@ describe("Merge", () => {
 				readonly id: string;
 			}
 
-			const check: ExtendsType<
-				Merge<A, B>,
-				{ readonly id: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				readonly id: string;
+			}>();
 		});
 
 		test("should let the second operand strip `readonly` from a shared key", () => {
@@ -204,9 +188,7 @@ describe("Merge", () => {
 				id: string;
 			}
 
-			const check: ExtendsType<Merge<A, B>, { id: string }> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ id: string }>();
 		});
 	});
 
@@ -219,12 +201,9 @@ describe("Merge", () => {
 				user: { age: number };
 			}
 
-			const check: ExtendsType<
-				Merge<A, B>,
-				{ user: { age: number } }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				user: { age: number };
+			}>();
 		});
 	});
 
@@ -238,12 +217,10 @@ describe("Merge", () => {
 				1: boolean;
 			}
 
-			const check: ExtendsType<
-				Merge<A, B>,
-				{ 0: string; 1: boolean }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				0: string;
+				1: boolean;
+			}>();
 		});
 
 		test("should let the second operand override a `symbol`-keyed property", () => {
@@ -257,9 +234,9 @@ describe("Merge", () => {
 				[sym]: number;
 			}
 
-			const check: ExtendsType<Merge<A, B>, Record<Sym, number>> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<
+				Record<Sym, number>
+			>();
 		});
 	});
 
@@ -272,12 +249,9 @@ describe("Merge", () => {
 				[k: string]: string;
 			}
 
-			const check: ExtendsType<
-				Merge<A, B>,
-				{ [k: string]: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				[k: string]: string;
+			}>();
 		});
 
 		test("should let an index signature in the second operand absorb concrete keys from the first", () => {
@@ -288,9 +262,9 @@ describe("Merge", () => {
 				[k: string]: number;
 			}
 
-			const check: ExtendsType<Merge<A, B>, { [k: string]: number }> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				[k: string]: number;
+			}>();
 		});
 	});
 
@@ -301,9 +275,7 @@ describe("Merge", () => {
 				b: number;
 			}
 
-			const check: ExtendsType<Merge<A, A>, A> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, A>>().branded.toEqualTypeOf<A>();
 		});
 	});
 
@@ -316,12 +288,9 @@ describe("Merge", () => {
 				process(value: number): string;
 			}
 
-			const check: ExtendsType<
-				Merge<A, B>,
-				{ process(value: number): string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				process(value: number): string;
+			}>();
 		});
 	});
 });
