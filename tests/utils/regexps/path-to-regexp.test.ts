@@ -237,10 +237,12 @@ describe("pathToRegexp", () => {
 
 			const match = "/posts/hello".match(regex);
 
+			expect(match).not.toBeNull();
 			expect(match![2]).toBe("hello");
 
 			const missing = "/posts".match(regex);
 
+			expect(missing).not.toBeNull();
 			expect(missing![2]).toBeUndefined();
 		});
 
@@ -333,10 +335,12 @@ describe("pathToRegexp", () => {
 
 			const match = "/files/a/b".match(regex);
 
+			expect(match).not.toBeNull();
 			expect(match![2]).toBe("a/b");
 
 			const missing = "/files".match(regex);
 
+			expect(missing).not.toBeNull();
 			expect(missing![2]).toBeUndefined();
 		});
 
@@ -352,10 +356,12 @@ describe("pathToRegexp", () => {
 
 			const match = "/a/b/c".match(regex);
 
+			expect(match).not.toBeNull();
 			expect(match![2]).toBe("a/b/c");
 
 			const missing = "".match(regex);
 
+			expect(missing).not.toBeNull();
 			expect(missing![2]).toBeUndefined();
 		});
 	});
