@@ -1,6 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expectTypeOf, test } from "bun:test";
 
-import type { ExtendsType } from "@/types/extends-type";
 import type { ValueOf } from "@/types/value-of";
 
 describe("ValueOf", () => {
@@ -10,9 +9,7 @@ describe("ValueOf", () => {
 				only: number;
 			}
 
-			const check: ExtendsType<ValueOf<Source>, number> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<number>();
 		});
 
 		test("should resolve to the union of value types for a multi-key dictionary", () => {
@@ -22,12 +19,9 @@ describe("ValueOf", () => {
 				c: boolean;
 			}
 
-			const check: ExtendsType<
-				ValueOf<Source>,
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<
 				string | number | boolean
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 	});
 
@@ -37,9 +31,7 @@ describe("ValueOf", () => {
 
 			type Status = ValueOf<typeof status>;
 
-			const check: ExtendsType<Status, "ready" | "done"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Status>().toEqualTypeOf<"ready" | "done">();
 		});
 
 		test("should resolve to the union of numeric literal values", () => {
@@ -47,9 +39,7 @@ describe("ValueOf", () => {
 
 			type Code = ValueOf<typeof codes>;
 
-			const check: ExtendsType<Code, 200 | 404 | 500> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Code>().toEqualTypeOf<200 | 404 | 500>();
 		});
 
 		test("should resolve to the union of boolean literal values", () => {
@@ -57,9 +47,7 @@ describe("ValueOf", () => {
 
 			type Flag = ValueOf<typeof flags>;
 
-			const check: ExtendsType<Flag, true | false> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Flag>().toEqualTypeOf<true | false>();
 		});
 	});
 
@@ -70,9 +58,7 @@ describe("ValueOf", () => {
 				retries: 3;
 			}
 
-			const check: ExtendsType<ValueOf<Source>, "auto" | 3> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<"auto" | 3>();
 		});
 
 		test("should preserve heterogeneous value-type unions", () => {
@@ -82,12 +68,9 @@ describe("ValueOf", () => {
 				tags: string[];
 			}
 
-			const check: ExtendsType<
-				ValueOf<Source>,
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<
 				string | number | string[]
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 	});
 
@@ -98,9 +81,7 @@ describe("ValueOf", () => {
 				readonly b: number;
 			}
 
-			const check: ExtendsType<ValueOf<Source>, string | number> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<string | number>();
 		});
 
 		test("should include `undefined` for an optional (`?`) key", () => {
@@ -109,12 +90,9 @@ describe("ValueOf", () => {
 				maybe?: number;
 			}
 
-			const check: ExtendsType<
-				ValueOf<Source>,
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<
 				string | number | undefined
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 	});
 
@@ -125,9 +103,7 @@ describe("ValueOf", () => {
 				2: "two";
 			}
 
-			const check: ExtendsType<ValueOf<Source>, "one" | "two"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<"one" | "two">();
 		});
 
 		test("should preserve values keyed by `symbol`", () => {
@@ -138,9 +114,7 @@ describe("ValueOf", () => {
 				[sym]: boolean;
 			}
 
-			const check: ExtendsType<ValueOf<Source>, boolean | string> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<boolean | string>();
 		});
 	});
 
@@ -151,12 +125,9 @@ describe("ValueOf", () => {
 				b: { y: string };
 			}
 
-			const check: ExtendsType<
-				ValueOf<Source>,
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<
 				{ x: number } | { y: string }
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 
 		test("should preserve function value types", () => {
@@ -168,9 +139,7 @@ describe("ValueOf", () => {
 				run: Run;
 			}
 
-			const check: ExtendsType<ValueOf<Source>, Run | Format> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<Run | Format>();
 		});
 
 		test("should preserve `null` and `undefined` as explicit value types", () => {
@@ -180,12 +149,9 @@ describe("ValueOf", () => {
 				c: string;
 			}
 
-			const check: ExtendsType<
-				ValueOf<Source>,
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<
 				null | undefined | string
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 	});
 
@@ -193,49 +159,37 @@ describe("ValueOf", () => {
 		test("should resolve to the value type for `Record<string, V>`", () => {
 			type Source = Record<string, number>;
 
-			const check: ExtendsType<ValueOf<Source>, number> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<number>();
 		});
 
 		test("should resolve to the value type for `Record<number, V>`", () => {
 			type Source = Record<number, boolean>;
 
-			const check: ExtendsType<ValueOf<Source>, boolean> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<boolean>();
 		});
 
 		test("should resolve to the value type for `Record<symbol, V>`", () => {
 			type Source = Record<symbol, "x">;
 
-			const check: ExtendsType<ValueOf<Source>, "x"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<"x">();
 		});
 
 		test("should resolve to `unknown` for `Record<string, unknown>`", () => {
 			type Source = Record<string, unknown>;
 
-			const check: ExtendsType<ValueOf<Source>, unknown> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toBeUnknown();
 		});
 
 		test("should resolve to `any` for `Record<string, any>`", () => {
 			type Source = Record<string, any>;
 
-			const check: ExtendsType<ValueOf<Source>, any> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toBeAny();
 		});
 
 		test("should resolve to `never` for `Record<string, never>`", () => {
 			type Source = Record<string, never>;
 
-			const check: ExtendsType<ValueOf<Source>, never> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toBeNever();
 		});
 	});
 
@@ -243,17 +197,13 @@ describe("ValueOf", () => {
 		test("should resolve to `never` for an empty object", () => {
 			type Source = NonNullable<unknown>;
 
-			const check: ExtendsType<ValueOf<Source>, never> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toBeNever();
 		});
 
 		test("should union value types across an intersection of objects", () => {
 			type Source = { a: string } & { b: number };
 
-			const check: ExtendsType<ValueOf<Source>, string | number> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<string | number>();
 		});
 	});
 });
