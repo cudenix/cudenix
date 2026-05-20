@@ -125,9 +125,9 @@ describe("ConditionallyOmit", () => {
 				keep: string;
 			}
 
-			expectTypeOf<
-				ConditionallyOmit<Source, undefined>
-			>().toEqualTypeOf<{ keep: string }>();
+			expectTypeOf<ConditionallyOmit<Source, undefined>>().toEqualTypeOf<{
+				keep: string;
+			}>();
 		});
 
 		test("should drop every `undefined`-valued key when multiple are present", () => {
@@ -137,9 +137,9 @@ describe("ConditionallyOmit", () => {
 				c: number;
 			}
 
-			expectTypeOf<
-				ConditionallyOmit<Source, undefined>
-			>().toEqualTypeOf<{ c: number }>();
+			expectTypeOf<ConditionallyOmit<Source, undefined>>().toEqualTypeOf<{
+				c: number;
+			}>();
 		});
 
 		test("should leave the object unchanged when no keys are `undefined`", () => {
@@ -148,9 +148,10 @@ describe("ConditionallyOmit", () => {
 				b: number;
 			}
 
-			expectTypeOf<
-				ConditionallyOmit<Source, undefined>
-			>().toEqualTypeOf<{ a: string; b: number }>();
+			expectTypeOf<ConditionallyOmit<Source, undefined>>().toEqualTypeOf<{
+				a: string;
+				b: number;
+			}>();
 		});
 	});
 
@@ -161,9 +162,9 @@ describe("ConditionallyOmit", () => {
 				b: number;
 			}
 
-			expectTypeOf<
-				ConditionallyOmit<Source, any>
-			>().toEqualTypeOf<NonNullable<unknown>>();
+			expectTypeOf<ConditionallyOmit<Source, any>>().toEqualTypeOf<
+				NonNullable<unknown>
+			>();
 		});
 
 		test("should drop an `any`-valued key even under a narrow marker", () => {
@@ -220,9 +221,9 @@ describe("ConditionallyOmit", () => {
 				member: "a";
 			}
 
-			expectTypeOf<
-				ConditionallyOmit<Source, "a" | "b">
-			>().toEqualTypeOf<{ member: "a" }>();
+			expectTypeOf<ConditionallyOmit<Source, "a" | "b">>().toEqualTypeOf<{
+				member: "a";
+			}>();
 		});
 
 		test("should drop a key whose object value is structurally identical to the object marker", () => {
@@ -275,13 +276,39 @@ describe("ConditionallyOmit", () => {
 		});
 	});
 
+	describe("index signatures", () => {
+		test("should drop every key from a record whose value matches the marker", () => {
+			type Source = Record<string, string>;
+
+			expectTypeOf<ConditionallyOmit<Source, string>>().toEqualTypeOf<
+				NonNullable<unknown>
+			>();
+		});
+
+		test("should drop every key from a record whose value is unknown when the marker is unknown", () => {
+			type Source = Record<string, unknown>;
+
+			expectTypeOf<ConditionallyOmit<Source, unknown>>().toEqualTypeOf<
+				NonNullable<unknown>
+			>();
+		});
+
+		test("should leave a record untouched when the marker does not match the value type", () => {
+			type Source = Record<string, number>;
+
+			expectTypeOf<
+				ConditionallyOmit<Source, string>
+			>().toEqualTypeOf<Source>();
+		});
+	});
+
 	describe("edge shapes", () => {
 		test("should be a no-op on an empty object", () => {
 			type Source = NonNullable<unknown>;
 
-			expectTypeOf<
-				ConditionallyOmit<Source, never>
-			>().toEqualTypeOf<NonNullable<unknown>>();
+			expectTypeOf<ConditionallyOmit<Source, never>>().toEqualTypeOf<
+				NonNullable<unknown>
+			>();
 		});
 
 		test("should produce an empty object when every key matches the marker", () => {
@@ -290,9 +317,9 @@ describe("ConditionallyOmit", () => {
 				b: never;
 			}
 
-			expectTypeOf<
-				ConditionallyOmit<Source, never>
-			>().toEqualTypeOf<NonNullable<unknown>>();
+			expectTypeOf<ConditionallyOmit<Source, never>>().toEqualTypeOf<
+				NonNullable<unknown>
+			>();
 		});
 
 		test("should leave an optional `never` key untouched because indexed access widens it to `undefined`", () => {
