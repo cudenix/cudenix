@@ -87,9 +87,7 @@ describe("Merge", () => {
 				id: number;
 			}
 
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				id: number;
-			}>();
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ id: number }>();
 		});
 
 		test("should let the second operand narrow a wide value type", () => {
@@ -149,9 +147,7 @@ describe("Merge", () => {
 				x?: string;
 			}
 
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				x?: string;
-			}>();
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ x?: string }>();
 		});
 
 		test("should let the second operand tighten an optional key to required", () => {
