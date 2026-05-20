@@ -1,5 +1,5 @@
 import type { ExtractContent } from "@/types/extract-content";
-import { FreezeEmpty } from "@/utils/objects/empty";
+import { FrozenEmpty } from "@/utils/objects/empty";
 
 export type FilterError<Type> = Extract<Type, AnyError>;
 
@@ -44,24 +44,19 @@ export interface Error<Content, Status extends number = 400> {
 
 export type AnyError = Error<any, any>;
 
-type Constructor = new (
-	content: unknown,
-	options?: AnyErrorOptions,
-) => AnyError;
+interface Constructor {
+	new <const Content, const Status extends number = 400>(
+		content: Content,
+		options?: ErrorOptions<Status>,
+	): Error<Content, Status>;
+}
 
 export const Error = function Error(
 	this: AnyError,
 	content: unknown,
-	{ status = 400 }: AnyErrorOptions = FreezeEmpty,
+	{ status = 400 }: AnyErrorOptions = FrozenEmpty,
 ) {
 	this.content = content;
 	this.status = status;
 	this.success = false;
 } as unknown as Constructor;
-
-export const error = <const Content, const Status extends number = 400>(
-	content: Content,
-	options?: ErrorOptions<Status>,
-) => {
-	return new Error(content, options) as Error<Content, Status>;
-};
