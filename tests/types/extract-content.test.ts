@@ -209,9 +209,9 @@ describe("ExtractContent", () => {
 			expectTypeOf<ExtractContent<Callable>>().toEqualTypeOf<string>();
 		});
 
-		test("should resolve to `any` for the built-in `Function` type", () => {
+		test("should pass the built-in `Function` type through unchanged because it does not match `(...args: any[]) => infer Return`", () => {
 			// biome-ignore lint/complexity/noBannedTypes: probing the built-in Function type is the point of the test
-			expectTypeOf<ExtractContent<Function>>().toExtend<any>();
+			expectTypeOf<ExtractContent<Function>>().toEqualTypeOf<Function>();
 		});
 
 		test("should pass a constructor-only type through unchanged", () => {
