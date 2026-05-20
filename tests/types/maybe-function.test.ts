@@ -86,13 +86,19 @@ describe("MaybeFunction", () => {
 			});
 
 			test("should yield the wrapped value on the sync arm", async () => {
-				expect(await factory()).toBe(1);
+				const result = factory();
+
+				expect(result).not.toBeInstanceOf(Promise);
+				expect(await result).toBe(1);
 			});
 
 			test("should yield the wrapped value on the async arm", async () => {
-				factory();
+				void factory();
 
-				expect(await factory()).toBe(1);
+				const result = factory();
+
+				expect(result).toBeInstanceOf(Promise);
+				expect(await result).toBe(1);
 			});
 		});
 
