@@ -170,9 +170,9 @@ describe("WSData", () => {
 				open: 1;
 			}
 
-			const check: ExtendsType<AssignableTo<Bad, WSData>, false> = true;
+			const check: AssignableTo<Bad, WSData> = false;
 
-			expect(check).toBe(true);
+			expect(check).toBe(false);
 		});
 
 		test("should reject a config whose only key is unknown (TypeScript weak-type rule)", () => {
@@ -180,9 +180,9 @@ describe("WSData", () => {
 				unexpected: () => void;
 			}
 
-			const check: ExtendsType<AssignableTo<Bad, WSData>, false> = true;
+			const check: AssignableTo<Bad, WSData> = false;
 
-			expect(check).toBe(true);
+			expect(check).toBe(false);
 		});
 	});
 });
