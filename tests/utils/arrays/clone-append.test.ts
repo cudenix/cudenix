@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { cloneAppend } from "@/utils/arrays/clone-append";
 
 describe("cloneAppend", () => {
-	describe("empty source array (length === 0 branch)", () => {
+	describe("empty source", () => {
 		describe("with empty source and string item 'a'", () => {
 			let source: string[];
 			let result: string[];
@@ -49,7 +49,7 @@ describe("cloneAppend", () => {
 		});
 	});
 
-	describe("single-element source array (length === 1 branch)", () => {
+	describe("single-element source", () => {
 		describe("with source ['a'] and item 'b'", () => {
 			let source: string[];
 			let result: string[];
@@ -108,7 +108,7 @@ describe("cloneAppend", () => {
 		});
 	});
 
-	describe("multi-element source array (length >= 2 branch)", () => {
+	describe("multi-element source", () => {
 		describe("with source ['a', 'b'] and item 'c'", () => {
 			let source: string[];
 			let result: string[];
