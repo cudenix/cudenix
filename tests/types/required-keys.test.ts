@@ -1,6 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expectTypeOf, test } from "bun:test";
 
-import type { ExtendsType } from "@/types/extends-type";
 import type { RequiredKeys } from "@/types/required-keys";
 
 describe("RequiredKeys", () => {
@@ -10,9 +9,7 @@ describe("RequiredKeys", () => {
 				only: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "only"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"only">();
 		});
 
 		test("should resolve to the union of every key when all are required", () => {
@@ -22,12 +19,9 @@ describe("RequiredKeys", () => {
 				c: boolean;
 			}
 
-			const check: ExtendsType<
-				RequiredKeys<Source>,
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<
 				"a" | "b" | "c"
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 	});
 
@@ -38,9 +32,7 @@ describe("RequiredKeys", () => {
 				maybe?: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "keep"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"keep">();
 		});
 
 		test("should exclude every `?`-marked key when several are optional", () => {
@@ -51,9 +43,7 @@ describe("RequiredKeys", () => {
 				d: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "a" | "d"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"a" | "d">();
 		});
 	});
 
@@ -64,9 +54,7 @@ describe("RequiredKeys", () => {
 				weird: undefined;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "keep"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"keep">();
 		});
 
 		test("should exclude a key whose value union contains `undefined`", () => {
@@ -75,9 +63,7 @@ describe("RequiredKeys", () => {
 				name: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "name"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"name">();
 		});
 
 		test("should keep a key whose value is `null` (null is not undefined)", () => {
@@ -86,9 +72,7 @@ describe("RequiredKeys", () => {
 				b: number;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "a" | "b"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"a" | "b">();
 		});
 
 		test("should exclude a key whose value union mixes `null` and `undefined`", () => {
@@ -97,9 +81,7 @@ describe("RequiredKeys", () => {
 				b: number;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "b"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"b">();
 		});
 
 		test("should keep a key whose value is `never` (undefined does not extend never)", () => {
@@ -108,12 +90,9 @@ describe("RequiredKeys", () => {
 				other: string;
 			}
 
-			const check: ExtendsType<
-				RequiredKeys<Source>,
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<
 				"keep" | "other"
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 	});
 
@@ -124,9 +103,7 @@ describe("RequiredKeys", () => {
 				other: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "other"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"other">();
 		});
 
 		test("should exclude a key whose value is `unknown`", () => {
@@ -135,9 +112,7 @@ describe("RequiredKeys", () => {
 				other: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "other"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"other">();
 		});
 
 		test("should exclude a key whose value is `void`", () => {
@@ -147,9 +122,7 @@ describe("RequiredKeys", () => {
 				other: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "other"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"other">();
 		});
 	});
 
@@ -161,9 +134,7 @@ describe("RequiredKeys", () => {
 				required: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "required"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"required">();
 		});
 
 		test("should exclude an optional key declared with redundant `| undefined`", () => {
@@ -172,9 +143,7 @@ describe("RequiredKeys", () => {
 				b: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "b"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"b">();
 		});
 	});
 
@@ -185,9 +154,7 @@ describe("RequiredKeys", () => {
 				b?: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "a"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"a">();
 		});
 
 		test("should exclude a `readonly` optional key", () => {
@@ -196,9 +163,7 @@ describe("RequiredKeys", () => {
 				b: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "b"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"b">();
 		});
 	});
 
@@ -209,9 +174,7 @@ describe("RequiredKeys", () => {
 				opt?(): void;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, "method"> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"method">();
 		});
 
 		test("should keep required numeric literal keys and exclude optional ones", () => {
@@ -220,9 +183,7 @@ describe("RequiredKeys", () => {
 				1?: number;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, 0> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<0>();
 		});
 
 		test("should keep a required symbol-keyed property alongside string keys", () => {
@@ -234,12 +195,7 @@ describe("RequiredKeys", () => {
 				[sym]: string;
 			}
 
-			const check: ExtendsType<
-				RequiredKeys<Source>,
-				"named" | Sym
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<"named" | Sym>();
 		});
 	});
 
@@ -249,9 +205,7 @@ describe("RequiredKeys", () => {
 				[key: string]: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, string> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<string>();
 		});
 
 		test("should reduce a number index signature to its key type", () => {
@@ -259,9 +213,7 @@ describe("RequiredKeys", () => {
 				[key: number]: string;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, number> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toEqualTypeOf<number>();
 		});
 	});
 
@@ -272,17 +224,13 @@ describe("RequiredKeys", () => {
 				b?: number;
 			}
 
-			const check: ExtendsType<RequiredKeys<Source>, never> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toBeNever();
 		});
 
 		test("should resolve to `never` for an empty object", () => {
 			type Source = NonNullable<unknown>;
 
-			const check: ExtendsType<RequiredKeys<Source>, never> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<RequiredKeys<Source>>().toBeNever();
 		});
 	});
 });
