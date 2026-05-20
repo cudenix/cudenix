@@ -80,6 +80,20 @@ describe("ConditionallyOmit", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should leave the object unchanged when no keys are `unknown`", () => {
+			interface Source {
+				a: string;
+				b: number;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, unknown>,
+				{ a: string; b: number }
+			> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("with marker `null`", () => {
@@ -96,6 +110,35 @@ describe("ConditionallyOmit", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should drop every `null`-valued key when multiple are present", () => {
+			interface Source {
+				a: null;
+				b: null;
+				c: number;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, null>,
+				{ c: number }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should leave the object unchanged when no keys are `null`", () => {
+			interface Source {
+				a: string;
+				b: number;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, null>,
+				{ a: string; b: number }
+			> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("with marker `undefined`", () => {
@@ -108,6 +151,35 @@ describe("ConditionallyOmit", () => {
 			const check: ExtendsType<
 				ConditionallyOmit<Source, undefined>,
 				{ keep: string }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should drop every `undefined`-valued key when multiple are present", () => {
+			interface Source {
+				a: undefined;
+				b: undefined;
+				c: number;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, undefined>,
+				{ c: number }
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should leave the object unchanged when no keys are `undefined`", () => {
+			interface Source {
+				a: string;
+				b: number;
+			}
+
+			const check: ExtendsType<
+				ConditionallyOmit<Source, undefined>,
+				{ a: string; b: number }
 			> = true;
 
 			expect(check).toBe(true);
