@@ -9,7 +9,7 @@ import type { AnyValidator } from "@/core/validator";
 import type { HttpMethod } from "@/types/http-method";
 import type { MaybePromise } from "@/types/maybe-promise";
 import { pushAll } from "@/utils/arrays/push-all";
-import { Empty, FreezeEmpty } from "@/utils/objects/empty";
+import { Empty, FrozenEmpty } from "@/utils/objects/empty";
 
 /**
  * @module
@@ -24,9 +24,7 @@ import { Empty, FreezeEmpty } from "@/utils/objects/empty";
  * the hot path returns the same instance instead of allocating a fresh
  * `Response` per unmatched request.
  */
-const NOT_FOUND = new Response(undefined, {
-	status: 404,
-});
+const NOT_FOUND = new Response(undefined, { status: 404 });
 
 /**
  * Flat list of middleware, store and validator units that run for one
@@ -94,12 +92,7 @@ export interface Cudenix {
 	jit: boolean;
 	listen(
 		options?: Omit<
-			Extract<
-				Bun.Serve.Options<unknown>,
-				{
-					websocket?: never;
-				}
-			>,
+			Extract<Bun.Serve.Options<unknown>, { websocket?: never }>,
 			"fetch" | "unix"
 		>,
 	): Omit<Cudenix, "listen">;
@@ -152,7 +145,7 @@ interface CudenixConstructor {
 export const Cudenix = function (
 	this: Cudenix,
 	module: AnyModule,
-	{ jit = true }: CudenixOptions = FreezeEmpty,
+	{ jit = true }: CudenixOptions = FrozenEmpty,
 ) {
 	this.jit = jit;
 	this.memory = new Empty();
@@ -188,7 +181,7 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 		const plugins = this.memory.plugins as Plugin[];
 
 		for (let i = 0; i < plugins.length; i++) {
-			plugins[i]!.call(this);
+			plugins[i]?.call(this);
 		}
 	}
 
@@ -336,12 +329,7 @@ Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
 Cudenix.prototype.listen = function listen(
 	this: Cudenix,
 	options?: Omit<
-		Extract<
-			Bun.Serve.Options<unknown>,
-			{
-				websocket?: never;
-			}
-		>,
+		Extract<Bun.Serve.Options<unknown>, { websocket?: never }>,
 		"fetch" | "unix"
 	>,
 ) {
@@ -351,9 +339,7 @@ Cudenix.prototype.listen = function listen(
 		development: false,
 		reusePort: true,
 		...options,
-		fetch: (request) => {
-			return this.fetch(request);
-		},
+		fetch: (request) => this.fetch(request),
 		routes: this.routes,
 	});
 
