@@ -1,7 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expectTypeOf, test } from "bun:test";
 
 import type { ConditionallyOmit } from "@/types/conditionally-omit";
-import type { ExtendsType } from "@/types/extends-type";
 
 describe("ConditionallyOmit", () => {
 	describe("with marker `never`", () => {
@@ -12,12 +11,10 @@ describe("ConditionallyOmit", () => {
 				name: string;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, never>,
-				{ name: string; count: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, never>>().toEqualTypeOf<{
+				name: string;
+				count: number;
+			}>();
 		});
 
 		test("should drop every `never` key when multiple are present", () => {
@@ -28,12 +25,10 @@ describe("ConditionallyOmit", () => {
 				d: string;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, never>,
-				{ c: number; d: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, never>>().toEqualTypeOf<{
+				c: number;
+				d: string;
+			}>();
 		});
 
 		test("should leave the object unchanged when no keys are `never`", () => {
@@ -42,12 +37,10 @@ describe("ConditionallyOmit", () => {
 				b: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, never>,
-				{ a: string; b: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, never>>().toEqualTypeOf<{
+				a: string;
+				b: number;
+			}>();
 		});
 	});
 
@@ -58,12 +51,9 @@ describe("ConditionallyOmit", () => {
 				keep: string;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, unknown>,
-				{ keep: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, unknown>>().toEqualTypeOf<{
+				keep: string;
+			}>();
 		});
 
 		test("should drop every `unknown` key when multiple are present", () => {
@@ -73,12 +63,9 @@ describe("ConditionallyOmit", () => {
 				c: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, unknown>,
-				{ c: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, unknown>>().toEqualTypeOf<{
+				c: number;
+			}>();
 		});
 
 		test("should leave the object unchanged when no keys are `unknown`", () => {
@@ -87,12 +74,10 @@ describe("ConditionallyOmit", () => {
 				b: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, unknown>,
-				{ a: string; b: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, unknown>>().toEqualTypeOf<{
+				a: string;
+				b: number;
+			}>();
 		});
 	});
 
@@ -103,12 +88,9 @@ describe("ConditionallyOmit", () => {
 				keep: string;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, null>,
-				{ keep: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, null>>().toEqualTypeOf<{
+				keep: string;
+			}>();
 		});
 
 		test("should drop every `null`-valued key when multiple are present", () => {
@@ -118,12 +100,9 @@ describe("ConditionallyOmit", () => {
 				c: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, null>,
-				{ c: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, null>>().toEqualTypeOf<{
+				c: number;
+			}>();
 		});
 
 		test("should leave the object unchanged when no keys are `null`", () => {
@@ -132,12 +111,10 @@ describe("ConditionallyOmit", () => {
 				b: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, null>,
-				{ a: string; b: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, null>>().toEqualTypeOf<{
+				a: string;
+				b: number;
+			}>();
 		});
 	});
 
@@ -148,12 +125,9 @@ describe("ConditionallyOmit", () => {
 				keep: string;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, undefined>,
-				{ keep: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOmit<Source, undefined>
+			>().toEqualTypeOf<{ keep: string }>();
 		});
 
 		test("should drop every `undefined`-valued key when multiple are present", () => {
@@ -163,12 +137,9 @@ describe("ConditionallyOmit", () => {
 				c: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, undefined>,
-				{ c: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOmit<Source, undefined>
+			>().toEqualTypeOf<{ c: number }>();
 		});
 
 		test("should leave the object unchanged when no keys are `undefined`", () => {
@@ -177,12 +148,9 @@ describe("ConditionallyOmit", () => {
 				b: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, undefined>,
-				{ a: string; b: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOmit<Source, undefined>
+			>().toEqualTypeOf<{ a: string; b: number }>();
 		});
 	});
 
@@ -193,12 +161,9 @@ describe("ConditionallyOmit", () => {
 				b: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, any>,
-				NonNullable<unknown>
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOmit<Source, any>
+			>().toEqualTypeOf<NonNullable<unknown>>();
 		});
 
 		test("should drop an `any`-valued key even under a narrow marker", () => {
@@ -207,12 +172,9 @@ describe("ConditionallyOmit", () => {
 				keep: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, string>,
-				{ keep: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, string>>().toEqualTypeOf<{
+				keep: number;
+			}>();
 		});
 	});
 
@@ -224,12 +186,10 @@ describe("ConditionallyOmit", () => {
 				narrow: "bar";
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, "foo">,
-				{ broad: string; narrow: "bar" }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, "foo">>().toEqualTypeOf<{
+				broad: string;
+				narrow: "bar";
+			}>();
 		});
 
 		test("should not drop a key whose value is a wider supertype of the marker", () => {
@@ -238,12 +198,9 @@ describe("ConditionallyOmit", () => {
 				wider: string;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, "x">,
-				{ wider: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, "x">>().toEqualTypeOf<{
+				wider: string;
+			}>();
 		});
 
 		test("should not drop a key whose value is a strict subtype of the marker", () => {
@@ -252,12 +209,9 @@ describe("ConditionallyOmit", () => {
 				sub: "a";
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, string>,
-				{ sub: "a" }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, string>>().toEqualTypeOf<{
+				sub: "a";
+			}>();
 		});
 
 		test("should drop only the union-valued key whose union matches the marker exactly", () => {
@@ -266,12 +220,9 @@ describe("ConditionallyOmit", () => {
 				member: "a";
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, "a" | "b">,
-				{ member: "a" }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOmit<Source, "a" | "b">
+			>().toEqualTypeOf<{ member: "a" }>();
 		});
 
 		test("should drop a key whose object value is structurally identical to the object marker", () => {
@@ -280,12 +231,9 @@ describe("ConditionallyOmit", () => {
 				other: string;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, { x: number }>,
-				{ other: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOmit<Source, { x: number }>
+			>().toEqualTypeOf<{ other: string }>();
 		});
 	});
 
@@ -297,12 +245,11 @@ describe("ConditionallyOmit", () => {
 				c: boolean;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, symbol>,
-				{ a: string; b: number; c: boolean }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, symbol>>().toEqualTypeOf<{
+				a: string;
+				b: number;
+				c: boolean;
+			}>();
 		});
 
 		test("should preserve the optional modifier on retained keys", () => {
@@ -311,12 +258,9 @@ describe("ConditionallyOmit", () => {
 				keep?: string;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, never>,
-				{ keep?: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, never>>().toEqualTypeOf<{
+				keep?: string;
+			}>();
 		});
 
 		test("should preserve the `readonly` modifier on retained keys", () => {
@@ -325,12 +269,9 @@ describe("ConditionallyOmit", () => {
 				readonly locked: string;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, never>,
-				{ readonly locked: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, never>>().toEqualTypeOf<{
+				readonly locked: string;
+			}>();
 		});
 	});
 
@@ -338,12 +279,9 @@ describe("ConditionallyOmit", () => {
 		test("should be a no-op on an empty object", () => {
 			type Source = NonNullable<unknown>;
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, never>,
-				NonNullable<unknown>
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOmit<Source, never>
+			>().toEqualTypeOf<NonNullable<unknown>>();
 		});
 
 		test("should produce an empty object when every key matches the marker", () => {
@@ -352,12 +290,9 @@ describe("ConditionallyOmit", () => {
 				b: never;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, never>,
-				NonNullable<unknown>
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOmit<Source, never>
+			>().toEqualTypeOf<NonNullable<unknown>>();
 		});
 
 		test("should leave an optional `never` key untouched because indexed access widens it to `undefined`", () => {
@@ -366,12 +301,10 @@ describe("ConditionallyOmit", () => {
 				maybe?: never;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOmit<Source, never>,
-				{ keep: string; maybe?: never }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<ConditionallyOmit<Source, never>>().toEqualTypeOf<{
+				keep: string;
+				maybe?: never;
+			}>();
 		});
 	});
 });
