@@ -11,7 +11,11 @@
  * through `infer OptionalKey extends keyof Type` to recover them as a
  * `keyof` constraint. The final intersection rebuilds the object with the
  * matched keys re-declared via the `?` modifier while leaving the rest
- * untouched.
+ * untouched. The `-?` on the probe strips optionality from the mapped
+ * type so source keys already declared as optional are still collected —
+ * otherwise indexing the probe via `[keyof Type]` would inject `undefined`
+ * into the union and the `infer ... extends keyof Type` constraint would
+ * fail, collapsing the whole result to `never`.
  *
  * Useful when a property may carry a sentinel (e.g. `undefined`, `never`)
  * that the caller should be able to omit altogether rather than supply
@@ -28,11 +32,8 @@
  * // { id: string; nickname?: string | undefined }
  * ```
  */
-export type ConditionallyOptional<
-	Type extends Record<PropertyKey, unknown>,
-	OptionalType,
-> = {
-	[Key in keyof Type]: OptionalType extends Type[Key] ? Key : never;
+export type ConditionallyOptional<Type extends object, OptionalType> = {
+	[Key in keyof Type]-?: OptionalType extends Type[Key] ? Key : never;
 }[keyof Type] extends infer OptionalKey extends keyof Type
 	? Omit<Type, OptionalKey> & {
 			[Key in OptionalKey]?: Type[Key];
