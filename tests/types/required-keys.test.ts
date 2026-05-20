@@ -217,6 +217,17 @@ describe("RequiredKeys", () => {
 		});
 	});
 
+	describe("tuple sources", () => {
+		test("should distinguish a fully-required tuple from one with a trailing optional element", () => {
+			type Fixed = [string, number];
+			type Optional = [string, number?];
+
+			expectTypeOf<RequiredKeys<Fixed>>().not.toEqualTypeOf<
+				RequiredKeys<Optional>
+			>();
+		});
+	});
+
 	describe("degenerate inputs", () => {
 		test("should resolve to `never` when every key is optional", () => {
 			interface Source {
