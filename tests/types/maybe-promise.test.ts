@@ -1,13 +1,11 @@
-import { describe, expect, expectTypeOf, test } from "bun:test";
+import { describe, expectTypeOf, test } from "bun:test";
 
 import type { MaybePromise } from "@/types/maybe-promise";
 
 describe("MaybePromise", () => {
 	describe("direct-value branch", () => {
 		test("should accept a concrete value of the wrapped type", () => {
-			const value: MaybePromise<number> = 1;
-
-			expect(value).toBe(1);
+			expectTypeOf<number>().toExtend<MaybePromise<number>>();
 		});
 
 		test("should accept a structured value when wrapping an object type", () => {
@@ -15,23 +13,17 @@ describe("MaybePromise", () => {
 				id: string;
 			}
 
-			const value: MaybePromise<User> = { id: "1" };
-
-			expect(value).toEqual({ id: "1" });
+			expectTypeOf<User>().toExtend<MaybePromise<User>>();
 		});
 	});
 
 	describe("promise branch", () => {
-		test("should accept a resolved promise of the wrapped type", async () => {
-			const value: MaybePromise<number> = Promise.resolve(1);
-
-			expect(await value).toBe(1);
+		test("should accept a resolved promise of the wrapped type", () => {
+			expectTypeOf<Promise<number>>().toExtend<MaybePromise<number>>();
 		});
 
-		test("should accept `Promise<string>` when wrapping `string`", async () => {
-			const value: MaybePromise<string> = Promise.resolve("hello");
-
-			expect(await value).toBe("hello");
+		test("should accept `Promise<string>` when wrapping `string`", () => {
+			expectTypeOf<Promise<string>>().toExtend<MaybePromise<string>>();
 		});
 	});
 
@@ -56,90 +48,66 @@ describe("MaybePromise", () => {
 	});
 
 	describe("interaction with `await`", () => {
-		test("should produce the wrapped type once awaited (sync arm)", async () => {
-			const provide = (): MaybePromise<number> => 7;
-
-			const result = await provide();
-
-			expectTypeOf(result).toEqualTypeOf<number>();
-			expect(result).toBe(7);
-		});
-
-		test("should produce the wrapped type once awaited (async arm)", async () => {
-			const provide = (): MaybePromise<number> => Promise.resolve(7);
-
-			const result = await provide();
-
-			expectTypeOf(result).toEqualTypeOf<number>();
-			expect(result).toBe(7);
-		});
-
 		test("should collapse to the wrapped type under `Awaited<...>`", () => {
 			expectTypeOf<
 				Awaited<MaybePromise<number>>
 			>().toEqualTypeOf<number>();
 		});
+
+		test("should collapse a doubly-wrapped MaybePromise to the wrapped type under `Awaited<...>`", () => {
+			expectTypeOf<
+				Awaited<MaybePromise<MaybePromise<number>>>
+			>().toEqualTypeOf<number>();
+		});
 	});
 
 	describe("wrapping a union of value types", () => {
-		test("should accept either member of the wrapped union (sync)", () => {
-			const asString: MaybePromise<string | number> = "hello";
-			const asNumber: MaybePromise<string | number> = 1;
-
-			expect(asString).toBe("hello");
-			expect(asNumber).toBe(1);
+		test("should accept the string member of the wrapped union (sync)", () => {
+			expectTypeOf<string>().toExtend<MaybePromise<string | number>>();
 		});
 
-		test("should accept a `Promise<Member>` via promise covariance", async () => {
-			const value: MaybePromise<string | number> = Promise.resolve(1);
-
-			expect(await value).toBe(1);
+		test("should accept the number member of the wrapped union (sync)", () => {
+			expectTypeOf<number>().toExtend<MaybePromise<string | number>>();
 		});
 
-		test("should resolve to `(A | B) | Promise<A | B>` without distributing", () => {
-			expectTypeOf<MaybePromise<string | number>>().toEqualTypeOf<
-				(string | number) | Promise<string | number>
+		test("should accept a `Promise<Member>` via promise covariance", () => {
+			expectTypeOf<Promise<number>>().toExtend<
+				MaybePromise<string | number>
 			>();
 		});
 
-		test("should not decompose into `A | Promise<A> | B | Promise<B>`", () => {
-			expectTypeOf<MaybePromise<string | number>>().not.toEqualTypeOf<
-				string | Promise<string> | number | Promise<number>
+		test("should resolve to `(A | B) | Promise<A | B>`", () => {
+			expectTypeOf<MaybePromise<string | number>>().toEqualTypeOf<
+				(string | number) | Promise<string | number>
 			>();
 		});
 	});
 
 	describe("nullable wrapped types", () => {
 		test("should accept a `null` value when wrapping a nullable type", () => {
-			const value: MaybePromise<string | null> = null;
-
-			expect(value).toBeNull();
+			expectTypeOf<null>().toExtend<MaybePromise<string | null>>();
 		});
 
 		test("should accept an `undefined` value when wrapping `T | undefined`", () => {
-			const value: MaybePromise<string | undefined> = undefined;
-
-			expect(value).toBeUndefined();
+			expectTypeOf<undefined>().toExtend<
+				MaybePromise<string | undefined>
+			>();
 		});
 	});
 
 	describe("`void` specialization", () => {
 		test("should accept `undefined` as the synchronous arm", () => {
-			const value: MaybePromise<void> = undefined;
-
-			expect(value).toBeUndefined();
+			expectTypeOf<undefined>().toExtend<MaybePromise<void>>();
 		});
 
-		test("should accept `Promise<void>` as the asynchronous arm", async () => {
-			const value: MaybePromise<void> = Promise.resolve();
-
-			expect(await value).toBeUndefined();
+		test("should accept `Promise<void>` as the asynchronous arm", () => {
+			expectTypeOf<Promise<void>>().toExtend<MaybePromise<void>>();
 		});
 
 		test("should resolve to `void | Promise<void>`", () => {
-			expectTypeOf<MaybePromise<void>>().toEqualTypeOf<
-				void | Promise<void>
-			>();
+			expectTypeOf<
+				MaybePromise<void>
+			>().toEqualTypeOf<void | Promise<void>>();
 		});
 	});
 
