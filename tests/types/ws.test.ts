@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, expectTypeOf, test } from "bun:test";
+import { describe, expectTypeOf, test } from "bun:test";
 
 import type { WSData } from "@/types/ws";
 
@@ -8,94 +8,63 @@ type Inner = Partial<
 
 describe("WSData", () => {
 	describe("full lifecycle config", () => {
-		let value: WSData;
-
-		beforeAll(() => {
-			value = {
-				close: () => undefined,
-				drain: () => undefined,
-				message: () => undefined,
-				open: () => undefined,
-			};
-		});
-
 		test("should accept a config with every lifecycle handler", () => {
-			expect(typeof value?.open).toBe("function");
-			expect(typeof value?.close).toBe("function");
-			expect(typeof value?.drain).toBe("function");
-			expect(typeof value?.message).toBe("function");
+			expectTypeOf<{
+				close: () => undefined;
+				drain: () => undefined;
+				message: () => undefined;
+				open: () => undefined;
+			}>().toExtend<WSData>();
 		});
 	});
 
 	describe("single-handler configs", () => {
 		test("should accept a config with only the `open` handler", () => {
-			const value: WSData = { open: () => undefined };
-
-			expect(typeof value?.open).toBe("function");
-			expect(value?.close).toBeUndefined();
+			expectTypeOf<{ open: () => undefined }>().toExtend<WSData>();
 		});
 
 		test("should accept a config with only the `message` handler", () => {
-			const value: WSData = {
-				message: (_socket: unknown, _payload: unknown) => undefined,
-			};
-
-			expect(typeof value?.message).toBe("function");
+			expectTypeOf<{
+				message: (socket: unknown, payload: unknown) => undefined;
+			}>().toExtend<WSData>();
 		});
 
 		test("should accept a config with only the `close` handler", () => {
-			const value: WSData = { close: () => undefined };
-
-			expect(typeof value?.close).toBe("function");
-			expect(value?.open).toBeUndefined();
+			expectTypeOf<{ close: () => undefined }>().toExtend<WSData>();
 		});
 
 		test("should accept a config with only the `drain` handler", () => {
-			const value: WSData = { drain: () => undefined };
-
-			expect(typeof value?.drain).toBe("function");
-			expect(value?.message).toBeUndefined();
+			expectTypeOf<{ drain: () => undefined }>().toExtend<WSData>();
 		});
 	});
 
 	describe("handler signature flexibility", () => {
 		test("should accept handlers with arbitrary parameter shapes", () => {
-			const value: WSData = {
-				message: (_a: number, _b: string, _c: boolean) => "any",
-				open: () => null,
-			};
-
-			expect(typeof value?.message).toBe("function");
+			expectTypeOf<{
+				message: (a: number, b: string, c: boolean) => "any";
+				open: () => null;
+			}>().toExtend<WSData>();
 		});
 
 		test("should accept handlers with arbitrary return types", () => {
-			const value: WSData = {
-				close: () => "closed",
-				drain: () => Promise.resolve(1),
-			};
-
-			expect(typeof value?.drain).toBe("function");
-			expect(typeof value?.close).toBe("function");
+			expectTypeOf<{
+				close: () => "closed";
+				drain: () => Promise<number>;
+			}>().toExtend<WSData>();
 		});
 	});
 
 	describe("empty and undefined inputs", () => {
 		test("should accept the empty object (no handlers)", () => {
-			const value: WSData = {};
-
-			expect(value).toEqual({});
+			expectTypeOf<NonNullable<unknown>>().toExtend<WSData>();
 		});
 
 		test("should accept a handler explicitly set to `undefined` (Partial makes values nullable)", () => {
-			const value: WSData = { open: undefined };
-
-			expect(value?.open).toBeUndefined();
+			expectTypeOf<{ open: undefined }>().toExtend<WSData>();
 		});
 
 		test("should accept `undefined` to opt out of websocket configuration entirely", () => {
-			const value: WSData = undefined;
-
-			expect(value).toBeUndefined();
+			expectTypeOf<undefined>().toExtend<WSData>();
 		});
 	});
 
