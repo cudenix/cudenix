@@ -4,9 +4,14 @@ import type { AllPropertiesAreUnknown } from "@/types/all-properties-are-unknown
 
 describe("AllPropertiesAreUnknown", () => {
 	describe("homogeneous unknown shapes", () => {
-		test("should resolve to true for the canonical two-key unknown shape from the JSDoc example", () => {
+		test("should resolve to true for a canonical two-key unknown shape", () => {
+			interface Source {
+				a: unknown;
+				b: unknown;
+			}
+
 			expectTypeOf<
-				AllPropertiesAreUnknown<{ a: unknown; b: unknown }>
+				AllPropertiesAreUnknown<Source>
 			>().toEqualTypeOf<true>();
 		});
 
@@ -170,10 +175,6 @@ describe("AllPropertiesAreUnknown", () => {
 	describe("empty and synthetic shapes", () => {
 		type Empty = NonNullable<unknown>;
 
-		test("should resolve to true for the JSDoc empty-object literal `{}`", () => {
-			expectTypeOf<AllPropertiesAreUnknown<{}>>().toEqualTypeOf<true>();
-		});
-
 		test("should resolve to true for an empty object via `NonNullable<unknown>` alias", () => {
 			expectTypeOf<
 				AllPropertiesAreUnknown<Empty>
@@ -183,19 +184,11 @@ describe("AllPropertiesAreUnknown", () => {
 		test("should resolve to true for an instance of a class with no own properties", () => {
 			class Bare {}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Bare>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<Bare>>().toEqualTypeOf<true>();
 		});
 	});
 
 	describe("mixed unknown and concrete properties", () => {
-		test("should resolve to false for the canonical mixed shape from the JSDoc example", () => {
-			expectTypeOf<
-				AllPropertiesAreUnknown<{ a: unknown; b: string }>
-			>().toEqualTypeOf<false>();
-		});
-
 		test("should resolve to false when one property is concrete and others are unknown", () => {
 			interface Source {
 				a: unknown;
