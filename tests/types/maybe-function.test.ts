@@ -1,7 +1,12 @@
-import { beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	expectTypeOf,
+	test,
+} from "bun:test";
 
-import type { AssignableTo } from "@/types/assignable-to";
-import type { ExtendsType } from "@/types/extends-type";
 import type { MaybeFunction } from "@/types/maybe-function";
 
 describe("MaybeFunction", () => {
@@ -107,10 +112,9 @@ describe("MaybeFunction", () => {
 				Extract<MaybeFunction<number>, (...args: never[]) => unknown>
 			>;
 
-			const check: ExtendsType<FactoryReturn, number | Promise<number>> =
-				true;
-
-			expect(check).toBe(true);
+			expectTypeOf<FactoryReturn>().toEqualTypeOf<
+				number | Promise<number>
+			>();
 		});
 	});
 
@@ -154,51 +158,33 @@ describe("MaybeFunction", () => {
 
 	describe("structural relations", () => {
 		test("should resolve to `T | (() => T | Promise<T>)` exactly", () => {
-			const check: ExtendsType<
-				MaybeFunction<number>,
+			expectTypeOf<MaybeFunction<number>>().toEqualTypeOf<
 				number | (() => number | Promise<number>)
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 
 		test("should treat a bare value as assignable to MaybeFunction<T>", () => {
-			const check: AssignableTo<number, MaybeFunction<number>> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<number>().toExtend<MaybeFunction<number>>();
 		});
 
 		test("should treat a sync factory as assignable to MaybeFunction<T>", () => {
-			const check: AssignableTo<
-				() => number,
-				MaybeFunction<number>
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<() => number>().toExtend<MaybeFunction<number>>();
 		});
 
 		test("should treat an async factory as assignable to MaybeFunction<T>", () => {
-			const check: AssignableTo<
-				() => Promise<number>,
+			expectTypeOf<() => Promise<number>>().toExtend<
 				MaybeFunction<number>
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 
 		test("should treat a mixed sync-or-async factory as assignable to MaybeFunction<T>", () => {
-			const check: AssignableTo<
-				() => number | Promise<number>,
+			expectTypeOf<() => number | Promise<number>>().toExtend<
 				MaybeFunction<number>
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 
 		test("should not collapse the union to its value type", () => {
-			const check: ExtendsType<MaybeFunction<number>, number> = false;
-
-			expect(check).toBe(false);
+			expectTypeOf<MaybeFunction<number>>().not.toEqualTypeOf<number>();
 		});
 	});
 
@@ -232,10 +218,7 @@ describe("MaybeFunction", () => {
 
 			const result = value();
 
-			const check: ExtendsType<typeof result, number | Promise<number>> =
-				true;
-
-			expect(check).toBe(true);
+			expectTypeOf(result).toEqualTypeOf<number | Promise<number>>();
 			expect(await result).toBe(7);
 		});
 
@@ -258,45 +241,29 @@ describe("MaybeFunction", () => {
 
 	describe("rejection cases", () => {
 		test("should reject a bare value of an unrelated type", () => {
-			const check: AssignableTo<string, MaybeFunction<number>> = false;
-
-			expect(check).toBe(false);
+			expectTypeOf<string>().not.toExtend<MaybeFunction<number>>();
 		});
 
 		test("should reject a factory returning the wrong value type", () => {
-			const check: AssignableTo<
-				() => string,
-				MaybeFunction<number>
-			> = false;
-
-			expect(check).toBe(false);
+			expectTypeOf<() => string>().not.toExtend<MaybeFunction<number>>();
 		});
 
 		test("should reject a factory whose promise resolves to the wrong type", () => {
-			const check: AssignableTo<
-				() => Promise<string>,
+			expectTypeOf<() => Promise<string>>().not.toExtend<
 				MaybeFunction<number>
-			> = false;
-
-			expect(check).toBe(false);
+			>();
 		});
 
 		test("should reject a factory that requires arguments", () => {
-			const check: AssignableTo<
-				(arg: string) => number,
+			expectTypeOf<(arg: string) => number>().not.toExtend<
 				MaybeFunction<number>
-			> = false;
-
-			expect(check).toBe(false);
+			>();
 		});
 
 		test("should reject a non-function, non-value shape entirely", () => {
-			const check: AssignableTo<
-				{ value: number },
+			expectTypeOf<{ value: number }>().not.toExtend<
 				MaybeFunction<number>
-			> = false;
-
-			expect(check).toBe(false);
+			>();
 		});
 	});
 });
