@@ -5,10 +5,7 @@ export type ValidatorPlugin = (
 	schema: any,
 	input: unknown,
 	type: keyof ValidatorRequest,
-) => MaybePromise<{
-	content: unknown;
-	success: boolean;
-}>;
+) => MaybePromise<{ content: unknown; success: boolean }>;
 
 export type DeepInferValidatorError<Type extends Record<PropertyKey, unknown>> =
 	{
@@ -26,24 +23,14 @@ export type DeepInferValidatorOutput<
 	[Key in keyof Type]: Cudenix.InferValidatorOutput<Type[Key]>;
 };
 
-type ValidatorErrorDetails<Type> = {
-	[Key in keyof Type]: {
-		details: [Type[Key]];
-		type: Key;
-	};
+export type ValidatorErrorDetails<Type> = {
+	[Key in keyof Type]: { details: [Type[Key]]; type: Key };
 }[keyof Type];
 
 export interface TransformValidatorError<
 	ValidatorError extends Record<PropertyKey, unknown>,
 > {
-	422: Error<
-		[
-			{
-				details: [ValidatorErrorDetails<ValidatorError>];
-			},
-		],
-		422
-	>;
+	422: Error<[{ details: [ValidatorErrorDetails<ValidatorError>] }], 422>;
 }
 
 export type MergeInferValidatorRequest<
@@ -88,20 +75,3 @@ export interface ValidatorOptions<Request extends Partial<ValidatorRequest>> {
 }
 
 export type AnyValidatorOptions = ValidatorOptions<any>;
-
-type Constructor = new (options: AnyValidatorOptions) => AnyValidator;
-
-export const Validator = function Validator(
-	this: AnyValidator,
-	options: AnyValidatorOptions,
-) {
-	this.request = options.request;
-	this.type = "VALIDATOR";
-	this.keys = Object.keys(options.request) as (keyof ValidatorRequest)[];
-} as unknown as Constructor;
-
-export const validator = <const Request extends Partial<ValidatorRequest>>(
-	options: ValidatorOptions<Request>,
-) => {
-	return new Validator(options) as Validator<Request>;
-};
