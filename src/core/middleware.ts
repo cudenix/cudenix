@@ -4,7 +4,7 @@ import type { AnySuccess } from "@/core/success";
 import type { MaybePromise } from "@/types/maybe-promise";
 
 export type MiddlewareFn<
-	Return extends MaybePromise<AnyError | AnySuccess | void>,
+	Return extends MaybePromise<AnyError | AnySuccess | undefined>,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > = (
@@ -15,7 +15,7 @@ export type MiddlewareFn<
 export type AnyMiddlewareFn = MiddlewareFn<any, any, any>;
 
 export interface Middleware<
-	Return extends MaybePromise<AnyError | AnySuccess | void>,
+	Return extends MaybePromise<AnyError | AnySuccess | undefined>,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
