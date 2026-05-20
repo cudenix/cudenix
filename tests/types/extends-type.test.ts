@@ -168,9 +168,7 @@ describe("ExtendsType", () => {
 		});
 
 		test("should resolve to true for `unknown` vs `unknown`", () => {
-			expectTypeOf<
-				ExtendsType<unknown, unknown>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<ExtendsType<unknown, unknown>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for `never` vs `never`", () => {
@@ -186,9 +184,7 @@ describe("ExtendsType", () => {
 		});
 
 		test("should resolve to false comparing `unknown` to a concrete type", () => {
-			expectTypeOf<
-				ExtendsType<unknown, string>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<ExtendsType<unknown, string>>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false comparing `never` to a concrete type", () => {
@@ -208,9 +204,29 @@ describe("ExtendsType", () => {
 		});
 
 		test("should resolve to false for `never` vs `unknown`", () => {
+			expectTypeOf<ExtendsType<never, unknown>>().toEqualTypeOf<false>();
+		});
+	});
+
+	describe("symmetry", () => {
+		test("should yield the same result regardless of argument order for unrelated primitives", () => {
+			expectTypeOf<ExtendsType<string, number>>().toEqualTypeOf<
+				ExtendsType<number, string>
+			>();
+		});
+
+		test("should yield the same result regardless of argument order for one-way subtype pairs", () => {
+			expectTypeOf<ExtendsType<"foo", string>>().toEqualTypeOf<
+				ExtendsType<string, "foo">
+			>();
+		});
+
+		test("should yield the same result regardless of argument order for one-way width-subtype object shapes", () => {
 			expectTypeOf<
-				ExtendsType<never, unknown>
-			>().toEqualTypeOf<false>();
+				ExtendsType<{ a: string }, { a: string; b: number }>
+			>().toEqualTypeOf<
+				ExtendsType<{ a: string; b: number }, { a: string }>
+			>();
 		});
 	});
 
@@ -232,9 +248,7 @@ describe("ExtendsType", () => {
 		});
 
 		test("should resolve to false when comparing `null` and `undefined`", () => {
-			expectTypeOf<
-				ExtendsType<null, undefined>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<ExtendsType<null, undefined>>().toEqualTypeOf<false>();
 		});
 	});
 });
