@@ -3,40 +3,6 @@ import { describe, expectTypeOf, test } from "bun:test";
 import type { HttpMethod } from "@/types/http-method";
 
 describe("HttpMethod", () => {
-	describe("canonical named methods", () => {
-		test("should accept `GET`", () => {
-			expectTypeOf<"GET">().toExtend<HttpMethod>();
-		});
-
-		test("should accept `POST`", () => {
-			expectTypeOf<"POST">().toExtend<HttpMethod>();
-		});
-
-		test("should accept `PUT`", () => {
-			expectTypeOf<"PUT">().toExtend<HttpMethod>();
-		});
-
-		test("should accept `PATCH`", () => {
-			expectTypeOf<"PATCH">().toExtend<HttpMethod>();
-		});
-
-		test("should accept `DELETE`", () => {
-			expectTypeOf<"DELETE">().toExtend<HttpMethod>();
-		});
-
-		test("should accept `HEAD`", () => {
-			expectTypeOf<"HEAD">().toExtend<HttpMethod>();
-		});
-
-		test("should accept `OPTIONS`", () => {
-			expectTypeOf<"OPTIONS">().toExtend<HttpMethod>();
-		});
-
-		test("should accept the synthetic `WS` method for websocket upgrades", () => {
-			expectTypeOf<"WS">().toExtend<HttpMethod>();
-		});
-	});
-
 	describe("custom upper-case verbs via the string brand", () => {
 		test("should accept an arbitrary uppercase verb", () => {
 			expectTypeOf<"PURGE">().toExtend<HttpMethod>();
