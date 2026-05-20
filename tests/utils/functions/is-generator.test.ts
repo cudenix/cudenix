@@ -113,7 +113,10 @@ describe("isGenerator", () => {
 		});
 
 		test("should return false for a function expression", () => {
-			const regular = () => 1;
+			// biome-ignore lint/complexity/useArrowFunction: Testing regular function expressions
+			const regular = function () {
+				return 1;
+			};
 
 			expect(isGenerator(regular)).toBe(false);
 		});
