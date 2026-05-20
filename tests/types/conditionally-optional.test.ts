@@ -1,7 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expectTypeOf, test } from "bun:test";
 
 import type { ConditionallyOptional } from "@/types/conditionally-optional";
-import type { ExtendsType } from "@/types/extends-type";
 
 describe("ConditionallyOptional", () => {
 	describe("`undefined` marker on a single key", () => {
@@ -11,12 +10,12 @@ describe("ConditionallyOptional", () => {
 				nickname: string | undefined;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{ id: string; nickname?: string | undefined }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<{
+				id: string;
+				nickname?: string | undefined;
+			}>();
 		});
 
 		test("should leave a key with no `undefined` in its value untouched", () => {
@@ -24,12 +23,9 @@ describe("ConditionallyOptional", () => {
 				keep: string;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{ keep: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<{ keep: string }>();
 		});
 
 		test("should retain the original union as the optional value type", () => {
@@ -37,11 +33,9 @@ describe("ConditionallyOptional", () => {
 				x: number | undefined;
 			}
 
-			type Result = ConditionallyOptional<Source, undefined>;
-
-			const check: ExtendsType<Result, { x?: number | undefined }> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<{ x?: number | undefined }>();
 		});
 	});
 
@@ -53,12 +47,13 @@ describe("ConditionallyOptional", () => {
 				c: boolean;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{ a?: string | undefined; b?: number | undefined; c: boolean }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<{
+				a?: string | undefined;
+				b?: number | undefined;
+				c: boolean;
+			}>();
 		});
 
 		test("should mark every key as optional when every value admits the marker", () => {
@@ -67,12 +62,12 @@ describe("ConditionallyOptional", () => {
 				b: number | undefined;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{ a?: string | undefined; b?: number | undefined }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<{
+				a?: string | undefined;
+				b?: number | undefined;
+			}>();
 		});
 
 		test("should preserve a required key's exact literal type when another is relaxed", () => {
@@ -81,12 +76,12 @@ describe("ConditionallyOptional", () => {
 				required: "literal";
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{ required: "literal"; loose?: undefined }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<{
+				required: "literal";
+				loose?: undefined;
+			}>();
 		});
 	});
 
@@ -97,12 +92,9 @@ describe("ConditionallyOptional", () => {
 				b: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, null>,
-				{ a?: string | null; b: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, null>
+			>().branded.toEqualTypeOf<{ a?: string | null; b: number }>();
 		});
 
 		test("should mark a literal-bearing key optional when the marker matches the literal", () => {
@@ -111,12 +103,12 @@ describe("ConditionallyOptional", () => {
 				mode: "auto" | "manual";
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, "auto">,
-				{ mode?: "auto" | "manual"; flag: boolean }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, "auto">
+			>().branded.toEqualTypeOf<{
+				mode?: "auto" | "manual";
+				flag: boolean;
+			}>();
 		});
 
 		test("should distribute a union marker across each key's assignability check", () => {
@@ -126,16 +118,13 @@ describe("ConditionallyOptional", () => {
 				undefinable: number | undefined;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, null | undefined>,
-				{
-					strict: boolean;
-					nullable?: string | null;
-					undefinable?: number | undefined;
-				}
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, null | undefined>
+			>().branded.toEqualTypeOf<{
+				strict: boolean;
+				nullable?: string | null;
+				undefinable?: number | undefined;
+			}>();
 		});
 	});
 
@@ -146,12 +135,12 @@ describe("ConditionallyOptional", () => {
 				required: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{ required: number; existing?: string | undefined }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<{
+				required: number;
+				existing?: string | undefined;
+			}>();
 		});
 
 		test("should preserve the `readonly` modifier on a key promoted to optional", () => {
@@ -160,15 +149,12 @@ describe("ConditionallyOptional", () => {
 				open: number | undefined;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{
-					readonly locked?: string | undefined;
-					open?: number | undefined;
-				}
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<{
+				readonly locked?: string | undefined;
+				open?: number | undefined;
+			}>();
 		});
 	});
 
@@ -176,12 +162,9 @@ describe("ConditionallyOptional", () => {
 		test("should leave an empty object as-is", () => {
 			type Source = NonNullable<unknown>;
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				NonNullable<unknown>
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<NonNullable<unknown>>();
 		});
 
 		test("should leave an object with no matching keys completely unchanged", () => {
@@ -190,12 +173,9 @@ describe("ConditionallyOptional", () => {
 				b: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{ a: string; b: number }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<{ a: string; b: number }>();
 		});
 
 		test("should not relax a key whose value is a strict subtype of the marker", () => {
@@ -204,12 +184,9 @@ describe("ConditionallyOptional", () => {
 				wide: string;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, string>,
-				{ narrow: "foo"; wide?: string }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, string>
+			>().branded.toEqualTypeOf<{ narrow: "foo"; wide?: string }>();
 		});
 
 		test("should relax a key whose value is `unknown` because any marker assigns to it", () => {
@@ -218,12 +195,12 @@ describe("ConditionallyOptional", () => {
 				specific: number;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{ specific: number; any?: unknown }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<{
+				specific: number;
+				any?: unknown;
+			}>();
 		});
 
 		test("should leave a `never`-valued key untouched when the marker is not `never`", () => {
@@ -232,12 +209,12 @@ describe("ConditionallyOptional", () => {
 				present: string | undefined;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, undefined>,
-				{ impossible: never; present?: string | undefined }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<{
+				impossible: never;
+				present?: string | undefined;
+			}>();
 		});
 
 		test("should leave the type unchanged when the marker is `never` because the check distributes over `never`", () => {
@@ -247,12 +224,9 @@ describe("ConditionallyOptional", () => {
 				c: boolean;
 			}
 
-			const check: ExtendsType<
-				ConditionallyOptional<Source, never>,
-				{ a: string; b: number; c: boolean }
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				ConditionallyOptional<Source, never>
+			>().branded.toEqualTypeOf<{ a: string; b: number; c: boolean }>();
 		});
 	});
 });
