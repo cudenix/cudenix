@@ -26,6 +26,6 @@
  * // "name"
  * ```
  */
-export type RequiredKeys<Type extends Record<PropertyKey, unknown>> = {
+export type RequiredKeys<Type extends object> = {
 	[Key in keyof Type]-?: undefined extends Type[Key] ? never : Key;
 }[keyof Type];
