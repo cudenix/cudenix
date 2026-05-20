@@ -143,9 +143,5 @@ export const pathToRegexp = (path: string) => {
 		i = segEnd;
 	}
 
-	return {
-		paramKeys,
-		pattern,
-		restKeys,
-	};
+	return { paramKeys, pattern, restKeys };
 };
