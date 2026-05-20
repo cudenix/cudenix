@@ -59,12 +59,10 @@ describe("AssignableTo", () => {
 		});
 
 		test("should resolve to true when a single member flows into its union", () => {
-			expectTypeOf<
-				AssignableTo<"a", "a" | "b">
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AssignableTo<"a", "a" | "b">>().toEqualTypeOf<true>();
 		});
 
-		test("should resolve to true when a primitive flows into a union that contains it (JSDoc example)", () => {
+		test("should resolve to true when a primitive flows into a union that contains it", () => {
 			expectTypeOf<
 				AssignableTo<number, number | string>
 			>().toEqualTypeOf<true>();
@@ -83,9 +81,7 @@ describe("AssignableTo", () => {
 		});
 
 		test("should not distribute over a naked union operand", () => {
-			expectTypeOf<
-				AssignableTo<"a" | "b", "a">
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AssignableTo<"a" | "b", "a">>().toEqualTypeOf<false>();
 		});
 	});
 
@@ -257,9 +253,7 @@ describe("AssignableTo", () => {
 			type More = (value: string) => void;
 
 			test("should resolve to true when a function takes fewer parameters than expected", () => {
-				expectTypeOf<
-					AssignableTo<Fewer, More>
-				>().toEqualTypeOf<true>();
+				expectTypeOf<AssignableTo<Fewer, More>>().toEqualTypeOf<true>();
 			});
 
 			test("should resolve to false when a function takes more parameters than expected", () => {
@@ -293,9 +287,7 @@ describe("AssignableTo", () => {
 		});
 
 		test("should resolve to true for any type flowing into `unknown`", () => {
-			expectTypeOf<
-				AssignableTo<string, unknown>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AssignableTo<string, unknown>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for `any` flowing into any type", () => {
@@ -319,9 +311,7 @@ describe("AssignableTo", () => {
 		});
 
 		test("should resolve to true for `never` flowing into `unknown`", () => {
-			expectTypeOf<
-				AssignableTo<never, unknown>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AssignableTo<never, unknown>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to false when `unknown` flows into a concrete type", () => {
@@ -343,9 +333,7 @@ describe("AssignableTo", () => {
 		});
 
 		test("should resolve to true when `undefined` flows into `void`", () => {
-			expectTypeOf<
-				AssignableTo<undefined, void>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AssignableTo<undefined, void>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to false when a concrete type flows into `void`", () => {
@@ -355,9 +343,7 @@ describe("AssignableTo", () => {
 
 	describe("unrelated shapes", () => {
 		test("should resolve to false when comparing `string` and `number`", () => {
-			expectTypeOf<
-				AssignableTo<string, number>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AssignableTo<string, number>>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when comparing unrelated object shapes", () => {
