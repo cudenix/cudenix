@@ -279,6 +279,32 @@ describe("Merge", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should let an index signature in the second operand absorb concrete keys from the first", () => {
+			interface A {
+				id: string;
+			}
+			interface B {
+				[k: string]: number;
+			}
+
+			const check: ExtendsType<Merge<A, B>, { [k: string]: number }> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("idempotence", () => {
+		test("should resolve to the same shape when an object is merged with itself", () => {
+			interface A {
+				a: string;
+				b: number;
+			}
+
+			const check: ExtendsType<Merge<A, A>, A> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("method-syntax properties", () => {
