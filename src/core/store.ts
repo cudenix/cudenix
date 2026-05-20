@@ -27,20 +27,6 @@ import type { AnyError } from "@/core/error";
  *   from every prior store in the chain.
  * @typeParam Validators - Validated request fields visible to this unit,
  *   built from every prior validator in the chain.
- * @example
- * ```typescript
- * const loadUser: StoreFn<
- *   { user: User } | Error<"unauthorized", 401>,
- *   {},
- *   { headers: { authorization: string } }
- * > = async (context) => {
- *   const user = await users.find(context.request.headers.authorization);
- *
- *   if (!user) return new Error("unauthorized", { status: 401 });
- *
- *   return { user };
- * };
- * ```
  */
 export type StoreFn<
 	Return extends Record<PropertyKey, unknown> | AnyError,
