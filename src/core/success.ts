@@ -1,5 +1,5 @@
 import type { ExtractContent } from "@/types/extract-content";
-import { FreezeEmpty } from "@/utils/objects/empty";
+import { FrozenEmpty } from "@/utils/objects/empty";
 
 export type FilterSuccess<Type> = Extract<Type, AnySuccess>;
 
@@ -42,24 +42,19 @@ export interface Success<Content, Status extends number = 200> {
 
 export type AnySuccess = Success<any, any>;
 
-type Constructor = new (
-	content: unknown,
-	options?: AnySuccessOptions,
-) => AnySuccess;
+export interface SuccessConstructor {
+	new <const Content, const Status extends number = 400>(
+		content: Content,
+		options?: SuccessOptions<Status>,
+	): Success<Content, Status>;
+}
 
 export const Success = function Success(
 	this: AnySuccess,
 	content: unknown,
-	{ status = 200 }: AnySuccessOptions = FreezeEmpty,
+	{ status = 200 }: AnySuccessOptions = FrozenEmpty,
 ) {
 	this.content = content;
 	this.status = status;
 	this.success = true;
-} as unknown as Constructor;
-
-export const success = <const Content, const Status extends number = 200>(
-	content: Content,
-	options?: SuccessOptions<Status>,
-) => {
-	return new Success(content, options) as Success<Content, Status>;
-};
+} as unknown as SuccessConstructor;
