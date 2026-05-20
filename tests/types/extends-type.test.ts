@@ -287,6 +287,24 @@ describe("ExtendsType", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should resolve to true for `void` vs `void`", () => {
+			const check: ExtendsType<ExtendsType<void, void>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false comparing `void` to a concrete type", () => {
+			const check: ExtendsType<ExtendsType<void, string>, false> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false for `never` vs `unknown`", () => {
+			const check: ExtendsType<ExtendsType<never, unknown>, false> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("cross-category comparisons", () => {
