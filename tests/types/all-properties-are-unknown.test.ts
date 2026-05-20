@@ -1,17 +1,13 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expectTypeOf, test } from "bun:test";
 
 import type { AllPropertiesAreUnknown } from "@/types/all-properties-are-unknown";
-import type { ExtendsType } from "@/types/extends-type";
 
 describe("AllPropertiesAreUnknown", () => {
 	describe("homogeneous unknown shapes", () => {
 		test("should resolve to true for the canonical two-key unknown shape from the JSDoc example", () => {
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<{ a: unknown; b: unknown }>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<{ a: unknown; b: unknown }>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for a single-key unknown shape", () => {
@@ -19,12 +15,9 @@ describe("AllPropertiesAreUnknown", () => {
 				only: unknown;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true when every property is unknown", () => {
@@ -34,12 +27,9 @@ describe("AllPropertiesAreUnknown", () => {
 				c: unknown;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for a mix of required and optional unknown keys", () => {
@@ -49,12 +39,9 @@ describe("AllPropertiesAreUnknown", () => {
 				c: unknown;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true when a readonly modifier accompanies an unknown property", () => {
@@ -63,12 +50,9 @@ describe("AllPropertiesAreUnknown", () => {
 				b: unknown;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true when a property's union value collapses into unknown", () => {
@@ -76,12 +60,9 @@ describe("AllPropertiesAreUnknown", () => {
 				a: unknown | string;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<true>();
 		});
 	});
 
@@ -89,45 +70,33 @@ describe("AllPropertiesAreUnknown", () => {
 		test("should resolve to true for a string-keyed unknown index signature", () => {
 			type Source = Record<string, unknown>;
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for a number-keyed unknown index signature", () => {
 			type Source = Record<number, unknown>;
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for a symbol-keyed unknown index signature", () => {
 			type Source = Record<symbol, unknown>;
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to false for an index signature with a concrete value type", () => {
 			type Source = Record<string, string>;
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<false>();
 		});
 	});
 
@@ -137,12 +106,9 @@ describe("AllPropertiesAreUnknown", () => {
 				a: any;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true when every property is typed `any`", () => {
@@ -151,12 +117,9 @@ describe("AllPropertiesAreUnknown", () => {
 				b: any;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for a mix of `any` and `unknown` properties", () => {
@@ -165,12 +128,9 @@ describe("AllPropertiesAreUnknown", () => {
 				b: unknown;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to false when an `any` property is paired with a concrete property", () => {
@@ -179,12 +139,9 @@ describe("AllPropertiesAreUnknown", () => {
 				b: string;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<false>();
 		});
 	});
 
@@ -194,12 +151,9 @@ describe("AllPropertiesAreUnknown", () => {
 				a?: unknown;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to false when a property is `string | undefined` (still not unknown)", () => {
@@ -207,12 +161,9 @@ describe("AllPropertiesAreUnknown", () => {
 				a: string | undefined;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<false>();
 		});
 	});
 
@@ -220,37 +171,29 @@ describe("AllPropertiesAreUnknown", () => {
 		type Empty = NonNullable<unknown>;
 
 		test("should resolve to true for the JSDoc empty-object literal `{}`", () => {
-			const check: ExtendsType<AllPropertiesAreUnknown<{}>, true> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<AllPropertiesAreUnknown<{}>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for an empty object via `NonNullable<unknown>` alias", () => {
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Empty>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Empty>
+			>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for an instance of a class with no own properties", () => {
 			class Bare {}
 
-			const check: ExtendsType<AllPropertiesAreUnknown<Bare>, true> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Bare>
+			>().toEqualTypeOf<true>();
 		});
 	});
 
 	describe("mixed unknown and concrete properties", () => {
 		test("should resolve to false for the canonical mixed shape from the JSDoc example", () => {
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<{ a: unknown; b: string }>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<{ a: unknown; b: string }>
+			>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when one property is concrete and others are unknown", () => {
@@ -259,12 +202,9 @@ describe("AllPropertiesAreUnknown", () => {
 				b: string;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<false>();
 		});
 	});
 
@@ -276,12 +216,9 @@ describe("AllPropertiesAreUnknown", () => {
 				c: boolean;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when a property is a narrow union without unknown", () => {
@@ -289,12 +226,9 @@ describe("AllPropertiesAreUnknown", () => {
 				a: "x" | "y";
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<false>();
 		});
 	});
 
@@ -304,12 +238,9 @@ describe("AllPropertiesAreUnknown", () => {
 				a: null;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when a property is typed `undefined` and is not optional", () => {
@@ -317,12 +248,9 @@ describe("AllPropertiesAreUnknown", () => {
 				a: undefined;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when a property is typed `never`", () => {
@@ -330,12 +258,9 @@ describe("AllPropertiesAreUnknown", () => {
 				a: never;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when a single `never` is mixed with unknown keys", () => {
@@ -345,12 +270,9 @@ describe("AllPropertiesAreUnknown", () => {
 				c: unknown;
 			}
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<false>();
 		});
 	});
 
@@ -358,23 +280,17 @@ describe("AllPropertiesAreUnknown", () => {
 		test("should resolve to false for a tuple of unknown elements because of synthetic members", () => {
 			type Source = [unknown, unknown];
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false for an array of unknown elements because of synthetic members", () => {
 			type Source = unknown[];
 
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<Source>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				AllPropertiesAreUnknown<Source>
+			>().toEqualTypeOf<false>();
 		});
 	});
 });
