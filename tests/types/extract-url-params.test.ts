@@ -92,9 +92,7 @@ describe("ExtractUrlParams", () => {
 		});
 
 		test("should accumulate two consecutive optional params", () => {
-			expectTypeOf<
-				ExtractUrlParams<"/:a?/:b?">
-			>().branded.toEqualTypeOf<{
+			expectTypeOf<ExtractUrlParams<"/:a?/:b?">>().branded.toEqualTypeOf<{
 				a: string | undefined;
 				b: string | undefined;
 			}>();
@@ -141,9 +139,9 @@ describe("ExtractUrlParams", () => {
 		});
 
 		test("should capture an optional rest as the only segment", () => {
-			expectTypeOf<
-				ExtractUrlParams<"...rest?">
-			>().branded.toEqualTypeOf<{ rest: string[] | undefined }>();
+			expectTypeOf<ExtractUrlParams<"...rest?">>().branded.toEqualTypeOf<{
+				rest: string[] | undefined;
+			}>();
 		});
 	});
 
@@ -180,29 +178,29 @@ describe("ExtractUrlParams", () => {
 		});
 	});
 
-	describe("resulting type (JSDoc examples)", () => {
-		test("should match the documented type for '/users/:id'", () => {
-			expectTypeOf<
-				ExtractUrlParams<"/users/:id">
-			>().branded.toEqualTypeOf<{ id: string }>();
+	describe("empty parameter names", () => {
+		test("should resolve a bare ':' segment to an empty-key string value", () => {
+			expectTypeOf<ExtractUrlParams<"/:">>().branded.toEqualTypeOf<{
+				"": string;
+			}>();
 		});
 
-		test("should match the documented type for '/posts/:slug?/comments'", () => {
-			expectTypeOf<
-				ExtractUrlParams<"/posts/:slug?/comments">
-			>().branded.toEqualTypeOf<{ slug: string | undefined }>();
+		test("should resolve a bare '...' segment to an empty-key string[] value", () => {
+			expectTypeOf<ExtractUrlParams<"/...">>().branded.toEqualTypeOf<{
+				"": string[];
+			}>();
 		});
 
-		test("should match the documented type for '/files/...path'", () => {
-			expectTypeOf<
-				ExtractUrlParams<"/files/...path">
-			>().branded.toEqualTypeOf<{ path: string[] }>();
+		test("should resolve a bare ':?' segment to an empty-key optional value", () => {
+			expectTypeOf<ExtractUrlParams<"/:?">>().branded.toEqualTypeOf<{
+				"": string | undefined;
+			}>();
 		});
 
-		test("should match the documented type for '/health'", () => {
-			expectTypeOf<ExtractUrlParams<"/health">>().branded.toEqualTypeOf<
-				NonNullable<unknown>
-			>();
+		test("should resolve a bare '...?' segment to an empty-key optional rest value", () => {
+			expectTypeOf<ExtractUrlParams<"/...?">>().branded.toEqualTypeOf<{
+				"": string[] | undefined;
+			}>();
 		});
 	});
 });
