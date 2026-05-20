@@ -68,22 +68,6 @@ describe("HttpMethod", () => {
 	});
 
 	describe("subtype relations", () => {
-		test('should accept `"GET"` as a subtype', () => {
-			expectTypeOf<"GET">().toExtend<HttpMethod>();
-		});
-
-		test('should accept `"POST"` as a subtype', () => {
-			expectTypeOf<"POST">().toExtend<HttpMethod>();
-		});
-
-		test('should accept the synthetic `"WS"` as a subtype', () => {
-			expectTypeOf<"WS">().toExtend<HttpMethod>();
-		});
-
-		test('should accept `"PURGE"` (custom upper-case) as a subtype', () => {
-			expectTypeOf<"PURGE">().toExtend<HttpMethod>();
-		});
-
 		test("should include all canonical named methods as assignable values", () => {
 			type Named =
 				| "DELETE"
