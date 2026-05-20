@@ -357,6 +357,26 @@ describe("merge", () => {
 		});
 	});
 
+	describe("cyclic sources", () => {
+		test("should copy a self-referential entry without infinite recursion", () => {
+			interface Cyclic {
+				name: string;
+				self?: Cyclic;
+			}
+
+			const source = { name: "root" } as Cyclic;
+
+			source.self = source;
+
+			const target: Record<string, unknown> = {};
+
+			merge(target, source as unknown as Record<string, unknown>);
+
+			expect(target.name).toBe("root");
+			expect(target.self).toBe(source);
+		});
+	});
+
 	describe("prototype pollution surface", () => {
 		test("should reassign target's prototype when source carries an own __proto__ key", () => {
 			const target: Record<string, unknown> = {};
