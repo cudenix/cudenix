@@ -95,17 +95,6 @@ describe("cloneAppend", () => {
 			expect(result).toHaveLength(2);
 			expect(result[1]).toEqual([2, 3]);
 		});
-
-		test("should materialize a hole at index 0 of a sparse source as undefined", () => {
-			const sparse = new Array<number | undefined>(1);
-
-			const result = cloneAppend<number | undefined>(sparse, 2);
-
-			expect(result).toHaveLength(2);
-			expect(result[0]).toBeUndefined();
-			expect(result[1]).toBe(2);
-			expect(0 in result).toBe(true);
-		});
 	});
 
 	describe("multi-element source", () => {
@@ -182,8 +171,21 @@ describe("cloneAppend", () => {
 			expect(result).toHaveLength(3);
 			expect(result[2]).toEqual([3, 4]);
 		});
+	});
 
-		test("should treat holes in sparse sources as undefined slots", () => {
+	describe("sparse source", () => {
+		test("should materialize a hole at index 0 of a length-1 sparse source as undefined", () => {
+			const sparse = new Array<number | undefined>(1);
+
+			const result = cloneAppend<number | undefined>(sparse, 2);
+
+			expect(result).toHaveLength(2);
+			expect(result[0]).toBeUndefined();
+			expect(result[1]).toBe(2);
+			expect(0 in result).toBe(true);
+		});
+
+		test("should treat holes in a multi-element sparse source as undefined slots", () => {
 			const sparse = new Array<number | undefined>(3);
 
 			sparse[0] = 1;
