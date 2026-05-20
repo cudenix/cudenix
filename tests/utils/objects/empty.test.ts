@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, test } from "bun:test";
 
-import { Empty, FreezeEmpty } from "@/utils/objects/empty";
+import { Empty, FrozenEmpty } from "@/utils/objects/empty";
 
 describe("Empty", () => {
 	describe("construction", () => {
@@ -283,79 +283,79 @@ describe("Empty", () => {
 	});
 });
 
-describe("FreezeEmpty", () => {
+describe("FrozenEmpty", () => {
 	describe("identity", () => {
 		test("should be of typeof 'object'", () => {
-			expect(typeof FreezeEmpty).toBe("object");
+			expect(typeof FrozenEmpty).toBe("object");
 		});
 
 		test("should not be null", () => {
-			expect(FreezeEmpty).not.toBeNull();
+			expect(FrozenEmpty).not.toBeNull();
 		});
 
 		test("should be frozen", () => {
-			expect(Object.isFrozen(FreezeEmpty)).toBe(true);
+			expect(Object.isFrozen(FrozenEmpty)).toBe(true);
 		});
 
 		test("should be an instance of Empty", () => {
-			expect(FreezeEmpty).toBeInstanceOf(Empty);
+			expect(FrozenEmpty).toBeInstanceOf(Empty);
 		});
 
 		test("should be the same reference across re-imports of the module", async () => {
 			const reimported = await import("@/utils/objects/empty");
 
-			expect(FreezeEmpty).toBe(reimported.FreezeEmpty);
+			expect(FrozenEmpty).toBe(reimported.FrozenEmpty);
 		});
 	});
 
 	describe("shape", () => {
 		test("should have no own keys", () => {
-			expect(Reflect.ownKeys(FreezeEmpty)).toHaveLength(0);
+			expect(Reflect.ownKeys(FrozenEmpty)).toHaveLength(0);
 		});
 
 		test("should report as sealed and non-extensible", () => {
-			expect(Object.isSealed(FreezeEmpty)).toBe(true);
-			expect(Object.isExtensible(FreezeEmpty)).toBe(false);
+			expect(Object.isSealed(FrozenEmpty)).toBe(true);
+			expect(Object.isExtensible(FrozenEmpty)).toBe(false);
 		});
 	});
 
 	describe("serialization", () => {
 		test("should serialize to '{}' via JSON.stringify", () => {
-			expect(JSON.stringify(FreezeEmpty)).toBe("{}");
+			expect(JSON.stringify(FrozenEmpty)).toBe("{}");
 		});
 
 		test("should spread to an empty object literal", () => {
-			expect({ ...FreezeEmpty }).toEqual({});
+			expect({ ...FrozenEmpty }).toEqual({});
 		});
 
 		test("should return an empty array from Object.entries", () => {
-			expect(Object.entries(FreezeEmpty)).toEqual([]);
+			expect(Object.entries(FrozenEmpty)).toEqual([]);
 		});
 
 		test("should return an empty array from Object.values", () => {
-			expect(Object.values(FreezeEmpty)).toEqual([]);
+			expect(Object.values(FrozenEmpty)).toEqual([]);
 		});
 	});
 
 	describe("prototype chain", () => {
 		test("should inherit from the null-prototype Empty.prototype", () => {
-			expect(Object.getPrototypeOf(FreezeEmpty)).toBe(Empty.prototype);
+			expect(Object.getPrototypeOf(FrozenEmpty)).toBe(Empty.prototype);
 			expect(
-				Object.getPrototypeOf(Object.getPrototypeOf(FreezeEmpty)),
+				Object.getPrototypeOf(Object.getPrototypeOf(FrozenEmpty)),
 			).toBeNull();
 		});
 
 		test("should not have Object.prototype in the lookup chain", () => {
-			expect(Object.prototype.isPrototypeOf(FreezeEmpty)).toBe(false);
+			expect(Object.prototype.isPrototypeOf(FrozenEmpty)).toBe(false);
 		});
 
 		test("should not expose Object.prototype keys", () => {
-			expect("toString" in FreezeEmpty).toBe(false);
-			expect("hasOwnProperty" in FreezeEmpty).toBe(false);
+			expect("toString" in FrozenEmpty).toBe(false);
+			expect("hasOwnProperty" in FrozenEmpty).toBe(false);
 		});
 
 		test("should leave constructor undefined", () => {
-			expect(FreezeEmpty.constructor).toBeUndefined();
+			expect(FrozenEmpty.constructor).toBeUndefined();
 		});
 	});
 
@@ -363,38 +363,38 @@ describe("FreezeEmpty", () => {
 		test("should reject property assignment in strict mode", () => {
 			expect(() => {
 				// @ts-expect-error - should not allow adding properties
-				FreezeEmpty.x = 1;
+				FrozenEmpty.x = 1;
 			}).toThrow();
 		});
 
 		test("should reject symbol-keyed assignment in strict mode", () => {
 			expect(() => {
 				// @ts-expect-error - should not allow adding properties
-				FreezeEmpty[Symbol("k")] = 1;
+				FrozenEmpty[Symbol("k")] = 1;
 			}).toThrow();
 		});
 
 		test("should reject defining new properties via Object.defineProperty", () => {
 			expect(() =>
-				Object.defineProperty(FreezeEmpty, "x", { value: 1 }),
+				Object.defineProperty(FrozenEmpty, "x", { value: 1 }),
 			).toThrow(TypeError);
 		});
 
 		test("should reject prototype replacement", () => {
-			expect(() => Object.setPrototypeOf(FreezeEmpty, {})).toThrow(
+			expect(() => Object.setPrototypeOf(FrozenEmpty, {})).toThrow(
 				TypeError,
 			);
 		});
 
 		test("should be idempotent and return the same reference on re-freeze", () => {
-			expect(Object.freeze(FreezeEmpty)).toBe(FreezeEmpty);
-			expect(Object.isFrozen(FreezeEmpty)).toBe(true);
+			expect(Object.freeze(FrozenEmpty)).toBe(FrozenEmpty);
+			expect(Object.isFrozen(FrozenEmpty)).toBe(true);
 		});
 
 		test("should treat Object.seal and Object.preventExtensions as no-ops", () => {
-			expect(Object.seal(FreezeEmpty)).toBe(FreezeEmpty);
-			expect(Object.preventExtensions(FreezeEmpty)).toBe(FreezeEmpty);
-			expect(Object.isFrozen(FreezeEmpty)).toBe(true);
+			expect(Object.seal(FrozenEmpty)).toBe(FrozenEmpty);
+			expect(Object.preventExtensions(FrozenEmpty)).toBe(FrozenEmpty);
+			expect(Object.isFrozen(FrozenEmpty)).toBe(true);
 		});
 	});
 
@@ -405,7 +405,7 @@ describe("FreezeEmpty", () => {
 		}: {
 			flag?: boolean;
 			count?: number;
-		} = FreezeEmpty) => ({ count, flag });
+		} = FrozenEmpty) => ({ count, flag });
 
 		test("should fall back to defaults when no options are passed", () => {
 			expect(fn()).toEqual({ count: 0, flag: false });
