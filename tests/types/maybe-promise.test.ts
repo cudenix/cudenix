@@ -1,7 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, expectTypeOf, test } from "bun:test";
 
-import type { AssignableTo } from "@/types/assignable-to";
-import type { ExtendsType } from "@/types/extends-type";
 import type { MaybePromise } from "@/types/maybe-promise";
 
 describe("MaybePromise", () => {
@@ -39,33 +37,21 @@ describe("MaybePromise", () => {
 
 	describe("structural relations", () => {
 		test("should resolve to `T | Promise<T>` (a union, not a nested promise)", () => {
-			const check: ExtendsType<
-				MaybePromise<number>,
+			expectTypeOf<MaybePromise<number>>().toEqualTypeOf<
 				number | Promise<number>
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 
 		test("should treat a bare value as assignable", () => {
-			const check: AssignableTo<number, MaybePromise<number>> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<number>().toExtend<MaybePromise<number>>();
 		});
 
 		test("should treat a promise as assignable", () => {
-			const check: AssignableTo<
-				Promise<number>,
-				MaybePromise<number>
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Promise<number>>().toExtend<MaybePromise<number>>();
 		});
 
 		test("should not collapse the union to its value type", () => {
-			const check: ExtendsType<MaybePromise<number>, number> = false;
-
-			expect(check).toBe(false);
+			expectTypeOf<MaybePromise<number>>().not.toEqualTypeOf<number>();
 		});
 	});
 
@@ -75,9 +61,7 @@ describe("MaybePromise", () => {
 
 			const result = await provide();
 
-			const check: ExtendsType<typeof result, number> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf(result).toEqualTypeOf<number>();
 			expect(result).toBe(7);
 		});
 
@@ -86,19 +70,14 @@ describe("MaybePromise", () => {
 
 			const result = await provide();
 
-			const check: ExtendsType<typeof result, number> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf(result).toEqualTypeOf<number>();
 			expect(result).toBe(7);
 		});
 
 		test("should collapse to the wrapped type under `Awaited<...>`", () => {
-			const check: ExtendsType<
-				Awaited<MaybePromise<number>>,
-				number
-			> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<
+				Awaited<MaybePromise<number>>
+			>().toEqualTypeOf<number>();
 		});
 	});
 
@@ -118,21 +97,15 @@ describe("MaybePromise", () => {
 		});
 
 		test("should resolve to `(A | B) | Promise<A | B>` without distributing", () => {
-			const check: ExtendsType<
-				MaybePromise<string | number>,
+			expectTypeOf<MaybePromise<string | number>>().toEqualTypeOf<
 				(string | number) | Promise<string | number>
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 
 		test("should not decompose into `A | Promise<A> | B | Promise<B>`", () => {
-			const check: ExtendsType<
-				MaybePromise<string | number>,
+			expectTypeOf<MaybePromise<string | number>>().not.toEqualTypeOf<
 				string | Promise<string> | number | Promise<number>
-			> = false;
-
-			expect(check).toBe(false);
+			>();
 		});
 	});
 
@@ -164,38 +137,27 @@ describe("MaybePromise", () => {
 		});
 
 		test("should resolve to `void | Promise<void>`", () => {
-			const check: ExtendsType<
-				MaybePromise<void>,
+			expectTypeOf<MaybePromise<void>>().toEqualTypeOf<
 				void | Promise<void>
-			> = true;
-
-			expect(check).toBe(true);
+			>();
 		});
 	});
 
 	describe("rejected assignments", () => {
 		test("should reject a bare value of an unrelated type", () => {
-			const check: AssignableTo<string, MaybePromise<number>> = false;
-
-			expect(check).toBe(false);
+			expectTypeOf<string>().not.toExtend<MaybePromise<number>>();
 		});
 
 		test("should reject a `Promise<U>` where `U` does not extend the wrapped type", () => {
-			const check: AssignableTo<
-				Promise<string>,
+			expectTypeOf<Promise<string>>().not.toExtend<
 				MaybePromise<number>
-			> = false;
-
-			expect(check).toBe(false);
+			>();
 		});
 
 		test("should reject a `PromiseLike<T>` in place of a real `Promise<T>`", () => {
-			const check: AssignableTo<
-				PromiseLike<number>,
+			expectTypeOf<PromiseLike<number>>().not.toExtend<
 				MaybePromise<number>
-			> = false;
-
-			expect(check).toBe(false);
+			>();
 		});
 	});
 });
