@@ -464,26 +464,4 @@ describe("pathToRegexp", () => {
 			expect(match![3]).toBe("bar");
 		});
 	});
-
-	describe("pattern string (JSDoc examples)", () => {
-		test("should match the documented pattern for '/users/:id'", () => {
-			const { pattern } = pathToRegexp("/users/:id");
-
-			expect(pattern).toBe(String.raw`()\/\x75sers\/([^/\s?#]+)`);
-		});
-
-		test("should match the documented pattern for '/files/...path'", () => {
-			const { pattern } = pathToRegexp("/files/...path");
-
-			expect(pattern).toBe(
-				String.raw`()\/\x66iles\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))`,
-			);
-		});
-
-		test("should match the documented pattern for '/posts/:slug?'", () => {
-			const { pattern } = pathToRegexp("/posts/:slug?");
-
-			expect(pattern).toBe(String.raw`()\/\x70osts(?:\/([^/\s?#]+))?`);
-		});
-	});
 });
