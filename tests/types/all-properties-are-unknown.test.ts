@@ -33,8 +33,19 @@ describe("AllPropertiesAreUnknown", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should resolve to true for an index signature with unknown value", () => {
+		test("should resolve to true for a string-keyed unknown index signature", () => {
 			type Source = Record<string, unknown>;
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for a number-keyed unknown index signature", () => {
+			type Source = Record<number, unknown>;
 
 			const check: ExtendsType<
 				AllPropertiesAreUnknown<Source>,
@@ -49,6 +60,57 @@ describe("AllPropertiesAreUnknown", () => {
 
 			const check: ExtendsType<
 				AllPropertiesAreUnknown<Source>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for a mix of required and optional unknown keys", () => {
+			interface Source {
+				a: unknown;
+				b?: unknown;
+				c: unknown;
+			}
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when a readonly modifier accompanies an unknown property", () => {
+			interface Source {
+				readonly a: unknown;
+				b: unknown;
+			}
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when a property's union value collapses into unknown", () => {
+			interface Source {
+				a: unknown | string;
+			}
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for the canonical two-key unknown shape from the JSDoc example", () => {
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<{ a: unknown; b: unknown }>,
 				true
 			> = true;
 
@@ -109,6 +171,15 @@ describe("AllPropertiesAreUnknown", () => {
 
 			expect(check).toBe(true);
 		});
+
+		test("should resolve to false for the canonical mixed shape from the JSDoc example", () => {
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<{ a: unknown; b: string }>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
 	});
 
 	describe("empty and synthetic shapes", () => {
@@ -126,6 +197,15 @@ describe("AllPropertiesAreUnknown", () => {
 		test("should resolve to true for an inline empty object literal", () => {
 			const check: ExtendsType<
 				AllPropertiesAreUnknown<NonNullable<unknown>>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for the JSDoc empty-object literal `{}`", () => {
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<{}>,
 				true
 			> = true;
 
@@ -170,6 +250,128 @@ describe("AllPropertiesAreUnknown", () => {
 			const check: ExtendsType<
 				AllPropertiesAreUnknown<Source>,
 				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when every property is typed `any`", () => {
+			interface Source {
+				a: any;
+				b: any;
+			}
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for a mix of `any` and `unknown` properties", () => {
+			interface Source {
+				a: any;
+				b: unknown;
+			}
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when an `any` property is paired with a concrete property", () => {
+			interface Source {
+				a: any;
+				b: string;
+			}
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("bottom and nullish value types", () => {
+		test("should resolve to false when a property is typed `never`", () => {
+			interface Source {
+				a: never;
+			}
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when a single `never` is mixed with unknown keys", () => {
+			interface Source {
+				a: unknown;
+				b: never;
+				c: unknown;
+			}
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when a property is typed `null`", () => {
+			interface Source {
+				a: null;
+			}
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when a property is typed `undefined` and is not optional", () => {
+			interface Source {
+				a: undefined;
+			}
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+	});
+
+	describe("tuple and array shapes", () => {
+		test("should resolve to false for a tuple of unknown elements because of synthetic members", () => {
+			type Source = [unknown, unknown];
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false for an array of unknown elements because of synthetic members", () => {
+			type Source = unknown[];
+
+			const check: ExtendsType<
+				AllPropertiesAreUnknown<Source>,
+				false
 			> = true;
 
 			expect(check).toBe(true);
