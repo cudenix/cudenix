@@ -3,8 +3,7 @@ import type { AnyError } from "@/core/error";
 
 /**
  * @module
- * Store chain unit: per-request producer that contributes keys to
- * `context.store`.
+ * Per-request chain unit that contributes keys to `context.store`.
  */
 
 /**
@@ -71,6 +70,13 @@ export type AnyStoreFn = StoreFn<any, any, any>;
  *   {@link AnyError} that aborts the chain.
  * @typeParam Stores - Shape of `context.store` visible to this unit.
  * @typeParam Validators - Validated request fields visible to this unit.
+ * @example
+ * ```typescript
+ * const link: Store<{ user: User }, {}, {}> = {
+ * 	store: (context) => ({ user: loadUser(context) }),
+ * 	type: "STORE",
+ * };
+ * ```
  */
 export interface Store<
 	Return extends Record<PropertyKey, unknown> | AnyError,
