@@ -26,7 +26,7 @@
  * type C = AllPropertiesAreUnknown<{}>;                          // true
  * ```
  */
-export type AllPropertiesAreUnknown<Type> = {
+export type AllPropertiesAreUnknown<Type extends object> = {
 	[Key in keyof Type]: unknown extends Type[Key] ? true : false;
 }[keyof Type] extends true | undefined
 	? true
