@@ -1,7 +1,5 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, expectTypeOf, test } from "bun:test";
 
-import type { AssignableTo } from "@/types/assignable-to";
-import type { ExtendsType } from "@/types/extends-type";
 import type { WSData } from "@/types/ws";
 
 type Inner = Partial<
@@ -103,21 +101,15 @@ describe("WSData", () => {
 
 	describe("assignability of valid supertypes", () => {
 		test("should permit `undefined` as a member of the WSData union", () => {
-			const check: AssignableTo<undefined, WSData> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<undefined>().toExtend<WSData>();
 		});
 
 		test("should permit `{}` as a partial config", () => {
-			const check: AssignableTo<NonNullable<unknown>, WSData> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<NonNullable<unknown>>().toExtend<WSData>();
 		});
 
 		test("should accept the underlying `Partial<Record<…>>` shape as a subtype", () => {
-			const check: AssignableTo<Inner, WSData> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Inner>().toExtend<WSData>();
 		});
 
 		test("should tolerate extra unknown keys when paired with a recognized key (TypeScript width subtyping)", () => {
@@ -126,43 +118,31 @@ describe("WSData", () => {
 				unexpected: () => void;
 			}
 
-			const check: AssignableTo<Mixed, WSData> = true;
-
-			expect(check).toBe(true);
+			expectTypeOf<Mixed>().toExtend<WSData>();
 		});
 	});
 
 	describe("type-level invariants", () => {
 		test("should not collapse to its non-undefined branch", () => {
-			const check: ExtendsType<WSData, Inner> = false;
-
-			expect(check).toBe(false);
+			expectTypeOf<WSData>().not.toEqualTypeOf<Inner>();
 		});
 	});
 
 	describe("rejected inputs", () => {
 		test("should not accept `null` (only undefined is in the union)", () => {
-			const check: AssignableTo<null, WSData> = false;
-
-			expect(check).toBe(false);
+			expectTypeOf<null>().not.toExtend<WSData>();
 		});
 
 		test("should not accept a `number` value", () => {
-			const check: AssignableTo<123, WSData> = false;
-
-			expect(check).toBe(false);
+			expectTypeOf<123>().not.toExtend<WSData>();
 		});
 
 		test("should not accept a `string` value", () => {
-			const check: AssignableTo<"ws", WSData> = false;
-
-			expect(check).toBe(false);
+			expectTypeOf<"ws">().not.toExtend<WSData>();
 		});
 
 		test("should not accept a `boolean` value", () => {
-			const check: AssignableTo<true, WSData> = false;
-
-			expect(check).toBe(false);
+			expectTypeOf<true>().not.toExtend<WSData>();
 		});
 
 		test("should not accept a known key whose value is not a function", () => {
@@ -170,9 +150,7 @@ describe("WSData", () => {
 				open: 1;
 			}
 
-			const check: AssignableTo<Bad, WSData> = false;
-
-			expect(check).toBe(false);
+			expectTypeOf<Bad>().not.toExtend<WSData>();
 		});
 
 		test("should reject a config whose only key is unknown (TypeScript weak-type rule)", () => {
@@ -180,9 +158,7 @@ describe("WSData", () => {
 				unexpected: () => void;
 			}
 
-			const check: AssignableTo<Bad, WSData> = false;
-
-			expect(check).toBe(false);
+			expectTypeOf<Bad>().not.toExtend<WSData>();
 		});
 	});
 });
