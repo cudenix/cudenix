@@ -84,15 +84,15 @@ describe("MergePaths", () => {
 	describe("structural relations", () => {
 		describe("union distribution", () => {
 			test("should distribute over a union of prefixes", () => {
-				expectTypeOf<MergePaths<"/api" | "/admin", "/users">>().toEqualTypeOf<
-					"/api/users" | "/admin/users"
-				>();
+				expectTypeOf<
+					MergePaths<"/api" | "/admin", "/users">
+				>().toEqualTypeOf<"/api/users" | "/admin/users">();
 			});
 
 			test("should distribute over a union of paths", () => {
-				expectTypeOf<MergePaths<"/api", "/users" | "/posts">>().toEqualTypeOf<
-					"/api/users" | "/api/posts"
-				>();
+				expectTypeOf<
+					MergePaths<"/api", "/users" | "/posts">
+				>().toEqualTypeOf<"/api/users" | "/api/posts">();
 			});
 		});
 
