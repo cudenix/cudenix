@@ -193,6 +193,21 @@ describe("ValueOf", () => {
 		});
 	});
 
+	describe("tuple and array sources", () => {
+		test("should include the element types of a tuple in the union", () => {
+			type Source = [string, number];
+
+			expectTypeOf<string>().toExtend<ValueOf<Source>>();
+			expectTypeOf<number>().toExtend<ValueOf<Source>>();
+		});
+
+		test("should include the element type of a homogeneous array in the union", () => {
+			type Source = string[];
+
+			expectTypeOf<string>().toExtend<ValueOf<Source>>();
+		});
+	});
+
 	describe("edge cases", () => {
 		test("should resolve to `never` for an empty object", () => {
 			type Source = NonNullable<unknown>;
