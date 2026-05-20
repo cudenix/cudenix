@@ -2,8 +2,7 @@ import type { AnyModule } from "@/core/module";
 
 /**
  * @module
- * Group chain unit: scoped sub-tree of routes nested under a prefix while
- * inheriting the parent module's middleware, store, and validator chain.
+ * Group chain unit: scoped sub-tree of routes nested under a prefix.
  */
 
 /**
@@ -18,6 +17,13 @@ import type { AnyModule } from "@/core/module";
  * @typeParam Prefix - Literal string type of the prefix, preserved through
  *   the type system so the routes defined inside the group can be inferred
  *   with their full, merged path.
+ * @example
+ * ```typescript
+ * new Module().group(
+ *   (module) => module.route("GET", "/", () => new Success("admin home")),
+ *   { prefix: "/admin" },
+ * );
+ * ```
  */
 export interface GroupOptions<Prefix extends `/${string}`> {
 	prefix?: Prefix;
@@ -84,15 +90,28 @@ export type AnyGroupFn = GroupFn<any, any>;
  * Internal descriptor for a group, pushed onto a module's chain by
  * `Module.group` and consumed by the compiler when it walks the chain.
  *
- * `group` holds the user-supplied function; `prefix` is the literal
- * string forwarded from {@link GroupOptions} and combined with the
- * parent's path at compile time; `type` is the discriminant the compiler
- * uses to tell groups apart from middlewares, validators, stores, nested
- * modules, and routes while traversing the chain in declaration order.
+ * - `group` — user-supplied function invoked by the compiler when the
+ *   group is reached.
+ * - `prefix` — literal string forwarded from {@link GroupOptions},
+ *   unchanged.
+ * - `type` — discriminant the compiler uses to tell groups apart from
+ *   middlewares, validators, stores, nested modules, and routes while
+ *   traversing the chain in declaration order.
  *
  * @typeParam Module - Type of the module handed to the group function.
  * @typeParam Prefix - Literal string prefix scoped to this group.
  * @typeParam Return - Type of the module returned by the group function.
+ * @example
+ * ```typescript
+ * const link: Group<AnyModule, "/users", AnyModule> = {
+ *   group: (module) =>
+ *     module.route("GET", "/:id", (context) =>
+ *       new Success(context.request.params.id),
+ *     ),
+ *   prefix: "/users",
+ *   type: "GROUP",
+ * };
+ * ```
  */
 export interface Group<
 	Module extends AnyModule,
