@@ -158,6 +158,16 @@ describe("ConditionallyOptional", () => {
 		});
 	});
 
+	describe("index signatures", () => {
+		test("should leave a record untouched when its value type does not admit the marker", () => {
+			type Source = Record<string, number>;
+
+			expectTypeOf<
+				ConditionallyOptional<Source, undefined>
+			>().branded.toEqualTypeOf<Source>();
+		});
+	});
+
 	describe("edge cases", () => {
 		test("should leave an empty object as-is", () => {
 			type Source = NonNullable<unknown>;
@@ -197,10 +207,7 @@ describe("ConditionallyOptional", () => {
 
 			expectTypeOf<
 				ConditionallyOptional<Source, undefined>
-			>().branded.toEqualTypeOf<{
-				specific: number;
-				any?: unknown;
-			}>();
+			>().branded.toEqualTypeOf<{ specific: number; any?: unknown }>();
 		});
 
 		test("should leave a `never`-valued key untouched when the marker is not `never`", () => {
