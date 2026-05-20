@@ -225,7 +225,7 @@ describe("AllPropertiesAreUnknown", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should resolve to true for an empty object (no keys to falsify)", () => {
+		test("should resolve to true for an empty object via `NonNullable<unknown>` alias", () => {
 			const check: ExtendsType<
 				AllPropertiesAreUnknown<Empty>,
 				true
@@ -234,11 +234,10 @@ describe("AllPropertiesAreUnknown", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should resolve to true for an inline empty object literal", () => {
-			const check: ExtendsType<
-				AllPropertiesAreUnknown<NonNullable<unknown>>,
-				true
-			> = true;
+		test("should resolve to true for an instance of a class with no own properties", () => {
+			class Bare {}
+
+			const check: ExtendsType<AllPropertiesAreUnknown<Bare>, true> = true;
 
 			expect(check).toBe(true);
 		});
