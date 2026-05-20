@@ -49,12 +49,6 @@ describe("AssignableTo", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should resolve to false when a primitive flows into one of its literals", () => {
-			const check: ExtendsType<AssignableTo<string, "foo">, false> = true;
-
-			expect(check).toBe(true);
-		});
-
 		test("should resolve to true when a narrow numeric literal flows into `number`", () => {
 			const check: ExtendsType<AssignableTo<1, number>, true> = true;
 
@@ -67,6 +61,12 @@ describe("AssignableTo", () => {
 			expect(check).toBe(true);
 		});
 
+		test("should resolve to false when a primitive flows into one of its literals", () => {
+			const check: ExtendsType<AssignableTo<string, "foo">, false> = true;
+
+			expect(check).toBe(true);
+		});
+
 		test("should resolve to false when `boolean` flows into the literal `true`", () => {
 			const check: ExtendsType<AssignableTo<boolean, true>, false> = true;
 
@@ -75,6 +75,15 @@ describe("AssignableTo", () => {
 	});
 
 	describe("union types (non-distributive)", () => {
+		test("should resolve to true for two structurally equal unions", () => {
+			const check: ExtendsType<
+				AssignableTo<"a" | "b", "a" | "b">,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
 		test("should resolve to true when a single member flows into its union", () => {
 			const check: ExtendsType<AssignableTo<"a", "a" | "b">, true> = true;
 
@@ -85,24 +94,6 @@ describe("AssignableTo", () => {
 			const check: ExtendsType<
 				AssignableTo<number, number | string>,
 				true
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to true for two structurally equal unions", () => {
-			const check: ExtendsType<
-				AssignableTo<"a" | "b", "a" | "b">,
-				true
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should not distribute over a naked union operand", () => {
-			const check: ExtendsType<
-				AssignableTo<"a" | "b", "a">,
-				false
 			> = true;
 
 			expect(check).toBe(true);
@@ -120,6 +111,15 @@ describe("AssignableTo", () => {
 		test("should resolve to false when the candidate union has an extra member", () => {
 			const check: ExtendsType<
 				AssignableTo<"a" | "b" | "c", "a" | "b">,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should not distribute over a naked union operand", () => {
+			const check: ExtendsType<
+				AssignableTo<"a" | "b", "a">,
 				false
 			> = true;
 
@@ -146,6 +146,24 @@ describe("AssignableTo", () => {
 			expect(check).toBe(true);
 		});
 
+		test("should resolve to true when an optional key is satisfied by the candidate", () => {
+			const check: ExtendsType<
+				AssignableTo<{ a: string }, { a?: string }>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true when any object shape flows into the empty object", () => {
+			const check: ExtendsType<
+				AssignableTo<{ a: string }, NonNullable<unknown>>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
 		test("should resolve to false when the candidate is missing a required key", () => {
 			const check: ExtendsType<
 				AssignableTo<{ a: string }, { a: string; b: number }>,
@@ -164,28 +182,10 @@ describe("AssignableTo", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should resolve to true when an optional key is satisfied by the candidate", () => {
-			const check: ExtendsType<
-				AssignableTo<{ a: string }, { a?: string }>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
 		test("should resolve to false when an optional candidate flows into a required key", () => {
 			const check: ExtendsType<
 				AssignableTo<{ a?: string }, { a: string }>,
 				false
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to true when any object shape flows into the empty object", () => {
-			const check: ExtendsType<
-				AssignableTo<{ a: string }, NonNullable<unknown>>,
-				true
 			> = true;
 
 			expect(check).toBe(true);
@@ -220,15 +220,6 @@ describe("AssignableTo", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should resolve to false when a widened element union flows into a narrower element array", () => {
-			const check: ExtendsType<
-				AssignableTo<(string | number)[], string[]>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
 		test("should resolve to true when a mutable array flows into its `readonly` form", () => {
 			const check: ExtendsType<
 				AssignableTo<string[], readonly string[]>,
@@ -238,19 +229,28 @@ describe("AssignableTo", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should resolve to false when a `readonly` array flows into its mutable form", () => {
+		test("should resolve to true when a tuple flows into an array of its element type", () => {
 			const check: ExtendsType<
-				AssignableTo<readonly string[], string[]>,
+				AssignableTo<[string], string[]>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when a widened element union flows into a narrower element array", () => {
+			const check: ExtendsType<
+				AssignableTo<(string | number)[], string[]>,
 				false
 			> = true;
 
 			expect(check).toBe(true);
 		});
 
-		test("should resolve to true when a tuple flows into an array of its element type", () => {
+		test("should resolve to false when a `readonly` array flows into its mutable form", () => {
 			const check: ExtendsType<
-				AssignableTo<[string], string[]>,
-				true
+				AssignableTo<readonly string[], string[]>,
+				false
 			> = true;
 
 			expect(check).toBe(true);
@@ -304,40 +304,50 @@ describe("AssignableTo", () => {
 			expect(check).toBe(true);
 		});
 
-		test("should resolve to true when a function accepts a wider parameter than expected (contravariance)", () => {
+		describe("with parameter contravariance", () => {
 			type Wide = (value: string | number) => void;
 			type Narrow = (value: string) => void;
 
-			const check: ExtendsType<AssignableTo<Wide, Narrow>, true> = true;
+			test("should resolve to true when a function accepts a wider parameter than expected", () => {
+				const check: ExtendsType<
+					AssignableTo<Wide, Narrow>,
+					true
+				> = true;
 
-			expect(check).toBe(true);
+				expect(check).toBe(true);
+			});
+
+			test("should resolve to false when a function accepts a narrower parameter than expected", () => {
+				const check: ExtendsType<
+					AssignableTo<Narrow, Wide>,
+					false
+				> = true;
+
+				expect(check).toBe(true);
+			});
 		});
 
-		test("should resolve to false when a function accepts a narrower parameter than expected", () => {
-			type Wide = (value: string | number) => void;
-			type Narrow = (value: string) => void;
-
-			const check: ExtendsType<AssignableTo<Narrow, Wide>, false> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to true when a function takes fewer parameters than expected", () => {
+		describe("with parameter count variance", () => {
 			type Fewer = () => void;
 			type More = (value: string) => void;
 
-			const check: ExtendsType<AssignableTo<Fewer, More>, true> = true;
+			test("should resolve to true when a function takes fewer parameters than expected", () => {
+				const check: ExtendsType<
+					AssignableTo<Fewer, More>,
+					true
+				> = true;
 
-			expect(check).toBe(true);
-		});
+				expect(check).toBe(true);
+			});
 
-		test("should resolve to false when a function takes more parameters than expected", () => {
-			type Fewer = () => void;
-			type More = (value: string) => void;
+			test("should resolve to false when a function takes more parameters than expected", () => {
+				const check: ExtendsType<
+					AssignableTo<More, Fewer>,
+					false
+				> = true;
 
-			const check: ExtendsType<AssignableTo<More, Fewer>, false> = true;
-
-			expect(check).toBe(true);
+				expect(check).toBe(true);
+			});
 		});
 
 		test("should resolve to false when parameter types are unrelated", () => {
@@ -351,42 +361,6 @@ describe("AssignableTo", () => {
 	});
 
 	describe("top, bottom and exotic types", () => {
-		test("should resolve to true for any type flowing into `unknown`", () => {
-			const check: ExtendsType<
-				AssignableTo<string, unknown>,
-				true
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to true for `never` flowing into any type", () => {
-			const check: ExtendsType<AssignableTo<never, string>, true> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to false when a concrete type flows into `never`", () => {
-			const check: ExtendsType<AssignableTo<string, never>, false> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to false when `unknown` flows into a concrete type", () => {
-			const check: ExtendsType<
-				AssignableTo<unknown, string>,
-				false
-			> = true;
-
-			expect(check).toBe(true);
-		});
-
-		test("should resolve to true for `any` flowing into any type", () => {
-			const check: ExtendsType<AssignableTo<any, string>, true> = true;
-
-			expect(check).toBe(true);
-		});
-
 		test("should resolve to true for `any` vs `any`", () => {
 			const check: ExtendsType<AssignableTo<any, any>, true> = true;
 
@@ -408,6 +382,21 @@ describe("AssignableTo", () => {
 			expect(check).toBe(true);
 		});
 
+		test("should resolve to true for any type flowing into `unknown`", () => {
+			const check: ExtendsType<
+				AssignableTo<string, unknown>,
+				true
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to true for `any` flowing into any type", () => {
+			const check: ExtendsType<AssignableTo<any, string>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
 		test("should resolve to true for `any` flowing into `unknown`", () => {
 			const check: ExtendsType<AssignableTo<any, unknown>, true> = true;
 
@@ -420,6 +409,12 @@ describe("AssignableTo", () => {
 			expect(check).toBe(true);
 		});
 
+		test("should resolve to true for `never` flowing into any type", () => {
+			const check: ExtendsType<AssignableTo<never, string>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
 		test("should resolve to true for `never` flowing into `any`", () => {
 			const check: ExtendsType<AssignableTo<never, any>, true> = true;
 
@@ -428,6 +423,21 @@ describe("AssignableTo", () => {
 
 		test("should resolve to true for `never` flowing into `unknown`", () => {
 			const check: ExtendsType<AssignableTo<never, unknown>, true> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when `unknown` flows into a concrete type", () => {
+			const check: ExtendsType<
+				AssignableTo<unknown, string>,
+				false
+			> = true;
+
+			expect(check).toBe(true);
+		});
+
+		test("should resolve to false when a concrete type flows into `never`", () => {
+			const check: ExtendsType<AssignableTo<string, never>, false> = true;
 
 			expect(check).toBe(true);
 		});
