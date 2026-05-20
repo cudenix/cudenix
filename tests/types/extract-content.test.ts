@@ -53,6 +53,14 @@ describe("ExtractContent", () => {
 			expect(check).toBe(true);
 		});
 
+		test("should pass `void` through unchanged (void is not callable)", () => {
+			type Result = ExtractContent<void>;
+
+			const check: ExtendsType<Result, void> = true;
+
+			expect(check).toBe(true);
+		});
+
 		test("should pass an object literal through unchanged", () => {
 			type Result = ExtractContent<{ ok: true }>;
 
