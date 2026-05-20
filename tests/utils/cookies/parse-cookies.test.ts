@@ -232,6 +232,25 @@ describe("parseCookies", () => {
 		});
 	});
 
+	describe("dangerous key names", () => {
+		test("should store `__proto__` as a real own key without polluting the prototype", () => {
+			const result = parseCookies("__proto__=evil; sid=abc");
+
+			expect(Object.hasOwn(result, "__proto__")).toBe(true);
+			expect(result.__proto__).toBe("evil");
+			expect(result.sid).toBe("abc");
+			expect(({} as Record<string, unknown>).__proto__).not.toBe("evil");
+		});
+
+		test("should store `constructor` as a real own key without invoking inheritance", () => {
+			const result = parseCookies("constructor=hijack; sid=abc");
+
+			expect(Object.hasOwn(result, "constructor")).toBe(true);
+			expect(Reflect.get(result, "constructor")).toBe("hijack");
+			expect(result.sid).toBe("abc");
+		});
+	});
+
 	describe("return shape", () => {
 		describe("with header 'sid=abc'", () => {
 			let result: ReturnType<typeof parseCookies>;
