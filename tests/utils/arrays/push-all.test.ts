@@ -167,10 +167,14 @@ describe("pushAll", () => {
 	describe("sparse source", () => {
 		test("should materialize holes in source as undefined entries (no hole carry-over)", () => {
 			const target: (number | undefined)[] = [0];
-			const source: (number | undefined)[] = [1, undefined, 3];
+			const source = new Array<number | undefined>(3);
+
+			source[0] = 1;
+			source[2] = 3;
 
 			pushAll(target, source);
 
+			expect(1 in source).toBe(false);
 			expect(target).toHaveLength(4);
 			expect(target[0]).toBe(0);
 			expect(target[1]).toBe(1);
