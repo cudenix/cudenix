@@ -1,26 +1,15 @@
-import {
-	beforeAll,
-	beforeEach,
-	describe,
-	expect,
-	expectTypeOf,
-	test,
-} from "bun:test";
+import { describe, expectTypeOf, test } from "bun:test";
 
 import type { MaybeFunction } from "@/types/maybe-function";
 
 describe("MaybeFunction", () => {
 	describe("direct-value branch", () => {
 		test("should accept a concrete number value", () => {
-			const value: MaybeFunction<number> = 1;
-
-			expect(value).toBe(1);
+			expectTypeOf<number>().toExtend<MaybeFunction<number>>();
 		});
 
 		test("should accept a concrete string value", () => {
-			const value: MaybeFunction<string> = "hello";
-
-			expect(value).toBe("hello");
+			expectTypeOf<string>().toExtend<MaybeFunction<string>>();
 		});
 
 		test("should accept a structured value when wrapping an object type", () => {
@@ -28,85 +17,35 @@ describe("MaybeFunction", () => {
 				id: string;
 			}
 
-			const value: MaybeFunction<User> = { id: "1" };
-
-			expect(value).toEqual({ id: "1" });
+			expectTypeOf<User>().toExtend<MaybeFunction<User>>();
 		});
 	});
 
 	describe("sync-factory branch", () => {
 		test("should accept a zero-arg sync factory returning the wrapped type", () => {
-			const value: MaybeFunction<number> = () => 1;
-
-			expect(typeof value).toBe("function");
+			expectTypeOf<() => number>().toExtend<MaybeFunction<number>>();
 		});
 
-		test("should yield the wrapped value when the sync factory is invoked", () => {
-			const value: MaybeFunction<number> = () => 1;
-
-			expect((value as () => number)()).toBe(1);
-		});
-
-		test("should accept an arrow function returning a literal", () => {
-			const value: MaybeFunction<"ready"> = () => "ready" as const;
-
-			expect((value as () => "ready")()).toBe("ready");
+		test("should accept an arrow factory returning a literal", () => {
+			expectTypeOf<() => "ready">().toExtend<MaybeFunction<"ready">>();
 		});
 	});
 
 	describe("async-factory branch", () => {
 		test("should accept a zero-arg async factory resolving to the wrapped type", () => {
-			const value: MaybeFunction<number> = async () => 1;
-
-			expect(typeof value).toBe("function");
+			expectTypeOf<() => Promise<number>>().toExtend<
+				MaybeFunction<number>
+			>();
 		});
 
-		test("should resolve to the wrapped value when the async factory is awaited", async () => {
-			const value: MaybeFunction<number> = async () => 1;
-
-			expect(await (value as () => Promise<number>)()).toBe(1);
-		});
-
-		test("should accept a factory that returns a promise explicitly", async () => {
-			const value: MaybeFunction<string> = () => Promise.resolve("ok");
-
-			expect(await (value as () => Promise<string>)()).toBe("ok");
+		test("should accept a factory that returns a promise explicitly", () => {
+			expectTypeOf<() => Promise<string>>().toExtend<
+				MaybeFunction<string>
+			>();
 		});
 	});
 
 	describe("mixed-return factory branch", () => {
-		describe("alternating sync/async return", () => {
-			let factory: () => number | Promise<number>;
-
-			beforeEach(() => {
-				let next: "sync" | "async" = "sync";
-
-				factory = () => {
-					const current = next;
-
-					next = current === "sync" ? "async" : "sync";
-
-					return current === "sync" ? 1 : Promise.resolve(1);
-				};
-			});
-
-			test("should yield the wrapped value on the sync arm", async () => {
-				const result = factory();
-
-				expect(result).not.toBeInstanceOf(Promise);
-				expect(await result).toBe(1);
-			});
-
-			test("should yield the wrapped value on the async arm", async () => {
-				void factory();
-
-				const result = factory();
-
-				expect(result).toBeInstanceOf(Promise);
-				expect(await result).toBe(1);
-			});
-		});
-
 		test("should expose `T | Promise<T>` as the factory's return type", () => {
 			type FactoryReturn = ReturnType<
 				Extract<MaybeFunction<number>, (...args: never[]) => unknown>
@@ -116,43 +55,41 @@ describe("MaybeFunction", () => {
 				number | Promise<number>
 			>();
 		});
+
+		test("should accept a factory returning `T | Promise<T>`", () => {
+			expectTypeOf<() => number | Promise<number>>().toExtend<
+				MaybeFunction<number>
+			>();
+		});
 	});
 
 	describe("generic-parameter edge cases", () => {
 		test("should accept `true` when wrapping `boolean`", () => {
-			const value: MaybeFunction<boolean> = true;
-
-			expect(value).toBe(true);
+			expectTypeOf<true>().toExtend<MaybeFunction<boolean>>();
 		});
 
 		test("should accept `false` when wrapping `boolean`", () => {
-			const value: MaybeFunction<boolean> = false;
-
-			expect(value).toBe(false);
+			expectTypeOf<false>().toExtend<MaybeFunction<boolean>>();
 		});
 
 		test("should accept a `void`-returning factory for fire-and-forget hooks", () => {
-			const value: MaybeFunction<void> = () => {};
-
-			expect(typeof value).toBe("function");
+			expectTypeOf<() => void>().toExtend<MaybeFunction<void>>();
 		});
 
 		test("should accept an explicit `undefined`-yielding factory", () => {
-			const value: MaybeFunction<undefined> = () => undefined;
-
-			expect((value as () => undefined)()).toBeUndefined();
+			expectTypeOf<() => undefined>().toExtend<
+				MaybeFunction<undefined>
+			>();
 		});
 
 		test("should accept a union value when the wrapped type is a union", () => {
-			const value: MaybeFunction<number | string> = "x";
-
-			expect(value).toBe("x");
+			expectTypeOf<string>().toExtend<MaybeFunction<number | string>>();
 		});
 
 		test("should accept a union-returning factory when the wrapped type is a union", () => {
-			const factory: MaybeFunction<number | string> = () => 1;
-
-			expect((factory as () => number | string)()).toBe(1);
+			expectTypeOf<() => number>().toExtend<
+				MaybeFunction<number | string>
+			>();
 		});
 	});
 
@@ -185,57 +122,6 @@ describe("MaybeFunction", () => {
 
 		test("should not collapse the union to its value type", () => {
 			expectTypeOf<MaybeFunction<number>>().not.toEqualTypeOf<number>();
-		});
-	});
-
-	describe("interaction with invocation", () => {
-		let unwrap: <T>(slot: MaybeFunction<T>) => Promise<T>;
-
-		beforeAll(() => {
-			unwrap = async <T>(slot: MaybeFunction<T>): Promise<T> =>
-				typeof slot === "function"
-					? await (slot as () => T | Promise<T>)()
-					: slot;
-		});
-
-		test("should yield `T` directly when the slot holds a bare value", () => {
-			const provide = (
-				slot: MaybeFunction<number>,
-			): MaybeFunction<number> => slot;
-			const value = provide(7);
-
-			const result = typeof value === "function" ? value() : value;
-
-			expect(result).toBe(7);
-		});
-
-		test("should yield `T | Promise<T>` once the factory branch is invoked", async () => {
-			const value: MaybeFunction<number> = () => 7;
-
-			if (typeof value !== "function") {
-				throw new Error("expected factory branch");
-			}
-
-			const result = value();
-
-			expectTypeOf(result).toEqualTypeOf<number | Promise<number>>();
-			expect(await result).toBe(7);
-		});
-
-		test("should round-trip a bare value through the generic unwrap helper", async () => {
-			expect(await unwrap<number>(7)).toBe(7);
-		});
-
-		test("should round-trip a sync factory through the generic unwrap helper", async () => {
-			expect(await unwrap<number>(() => 7)).toBe(7);
-		});
-
-		test("should round-trip an async factory through the generic unwrap helper", async () => {
-			expect(await unwrap<number>(async () => 7)).toBe(7);
-		});
-
-		test("should round-trip a factory returning `Promise.resolve(...)` through the generic unwrap helper", async () => {
-			expect(await unwrap<number>(() => Promise.resolve(7))).toBe(7);
 		});
 	});
 
