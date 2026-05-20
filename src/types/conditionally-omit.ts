@@ -39,7 +39,7 @@ type OmitKeys<Type, OmitType> = {
  * // { name: string; count: number }
  * ```
  */
-export type ConditionallyOmit<
-	Type extends Record<PropertyKey, unknown>,
-	OmitType,
-> = Omit<Type, OmitKeys<Type, OmitType>>;
+export type ConditionallyOmit<Type extends object, OmitType> = Omit<
+	Type,
+	OmitKeys<Type, OmitType>
+>;
