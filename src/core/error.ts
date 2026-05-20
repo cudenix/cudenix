@@ -171,7 +171,7 @@ export type AnyError = Error<any, any>;
  * value can be defined with a plain `function` and cast to a constructable
  * type.
  */
-interface Constructor {
+interface ErrorConstructor {
 	new <const Content, const Status extends number = 400>(
 		content: Content,
 		options?: ErrorOptions<Status>,
@@ -210,4 +210,4 @@ export const Error = function Error(
 	this.content = content;
 	this.status = status;
 	this.success = false;
-} as unknown as Constructor;
+} as unknown as ErrorConstructor;
