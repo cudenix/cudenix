@@ -135,30 +135,30 @@ describe("ExtendsType", () => {
 
 	describe("function types", () => {
 		test("should resolve to true for equal function signatures", () => {
-			type Fn = (value: string) => number;
+			type A = (value: string) => number;
 
-			expectTypeOf<ExtendsType<Fn, Fn>>().toEqualTypeOf<true>();
+			expectTypeOf<ExtendsType<A, A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to false for functions with different parameter types", () => {
-			type Left = (value: string) => void;
-			type Right = (value: number) => void;
+			type A = (value: string) => void;
+			type B = (value: number) => void;
 
-			expectTypeOf<ExtendsType<Left, Right>>().toEqualTypeOf<false>();
+			expectTypeOf<ExtendsType<A, B>>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false for functions with different return types", () => {
-			type Left = () => string;
-			type Right = () => number;
+			type A = () => string;
+			type B = () => number;
 
-			expectTypeOf<ExtendsType<Left, Right>>().toEqualTypeOf<false>();
+			expectTypeOf<ExtendsType<A, B>>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false for functions with different arity", () => {
-			type Left = (a: string) => void;
-			type Right = (a: string, b: number) => void;
+			type A = (a: string) => void;
+			type B = (a: string, b: number) => void;
 
-			expectTypeOf<ExtendsType<Left, Right>>().toEqualTypeOf<false>();
+			expectTypeOf<ExtendsType<A, B>>().toEqualTypeOf<false>();
 		});
 	});
 
