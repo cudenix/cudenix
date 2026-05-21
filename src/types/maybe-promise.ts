@@ -13,13 +13,9 @@
  * @typeParam Type - Value type that may also arrive as a `Promise<Type>`.
  * @example
  * ```typescript
- * const find = (id: string): MaybePromise<User | undefined> => {
- *   const cached = cache.get(id);
- *
- *   if (cached) return cached;
- *
- *   return db.users.find(id);
- * };
+ * type A = MaybePromise<User>;             // User | Promise<User>
+ * type B = MaybePromise<User | undefined>; // User | undefined | Promise<User | undefined>
+ * type C = Awaited<MaybePromise<number>>;  // number
  * ```
  */
 export type MaybePromise<Type> = Type | Promise<Type>;
