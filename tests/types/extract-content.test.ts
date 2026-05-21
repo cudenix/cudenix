@@ -35,8 +35,8 @@ describe("ExtractContent", () => {
 		});
 
 		test("should pass an object literal through unchanged", () => {
-			expectTypeOf<ExtractContent<{ ok: true }>>().toEqualTypeOf<{
-				ok: true;
+			expectTypeOf<ExtractContent<{ a: true }>>().toEqualTypeOf<{
+				a: true;
 			}>();
 		});
 
@@ -71,115 +71,109 @@ describe("ExtractContent", () => {
 
 	describe("synchronous factory", () => {
 		test("should resolve to the return type of a zero-arg sync factory", () => {
-			type Factory = () => { ok: true };
+			type A = () => { a: true };
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<{
-				ok: true;
-			}>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<{ a: true }>();
 		});
 
 		test("should resolve to the return type of a factory that takes args", () => {
-			type Factory = (a: number, b: string) => boolean;
+			type A = (a: number, b: string) => boolean;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<boolean>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<boolean>();
 		});
 
 		test("should resolve to the return type when the factory has an optional parameter", () => {
-			type Factory = (a?: number) => string;
+			type A = (a?: number) => string;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<string>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<string>();
 		});
 
 		test("should resolve to the return type when the factory uses rest parameters", () => {
-			type Factory = (...args: number[]) => string;
+			type A = (...args: number[]) => string;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<string>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<string>();
 		});
 
 		test("should resolve to the literal return type when the factory yields a literal", () => {
-			type Factory = () => 42;
+			type A = () => 42;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<42>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<42>();
 		});
 
 		test("should resolve to `null` for a null-returning factory", () => {
-			type Factory = () => null;
+			type A = () => null;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<null>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<null>();
 		});
 
 		test("should resolve to `void` for a void-returning factory", () => {
-			type Factory = () => void;
+			type A = () => void;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<void>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<void>();
 		});
 
 		test("should resolve to `never` for a never-returning factory", () => {
-			type Factory = () => never;
+			type A = () => never;
 
-			expectTypeOf<ExtractContent<Factory>>().toBeNever();
+			expectTypeOf<ExtractContent<A>>().toBeNever();
 		});
 
 		test("should not recursively unwrap a function returned by another function", () => {
-			type Factory = () => () => number;
+			type A = () => () => number;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<
-				() => number
-			>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<() => number>();
 		});
 	});
 
 	describe("asynchronous factory", () => {
 		test("should unwrap a promise returned from an async factory", () => {
-			type Factory = () => Promise<{ ok: 1 }>;
+			type A = () => Promise<{ a: 1 }>;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<{ ok: 1 }>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<{ a: 1 }>();
 		});
 
 		test("should unwrap a promise from a synchronous function that returns a promise", () => {
-			type Factory = () => Promise<string>;
+			type A = () => Promise<string>;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<string>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<string>();
 		});
 
 		test("should unwrap a `PromiseLike` returned from a factory", () => {
-			type Factory = () => PromiseLike<string>;
+			type A = () => PromiseLike<string>;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<string>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<string>();
 		});
 
 		test("should resolve to `void` for an async factory returning `Promise<void>`", () => {
-			type Factory = () => Promise<void>;
+			type A = () => Promise<void>;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<void>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<void>();
 		});
 
 		test("should unwrap nested promises via Awaited", () => {
-			type Factory = () => Promise<Promise<number>>;
+			type A = () => Promise<Promise<number>>;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<number>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<number>();
 		});
 
 		test("should unwrap triply-nested promises via Awaited", () => {
-			type Factory = () => Promise<Promise<Promise<number>>>;
+			type A = () => Promise<Promise<Promise<number>>>;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<number>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<number>();
 		});
 	});
 
 	describe("mixed sync and async return shapes", () => {
 		test("should preserve a union of awaited values when the factory may return sync or async", () => {
-			type Factory = () => string | Promise<string>;
+			type A = () => string | Promise<string>;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<string>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<string>();
 		});
 
 		test("should preserve a union when the awaited result is itself a union", () => {
-			type Factory = () => Promise<number | string>;
+			type A = () => Promise<number | string>;
 
-			expectTypeOf<ExtractContent<Factory>>().toEqualTypeOf<
-				number | string
-			>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<number | string>();
 		});
 	});
 
@@ -199,12 +193,12 @@ describe("ExtractContent", () => {
 
 	describe("function-shaped values", () => {
 		test("should treat an object with a call signature as a factory and drop its properties", () => {
-			interface Callable {
-				meta: "foo";
+			interface A {
+				a: "v1";
 				(): string;
 			}
 
-			expectTypeOf<ExtractContent<Callable>>().toEqualTypeOf<string>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<string>();
 		});
 
 		test("should pass the built-in `Function` type through unchanged because it does not match `(...args: any[]) => infer Return`", () => {
@@ -213,11 +207,9 @@ describe("ExtractContent", () => {
 		});
 
 		test("should pass a constructor-only type through unchanged", () => {
-			class Foo {}
+			class A {}
 
-			expectTypeOf<ExtractContent<typeof Foo>>().toEqualTypeOf<
-				typeof Foo
-			>();
+			expectTypeOf<ExtractContent<typeof A>>().toEqualTypeOf<typeof A>();
 		});
 	});
 
