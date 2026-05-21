@@ -53,9 +53,9 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  * @param path - Route pattern to compile. Use `/` for the root path.
  * @returns Compiled artefacts:
  *
- * - `pattern` — regex source string ready for `new RegExp(pattern)`.
  * - `paramKeys` — names of every captured `:name` and `...name` segment, in
  *   left-to-right order.
+ * - `pattern` — regex source string ready for `new RegExp(pattern)`.
  * - `restKeys` — names of rest parameters only, or `undefined` when the path
  *   contains none.
  * @example
