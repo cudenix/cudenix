@@ -41,7 +41,7 @@ describe("cloneAppend", () => {
 		});
 
 		test("should preserve object identity of the appended item", () => {
-			const item = { id: 1 };
+			const item = { a: 1 };
 
 			const result = cloneAppend([], item);
 
@@ -73,18 +73,18 @@ describe("cloneAppend", () => {
 		});
 
 		test("should preserve object identity of the single existing element", () => {
-			const only = { id: 1 };
+			const only = { a: 1 };
 			const source = [only];
 
-			const result = cloneAppend(source, { id: 2 });
+			const result = cloneAppend(source, { a: 2 });
 
 			expect(result[0]).toBe(only);
 		});
 
 		test("should preserve object identity of the appended item", () => {
-			const item = { id: 2 };
+			const item = { a: 2 };
 
-			const result = cloneAppend([{ id: 1 }], item);
+			const result = cloneAppend([{ a: 1 }], item);
 
 			expect(result[1]).toBe(item);
 		});
@@ -146,9 +146,9 @@ describe("cloneAppend", () => {
 		});
 
 		test("should preserve object identity for every existing element", () => {
-			const a = { id: "a" };
-			const b = { id: "b" };
-			const c = { id: "c" };
+			const a = { a: "v1" };
+			const b = { a: "v2" };
+			const c = { a: "v3" };
 
 			const result = cloneAppend([a, b], c);
 
@@ -158,9 +158,9 @@ describe("cloneAppend", () => {
 		});
 
 		test("should preserve object identity of the appended item", () => {
-			const item = { id: 3 };
+			const item = { a: 3 };
 
-			const result = cloneAppend([{ id: 1 }, { id: 2 }], item);
+			const result = cloneAppend([{ a: 1 }, { a: 2 }], item);
 
 			expect(result[2]).toBe(item);
 		});
