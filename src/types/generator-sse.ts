@@ -24,9 +24,11 @@ import type { AnySuccess } from "@/core/success";
  *   `"message"`, the implicit channel when no `event:` field is sent.
  * @example
  * ```typescript
- * function* stream(): Generator<GeneratorSSE<AnySuccess, "tick">> {
- *   yield { data: new Success({ time: Date.now() }), event: "tick" };
- * }
+ * type Tick = GeneratorSSE<AnySuccess, "tick">;
+ * // { data: AnySuccess; event?: "tick"; id?: string; retry?: number }
+ *
+ * type Default = GeneratorSSE<AnySuccess>;
+ * // event defaults to "message"
  * ```
  */
 export interface GeneratorSSE<
