@@ -13,11 +13,11 @@ describe("MaybeFunction", () => {
 		});
 
 		test("should accept a structured value when wrapping an object type", () => {
-			interface User {
-				id: string;
+			interface A {
+				a: string;
 			}
 
-			expectTypeOf<User>().toExtend<MaybeFunction<User>>();
+			expectTypeOf<A>().toExtend<MaybeFunction<A>>();
 		});
 	});
 
@@ -47,13 +47,11 @@ describe("MaybeFunction", () => {
 
 	describe("mixed-return factory branch", () => {
 		test("should expose `T | Promise<T>` as the factory's return type", () => {
-			type FactoryReturn = ReturnType<
+			type A = ReturnType<
 				Extract<MaybeFunction<number>, (...args: never[]) => unknown>
 			>;
 
-			expectTypeOf<FactoryReturn>().toEqualTypeOf<
-				number | Promise<number>
-			>();
+			expectTypeOf<A>().toEqualTypeOf<number | Promise<number>>();
 		});
 
 		test("should accept a factory returning `T | Promise<T>`", () => {
@@ -147,9 +145,7 @@ describe("MaybeFunction", () => {
 		});
 
 		test("should reject a non-function, non-value shape entirely", () => {
-			expectTypeOf<{ value: number }>().not.toExtend<
-				MaybeFunction<number>
-			>();
+			expectTypeOf<{ a: number }>().not.toExtend<MaybeFunction<number>>();
 		});
 	});
 });
