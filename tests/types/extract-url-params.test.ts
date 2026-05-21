@@ -21,126 +21,128 @@ describe("ExtractUrlParams", () => {
 
 	describe("literal segments", () => {
 		test("should resolve to an empty record for a single literal segment", () => {
-			expectTypeOf<ExtractUrlParams<"/health">>().branded.toEqualTypeOf<
+			expectTypeOf<ExtractUrlParams<"/a">>().branded.toEqualTypeOf<
 				NonNullable<unknown>
 			>();
 		});
 
 		test("should resolve to an empty record for a deeply nested literal path", () => {
-			expectTypeOf<
-				ExtractUrlParams<"/api/v1/health/check">
-			>().branded.toEqualTypeOf<NonNullable<unknown>>();
+			expectTypeOf<ExtractUrlParams<"/a/b/c/d">>().branded.toEqualTypeOf<
+				NonNullable<unknown>
+			>();
 		});
 	});
 
 	describe(":name required parameter", () => {
 		test("should resolve a single ':name' segment to a `string` value", () => {
-			expectTypeOf<
-				ExtractUrlParams<"/users/:id">
-			>().branded.toEqualTypeOf<{ id: string }>();
+			expectTypeOf<ExtractUrlParams<"/a/:p1">>().branded.toEqualTypeOf<{
+				p1: string;
+			}>();
 		});
 
 		test("should capture multiple required params in declaration order", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/users/:user/posts/:post">
-			>().branded.toEqualTypeOf<{ user: string; post: string }>();
+				ExtractUrlParams<"/a/:p1/b/:p2">
+			>().branded.toEqualTypeOf<{ p1: string; p2: string }>();
 		});
 
 		test("should capture two consecutive required params", () => {
-			expectTypeOf<ExtractUrlParams<"/:a/:b">>().branded.toEqualTypeOf<{
-				a: string;
-				b: string;
+			expectTypeOf<ExtractUrlParams<"/:p1/:p2">>().branded.toEqualTypeOf<{
+				p1: string;
+				p2: string;
 			}>();
 		});
 
 		test("should capture a required param as the only segment", () => {
-			expectTypeOf<ExtractUrlParams<":only">>().branded.toEqualTypeOf<{
-				only: string;
+			expectTypeOf<ExtractUrlParams<":p1">>().branded.toEqualTypeOf<{
+				p1: string;
 			}>();
 		});
 
 		test("should capture a required param when the path has no leading slash", () => {
-			expectTypeOf<
-				ExtractUrlParams<"users/:id">
-			>().branded.toEqualTypeOf<{ id: string }>();
+			expectTypeOf<ExtractUrlParams<"a/:p1">>().branded.toEqualTypeOf<{
+				p1: string;
+			}>();
 		});
 
 		test("should capture a required param when the path has a trailing slash", () => {
-			expectTypeOf<
-				ExtractUrlParams<"/users/:id/">
-			>().branded.toEqualTypeOf<{ id: string }>();
+			expectTypeOf<ExtractUrlParams<"/a/:p1/">>().branded.toEqualTypeOf<{
+				p1: string;
+			}>();
 		});
 	});
 
 	describe(":name? optional parameter", () => {
 		test("should resolve a ':name?' segment to a `string | undefined` value", () => {
-			expectTypeOf<
-				ExtractUrlParams<"/users/:id?">
-			>().branded.toEqualTypeOf<{ id: string | undefined }>();
+			expectTypeOf<ExtractUrlParams<"/a/:p1?">>().branded.toEqualTypeOf<{
+				p1: string | undefined;
+			}>();
 		});
 
 		test("should capture an optional param in the middle of a path", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/posts/:slug?/comments">
-			>().branded.toEqualTypeOf<{ slug: string | undefined }>();
+				ExtractUrlParams<"/a/:p1?/b">
+			>().branded.toEqualTypeOf<{ p1: string | undefined }>();
 		});
 
 		test("should capture an optional param as the only segment", () => {
-			expectTypeOf<ExtractUrlParams<":only?">>().branded.toEqualTypeOf<{
-				only: string | undefined;
+			expectTypeOf<ExtractUrlParams<":p1?">>().branded.toEqualTypeOf<{
+				p1: string | undefined;
 			}>();
 		});
 
 		test("should accumulate two consecutive optional params", () => {
-			expectTypeOf<ExtractUrlParams<"/:a?/:b?">>().branded.toEqualTypeOf<{
-				a: string | undefined;
-				b: string | undefined;
+			expectTypeOf<
+				ExtractUrlParams<"/:p1?/:p2?">
+			>().branded.toEqualTypeOf<{
+				p1: string | undefined;
+				p2: string | undefined;
 			}>();
 		});
 	});
 
 	describe("...name rest parameter", () => {
 		test("should resolve a '...name' segment to a `string[]` value", () => {
-			expectTypeOf<
-				ExtractUrlParams<"/files/...path">
-			>().branded.toEqualTypeOf<{ path: string[] }>();
+			expectTypeOf<ExtractUrlParams<"/a/...r1">>().branded.toEqualTypeOf<{
+				r1: string[];
+			}>();
 		});
 
 		test("should capture a required rest followed by a literal segment", () => {
-			expectTypeOf<
-				ExtractUrlParams<"/...rest/end">
-			>().branded.toEqualTypeOf<{ rest: string[] }>();
+			expectTypeOf<ExtractUrlParams<"/...r1/a">>().branded.toEqualTypeOf<{
+				r1: string[];
+			}>();
 		});
 
 		test("should capture a required rest as the only segment", () => {
-			expectTypeOf<ExtractUrlParams<"...rest">>().branded.toEqualTypeOf<{
-				rest: string[];
+			expectTypeOf<ExtractUrlParams<"...r1">>().branded.toEqualTypeOf<{
+				r1: string[];
 			}>();
 		});
 
 		test("should collect every rest param key when multiple are present", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/...a/middle/...b">
-			>().branded.toEqualTypeOf<{ a: string[]; b: string[] }>();
+				ExtractUrlParams<"/...r1/a/...r2">
+			>().branded.toEqualTypeOf<{ r1: string[]; r2: string[] }>();
 		});
 	});
 
 	describe("...name? optional rest parameter", () => {
 		test("should resolve a '...name?' segment to a `string[] | undefined` value", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/files/...path?">
-			>().branded.toEqualTypeOf<{ path: string[] | undefined }>();
+				ExtractUrlParams<"/a/...r1?">
+			>().branded.toEqualTypeOf<{ r1: string[] | undefined }>();
 		});
 
 		test("should capture an optional rest followed by a literal segment", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/foo/...rest?/bar">
-			>().branded.toEqualTypeOf<{ rest: string[] | undefined }>();
+				ExtractUrlParams<"/a/...r1?/b">
+			>().branded.toEqualTypeOf<{ r1: string[] | undefined }>();
 		});
 
 		test("should capture an optional rest as the only segment", () => {
-			expectTypeOf<ExtractUrlParams<"...rest?">>().branded.toEqualTypeOf<{
-				rest: string[] | undefined;
+			expectTypeOf<ExtractUrlParams<"...r1?">>().branded.toEqualTypeOf<{
+				r1: string[] | undefined;
 			}>();
 		});
 	});
@@ -148,32 +150,29 @@ describe("ExtractUrlParams", () => {
 	describe("mixed segment types", () => {
 		test("should accumulate a required param immediately followed by a rest", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/:user/...path">
-			>().branded.toEqualTypeOf<{ user: string; path: string[] }>();
+				ExtractUrlParams<"/:p1/...r1">
+			>().branded.toEqualTypeOf<{ p1: string; r1: string[] }>();
 		});
 
 		test("should accumulate required and optional named params", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/users/:user/:tab?">
-			>().branded.toEqualTypeOf<{
-				user: string;
-				tab: string | undefined;
-			}>();
+				ExtractUrlParams<"/a/:p1/:p2?">
+			>().branded.toEqualTypeOf<{ p1: string; p2: string | undefined }>();
 		});
 
 		test("should accumulate required and rest params separated by literals", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/api/:version/files/...path">
-			>().branded.toEqualTypeOf<{ version: string; path: string[] }>();
+				ExtractUrlParams<"/a/:p1/b/...r1">
+			>().branded.toEqualTypeOf<{ p1: string; r1: string[] }>();
 		});
 
 		test("should accumulate every param kind in a single path", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/api/:version/users/:user?/files/...path">
+				ExtractUrlParams<"/a/:p1/b/:p2?/c/...r1">
 			>().branded.toEqualTypeOf<{
-				version: string;
-				user: string | undefined;
-				path: string[];
+				p1: string;
+				p2: string | undefined;
+				r1: string[];
 			}>();
 		});
 	});
