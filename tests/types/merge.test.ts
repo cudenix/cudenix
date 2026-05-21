@@ -38,29 +38,29 @@ describe("Merge", () => {
 	describe("with disjoint keys", () => {
 		test("should preserve keys present only in the first operand", () => {
 			interface A {
-				keep: number;
+				a: number;
 			}
 			interface B {
-				other: string;
+				b: string;
 			}
 
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				keep: number;
-				other: string;
+				a: number;
+				b: string;
 			}>();
 		});
 
 		test("should include keys present only in the second operand", () => {
 			interface A {
-				id: string;
+				a: string;
 			}
 			interface B {
-				total: number;
+				b: number;
 			}
 
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				id: string;
-				total: number;
+				a: string;
+				b: number;
 			}>();
 		});
 	});
@@ -68,72 +68,70 @@ describe("Merge", () => {
 	describe("with overlapping keys", () => {
 		test("should let the second operand override a key declared in the first", () => {
 			interface A {
-				tags: string[];
+				a: string[];
 			}
 			interface B {
-				tags: readonly string[];
+				a: readonly string[];
 			}
 
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				tags: readonly string[];
+				a: readonly string[];
 			}>();
 		});
 
 		test("should let the second operand replace the value type entirely", () => {
 			interface A {
-				id: string;
+				a: string;
 			}
 			interface B {
-				id: number;
+				a: number;
 			}
 
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ id: number }>();
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a: number }>();
 		});
 
 		test("should let the second operand narrow a wide value type", () => {
 			interface A {
-				mode: string;
+				a: string;
 			}
 			interface B {
-				mode: "auto" | "manual";
+				a: "v1" | "v2";
 			}
 
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				mode: "auto" | "manual";
+				a: "v1" | "v2";
 			}>();
 		});
 
 		test("should let the second operand broaden a narrow value type", () => {
 			interface A {
-				mode: "auto";
+				a: "v1";
 			}
 			interface B {
-				mode: string;
+				a: string;
 			}
 
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				mode: string;
-			}>();
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a: string }>();
 		});
 	});
 
 	describe("with overlapping and disjoint keys combined", () => {
 		test("should mix overridden, first-only and second-only keys correctly", () => {
 			interface A {
-				first: 1;
-				id: string;
-				tags: string[];
+				a: 1;
+				b: string;
+				c: string[];
 			}
 			interface B {
-				tags: readonly string[];
-				total: number;
+				c: readonly string[];
+				d: number;
 			}
 
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				id: string;
-				tags: readonly string[];
-				first: 1;
-				total: number;
+				b: string;
+				c: readonly string[];
+				a: 1;
+				d: number;
 			}>();
 		});
 	});
@@ -141,64 +139,64 @@ describe("Merge", () => {
 	describe("optional modifier", () => {
 		test("should respect the second operand's optional modifier on a shared key", () => {
 			interface A {
-				x: string;
+				a: string;
 			}
 			interface B {
-				x?: string;
+				a?: string;
 			}
 
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ x?: string }>();
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a?: string }>();
 		});
 
 		test("should let the second operand tighten an optional key to required", () => {
 			interface A {
-				x?: string;
+				a?: string;
 			}
 			interface B {
-				x: string;
+				a: string;
 			}
 
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ x: string }>();
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a: string }>();
 		});
 	});
 
 	describe("readonly modifier", () => {
 		test("should let the second operand introduce `readonly` on a shared key", () => {
 			interface A {
-				id: string;
+				a: string;
 			}
 			interface B {
-				readonly id: string;
+				readonly a: string;
 			}
 
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				readonly id: string;
+				readonly a: string;
 			}>();
 		});
 
 		test("should let the second operand strip `readonly` from a shared key", () => {
 			interface A {
-				readonly id: string;
+				readonly a: string;
 			}
 			interface B {
-				id: string;
+				a: string;
 			}
 
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ id: string }>();
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a: string }>();
 		});
 	});
 
 	describe("nested object values", () => {
 		test("should replace a nested object entirely instead of deep-merging", () => {
 			interface A {
-				user: { id: string; name: string };
+				a: { a: string; b: string };
 			}
 			interface B {
-				user: { age: number };
+				a: { a: number };
 			}
 
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				user: { age: number };
+				a: { a: number };
 			}>();
 		});
 	});
@@ -278,14 +276,14 @@ describe("Merge", () => {
 	describe("method-syntax properties", () => {
 		test("should let the second operand override a method-syntax property", () => {
 			interface A {
-				process(value: string): number;
+				a(value: string): number;
 			}
 			interface B {
-				process(value: number): string;
+				a(value: number): string;
 			}
 
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				process(value: number): string;
+				a(value: number): string;
 			}>();
 		});
 	});
