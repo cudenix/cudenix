@@ -133,12 +133,12 @@ describe("Empty", () => {
 		});
 
 		test("should propagate properties added to Empty.prototype to instances", () => {
-			const probe = Symbol("probe");
+			const probe = Symbol();
 
-			Empty.prototype[probe] = "shared";
+			Empty.prototype[probe] = "v1";
 
 			try {
-				expect(instance[probe]).toBe("shared");
+				expect(instance[probe]).toBe("v1");
 				expect(Reflect.has(instance, probe)).toBe(true);
 				expect(Object.hasOwn(instance, probe)).toBe(false);
 			} finally {
@@ -155,18 +155,18 @@ describe("Empty", () => {
 		});
 
 		test("should accept arbitrary string-keyed assignment", () => {
-			instance.foo = 1;
-			instance.bar = "two";
+			instance.a = 1;
+			instance.b = "v1";
 
-			expect(instance.foo).toBe(1);
-			expect(instance.bar).toBe("two");
+			expect(instance.a).toBe(1);
+			expect(instance.b).toBe("v1");
 			expect(Object.keys(instance)).toEqual(
-				expect.arrayContaining(["foo", "bar"]),
+				expect.arrayContaining(["a", "b"]),
 			);
 		});
 
 		test("should accept symbol-keyed assignment", () => {
-			const key = Symbol("k");
+			const key = Symbol();
 
 			instance[key] = 1;
 
@@ -174,32 +174,32 @@ describe("Empty", () => {
 		});
 
 		test("should accept numeric-string keys", () => {
-			instance["0"] = "zero";
-			instance["1"] = "one";
+			instance["0"] = "v1";
+			instance["1"] = "v2";
 
-			expect(instance["0"]).toBe("zero");
-			expect(instance["1"]).toBe("one");
+			expect(instance["0"]).toBe("v1");
+			expect(instance["1"]).toBe("v2");
 		});
 
 		test("should remove own keys via delete", () => {
-			instance.foo = 1;
+			instance.a = 1;
 
-			delete instance.foo;
+			delete instance.a;
 
-			expect("foo" in instance).toBe(false);
+			expect("a" in instance).toBe(false);
 		});
 
 		test("should isolate mutations between distinct instances", () => {
 			const other = new Empty();
 
-			instance.foo = 1;
+			instance.a = 1;
 
-			expect("foo" in other).toBe(false);
+			expect("a" in other).toBe(false);
 		});
 
 		test("should iterate added string keys with for...in", () => {
-			instance.foo = 1;
-			instance.bar = 2;
+			instance.a = 1;
+			instance.b = 2;
 
 			const keys: string[] = [];
 
@@ -207,27 +207,27 @@ describe("Empty", () => {
 				keys.push(key);
 			}
 
-			expect(keys).toEqual(expect.arrayContaining(["foo", "bar"]));
+			expect(keys).toEqual(expect.arrayContaining(["a", "b"]));
 			expect(keys).toHaveLength(2);
 		});
 
 		test("should expose both string and symbol own keys via Reflect.ownKeys", () => {
-			const sym = Symbol("s");
+			const sym = Symbol();
 
-			instance.foo = 1;
+			instance.a = 1;
 			instance[sym] = 2;
 
 			const ownKeys = Reflect.ownKeys(instance);
 
-			expect(ownKeys).toContain("foo");
+			expect(ownKeys).toContain("a");
 			expect(ownKeys).toContain(sym);
 			expect(ownKeys).toHaveLength(2);
 		});
 
 		test("should give assigned properties default writable/enumerable/configurable descriptors", () => {
-			instance.foo = 1;
+			instance.a = 1;
 
-			const descriptor = Object.getOwnPropertyDescriptor(instance, "foo");
+			const descriptor = Object.getOwnPropertyDescriptor(instance, "a");
 
 			expect(descriptor).toEqual({
 				configurable: true,
@@ -242,13 +242,13 @@ describe("Empty", () => {
 		test("should reject further assignment after Object.freeze", () => {
 			const instance = new Empty();
 
-			instance.foo = 1;
+			instance.a = 1;
 
 			Object.freeze(instance);
 
 			expect(Object.isFrozen(instance)).toBe(true);
 			expect(() => {
-				instance.bar = 2;
+				instance.b = 2;
 			}).toThrow();
 		});
 
@@ -259,25 +259,25 @@ describe("Empty", () => {
 
 			expect(Object.isExtensible(instance)).toBe(false);
 			expect(() => {
-				instance.foo = 1;
+				instance.a = 1;
 			}).toThrow();
 		});
 
 		test("should lock shape but keep existing properties writable after Object.seal", () => {
 			const instance = new Empty();
 
-			instance.foo = 1;
+			instance.a = 1;
 
 			Object.seal(instance);
 
 			expect(Object.isSealed(instance)).toBe(true);
 
-			instance.foo = 2;
+			instance.a = 2;
 
-			expect(instance.foo).toBe(2);
+			expect(instance.a).toBe(2);
 
 			expect(() => {
-				instance.bar = 3;
+				instance.b = 3;
 			}).toThrow();
 		});
 	});
@@ -400,20 +400,20 @@ describe("FrozenEmpty", () => {
 
 	describe("usage as a destructuring default", () => {
 		const fn = ({
-			flag = false,
-			count = 0,
+			a = false,
+			b = 0,
 		}: {
-			flag?: boolean;
-			count?: number;
-		} = FrozenEmpty) => ({ count, flag });
+			a?: boolean;
+			b?: number;
+		} = FrozenEmpty) => ({ a, b });
 
 		test("should fall back to defaults when no options are passed", () => {
-			expect(fn()).toEqual({ count: 0, flag: false });
+			expect(fn()).toEqual({ a: false, b: 0 });
 		});
 
 		test("should preserve untouched defaults when partial options are passed", () => {
-			expect(fn({ flag: true })).toEqual({ count: 0, flag: true });
-			expect(fn({ count: 1 })).toEqual({ count: 1, flag: false });
+			expect(fn({ a: true })).toEqual({ a: true, b: 0 });
+			expect(fn({ b: 1 })).toEqual({ a: false, b: 1 });
 		});
 	});
 });
