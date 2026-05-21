@@ -21,10 +21,13 @@
  *
  * @example
  * ```typescript
- * const ws: WSData = {
- *   open: () => console.log("connected"),
- *   message: (_, payload) => console.log("recv", payload),
- * };
+ * type A = WSData;
+ * // Partial<Record<"open" | "message" | "drain" | "close", (...args: any[]) => any>> | undefined
+ *
+ * type B = NonNullable<WSData>["open"];
+ * // ((...args: any[]) => any) | undefined
+ *
+ * type C = undefined extends WSData ? true : false; // true (entire bag is optional)
  * ```
  */
 export type WSData =
