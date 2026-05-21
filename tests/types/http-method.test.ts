@@ -35,7 +35,7 @@ describe("HttpMethod", () => {
 
 	describe("subtype relations", () => {
 		test("should include all canonical named methods as assignable values", () => {
-			type Named =
+			type A =
 				| "DELETE"
 				| "GET"
 				| "HEAD"
@@ -45,7 +45,7 @@ describe("HttpMethod", () => {
 				| "PUT"
 				| "WS";
 
-			expectTypeOf<Named>().toExtend<HttpMethod>();
+			expectTypeOf<A>().toExtend<HttpMethod>();
 		});
 
 		test("should accept `Uppercase<string>` (the underlying brand)", () => {
@@ -89,7 +89,7 @@ describe("HttpMethod", () => {
 
 	describe("non-assignable types", () => {
 		test("should reject `number` as a subtype", () => {
-			expectTypeOf<123>().not.toExtend<HttpMethod>();
+			expectTypeOf<1>().not.toExtend<HttpMethod>();
 		});
 
 		test("should reject `boolean` as a subtype", () => {
