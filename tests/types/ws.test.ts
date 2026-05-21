@@ -2,7 +2,7 @@ import { describe, expectTypeOf, test } from "bun:test";
 
 import type { WSData } from "@/types/ws";
 
-type Inner = Partial<
+type A = Partial<
 	Record<"close" | "drain" | "message" | "open", (...options: any[]) => any>
 >;
 
@@ -41,14 +41,14 @@ describe("WSData", () => {
 	describe("handler signature flexibility", () => {
 		test("should accept handlers with arbitrary parameter shapes", () => {
 			expectTypeOf<{
-				message: (a: number, b: string, c: boolean) => "any";
+				message: (a: number, b: string, c: boolean) => "v1";
 				open: () => null;
 			}>().toExtend<WSData>();
 		});
 
 		test("should accept handlers with arbitrary return types", () => {
 			expectTypeOf<{
-				close: () => "closed";
+				close: () => "v1";
 				drain: () => Promise<number>;
 			}>().toExtend<WSData>();
 		});
@@ -78,22 +78,22 @@ describe("WSData", () => {
 		});
 
 		test("should accept the underlying `Partial<Record<…>>` shape as a subtype", () => {
-			expectTypeOf<Inner>().toExtend<WSData>();
+			expectTypeOf<A>().toExtend<WSData>();
 		});
 
 		test("should tolerate extra unknown keys when paired with a recognized key (TypeScript width subtyping)", () => {
-			interface Mixed {
+			interface A {
+				a: () => void;
 				open: () => void;
-				unexpected: () => void;
 			}
 
-			expectTypeOf<Mixed>().toExtend<WSData>();
+			expectTypeOf<A>().toExtend<WSData>();
 		});
 	});
 
 	describe("type-level invariants", () => {
 		test("should not collapse to its non-undefined branch", () => {
-			expectTypeOf<WSData>().not.toEqualTypeOf<Inner>();
+			expectTypeOf<WSData>().not.toEqualTypeOf<A>();
 		});
 	});
 
@@ -103,11 +103,11 @@ describe("WSData", () => {
 		});
 
 		test("should not accept a `number` value", () => {
-			expectTypeOf<123>().not.toExtend<WSData>();
+			expectTypeOf<1>().not.toExtend<WSData>();
 		});
 
 		test("should not accept a `string` value", () => {
-			expectTypeOf<"ws">().not.toExtend<WSData>();
+			expectTypeOf<"v1">().not.toExtend<WSData>();
 		});
 
 		test("should not accept a `boolean` value", () => {
@@ -115,19 +115,19 @@ describe("WSData", () => {
 		});
 
 		test("should not accept a known key whose value is not a function", () => {
-			interface Bad {
+			interface A {
 				open: 1;
 			}
 
-			expectTypeOf<Bad>().not.toExtend<WSData>();
+			expectTypeOf<A>().not.toExtend<WSData>();
 		});
 
 		test("should reject a config whose only key is unknown (TypeScript weak-type rule)", () => {
-			interface Bad {
-				unexpected: () => void;
+			interface A {
+				a: () => void;
 			}
 
-			expectTypeOf<Bad>().not.toExtend<WSData>();
+			expectTypeOf<A>().not.toExtend<WSData>();
 		});
 	});
 });
