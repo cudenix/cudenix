@@ -22,128 +22,115 @@ describe("GeneratorSSE", () => {
 
 	describe("`data` payload typing", () => {
 		test("should accept a frame parametrized with a concrete `Success` envelope", () => {
-			expectTypeOf<{ data: Success<{ ok: true }, 200> }>().toExtend<
-				GeneratorSSE<Success<{ ok: true }, 200>>
+			expectTypeOf<{ data: Success<{ a: true }, 1> }>().toExtend<
+				GeneratorSSE<Success<{ a: true }, 1>>
 			>();
 		});
 
 		test("should accept a frame parametrized with a concrete `Error` envelope", () => {
-			expectTypeOf<{ data: Error<{ reason: "bad" }, 400> }>().toExtend<
-				GeneratorSSE<Error<{ reason: "bad" }, 400>>
+			expectTypeOf<{ data: Error<{ a: "v1" }, 1> }>().toExtend<
+				GeneratorSSE<Error<{ a: "v1" }, 1>>
 			>();
 		});
 
 		test("should type `data` as the parametrized payload", () => {
-			type Frame = GeneratorSSE<Success<{ ok: true }, 200>>;
+			type A = GeneratorSSE<Success<{ a: true }, 1>>;
 
-			expectTypeOf<Frame["data"]>().toEqualTypeOf<
-				Success<{ ok: true }, 200>
-			>();
+			expectTypeOf<A["data"]>().toEqualTypeOf<Success<{ a: true }, 1>>();
 		});
 	});
 
 	describe("`event` channel parameter", () => {
 		test('should default the channel literal to `"message"`', () => {
-			type Default = GeneratorSSE<AnySuccess>;
-			type Explicit = GeneratorSSE<AnySuccess, "message">;
+			type A = GeneratorSSE<AnySuccess>;
+			type B = GeneratorSSE<AnySuccess, "message">;
 
-			expectTypeOf<Default>().toEqualTypeOf<Explicit>();
+			expectTypeOf<A>().toEqualTypeOf<B>();
 		});
 
 		describe("with channel literal 'tick'", () => {
-			type Frame = GeneratorSSE<AnySuccess, "tick">;
+			type A = GeneratorSSE<AnySuccess, "tick">;
 
 			test("should narrow `event` to the channel literal plus `undefined`", () => {
-				expectTypeOf<Frame["event"]>().toEqualTypeOf<
-					"tick" | undefined
-				>();
+				expectTypeOf<A["event"]>().toEqualTypeOf<"tick" | undefined>();
 			});
 
 			test("should accept a frame whose `event` matches the channel literal", () => {
 				expectTypeOf<{
 					data: AnySuccess;
 					event: "tick";
-				}>().toExtend<Frame>();
+				}>().toExtend<A>();
 			});
 
 			test("should reject an `event` value outside the channel literal", () => {
 				expectTypeOf<{
 					data: AnySuccess;
-					event: "other";
-				}>().not.toExtend<Frame>();
+					event: "v1";
+				}>().not.toExtend<A>();
 			});
 		});
 
 		describe("with channel union 'a' | 'b'", () => {
-			type Frame = GeneratorSSE<AnySuccess, "a" | "b">;
+			type A = GeneratorSSE<AnySuccess, "a" | "b">;
 
 			test("should accept the 'a' member as `event`", () => {
-				expectTypeOf<{
-					data: AnySuccess;
-					event: "a";
-				}>().toExtend<Frame>();
+				expectTypeOf<{ data: AnySuccess; event: "a" }>().toExtend<A>();
 			});
 
 			test("should accept the 'b' member as `event`", () => {
-				expectTypeOf<{
-					data: AnySuccess;
-					event: "b";
-				}>().toExtend<Frame>();
+				expectTypeOf<{ data: AnySuccess; event: "b" }>().toExtend<A>();
 			});
 		});
 
 		test("should accept any string when the channel is widened to `string`", () => {
-			type Frame = GeneratorSSE<AnySuccess, string>;
+			type A = GeneratorSSE<AnySuccess, string>;
 
-			expectTypeOf<{
-				data: AnySuccess;
-				event: "arbitrary-name";
-			}>().toExtend<Frame>();
+			expectTypeOf<{ data: AnySuccess; event: "v1" }>().toExtend<A>();
 		});
 	});
 
 	describe("`id` optional field", () => {
-		type Frame = GeneratorSSE<AnySuccess>;
+		type A = GeneratorSSE<AnySuccess>;
 
 		test("should not require `id` to be present", () => {
-			expectTypeOf<{ data: AnySuccess }>().toExtend<Frame>();
+			expectTypeOf<{ data: AnySuccess }>().toExtend<A>();
 		});
 
 		test("should type `id` as `string | undefined`", () => {
-			expectTypeOf<Frame["id"]>().toEqualTypeOf<string | undefined>();
+			expectTypeOf<A["id"]>().toEqualTypeOf<string | undefined>();
 		});
 	});
 
 	describe("`retry` optional field", () => {
-		type Frame = GeneratorSSE<AnySuccess>;
+		type A = GeneratorSSE<AnySuccess>;
 
 		test("should not require `retry` to be present", () => {
-			expectTypeOf<{ data: AnySuccess }>().toExtend<Frame>();
+			expectTypeOf<{ data: AnySuccess }>().toExtend<A>();
 		});
 
 		test("should type `retry` as `number | undefined`", () => {
-			expectTypeOf<Frame["retry"]>().toEqualTypeOf<number | undefined>();
+			expectTypeOf<A["retry"]>().toEqualTypeOf<number | undefined>();
 		});
 	});
 
 	describe("required keys contract", () => {
 		test("should mark only `data` as required on the parametrized form", () => {
-			type Frame = GeneratorSSE<AnySuccess, "tick">;
+			type A = GeneratorSSE<AnySuccess, "tick">;
 
-			expectTypeOf<RequiredKeys<Frame>>().toEqualTypeOf<"data">();
+			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<"data">();
 		});
 	});
 
 	describe("complete frame with every optional field", () => {
 		test("should accept a frame populating every optional field", () => {
-			type Frame = GeneratorSSE<AnySuccess, "tick">;
+			type A = GeneratorSSE<AnySuccess, "tick">;
 
 			expectTypeOf<{
 				data: AnySuccess;
 				event: "tick";
 				id: string;
 				retry: number;
-			}>().toExtend<Frame>();
+			}>().toExtend<A>();
 		});
 	});
 
@@ -159,21 +146,21 @@ describe("GeneratorSSE", () => {
 		test("should accept any string for the `event` channel", () => {
 			expectTypeOf<{
 				data: AnySuccess;
-				event: "anything";
+				event: "v1";
 			}>().toExtend<AnyGeneratorSSE>();
 		});
 
 		test("should accept any concrete `GeneratorSSE<X, Y>` as a subtype", () => {
-			type Frame = GeneratorSSE<Success<{ ok: true }, 200>, "tick">;
+			type A = GeneratorSSE<Success<{ a: true }, 1>, "tick">;
 
-			expectTypeOf<Frame>().toExtend<AnyGeneratorSSE>();
+			expectTypeOf<A>().toExtend<AnyGeneratorSSE>();
 		});
 
 		test("should accept a `Success` subtype through `data` covariance", () => {
-			type Specific = GeneratorSSE<Success<{ ok: true }, 200>>;
-			type Generic = GeneratorSSE<AnySuccess>;
+			type A = GeneratorSSE<Success<{ a: true }, 1>>;
+			type B = GeneratorSSE<AnySuccess>;
 
-			expectTypeOf<Specific>().toExtend<Generic>();
+			expectTypeOf<A>().toExtend<B>();
 		});
 	});
 });
