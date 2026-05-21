@@ -47,45 +47,45 @@ describe("pathToRegexp", () => {
 
 	describe("literal segments", () => {
 		test("should compile a single literal segment", () => {
-			const { paramKeys, regex, restKeys } = compile("/users");
+			const { paramKeys, regex, restKeys } = compile("/a");
 
 			expect(paramKeys).toEqual([]);
 			expect(restKeys).toBeUndefined();
-			expect(regex.test("/users")).toBe(true);
-			expect(regex.test("/user")).toBe(false);
-			expect(regex.test("/users/1")).toBe(false);
+			expect(regex.test("/a")).toBe(true);
+			expect(regex.test("/b")).toBe(false);
+			expect(regex.test("/a/1")).toBe(false);
 		});
 
 		test("should compile multiple literal segments", () => {
-			const { regex } = compile("/api/v1/health");
+			const { regex } = compile("/a/b/c");
 
-			expect(regex.test("/api/v1/health")).toBe(true);
-			expect(regex.test("/api/v1")).toBe(false);
-			expect(regex.test("/api/v1/health/extra")).toBe(false);
+			expect(regex.test("/a/b/c")).toBe(true);
+			expect(regex.test("/a/b")).toBe(false);
+			expect(regex.test("/a/b/c/d")).toBe(false);
 		});
 
 		test("should normalize a path without a leading '/' the same as one with it", () => {
-			const withSlash = pathToRegexp("/users/:id");
-			const withoutSlash = pathToRegexp("users/:id");
+			const withSlash = pathToRegexp("/a/:p1");
+			const withoutSlash = pathToRegexp("a/:p1");
 
 			expect(withoutSlash.pattern).toBe(withSlash.pattern);
 			expect(withoutSlash.paramKeys).toEqual(withSlash.paramKeys);
 
-			const { regex } = compile("users/:id");
+			const { regex } = compile("a/:p1");
 
-			expect("/users/1".match(regex)![2]).toBe("1");
+			expect("/a/v1".match(regex)![2]).toBe("v1");
 		});
 
 		test("should ignore extra consecutive slashes between segments", () => {
-			const { regex } = compile("//users");
+			const { regex } = compile("//a");
 
-			expect(regex.test("/users")).toBe(true);
+			expect(regex.test("/a")).toBe(true);
 		});
 
 		test("should ignore a trailing slash", () => {
-			const { regex } = compile("/users/");
+			const { regex } = compile("/a/");
 
-			expect(regex.test("/users")).toBe(true);
+			expect(regex.test("/a")).toBe(true);
 		});
 
 		test("should escape regex-special characters in literal segments", () => {
@@ -116,18 +116,18 @@ describe("pathToRegexp", () => {
 		});
 
 		test("should make an optional literal segment optional in the regex", () => {
-			const { regex } = compile("/users/details?");
+			const { regex } = compile("/a/b?");
 
-			expect(regex.test("/users/details")).toBe(true);
-			expect(regex.test("/users")).toBe(true);
+			expect(regex.test("/a/b")).toBe(true);
+			expect(regex.test("/a")).toBe(true);
 		});
 
 		test("should make the trailing slash optional with a trailing '/?'", () => {
-			const { regex } = compile("/foo/?");
+			const { regex } = compile("/a/?");
 
-			expect(regex.test("/foo")).toBe(true);
-			expect(regex.test("/foo/")).toBe(true);
-			expect(regex.test("/foo/bar")).toBe(false);
+			expect(regex.test("/a")).toBe(true);
+			expect(regex.test("/a/")).toBe(true);
+			expect(regex.test("/a/b")).toBe(false);
 		});
 
 		test("should compile a lone '?' segment to an optional empty literal", () => {
@@ -142,72 +142,72 @@ describe("pathToRegexp", () => {
 		});
 
 		test("should treat a single leading '.' as a literal (not a rest param)", () => {
-			const { paramKeys, regex, restKeys } = compile("/.well-known");
+			const { paramKeys, regex, restKeys } = compile("/.a");
 
 			expect(paramKeys).toEqual([]);
 			expect(restKeys).toBeUndefined();
-			expect(regex.test("/.well-known")).toBe(true);
+			expect(regex.test("/.a")).toBe(true);
 		});
 
 		test("should treat two leading '..' (not three) as a literal", () => {
-			const { paramKeys, regex, restKeys } = compile("/..relative");
+			const { paramKeys, regex, restKeys } = compile("/..a");
 
 			expect(paramKeys).toEqual([]);
 			expect(restKeys).toBeUndefined();
-			expect(regex.test("/..relative")).toBe(true);
+			expect(regex.test("/..a")).toBe(true);
 		});
 
 		test("should treat '*' followed by more characters as a literal", () => {
-			const { paramKeys, regex, restKeys } = compile("/*x");
+			const { paramKeys, regex, restKeys } = compile("/*a");
 
 			expect(paramKeys).toEqual([]);
 			expect(restKeys).toBeUndefined();
-			expect(regex.test("/*x")).toBe(true);
-			expect(regex.test("/anything")).toBe(false);
+			expect(regex.test("/*a")).toBe(true);
+			expect(regex.test("/a")).toBe(false);
 		});
 	});
 
 	describe(":name required parameter", () => {
-		describe("with path '/users/:id'", () => {
+		describe("with path '/a/:p1'", () => {
 			let compiled: ReturnType<typeof compile>;
 
 			beforeAll(() => {
-				compiled = compile("/users/:id");
+				compiled = compile("/a/:p1");
 			});
 
 			test("should capture the required param value", () => {
-				expect(compiled.paramKeys).toEqual(["id"]);
+				expect(compiled.paramKeys).toEqual(["p1"]);
 				expect(compiled.restKeys).toBeUndefined();
 
-				const match = "/users/1".match(compiled.regex);
+				const match = "/a/v1".match(compiled.regex);
 
 				expect(match).not.toBeNull();
-				expect(match![2]).toBe("1");
+				expect(match![2]).toBe("v1");
 			});
 
 			test("should not match without the required param value", () => {
-				expect(compiled.regex.test("/users")).toBe(false);
-				expect(compiled.regex.test("/users/")).toBe(false);
+				expect(compiled.regex.test("/a")).toBe(false);
+				expect(compiled.regex.test("/a/")).toBe(false);
 			});
 
 			test("should reject values containing forbidden characters (/, whitespace, ?, #)", () => {
-				expect(compiled.regex.test("/users/0 1")).toBe(false);
-				expect(compiled.regex.test("/users/0?1")).toBe(false);
-				expect(compiled.regex.test("/users/0#1")).toBe(false);
-				expect(compiled.regex.test("/users/a/b")).toBe(false);
+				expect(compiled.regex.test("/a/0 v1")).toBe(false);
+				expect(compiled.regex.test("/a/0?v1")).toBe(false);
+				expect(compiled.regex.test("/a/0#v1")).toBe(false);
+				expect(compiled.regex.test("/a/v1/v2")).toBe(false);
 			});
 		});
 
 		test("should capture multiple named params in order", () => {
-			const { paramKeys, regex } = compile("/users/:user/posts/:post");
+			const { paramKeys, regex } = compile("/a/:p1/b/:p2");
 
-			expect(paramKeys).toEqual(["user", "post"]);
+			expect(paramKeys).toEqual(["p1", "p2"]);
 
-			const match = "/users/abc/posts/1".match(regex);
+			const match = "/a/v1/b/v2".match(regex);
 
 			expect(match).not.toBeNull();
-			expect(match![2]).toBe("abc");
-			expect(match![3]).toBe("1");
+			expect(match![2]).toBe("v1");
+			expect(match![3]).toBe("v2");
 		});
 
 		test("should support a ':' segment with no name (empty key)", () => {
@@ -217,95 +217,95 @@ describe("pathToRegexp", () => {
 		});
 
 		test("should support a ':' segment with empty name at a non-root position", () => {
-			const { paramKeys, regex } = compile("/foo/:");
+			const { paramKeys, regex } = compile("/a/:");
 
 			expect(paramKeys).toEqual([""]);
-			expect(regex.test("/foo/anything")).toBe(true);
-			expect("/foo/value".match(regex)![2]).toBe("value");
+			expect(regex.test("/a/v1")).toBe(true);
+			expect("/a/v1".match(regex)![2]).toBe("v1");
 		});
 	});
 
 	describe(":name? optional parameter", () => {
 		test("should match both with and without the param", () => {
-			const { paramKeys, regex, restKeys } = compile("/posts/:slug?");
+			const { paramKeys, regex, restKeys } = compile("/a/:p1?");
 
-			expect(paramKeys).toEqual(["slug"]);
+			expect(paramKeys).toEqual(["p1"]);
 			expect(restKeys).toBeUndefined();
 
-			expect(regex.test("/posts")).toBe(true);
-			expect(regex.test("/posts/hello")).toBe(true);
+			expect(regex.test("/a")).toBe(true);
+			expect(regex.test("/a/v1")).toBe(true);
 
-			const match = "/posts/hello".match(regex);
+			const match = "/a/v1".match(regex);
 
 			expect(match).not.toBeNull();
-			expect(match![2]).toBe("hello");
+			expect(match![2]).toBe("v1");
 
-			const missing = "/posts".match(regex);
+			const missing = "/a".match(regex);
 
 			expect(missing).not.toBeNull();
 			expect(missing![2]).toBeUndefined();
 		});
 
 		test("should support an optional :name? at the root", () => {
-			const { regex } = compile("/:id?");
+			const { regex } = compile("/:p1?");
 
 			expect(regex.test("")).toBe(true);
-			expect(regex.test("/abc")).toBe(true);
+			expect(regex.test("/v1")).toBe(true);
 		});
 	});
 
 	describe("...name rest parameter", () => {
-		describe("with path '/files/...path'", () => {
+		describe("with path '/a/...r1'", () => {
 			let compiled: ReturnType<typeof compile>;
 
 			beforeAll(() => {
-				compiled = compile("/files/...path");
+				compiled = compile("/a/...r1");
 			});
 
 			test("should capture one or more remaining segments", () => {
-				expect(compiled.paramKeys).toEqual(["path"]);
-				expect(compiled.restKeys).toEqual(["path"]);
+				expect(compiled.paramKeys).toEqual(["r1"]);
+				expect(compiled.restKeys).toEqual(["r1"]);
 
-				expect("/files/a".match(compiled.regex)![2]).toBe("a");
-				expect("/files/a/b/c".match(compiled.regex)![2]).toBe("a/b/c");
+				expect("/a/v1".match(compiled.regex)![2]).toBe("v1");
+				expect("/a/v1/v2/v3".match(compiled.regex)![2]).toBe("v1/v2/v3");
 			});
 
 			test("should require at least one segment after the prefix", () => {
-				expect(compiled.regex.test("/files")).toBe(false);
-				expect(compiled.regex.test("/files/")).toBe(false);
+				expect(compiled.regex.test("/a")).toBe(false);
+				expect(compiled.regex.test("/a/")).toBe(false);
 			});
 
 			test("should reject forbidden characters in rest segments", () => {
-				expect(compiled.regex.test("/files/a b")).toBe(false);
-				expect(compiled.regex.test("/files/a?b")).toBe(false);
-				expect(compiled.regex.test("/files/a#b")).toBe(false);
+				expect(compiled.regex.test("/a/v1 v2")).toBe(false);
+				expect(compiled.regex.test("/a/v1?v2")).toBe(false);
+				expect(compiled.regex.test("/a/v1#v2")).toBe(false);
 			});
 		});
 
 		test("should backtrack correctly when followed by literal segments", () => {
-			const { paramKeys, regex, restKeys } = compile("/...rest/end");
+			const { paramKeys, regex, restKeys } = compile("/...r1/a");
 
-			expect(paramKeys).toEqual(["rest"]);
-			expect(restKeys).toEqual(["rest"]);
+			expect(paramKeys).toEqual(["r1"]);
+			expect(restKeys).toEqual(["r1"]);
 
-			const deep = "/a/b/c/end".match(regex);
+			const deep = "/v1/v2/v3/a".match(regex);
 
 			expect(deep).not.toBeNull();
-			expect(deep![2]).toBe("a/b/c");
+			expect(deep![2]).toBe("v1/v2/v3");
 
-			const shallow = "/a/end".match(regex);
+			const shallow = "/v1/a".match(regex);
 
 			expect(shallow).not.toBeNull();
-			expect(shallow![2]).toBe("a");
+			expect(shallow![2]).toBe("v1");
 
-			expect(regex.test("/a/b/c")).toBe(false);
+			expect(regex.test("/v1/v2/v3")).toBe(false);
 		});
 
 		test("should collect every rest param key when multiple rest are present", () => {
-			const { paramKeys, restKeys } = compile("/...a/middle/...b");
+			const { paramKeys, restKeys } = compile("/...r1/a/...r2");
 
-			expect(paramKeys).toEqual(["a", "b"]);
-			expect(restKeys).toEqual(["a", "b"]);
+			expect(paramKeys).toEqual(["r1", "r2"]);
+			expect(restKeys).toEqual(["r1", "r2"]);
 		});
 
 		test("should support an empty rest name", () => {
@@ -316,29 +316,29 @@ describe("pathToRegexp", () => {
 		});
 
 		test("should treat more than three leading dots as part of the rest name", () => {
-			const { paramKeys, restKeys } = compile("/....name");
+			const { paramKeys, restKeys } = compile("/....r1");
 
-			expect(paramKeys).toEqual([".name"]);
-			expect(restKeys).toEqual([".name"]);
+			expect(paramKeys).toEqual([".r1"]);
+			expect(restKeys).toEqual([".r1"]);
 		});
 	});
 
 	describe("...name? optional rest parameter", () => {
 		test("should match with and without trailing segments", () => {
-			const { paramKeys, regex, restKeys } = compile("/files/...path?");
+			const { paramKeys, regex, restKeys } = compile("/a/...r1?");
 
-			expect(paramKeys).toEqual(["path"]);
-			expect(restKeys).toEqual(["path"]);
+			expect(paramKeys).toEqual(["r1"]);
+			expect(restKeys).toEqual(["r1"]);
 
-			expect(regex.test("/files")).toBe(true);
-			expect(regex.test("/files/a/b")).toBe(true);
+			expect(regex.test("/a")).toBe(true);
+			expect(regex.test("/a/v1/v2")).toBe(true);
 
-			const match = "/files/a/b".match(regex);
+			const match = "/a/v1/v2".match(regex);
 
 			expect(match).not.toBeNull();
-			expect(match![2]).toBe("a/b");
+			expect(match![2]).toBe("v1/v2");
 
-			const missing = "/files".match(regex);
+			const missing = "/a".match(regex);
 
 			expect(missing).not.toBeNull();
 			expect(missing![2]).toBeUndefined();
@@ -351,13 +351,13 @@ describe("pathToRegexp", () => {
 			expect(restKeys).toEqual([""]);
 
 			expect(regex.test("")).toBe(true);
-			expect(regex.test("/a")).toBe(true);
-			expect(regex.test("/a/b/c")).toBe(true);
+			expect(regex.test("/v1")).toBe(true);
+			expect(regex.test("/v1/v2/v3")).toBe(true);
 
-			const match = "/a/b/c".match(regex);
+			const match = "/v1/v2/v3".match(regex);
 
 			expect(match).not.toBeNull();
-			expect(match![2]).toBe("a/b/c");
+			expect(match![2]).toBe("v1/v2/v3");
 
 			const missing = "".match(regex);
 
@@ -367,27 +367,27 @@ describe("pathToRegexp", () => {
 	});
 
 	describe("* wildcard segment", () => {
-		describe("with path '/static/*'", () => {
+		describe("with path '/a/*'", () => {
 			let compiled: ReturnType<typeof compile>;
 
 			beforeAll(() => {
-				compiled = compile("/static/*");
+				compiled = compile("/a/*");
 			});
 
 			test("should match one or more segments without capturing", () => {
 				expect(compiled.paramKeys).toEqual([]);
 				expect(compiled.restKeys).toBeUndefined();
 
-				expect(compiled.regex.test("/static/a")).toBe(true);
-				expect(compiled.regex.test("/static/a/b/c")).toBe(true);
+				expect(compiled.regex.test("/a/v1")).toBe(true);
+				expect(compiled.regex.test("/a/v1/v2/v3")).toBe(true);
 			});
 
 			test("should reject when the wildcard segment is absent", () => {
-				expect(compiled.regex.test("/static")).toBe(false);
+				expect(compiled.regex.test("/a")).toBe(false);
 			});
 
 			test("should not add extra capture groups", () => {
-				const match = "/static/a/b".match(compiled.regex);
+				const match = "/a/v1/v2".match(compiled.regex);
 
 				expect(compiled.paramKeys).toEqual([]);
 				expect(match!.length).toBe(2);
@@ -396,72 +396,68 @@ describe("pathToRegexp", () => {
 	});
 
 	describe("*? optional wildcard", () => {
-		describe("with path '/static/*?'", () => {
+		describe("with path '/a/*?'", () => {
 			let compiled: ReturnType<typeof compile>;
 
 			beforeAll(() => {
-				compiled = compile("/static/*?");
+				compiled = compile("/a/*?");
 			});
 
 			test("should match with and without the wildcard tail", () => {
 				expect(compiled.paramKeys).toEqual([]);
 				expect(compiled.restKeys).toBeUndefined();
 
-				expect(compiled.regex.test("/static")).toBe(true);
-				expect(compiled.regex.test("/static/a/b")).toBe(true);
+				expect(compiled.regex.test("/a")).toBe(true);
+				expect(compiled.regex.test("/a/v1/v2")).toBe(true);
 			});
 
 			test("should not add extra capture groups whether the tail is present or absent", () => {
 				expect(compiled.paramKeys).toEqual([]);
-				expect("/static/a/b".match(compiled.regex)!.length).toBe(2);
-				expect("/static".match(compiled.regex)!.length).toBe(2);
+				expect("/a/v1/v2".match(compiled.regex)!.length).toBe(2);
+				expect("/a".match(compiled.regex)!.length).toBe(2);
 			});
 		});
 	});
 
 	describe("mixed segment types", () => {
 		test("should support literals, named params and rest combined", () => {
-			const { paramKeys, regex, restKeys } = compile(
-				"/api/:version/files/...path",
-			);
+			const { paramKeys, regex, restKeys } = compile("/a/:p1/b/...r1");
 
-			expect(paramKeys).toEqual(["version", "path"]);
-			expect(restKeys).toEqual(["path"]);
+			expect(paramKeys).toEqual(["p1", "r1"]);
+			expect(restKeys).toEqual(["r1"]);
 
-			const match = "/api/v1/files/a/b/c".match(regex);
+			const match = "/a/v1/b/v2/v3/v4".match(regex);
 
 			expect(match).not.toBeNull();
 			expect(match![2]).toBe("v1");
-			expect(match![3]).toBe("a/b/c");
+			expect(match![3]).toBe("v2/v3/v4");
 		});
 
 		test("should support optional named params alongside required ones", () => {
-			const { paramKeys, regex } = compile("/users/:user/:tab?");
+			const { paramKeys, regex } = compile("/a/:p1/:p2?");
 
-			expect(paramKeys).toEqual(["user", "tab"]);
-			expect(regex.test("/users/abc")).toBe(true);
-			expect(regex.test("/users/abc/settings")).toBe(true);
-			expect("/users/abc/settings".match(regex)![3]).toBe("settings");
+			expect(paramKeys).toEqual(["p1", "p2"]);
+			expect(regex.test("/a/v1")).toBe(true);
+			expect(regex.test("/a/v1/v2")).toBe(true);
+			expect("/a/v1/v2".match(regex)![3]).toBe("v2");
 		});
 
 		test("should preserve left-to-right paramKeys order across mixed segments", () => {
-			const { paramKeys } = compile(
-				"/:first/middle/:second/...rest/:fourth",
-			);
+			const { paramKeys } = compile("/:p1/a/:p2/...r1/:p3");
 
-			expect(paramKeys).toEqual(["first", "second", "rest", "fourth"]);
+			expect(paramKeys).toEqual(["p1", "p2", "r1", "p3"]);
 		});
 
 		test("should append exactly 1 + paramKeys.length capture groups", () => {
-			const { paramKeys, regex } = compile("/a/:b/:c");
-			const match = "/a/foo/bar".match(regex);
+			const { paramKeys, regex } = compile("/a/:p1/:p2");
+			const match = "/a/v1/v2".match(regex);
 
 			expect(match).not.toBeNull();
 			expect(paramKeys).toHaveLength(2);
 			expect(match!.length).toBe(1 + 1 + paramKeys.length);
 			expect(match![1]).toBe("");
-			expect(match![2]).toBe("foo");
-			expect(match![3]).toBe("bar");
+			expect(match![2]).toBe("v1");
+			expect(match![3]).toBe("v2");
 		});
 	});
 });
