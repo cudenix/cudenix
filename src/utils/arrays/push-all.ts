@@ -15,6 +15,7 @@
  * @typeParam Type - Element type shared by both arrays.
  * @param target - Array that is mutated to receive new elements.
  * @param source - Array whose elements are copied into `target`.
+ * @return `void` to avoid encouraging chaining and to reflect that the return
  * @example
  * ```typescript
  * const target = [1, 2];
