@@ -15,9 +15,11 @@
  *
  * @example
  * ```typescript
- * const method: HttpMethod = "GET"; // suggested
- * const custom: HttpMethod = "PURGE"; // accepted via the string brand
- * const ws: HttpMethod = "WS"; // WebSocket upgrade handler
+ * type A = HttpMethod; // "DELETE" | "GET" | "HEAD" | ... | "WS" | (Uppercase<string> & {})
+ * type B = "GET" extends HttpMethod ? true : false;    // true (suggested literal)
+ * type C = "PURGE" extends HttpMethod ? true : false;  // true (via string brand)
+ * type D = "WS" extends HttpMethod ? true : false;     // true (WebSocket upgrade)
+ * type E = "get" extends HttpMethod ? true : false;    // false (must be upper-case)
  * ```
  */
 export type HttpMethod =
