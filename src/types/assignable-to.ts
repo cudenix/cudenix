@@ -6,7 +6,7 @@
 /**
  * Resolve to `true` when `Sub` is assignable to `Super`, otherwise to `false`.
  *
- * Unlike [[extends-type]], the relation is checked in a single direction — the
+ * Unlike {@link ExtendsType}, the relation is checked in a single direction — the
  * supertype side is allowed to be wider than the candidate. Wrapping both
  * operands in single-element tuples suppresses the implicit distribution that
  * conditional types perform over naked union operands, so the comparison
