@@ -9,11 +9,11 @@ describe("MaybePromise", () => {
 		});
 
 		test("should accept a structured value when wrapping an object type", () => {
-			interface User {
-				id: string;
+			interface A {
+				a: string;
 			}
 
-			expectTypeOf<User>().toExtend<MaybePromise<User>>();
+			expectTypeOf<A>().toExtend<MaybePromise<A>>();
 		});
 	});
 
