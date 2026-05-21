@@ -16,7 +16,7 @@
  * - `...name?` — optional rest parameter (`string[] | undefined`).
  *
  * Recursion proceeds through `${infer First}/${infer Rest}` template
- * splitting, threading a phantom `Accumulated` record so each match merges
+ * splitting, threading an internal `Accumulated` record so each match merges
  * into the previous result. The base case handles the trailing segment
  * that has no separator. Always returns a value — the accumulator defaults
  * to an empty record, so paths with no parameters resolve to `{}`.
