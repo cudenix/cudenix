@@ -5,21 +5,21 @@ import type { ValueOf } from "@/types/value-of";
 describe("ValueOf", () => {
 	describe("plain dictionaries", () => {
 		test("should resolve to a single type for a single-key dictionary", () => {
-			interface Source {
-				only: number;
+			interface A {
+				a: number;
 			}
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<number>();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<number>();
 		});
 
 		test("should resolve to the union of value types for a multi-key dictionary", () => {
-			interface Source {
+			interface A {
 				a: string;
 				b: number;
 				c: boolean;
 			}
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<
 				string | number | boolean
 			>();
 		});
@@ -27,48 +27,48 @@ describe("ValueOf", () => {
 
 	describe("`as const` enum objects", () => {
 		test("should resolve to the union of string literal values", () => {
-			const status = { done: "done", ready: "ready" } as const;
+			const a = { a: "v1", b: "v2" } as const;
 
-			type Status = ValueOf<typeof status>;
+			type A = ValueOf<typeof a>;
 
-			expectTypeOf<Status>().toEqualTypeOf<"ready" | "done">();
+			expectTypeOf<A>().toEqualTypeOf<"v2" | "v1">();
 		});
 
 		test("should resolve to the union of numeric literal values", () => {
-			const codes = { error: 500, notFound: 404, ok: 200 } as const;
+			const a = { a: 1, b: 2, c: 3 } as const;
 
-			type Code = ValueOf<typeof codes>;
+			type A = ValueOf<typeof a>;
 
-			expectTypeOf<Code>().toEqualTypeOf<200 | 404 | 500>();
+			expectTypeOf<A>().toEqualTypeOf<1 | 2 | 3>();
 		});
 
 		test("should resolve to the union of boolean literal values", () => {
-			const flags = { off: false, on: true } as const;
+			const a = { a: false, b: true } as const;
 
-			type Flag = ValueOf<typeof flags>;
+			type A = ValueOf<typeof a>;
 
-			expectTypeOf<Flag>().toEqualTypeOf<true | false>();
+			expectTypeOf<A>().toEqualTypeOf<true | false>();
 		});
 	});
 
 	describe("mixed value types", () => {
 		test("should preserve literal types within the union", () => {
-			interface Source {
-				mode: "auto";
-				retries: 3;
+			interface A {
+				a: "v1";
+				b: 1;
 			}
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<"auto" | 3>();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<"v1" | 1>();
 		});
 
 		test("should preserve heterogeneous value-type unions", () => {
-			interface Source {
-				count: number;
-				name: string;
-				tags: string[];
+			interface A {
+				a: number;
+				b: string;
+				c: string[];
 			}
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<
 				string | number | string[]
 			>();
 		});
@@ -76,21 +76,21 @@ describe("ValueOf", () => {
 
 	describe("modifiers", () => {
 		test("should ignore the `readonly` modifier when collecting value types", () => {
-			interface Source {
+			interface A {
 				readonly a: string;
 				readonly b: number;
 			}
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<string | number>();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<string | number>();
 		});
 
 		test("should include `undefined` for an optional (`?`) key", () => {
-			interface Source {
-				keep: string;
-				maybe?: number;
+			interface A {
+				a: string;
+				b?: number;
 			}
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<
 				string | number | undefined
 			>();
 		});
@@ -98,58 +98,58 @@ describe("ValueOf", () => {
 
 	describe("special key kinds", () => {
 		test("should preserve values keyed by numeric literals", () => {
-			interface Source {
-				1: "one";
-				2: "two";
+			interface A {
+				1: "v1";
+				2: "v2";
 			}
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<"one" | "two">();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<"v1" | "v2">();
 		});
 
 		test("should preserve values keyed by `symbol`", () => {
 			const sym = Symbol("key");
 
-			interface Source {
-				named: string;
+			interface A {
+				a: string;
 				[sym]: boolean;
 			}
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<boolean | string>();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<boolean | string>();
 		});
 	});
 
 	describe("complex value types", () => {
 		test("should preserve nested object value types", () => {
-			interface Source {
-				a: { x: number };
-				b: { y: string };
+			interface A {
+				a: { a: number };
+				b: { a: string };
 			}
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<
-				{ x: number } | { y: string }
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<
+				{ a: number } | { a: string }
 			>();
 		});
 
 		test("should preserve function value types", () => {
-			type Run = () => void;
-			type Format = (input: string) => string;
+			type A = () => void;
+			type B = (input: string) => string;
 
-			interface Source {
-				format: Format;
-				run: Run;
+			interface C {
+				a: B;
+				b: A;
 			}
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<Run | Format>();
+			expectTypeOf<ValueOf<C>>().toEqualTypeOf<A | B>();
 		});
 
 		test("should preserve `null` and `undefined` as explicit value types", () => {
-			interface Source {
+			interface A {
 				a: null;
 				b: undefined;
 				c: string;
 			}
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<
 				null | undefined | string
 			>();
 		});
@@ -157,68 +157,68 @@ describe("ValueOf", () => {
 
 	describe("index signatures", () => {
 		test("should resolve to the value type for `Record<string, V>`", () => {
-			type Source = Record<string, number>;
+			type A = Record<string, number>;
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<number>();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<number>();
 		});
 
 		test("should resolve to the value type for `Record<number, V>`", () => {
-			type Source = Record<number, boolean>;
+			type A = Record<number, boolean>;
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<boolean>();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<boolean>();
 		});
 
 		test("should resolve to the value type for `Record<symbol, V>`", () => {
-			type Source = Record<symbol, "x">;
+			type A = Record<symbol, "v1">;
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<"x">();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<"v1">();
 		});
 
 		test("should resolve to `unknown` for `Record<string, unknown>`", () => {
-			type Source = Record<string, unknown>;
+			type A = Record<string, unknown>;
 
-			expectTypeOf<ValueOf<Source>>().toBeUnknown();
+			expectTypeOf<ValueOf<A>>().toBeUnknown();
 		});
 
 		test("should resolve to `any` for `Record<string, any>`", () => {
-			type Source = Record<string, any>;
+			type A = Record<string, any>;
 
-			expectTypeOf<ValueOf<Source>>().toBeAny();
+			expectTypeOf<ValueOf<A>>().toBeAny();
 		});
 
 		test("should resolve to `never` for `Record<string, never>`", () => {
-			type Source = Record<string, never>;
+			type A = Record<string, never>;
 
-			expectTypeOf<ValueOf<Source>>().toBeNever();
+			expectTypeOf<ValueOf<A>>().toBeNever();
 		});
 	});
 
 	describe("tuple and array sources", () => {
 		test("should include the element types of a tuple in the union", () => {
-			type Source = [string, number];
+			type A = [string, number];
 
-			expectTypeOf<string>().toExtend<ValueOf<Source>>();
-			expectTypeOf<number>().toExtend<ValueOf<Source>>();
+			expectTypeOf<string>().toExtend<ValueOf<A>>();
+			expectTypeOf<number>().toExtend<ValueOf<A>>();
 		});
 
 		test("should include the element type of a homogeneous array in the union", () => {
-			type Source = string[];
+			type A = string[];
 
-			expectTypeOf<string>().toExtend<ValueOf<Source>>();
+			expectTypeOf<string>().toExtend<ValueOf<A>>();
 		});
 	});
 
 	describe("edge cases", () => {
 		test("should resolve to `never` for an empty object", () => {
-			type Source = NonNullable<unknown>;
+			type A = NonNullable<unknown>;
 
-			expectTypeOf<ValueOf<Source>>().toBeNever();
+			expectTypeOf<ValueOf<A>>().toBeNever();
 		});
 
 		test("should union value types across an intersection of objects", () => {
-			type Source = { a: string } & { b: number };
+			type A = { a: string } & { b: number };
 
-			expectTypeOf<ValueOf<Source>>().toEqualTypeOf<string | number>();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<string | number>();
 		});
 	});
 });
