@@ -35,9 +35,9 @@ Empty.prototype = Object.create(null);
  *
  * @example
  * ```typescript
- * const fn = ({ debug = false }: FnOptions = FreezeEmpty) => {
+ * const fn = ({ debug = false }: FnOptions = FrozenEmpty) => {
  * 	// `debug` falls back to its default without allocating `{}` per call.
  * };
  * ```
  */
-export const FreezeEmpty = Object.freeze(new Empty());
+export const FrozenEmpty = Object.freeze(new Empty());
