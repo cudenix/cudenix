@@ -5,170 +5,138 @@ import type { AllPropertiesAreUnknown } from "@/types/all-properties-are-unknown
 describe("AllPropertiesAreUnknown", () => {
 	describe("homogeneous unknown shapes", () => {
 		test("should resolve to true for a canonical two-key unknown shape", () => {
-			interface Source {
+			interface A {
 				a: unknown;
 				b: unknown;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for a single-key unknown shape", () => {
-			interface Source {
-				only: unknown;
+			interface A {
+				a: unknown;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true when every property is unknown", () => {
-			interface Source {
+			interface A {
 				a: unknown;
 				b: unknown;
 				c: unknown;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for a mix of required and optional unknown keys", () => {
-			interface Source {
+			interface A {
 				a: unknown;
 				b?: unknown;
 				c: unknown;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true when a readonly modifier accompanies an unknown property", () => {
-			interface Source {
+			interface A {
 				readonly a: unknown;
 				b: unknown;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true when a property's union value collapses into unknown", () => {
-			interface Source {
+			interface A {
 				a: unknown | string;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 	});
 
 	describe("index signatures", () => {
 		test("should resolve to true for a string-keyed unknown index signature", () => {
-			type Source = Record<string, unknown>;
+			type A = Record<string, unknown>;
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for a number-keyed unknown index signature", () => {
-			type Source = Record<number, unknown>;
+			type A = Record<number, unknown>;
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for a symbol-keyed unknown index signature", () => {
-			type Source = Record<symbol, unknown>;
+			type A = Record<symbol, unknown>;
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to false for an index signature with a concrete value type", () => {
-			type Source = Record<string, string>;
+			type A = Record<string, string>;
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 	});
 
 	describe("any-typed properties", () => {
 		test("should resolve to true when a property is typed `any` (unknown extends any)", () => {
-			interface Source {
+			interface A {
 				a: any;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true when every property is typed `any`", () => {
-			interface Source {
+			interface A {
 				a: any;
 				b: any;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true for a mix of `any` and `unknown` properties", () => {
-			interface Source {
+			interface A {
 				a: any;
 				b: unknown;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to false when an `any` property is paired with a concrete property", () => {
-			interface Source {
+			interface A {
 				a: any;
 				b: string;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 	});
 
 	describe("optional and undefined-containing values", () => {
 		test("should treat an optional unknown property as unknown (true)", () => {
-			interface Source {
+			interface A {
 				a?: unknown;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to false when a property is `string | undefined` (still not unknown)", () => {
-			interface Source {
+			interface A {
 				a: string | undefined;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 	});
 
@@ -182,108 +150,90 @@ describe("AllPropertiesAreUnknown", () => {
 		});
 
 		test("should resolve to true for an instance of a class with no own properties", () => {
-			class Bare {}
+			class A {}
 
-			expectTypeOf<AllPropertiesAreUnknown<Bare>>().toEqualTypeOf<true>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 	});
 
 	describe("mixed unknown and concrete properties", () => {
 		test("should resolve to false when one property is concrete and others are unknown", () => {
-			interface Source {
+			interface A {
 				a: unknown;
 				b: string;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 	});
 
 	describe("entirely concrete property types", () => {
 		test("should resolve to false when every property is concrete", () => {
-			interface Source {
+			interface A {
 				a: string;
 				b: number;
 				c: boolean;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when a property is a narrow union without unknown", () => {
-			interface Source {
-				a: "x" | "y";
+			interface A {
+				a: "v1" | "v2";
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 	});
 
 	describe("bottom and nullish value types", () => {
 		test("should resolve to false when a property is typed `null`", () => {
-			interface Source {
+			interface A {
 				a: null;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when a property is typed `undefined` and is not optional", () => {
-			interface Source {
+			interface A {
 				a: undefined;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when a property is typed `never`", () => {
-			interface Source {
+			interface A {
 				a: never;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when a single `never` is mixed with unknown keys", () => {
-			interface Source {
+			interface A {
 				a: unknown;
 				b: never;
 				c: unknown;
 			}
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 	});
 
 	describe("tuple and array shapes", () => {
 		test("should resolve to false for a tuple of unknown elements because of synthetic members", () => {
-			type Source = [unknown, unknown];
+			type A = [unknown, unknown];
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false for an array of unknown elements because of synthetic members", () => {
-			type Source = unknown[];
+			type A = unknown[];
 
-			expectTypeOf<
-				AllPropertiesAreUnknown<Source>
-			>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 	});
 });
