@@ -7,25 +7,25 @@ describe("merge", () => {
 		test("should copy all own enumerable string keys from source", () => {
 			const target: Record<string, unknown> = {};
 
-			merge(target, { a: 1, b: "two", c: true });
+			merge(target, { a: 1, b: "v2", c: true });
 
-			expect(target).toEqual({ a: 1, b: "two", c: true });
+			expect(target).toEqual({ a: 1, b: "v2", c: true });
 		});
 
 		test("should overwrite matching keys in target with values from source", () => {
 			const target: Record<string, unknown> = { a: 1, b: 2 };
 
-			merge(target, { b: 20, c: 30 });
+			merge(target, { b: 3, c: 4 });
 
-			expect(target).toEqual({ a: 1, b: 20, c: 30 });
+			expect(target).toEqual({ a: 1, b: 3, c: 4 });
 		});
 
 		test("should preserve target keys that have no counterpart in source", () => {
-			const target: Record<string, unknown> = { keep: 1, replace: 2 };
+			const target: Record<string, unknown> = { a: 1, b: 2 };
 
-			merge(target, { replace: 99 });
+			merge(target, { b: 3 });
 
-			expect(target).toEqual({ keep: 1, replace: 99 });
+			expect(target).toEqual({ a: 1, b: 3 });
 		});
 	});
 
@@ -68,12 +68,12 @@ describe("merge", () => {
 
 	describe("value semantics", () => {
 		test("should preserve value identity (reference values are not cloned)", () => {
-			const inner = { nested: true };
+			const inner = { a: true };
 			const target: Record<string, unknown> = {};
 
-			merge(target, { inner });
+			merge(target, { a: inner });
 
-			expect(target.inner).toBe(inner);
+			expect(target.a).toBe(inner);
 		});
 
 		test("should treat undefined source values as explicit assignments", () => {
@@ -98,7 +98,7 @@ describe("merge", () => {
 		test("should preserve target's key order when overwriting existing keys", () => {
 			const target: Record<string, unknown> = { a: 1, b: 2, c: 3 };
 
-			merge(target, { b: 20 });
+			merge(target, { b: 4 });
 
 			expect(Object.keys(target)).toEqual(["a", "b", "c"]);
 		});
@@ -139,34 +139,30 @@ describe("merge", () => {
 		});
 
 		test("should walk the prototype chain of source via for..in", () => {
-			const proto = { inherited: "fromProto" };
+			const proto = { a: "v1" };
 			const source = Object.create(proto);
 
-			source.own = "fromOwn";
+			source.b = "v2";
 
 			merge(target, source);
 
-			expect(target.own).toBe("fromOwn");
-			expect(target.inherited).toBe("fromProto");
+			expect(target.b).toBe("v2");
+			expect(target.a).toBe("v1");
 		});
 
 		test("should walk multi-level prototype chains", () => {
-			const grand = { fromGrand: "g" };
+			const grand = { a: "v1" };
 			const parent = Object.create(grand);
 
-			parent.fromParent = "p";
+			parent.b = "v2";
 
 			const source = Object.create(parent);
 
-			source.fromOwn = "o";
+			source.c = "v3";
 
 			merge(target, source);
 
-			expect(target).toEqual({
-				fromGrand: "g",
-				fromOwn: "o",
-				fromParent: "p",
-			});
+			expect(target).toEqual({ a: "v1", b: "v2", c: "v3" });
 		});
 
 		test("should still copy own keys when source has a null prototype", () => {
@@ -181,18 +177,18 @@ describe("merge", () => {
 		});
 
 		test("should copy enumerable instance fields of a class source but skip its prototype methods", () => {
-			class Foo {
-				instanceProp = "inst";
+			class A {
+				a = "v1";
 
-				method() {
-					return "m";
+				b() {
+					return "v2";
 				}
 			}
 
-			merge(target, new Foo() as unknown as Record<string, unknown>);
+			merge(target, new A() as unknown as Record<string, unknown>);
 
-			expect(target.instanceProp).toBe("inst");
-			expect("method" in target).toBe(false);
+			expect(target.a).toBe("v1");
+			expect("b" in target).toBe(false);
 		});
 	});
 
@@ -204,14 +200,14 @@ describe("merge", () => {
 		});
 
 		test("should not copy symbol-keyed properties (for..in does not visit them)", () => {
-			const sym = Symbol("ignored");
-			const source: Record<PropertyKey, unknown> = { visible: 1 };
+			const sym = Symbol();
+			const source: Record<PropertyKey, unknown> = { a: 1 };
 
-			source[sym] = "skipped";
+			source[sym] = "v1";
 
 			merge(target, source);
 
-			expect(target.visible).toBe(1);
+			expect(target.a).toBe(1);
 			expect(target[sym]).toBeUndefined();
 			expect(Object.getOwnPropertySymbols(target)).toHaveLength(0);
 		});
@@ -219,17 +215,17 @@ describe("merge", () => {
 		test("should skip non-enumerable properties (for..in only visits enumerable)", () => {
 			const source: Record<string, unknown> = {};
 
-			Object.defineProperty(source, "hidden", {
+			Object.defineProperty(source, "a", {
 				enumerable: false,
-				value: "nope",
+				value: "v1",
 			});
 
-			source.visible = "yes";
+			source.b = "v2";
 
 			merge(target, source);
 
-			expect(target.visible).toBe("yes");
-			expect("hidden" in target).toBe(false);
+			expect(target.b).toBe("v2");
+			expect("a" in target).toBe(false);
 		});
 	});
 
@@ -239,12 +235,12 @@ describe("merge", () => {
 
 			const source: Record<string, unknown> = {};
 
-			Object.defineProperty(source, "computed", {
+			Object.defineProperty(source, "a", {
 				enumerable: true,
 				get() {
 					reads += 1;
 
-					return 42;
+					return 1;
 				},
 			});
 
@@ -253,9 +249,9 @@ describe("merge", () => {
 			merge(target, source);
 
 			expect(reads).toBe(1);
-			expect(target.computed).toBe(42);
+			expect(target.a).toBe(1);
 			expect(
-				Object.getOwnPropertyDescriptor(target, "computed")?.get,
+				Object.getOwnPropertyDescriptor(target, "a")?.get,
 			).toBeUndefined();
 		});
 
@@ -264,7 +260,7 @@ describe("merge", () => {
 
 			const target: Record<string, unknown> = {};
 
-			Object.defineProperty(target, "x", {
+			Object.defineProperty(target, "a", {
 				configurable: true,
 				enumerable: true,
 				get() {
@@ -275,10 +271,10 @@ describe("merge", () => {
 				},
 			});
 
-			merge(target, { x: 7 });
+			merge(target, { a: 1 });
 
-			expect(captured).toBe(7);
-			expect(target.x).toBe(7);
+			expect(captured).toBe(1);
+			expect(target.a).toBe(1);
 		});
 	});
 
@@ -286,27 +282,24 @@ describe("merge", () => {
 		test("should copy enumerable character indices from a string source", () => {
 			const target: Record<PropertyKey, unknown> = {};
 
-			merge(target, "hi" as unknown as Record<PropertyKey, unknown>);
+			merge(target, "ab" as unknown as Record<PropertyKey, unknown>);
 
-			expect(target).toEqual({ 0: "h", 1: "i" });
+			expect(target).toEqual({ 0: "a", 1: "b" });
 		});
 
 		test("should copy enumerable index keys from an array source and skip its non-enumerable length", () => {
 			const target: Record<PropertyKey, unknown> = {};
 
-			merge(target, [10, 20, 30] as unknown as Record<
-				PropertyKey,
-				unknown
-			>);
+			merge(target, [1, 2, 3] as unknown as Record<PropertyKey, unknown>);
 
-			expect(target).toEqual({ 0: 10, 1: 20, 2: 30 });
+			expect(target).toEqual({ 0: 1, 1: 2, 2: 3 });
 			expect("length" in target).toBe(false);
 		});
 
 		test("should do nothing for primitive sources without enumerable keys", () => {
 			const target = { a: 1 };
 
-			merge(target, 123 as unknown as Record<PropertyKey, unknown>);
+			merge(target, 2 as unknown as Record<PropertyKey, unknown>);
 			merge(target, true as unknown as Record<PropertyKey, unknown>);
 
 			expect(target).toEqual({ a: 1 });
@@ -359,36 +352,37 @@ describe("merge", () => {
 
 	describe("cyclic sources", () => {
 		test("should copy a self-referential entry without infinite recursion", () => {
-			interface Cyclic {
-				name: string;
-				self?: Cyclic;
+			interface A {
+				a: string;
+				b?: A;
 			}
 
-			const source = { name: "root" } as Cyclic;
+			const source = { a: "v1" } as A;
 
-			source.self = source;
+			source.b = source;
 
 			const target: Record<string, unknown> = {};
 
 			merge(target, source as unknown as Record<string, unknown>);
 
-			expect(target.name).toBe("root");
-			expect(target.self).toBe(source);
+			expect(target.a).toBe("v1");
+			expect(target.b).toBe(source);
 		});
 	});
 
 	describe("prototype pollution surface", () => {
 		test("should reassign target's prototype when source carries an own __proto__ key", () => {
 			const target: Record<string, unknown> = {};
-			const malicious = JSON.parse(
-				'{"__proto__":{"polluted":"yes"}}',
-			) as Record<string, unknown>;
+			const malicious = JSON.parse('{"__proto__":{"a":"v1"}}') as Record<
+				string,
+				unknown
+			>;
 
 			merge(target, malicious);
 
-			expect(Object.getPrototypeOf(target)).toEqual({ polluted: "yes" });
-			expect((target as Record<string, unknown>).polluted).toBe("yes");
-			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+			expect(Object.getPrototypeOf(target)).toEqual({ a: "v1" });
+			expect((target as Record<string, unknown>).a).toBe("v1");
+			expect(({} as Record<string, unknown>).a).toBeUndefined();
 		});
 	});
 });
