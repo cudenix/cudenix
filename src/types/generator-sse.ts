@@ -12,8 +12,8 @@ import type { AnySuccess } from "@/core/success";
  *
  * - `data` carries the payload, restricted to the framework's `AnyError` /
  *   `AnySuccess` envelopes so transport metadata flows downstream untouched.
- * - `event` names the channel listeners on `EventSource.addEventListener`
- *   will receive on.
+ * - `event` — name of the channel that listeners attached via
+ *   `EventSource.addEventListener` will receive on.
  * - `id` becomes the value the browser replays via the `Last-Event-ID`
  *   header after a reconnect.
  * - `retry` advises the reconnection delay, in milliseconds.
