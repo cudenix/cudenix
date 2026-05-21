@@ -14,6 +14,7 @@
  *
  * @param object1 - Target dictionary that receives the keys.
  * @param object2 - Source dictionary whose entries are copied into `object1`.
+ * @returns `object1` after the merge.
  * @example
  * ```typescript
  * const base = { a: 1, b: 2 };
