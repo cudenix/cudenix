@@ -29,7 +29,7 @@ type OmitKeys<Type, OmitType> = {
  * fields a builder marks as `never` or `unknown` so downstream consumers see
  * a tighter object shape.
  *
- * @typeParam Type - Dictionary to filter.
+ * @typeParam Type - Source object to filter.
  * @typeParam OmitType - Value type whose owning keys are removed.
  * @example
  * ```typescript
