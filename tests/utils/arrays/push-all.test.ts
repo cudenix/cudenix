@@ -15,9 +15,9 @@ describe("pushAll", () => {
 		test("should append a single element to a non-empty target", () => {
 			const target = [1, 2];
 
-			pushAll(target, [99]);
+			pushAll(target, [3]);
 
-			expect(target).toEqual([1, 2, 99]);
+			expect(target).toEqual([1, 2, 3]);
 		});
 	});
 
@@ -74,8 +74,8 @@ describe("pushAll", () => {
 		});
 
 		test("should preserve element identity for objects appended from source", () => {
-			const a = { id: 1 };
-			const b = { id: 2 };
+			const a = { a: 1 };
+			const b = { a: 2 };
 			const target: object[] = [];
 
 			pushAll(target, [a, b]);
@@ -85,9 +85,9 @@ describe("pushAll", () => {
 		});
 
 		test("should preserve identity of pre-existing target elements", () => {
-			const x = { id: "x" };
-			const y = { id: "y" };
-			const z = { id: "z" };
+			const x = { a: "v1" };
+			const y = { a: "v2" };
+			const z = { a: "v3" };
 			const target: object[] = [x, y];
 
 			pushAll(target, [z]);
@@ -100,9 +100,9 @@ describe("pushAll", () => {
 		test("should support mixing element types under a union generic", () => {
 			const target: (number | string)[] = [1];
 
-			pushAll<number | string>(target, ["two", 3]);
+			pushAll<number | string>(target, ["v1", 3]);
 
-			expect(target).toEqual([1, "two", 3]);
+			expect(target).toEqual([1, "v1", 3]);
 		});
 
 		test("should append null and undefined values without coercion", () => {
@@ -117,7 +117,7 @@ describe("pushAll", () => {
 	describe("length and positioning", () => {
 		test("should set the final length to base + source length", () => {
 			const target = [1, 2, 3];
-			const source = [10, 20, 30, 40];
+			const source = [4, 5, 6, 7];
 
 			pushAll(target, source);
 
@@ -125,14 +125,14 @@ describe("pushAll", () => {
 		});
 
 		test("should write the first appended element exactly at target[baseLength]", () => {
-			const target = [10, 20, 30];
+			const target = [1, 2, 3];
 			const baseLength = target.length;
-			const source = [40, 50, 60];
+			const source = [4, 5, 6];
 
 			pushAll(target, source);
 
-			expect(target[baseLength]).toBe(40);
-			expect(target[baseLength + source.length - 1]).toBe(60);
+			expect(target[baseLength]).toBe(4);
+			expect(target[baseLength + source.length - 1]).toBe(6);
 		});
 	});
 
