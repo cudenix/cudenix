@@ -73,7 +73,7 @@ describe("pathToRegexp", () => {
 
 			const { regex } = compile("a/:p1");
 
-			expect("/a/v1".match(regex)![2]).toBe("v1");
+			expect("/a/v1".match(regex)?.[2]).toBe("v1");
 		});
 
 		test("should ignore extra consecutive slashes between segments", () => {
@@ -181,8 +181,7 @@ describe("pathToRegexp", () => {
 
 				const match = "/a/v1".match(compiled.regex);
 
-				expect(match).not.toBeNull();
-				expect(match![2]).toBe("v1");
+				expect(match?.[2]).toBe("v1");
 			});
 
 			test("should not match without the required param value", () => {
@@ -205,9 +204,8 @@ describe("pathToRegexp", () => {
 
 			const match = "/a/v1/b/v2".match(regex);
 
-			expect(match).not.toBeNull();
-			expect(match![2]).toBe("v1");
-			expect(match![3]).toBe("v2");
+			expect(match?.[2]).toBe("v1");
+			expect(match?.[3]).toBe("v2");
 		});
 
 		test("should support a ':' segment with no name (empty key)", () => {
@@ -221,7 +219,7 @@ describe("pathToRegexp", () => {
 
 			expect(paramKeys).toEqual([""]);
 			expect(regex.test("/a/v1")).toBe(true);
-			expect("/a/v1".match(regex)![2]).toBe("v1");
+			expect("/a/v1".match(regex)?.[2]).toBe("v1");
 		});
 	});
 
@@ -237,13 +235,11 @@ describe("pathToRegexp", () => {
 
 			const match = "/a/v1".match(regex);
 
-			expect(match).not.toBeNull();
-			expect(match![2]).toBe("v1");
+			expect(match?.[2]).toBe("v1");
 
 			const missing = "/a".match(regex);
 
-			expect(missing).not.toBeNull();
-			expect(missing![2]).toBeUndefined();
+			expect(missing?.[2]).toBeUndefined();
 		});
 
 		test("should support an optional :name? at the root", () => {
@@ -266,8 +262,10 @@ describe("pathToRegexp", () => {
 				expect(compiled.paramKeys).toEqual(["r1"]);
 				expect(compiled.restKeys).toEqual(["r1"]);
 
-				expect("/a/v1".match(compiled.regex)![2]).toBe("v1");
-				expect("/a/v1/v2/v3".match(compiled.regex)![2]).toBe("v1/v2/v3");
+				expect("/a/v1".match(compiled.regex)?.[2]).toBe("v1");
+				expect("/a/v1/v2/v3".match(compiled.regex)?.[2]).toBe(
+					"v1/v2/v3",
+				);
 			});
 
 			test("should require at least one segment after the prefix", () => {
@@ -290,13 +288,11 @@ describe("pathToRegexp", () => {
 
 			const deep = "/v1/v2/v3/a".match(regex);
 
-			expect(deep).not.toBeNull();
-			expect(deep![2]).toBe("v1/v2/v3");
+			expect(deep?.[2]).toBe("v1/v2/v3");
 
 			const shallow = "/v1/a".match(regex);
 
-			expect(shallow).not.toBeNull();
-			expect(shallow![2]).toBe("v1");
+			expect(shallow?.[2]).toBe("v1");
 
 			expect(regex.test("/v1/v2/v3")).toBe(false);
 		});
@@ -335,13 +331,11 @@ describe("pathToRegexp", () => {
 
 			const match = "/a/v1/v2".match(regex);
 
-			expect(match).not.toBeNull();
-			expect(match![2]).toBe("v1/v2");
+			expect(match?.[2]).toBe("v1/v2");
 
 			const missing = "/a".match(regex);
 
-			expect(missing).not.toBeNull();
-			expect(missing![2]).toBeUndefined();
+			expect(missing?.[2]).toBeUndefined();
 		});
 
 		test("should support an optional rest with no name", () => {
@@ -356,13 +350,11 @@ describe("pathToRegexp", () => {
 
 			const match = "/v1/v2/v3".match(regex);
 
-			expect(match).not.toBeNull();
-			expect(match![2]).toBe("v1/v2/v3");
+			expect(match?.[2]).toBe("v1/v2/v3");
 
 			const missing = "".match(regex);
 
-			expect(missing).not.toBeNull();
-			expect(missing![2]).toBeUndefined();
+			expect(missing?.[2]).toBeUndefined();
 		});
 	});
 
@@ -390,7 +382,7 @@ describe("pathToRegexp", () => {
 				const match = "/a/v1/v2".match(compiled.regex);
 
 				expect(compiled.paramKeys).toEqual([]);
-				expect(match!.length).toBe(2);
+				expect(match?.length).toBe(2);
 			});
 		});
 	});
@@ -413,8 +405,8 @@ describe("pathToRegexp", () => {
 
 			test("should not add extra capture groups whether the tail is present or absent", () => {
 				expect(compiled.paramKeys).toEqual([]);
-				expect("/a/v1/v2".match(compiled.regex)!.length).toBe(2);
-				expect("/a".match(compiled.regex)!.length).toBe(2);
+				expect("/a/v1/v2".match(compiled.regex)?.length).toBe(2);
+				expect("/a".match(compiled.regex)?.length).toBe(2);
 			});
 		});
 	});
@@ -429,8 +421,8 @@ describe("pathToRegexp", () => {
 			const match = "/a/v1/b/v2/v3/v4".match(regex);
 
 			expect(match).not.toBeNull();
-			expect(match![2]).toBe("v1");
-			expect(match![3]).toBe("v2/v3/v4");
+			expect(match?.[2]).toBe("v1");
+			expect(match?.[3]).toBe("v2/v3/v4");
 		});
 
 		test("should support optional named params alongside required ones", () => {
@@ -439,7 +431,7 @@ describe("pathToRegexp", () => {
 			expect(paramKeys).toEqual(["p1", "p2"]);
 			expect(regex.test("/a/v1")).toBe(true);
 			expect(regex.test("/a/v1/v2")).toBe(true);
-			expect("/a/v1/v2".match(regex)![3]).toBe("v2");
+			expect("/a/v1/v2".match(regex)?.[3]).toBe("v2");
 		});
 
 		test("should preserve left-to-right paramKeys order across mixed segments", () => {
@@ -454,10 +446,10 @@ describe("pathToRegexp", () => {
 
 			expect(match).not.toBeNull();
 			expect(paramKeys).toHaveLength(2);
-			expect(match!.length).toBe(1 + 1 + paramKeys.length);
-			expect(match![1]).toBe("");
-			expect(match![2]).toBe("v1");
-			expect(match![3]).toBe("v2");
+			expect(match?.length).toBe(1 + 1 + paramKeys.length);
+			expect(match?.[1]).toBe("");
+			expect(match?.[2]).toBe("v1");
+			expect(match?.[3]).toBe("v2");
 		});
 	});
 });
