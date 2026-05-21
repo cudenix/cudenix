@@ -75,31 +75,31 @@ describe("isGenerator", () => {
 	});
 
 	describe("generator methods on a class", () => {
-		let streamer: {
-			stream: () => Generator<number>;
-			streamAsync: () => AsyncGenerator<number>;
+		let instance: {
+			a: () => Generator<number>;
+			b: () => AsyncGenerator<number>;
 		};
 
 		beforeAll(() => {
-			class Streamer {
-				*stream() {
+			class A {
+				*a() {
 					yield 1;
 				}
 
-				async *streamAsync() {
+				async *b() {
 					yield 1;
 				}
 			}
 
-			streamer = new Streamer();
+			instance = new A();
 		});
 
 		test("should return true for a sync generator method", () => {
-			expect(isGenerator(streamer.stream)).toBe(true);
+			expect(isGenerator(instance.a)).toBe(true);
 		});
 
 		test("should return true for an async generator method", () => {
-			expect(isGenerator(streamer.streamAsync)).toBe(true);
+			expect(isGenerator(instance.b)).toBe(true);
 		});
 	});
 
@@ -166,9 +166,9 @@ describe("isGenerator", () => {
 
 	describe("classes and exotic function objects", () => {
 		test("should return false for a class declaration", () => {
-			class Foo {}
+			class A {}
 
-			expect(isGenerator(asFn(Foo))).toBe(false);
+			expect(isGenerator(asFn(A))).toBe(false);
 		});
 
 		test("should return false for a bound function", () => {
@@ -218,7 +218,7 @@ describe("isGenerator", () => {
 		});
 
 		test("should return false for a string primitive", () => {
-			expect(isGenerator(asFn("text"))).toBe(false);
+			expect(isGenerator(asFn("v1"))).toBe(false);
 		});
 
 		test("should return false for a boolean primitive", () => {
