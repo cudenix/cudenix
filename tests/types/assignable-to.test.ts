@@ -219,55 +219,49 @@ describe("AssignableTo", () => {
 
 	describe("function types", () => {
 		test("should resolve to true for equal function signatures", () => {
-			type Fn = (value: string) => number;
+			type A = (value: string) => number;
 
-			expectTypeOf<AssignableTo<Fn, Fn>>().toEqualTypeOf<true>();
+			expectTypeOf<AssignableTo<A, A>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true when a function returns a subtype of the expected return type", () => {
-			type Wide = () => string;
-			type Narrow = () => "foo";
+			type A = () => string;
+			type B = () => "foo";
 
-			expectTypeOf<AssignableTo<Narrow, Wide>>().toEqualTypeOf<true>();
+			expectTypeOf<AssignableTo<B, A>>().toEqualTypeOf<true>();
 		});
 
 		describe("with parameter contravariance", () => {
-			type Wide = (value: string | number) => void;
-			type Narrow = (value: string) => void;
+			type A = (value: string | number) => void;
+			type B = (value: string) => void;
 
 			test("should resolve to true when a function accepts a wider parameter than expected", () => {
-				expectTypeOf<
-					AssignableTo<Wide, Narrow>
-				>().toEqualTypeOf<true>();
+				expectTypeOf<AssignableTo<A, B>>().toEqualTypeOf<true>();
 			});
 
 			test("should resolve to false when a function accepts a narrower parameter than expected", () => {
-				expectTypeOf<
-					AssignableTo<Narrow, Wide>
-				>().toEqualTypeOf<false>();
+				expectTypeOf<AssignableTo<B, A>>().toEqualTypeOf<false>();
 			});
 		});
 
 		describe("with parameter count variance", () => {
-			type Fewer = () => void;
-			type More = (value: string) => void;
+			type A = () => void;
+			type B = (value: string) => void;
 
 			test("should resolve to true when a function takes fewer parameters than expected", () => {
-				expectTypeOf<AssignableTo<Fewer, More>>().toEqualTypeOf<true>();
+				expectTypeOf<AssignableTo<A, B>>().toEqualTypeOf<true>();
 			});
 
 			test("should resolve to false when a function takes more parameters than expected", () => {
-				expectTypeOf<
-					AssignableTo<More, Fewer>
-				>().toEqualTypeOf<false>();
+				expectTypeOf<AssignableTo<B, A>>().toEqualTypeOf<false>();
 			});
 		});
 
 		test("should resolve to false when parameter types are unrelated", () => {
-			type Left = (value: string) => void;
-			type Right = (value: number) => void;
+			type A = (value: string) => void;
+			type B = (value: number) => void;
 
-			expectTypeOf<AssignableTo<Left, Right>>().toEqualTypeOf<false>();
+			expectTypeOf<AssignableTo<A, B>>().toEqualTypeOf<false>();
 		});
 	});
 
