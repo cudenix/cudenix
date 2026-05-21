@@ -15,9 +15,17 @@
  * @typeParam Type - Value type the producer ultimately yields.
  * @example
  * ```typescript
- * const fromValue: MaybeFunction<number> = 42;
- * const fromSync:  MaybeFunction<number> = () => 42;
- * const fromAsync: MaybeFunction<number> = async () => 42;
+ * type A = MaybeFunction<number>;
+ * // number | (() => number | Promise<number>)
+ *
+ * type B = number extends MaybeFunction<number> ? true : false;
+ * // true (concrete value)
+ *
+ * type C = (() => number) extends MaybeFunction<number> ? true : false;
+ * // true (sync factory)
+ *
+ * type D = (() => Promise<number>) extends MaybeFunction<number> ? true : false;
+ * // true (async factory)
  * ```
  */
 export type MaybeFunction<Type> = Type | (() => Type | Promise<Type>);
