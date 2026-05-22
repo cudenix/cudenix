@@ -17,11 +17,11 @@
  * @returns `object1` after the merge.
  * @example
  * ```typescript
- * const base = { a: 1, b: 2 };
+ * const target = { a: 1, b: 2 };
  *
- * merge(base, { b: 20, c: 30 });
+ * merge(target, { b: 3, c: 4 });
  *
- * base; // { a: 1, b: 20, c: 30 }
+ * target; // { a: 1, b: 3, c: 4 }
  * ```
  */
 export const merge = (
