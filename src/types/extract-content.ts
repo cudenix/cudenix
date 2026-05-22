@@ -15,9 +15,9 @@
  * @typeParam Content - Value, sync factory, or async factory to unwrap.
  * @example
  * ```typescript
- * type A = ExtractContent<{ ok: true }>;             // { ok: true }
- * type B = ExtractContent<() => { ok: true }>;       // { ok: true }
- * type C = ExtractContent<() => Promise<{ ok: 1 }>>; // { ok: 1 }
+ * type A = ExtractContent<{ a: true }>;             // { a: true }
+ * type B = ExtractContent<() => { a: true }>;       // { a: true }
+ * type C = ExtractContent<() => Promise<{ a: 1 }>>; // { a: 1 }
  * ```
  */
 export type ExtractContent<Content> = Content extends (
