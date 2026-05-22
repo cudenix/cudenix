@@ -78,12 +78,12 @@ export const pathToRegexp = (path: string) => {
 		return {
 			paramKeys: [],
 			pattern: String.raw`()\/`,
-			restKeys: undefined as string[] | undefined,
+			restKeys: undefined,
 		};
 	}
 
 	const length = path.length;
-	const paramKeys = [] as string[];
+	const paramKeys: string[] = [];
 
 	let restKeys: string[] | undefined;
 	let pattern = "()";
