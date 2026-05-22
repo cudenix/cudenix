@@ -63,14 +63,14 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  * pathToRegexp("/");
  * // { paramKeys: [], pattern: "()\\/", restKeys: undefined }
  *
- * pathToRegexp("/users/:id");
- * // { paramKeys: ["id"], pattern: "()\\/\\x75sers\\/([^/\\s?#]+)", restKeys: undefined }
+ * pathToRegexp("/a/:p1");
+ * // { paramKeys: ["p1"], pattern: "()\\/\\x61\\/([^/\\s?#]+)", restKeys: undefined }
  *
- * pathToRegexp("/files/...path");
- * // { paramKeys: ["path"], pattern: "()\\/\\x66iles\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))", restKeys: ["path"] }
+ * pathToRegexp("/a/...r1");
+ * // { paramKeys: ["r1"], pattern: "()\\/\\x61\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))", restKeys: ["r1"] }
  *
- * pathToRegexp("/posts/:slug?");
- * // { paramKeys: ["slug"], pattern: "()\\/\\x70osts(?:\\/([^/\\s?#]+))?", restKeys: undefined }
+ * pathToRegexp("/a/:p1?");
+ * // { paramKeys: ["p1"], pattern: "()\\/\\x61(?:\\/([^/\\s?#]+))?", restKeys: undefined }
  * ```
  */
 export const pathToRegexp = (path: string) => {
