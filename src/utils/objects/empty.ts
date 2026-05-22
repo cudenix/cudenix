@@ -35,8 +35,8 @@ Empty.prototype = Object.create(null);
  *
  * @example
  * ```typescript
- * const fn = ({ debug = false }: FnOptions = FrozenEmpty) => {
- * 	// `debug` falls back to its default without allocating `{}` per call.
+ * const fn = ({ a = false }: { a?: boolean } = FrozenEmpty) => {
+ * 	// `a` falls back to its default without allocating `{}` per call.
  * };
  * ```
  */
