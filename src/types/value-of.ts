@@ -13,12 +13,12 @@
  * @typeParam Type - Dictionary whose value types are unioned.
  * @example
  * ```typescript
- * type Status = { ready: "ready"; done: "done" };
+ * type A = { a: "v1"; b: "v2" };
  *
- * type A = ValueOf<Status>;
- * // "ready" | "done"
+ * type B = ValueOf<A>;
+ * // "v1" | "v2"
  *
- * type B = ValueOf<{ id: string; count: number }>;
+ * type C = ValueOf<{ a: string; b: number }>;
  * // string | number
  * ```
  */
