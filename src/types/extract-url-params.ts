@@ -26,16 +26,16 @@
  * @typeParam Accumulated - Internal accumulator; do not pass explicitly.
  * @example
  * ```typescript
- * type A = ExtractUrlParams<"/users/:id">;
- * // { id: string }
+ * type A = ExtractUrlParams<"/a/:p1">;
+ * // { p1: string }
  *
- * type B = ExtractUrlParams<"/posts/:slug?/comments">;
- * // { slug: string | undefined }
+ * type B = ExtractUrlParams<"/a/:p1?/b">;
+ * // { p1: string | undefined }
  *
- * type C = ExtractUrlParams<"/files/...path">;
- * // { path: string[] }
+ * type C = ExtractUrlParams<"/a/...r1">;
+ * // { r1: string[] }
  *
- * type D = ExtractUrlParams<"/health">;
+ * type D = ExtractUrlParams<"/a">;
  * // {}
  * ```
  */
