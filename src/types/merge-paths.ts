@@ -26,14 +26,14 @@ type RemoveTrailingSlash<Type extends string> = Type extends "/"
  * from each side before joining so `"/api"` + `"/users"` and `"/api/"` +
  * `"/users/"` both resolve to `"/api/users"`.
  *
- * @typeParam Prefix - Parent prefix (e.g. `"/api"`).
- * @typeParam Path - Child path (e.g. `"/users/:id"`).
+ * @typeParam Prefix - Parent prefix (e.g. `"/a"`).
+ * @typeParam Path - Child path (e.g. `"/a/:p1"`).
  * @example
  * ```typescript
- * type A = MergePaths<"/api", "/users">;     // "/api/users"
- * type B = MergePaths<"/", "/users">;        // "/users"
- * type C = MergePaths<"/api", "/">;          // "/api"
- * type D = MergePaths<"/api/", "/users/">;   // "/api/users"
+ * type A = MergePaths<"/a", "/b">;     // "/a/b"
+ * type B = MergePaths<"/", "/b">;      // "/b"
+ * type C = MergePaths<"/a", "/">;      // "/a"
+ * type D = MergePaths<"/a/", "/b/">;   // "/a/b"
  * ```
  */
 export type MergePaths<
