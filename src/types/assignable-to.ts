@@ -21,10 +21,10 @@
  * @typeParam Super - Reference type that should accept `Sub`.
  * @example
  * ```typescript
- * type A = AssignableTo<"foo", string>;            // true  (literal → primitive)
- * type B = AssignableTo<string, "foo">;            // false (primitive → literal)
+ * type A = AssignableTo<"v1", string>;             // true  (literal → primitive)
+ * type B = AssignableTo<string, "v1">;             // false (primitive → literal)
  * type C = AssignableTo<number, number | string>;  // true  (member → union)
- * type D = AssignableTo<"a" | "b", "a">;           // false (union not distributed)
+ * type D = AssignableTo<"v1" | "v2", "v1">;        // false (union not distributed)
  * ```
  */
 export type AssignableTo<Sub, Super> = [Sub] extends [Super] ? true : false;
