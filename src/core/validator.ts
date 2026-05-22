@@ -69,10 +69,10 @@ export type ValidatorPlugin = (
  * @example
  * ```typescript
  * type A = DeepInferValidatorError<{
- *   body: StandardSchemaV1<{ id: string }>;
- *   query: { page: number };
+ *   body: StandardSchemaV1<{ a: string }>;
+ *   query: { a: number };
  * }>;
- * // { body: StandardSchemaV1.Issue[]; query: { page: number } }
+ * // { body: StandardSchemaV1.Issue[]; query: { a: number } }
  *
  * type B = DeepInferValidatorError<{}>;
  * // {}
@@ -97,13 +97,13 @@ export type DeepInferValidatorError<Type extends Record<PropertyKey, unknown>> =
  * @example
  * ```typescript
  * type A = DeepInferValidatorInput<{
- *   body: StandardSchemaV1<{ raw: string }, { parsed: number }>;
- *   query: { page: number };
+ *   body: StandardSchemaV1<{ a: string }, { a: number }>;
+ *   query: { a: number };
  * }>;
- * // { body: { raw: string }; query: { page: number } }
+ * // { body: { a: string }; query: { a: number } }
  *
- * type B = DeepInferValidatorInput<{ params: { id: string } }>;
- * // { params: { id: string } }
+ * type B = DeepInferValidatorInput<{ params: { a: string } }>;
+ * // { params: { a: string } }
  * ```
  */
 export type DeepInferValidatorInput<Type extends Record<PropertyKey, unknown>> =
@@ -126,13 +126,13 @@ export type DeepInferValidatorInput<Type extends Record<PropertyKey, unknown>> =
  * @example
  * ```typescript
  * type A = DeepInferValidatorOutput<{
- *   body: StandardSchemaV1<{ raw: string }, { parsed: number }>;
- *   query: { page: number };
+ *   body: StandardSchemaV1<{ a: string }, { a: number }>;
+ *   query: { a: number };
  * }>;
- * // { body: { parsed: number }; query: { page: number } }
+ * // { body: { a: number }; query: { a: number } }
  *
- * type B = DeepInferValidatorOutput<{ params: { id: string } }>;
- * // { params: { id: string } }
+ * type B = DeepInferValidatorOutput<{ params: { a: string } }>;
+ * // { params: { a: string } }
  * ```
  */
 export type DeepInferValidatorOutput<
@@ -155,11 +155,11 @@ export type DeepInferValidatorOutput<
  * @example
  * ```typescript
  * type A = ValidatorErrorDetails<{
- *   body: BodyIssue[];
- *   query: QueryIssue[];
+ *   body: string[];
+ *   query: number[];
  * }>;
- * // | { details: [BodyIssue[]]; type: "body" }
- * // | { details: [QueryIssue[]]; type: "query" }
+ * // | { details: [string[]]; type: "body" }
+ * // | { details: [number[]]; type: "query" }
  * ```
  */
 export type ValidatorErrorDetails<Type> = {
@@ -188,15 +188,15 @@ export type ValidatorErrorDetails<Type> = {
  * @example
  * ```typescript
  * type A = TransformValidatorError<{
- *   body: BodyIssue[];
- *   query: QueryIssue[];
+ *   body: string[];
+ *   query: number[];
  * }>;
  * // {
  * //   422: Error<
  * //     [{
  * //       details: [
- * //         | { details: [BodyIssue[]]; type: "body" }
- * //         | { details: [QueryIssue[]]; type: "query" }
+ * //         | { details: [string[]]; type: "body" }
+ * //         | { details: [number[]]; type: "query" }
  * //       ];
  * //     }],
  * //     422
@@ -238,10 +238,10 @@ export interface TransformValidatorError<
  * @example
  * ```typescript
  * type A = MergeInferValidatorRequest<
- *   { body: { id: string }; query: unknown },
- *   { body: unknown;        query: { page: number } }
+ *   { body: { a: string }; query: unknown },
+ *   { body: unknown;       query: { a: number } }
  * >;
- * // { body: { id: string }; query: { page: number } }
+ * // { body: { a: string }; query: { a: number } }
  * ```
  */
 export type MergeInferValidatorRequest<
@@ -282,13 +282,13 @@ export type MergeInferValidatorRequest<
  * // { body: unknown; cookies: unknown; headers: unknown; params: unknown; query: unknown }
  *
  * type B = ValidatorRequest<
- *   { id: string },
+ *   { a: string },
  *   unknown,
  *   unknown,
  *   unknown,
- *   { page: number }
+ *   { a: number }
  * >;
- * // { body: { id: string }; cookies: unknown; headers: unknown; params: unknown; query: { page: number } }
+ * // { body: { a: string }; cookies: unknown; headers: unknown; params: unknown; query: { a: number } }
  *
  * type C = keyof ValidatorRequest;
  * // "body" | "cookies" | "headers" | "params" | "query"
@@ -323,10 +323,10 @@ export interface ValidatorRequest<
  *   schemas the caller actually declared.
  * @example
  * ```typescript
- * type A = Validator<{ body: { id: string } }>;
+ * type A = Validator<{ body: { a: string } }>;
  * // {
  * //   keys: ("body" | "cookies" | "headers" | "params" | "query")[];
- * //   request: { body: { id: string } };
+ * //   request: { body: { a: string } };
  * //   type: "VALIDATOR";
  * // }
  *
@@ -353,7 +353,7 @@ export interface Validator<Request extends Partial<ValidatorRequest>> {
  * type A = AnyValidator;
  * // Validator<any>
  *
- * type B = Validator<{ body: { id: string } }> extends AnyValidator ? true : false;
+ * type B = Validator<{ body: { a: string } }> extends AnyValidator ? true : false;
  * // true
  *
  * type C = AnyValidator["type"];
@@ -378,13 +378,13 @@ export type AnyValidator = Validator<any>;
  * @example
  * ```typescript
  * type A = ValidatorOptions<{
- *   body: { id: string };
- *   query: { page: number };
+ *   body: { a: string };
+ *   query: { a: number };
  * }>;
- * // { request: { body: { id: string }; query: { page: number } } }
+ * // { request: { body: { a: string }; query: { a: number } } }
  *
- * type B = ValidatorOptions<{ params: { id: string } }>["request"];
- * // { params: { id: string } }
+ * type B = ValidatorOptions<{ params: { a: string } }>["request"];
+ * // { params: { a: string } }
  * ```
  */
 export interface ValidatorOptions<Request extends Partial<ValidatorRequest>> {
@@ -405,7 +405,7 @@ export interface ValidatorOptions<Request extends Partial<ValidatorRequest>> {
  * type A = AnyValidatorOptions;
  * // ValidatorOptions<any>
  *
- * type B = ValidatorOptions<{ body: { id: string } }> extends AnyValidatorOptions
+ * type B = ValidatorOptions<{ body: { a: string } }> extends AnyValidatorOptions
  *   ? true
  *   : false;
  * // true
