@@ -11,10 +11,10 @@ import { FrozenEmpty } from "@/utils/objects/empty";
 /**
  * Pick every {@link AnySuccess}-shaped member out of `Type`.
  *
- * Thin wrapper over the builtin `Extract<Type, AnySuccess>`. Reach for it
- * when a result union mixes success envelopes with other shapes — typically
- * error envelopes — and only the happy-path branches need to flow
- * downstream.
+ * Thin wrapper over the builtin `Extract<Type, AnySuccess>`. Used by the
+ * module compiler to isolate the success half of a handler return type
+ * before folding it into the parent's success dictionary, complementing
+ * `FilterError` which keeps the error half of the same union.
  *
  * @typeParam Type - Union to filter. Members that are not assignable to
  *   {@link AnySuccess} are discarded.
@@ -109,7 +109,7 @@ export interface SuccessOptions<Status extends number> {
  * status parameter.
  *
  * Reach for it where the concrete status is erased — for example, the
- * options argument of the {@link Success} constructor, which destructured
+ * options argument of the {@link Success} constructor, which destructures
  * `status` without caring about its literal type.
  */
 export type AnySuccessOptions = SuccessOptions<any>;
@@ -167,9 +167,10 @@ export interface SuccessConstructor {
  * Invoked through `new`. Writes `content`, `status`, and `success: true`
  * onto `this` so the resulting instance carries the three fields the
  * runtime reads when serializing the response. `status` defaults to `200`
- * when `options` is omitted; the destructuring uses {@link FrozenEmpty}
- * as the default options object to avoid allocating a fresh `{}` on every
- * call.
+ * when it is missing from `options` — either because `options` itself was
+ * omitted or because the caller passed an object without the field; the
+ * destructuring uses {@link FrozenEmpty} as the default options object to
+ * avoid allocating a fresh `{}` on every call.
  *
  * @param content - Payload assigned to `this.content` verbatim. Note that
  *   the interface's type-level {@link ExtractContent} unwrapping is not
