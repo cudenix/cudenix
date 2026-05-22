@@ -27,6 +27,17 @@ import type { AnyError } from "@/core/error";
  *   from every prior store in the chain.
  * @typeParam Validators - Validated request fields visible to this unit,
  *   built from every prior validator in the chain.
+ * @example
+ * ```typescript
+ * type A = StoreFn<{ userId: string }, {}, {}>;
+ * // (context: DeveloperContext<{}, {}>) =>
+ * //   { userId: string } | Promise<{ userId: string }>
+ *
+ * type B = StoreFn<{ userId: string } | AnyError, {}, {}>;
+ * // (context: DeveloperContext<{}, {}>) =>
+ * //   { userId: string } | AnyError
+ * //   | Promise<{ userId: string } | AnyError>
+ * ```
  */
 export type StoreFn<
 	Return extends Record<PropertyKey, unknown> | AnyError,
@@ -41,6 +52,15 @@ export type StoreFn<
  * Reach for it where the concrete generics are erased — for example, the
  * parameter type of `Module.prototype.store`, which receives whichever
  * store the caller registered without seeing the keys it produces.
+ *
+ * @example
+ * ```typescript
+ * type A = AnyStoreFn;
+ * // StoreFn<any, any, any>
+ *
+ * type B = StoreFn<{ userId: string }, {}, {}> extends AnyStoreFn ? true : false;
+ * // true
+ * ```
  */
 export type AnyStoreFn = StoreFn<any, any, any>;
 
@@ -56,6 +76,17 @@ export type AnyStoreFn = StoreFn<any, any, any>;
  *   {@link AnyError} that aborts the chain.
  * @typeParam Stores - Shape of `context.store` visible to this unit.
  * @typeParam Validators - Validated request fields visible to this unit.
+ * @example
+ * ```typescript
+ * type A = Store<{ userId: string }, {}, {}>;
+ * // {
+ * //   store: StoreFn<{ userId: string }, {}, {}>;
+ * //   type: "STORE";
+ * // }
+ *
+ * type B = A["type"];
+ * // "STORE"
+ * ```
  */
 export interface Store<
 	Return extends Record<PropertyKey, unknown> | AnyError,
@@ -73,5 +104,17 @@ export interface Store<
  * Reach for it in container or registry types where the concrete generics
  * are irrelevant — for example, the heterogeneous `Chain` array that holds
  * every unit attached to an endpoint.
+ *
+ * @example
+ * ```typescript
+ * type A = AnyStore;
+ * // Store<any, any, any>
+ *
+ * type B = Store<{ userId: string }, {}, {}> extends AnyStore ? true : false;
+ * // true
+ *
+ * type C = AnyStore["type"];
+ * // "STORE"
+ * ```
  */
 export type AnyStore = Store<any, any, any>;
