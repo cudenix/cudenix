@@ -20,8 +20,8 @@ import { FrozenEmpty } from "@/utils/objects/empty";
  *   {@link AnySuccess} are discarded.
  * @example
  * ```typescript
- * type A = FilterSuccess<Success<"ok", 200> | Error<"oops", 400>>;
- * // Success<"ok", 200>
+ * type A = FilterSuccess<Success<"v1", 1> | Error<"v2", 2>>;
+ * // Success<"v1", 1>
  * ```
  */
 export type FilterSuccess<Type> = Extract<Type, AnySuccess>;
@@ -38,8 +38,8 @@ export type FilterSuccess<Type> = Extract<Type, AnySuccess>;
  *   dictionary key.
  * @example
  * ```typescript
- * type A = TransformSuccess<Success<{ id: string }, 200>>;
- * // { 200: Success<{ id: string }, 200> }
+ * type A = TransformSuccess<Success<{ a: string }, 1>>;
+ * // { 1: Success<{ a: string }, 1> }
  * ```
  */
 export type TransformSuccess<Success extends AnySuccess> = Record<
@@ -64,10 +64,10 @@ export type TransformSuccess<Success extends AnySuccess> = Record<
  * @example
  * ```typescript
  * type A = MergeSuccesses<
- *   { 200: { content: ["a"]; status: 200; success: true } },
- *   { 200: { content: ["b"]; status: 200; success: true } }
+ *   { 1: { content: ["v1"]; status: 1; success: true } },
+ *   { 1: { content: ["v2"]; status: 1; success: true } }
  * >;
- * // { 200: { content: ["a"] | ["b"]; status: 200; success: true } }
+ * // { 1: { content: ["v1"] | ["v2"]; status: 1; success: true } }
  * ```
  */
 export type MergeSuccesses<Successes, Success> = {
@@ -109,7 +109,7 @@ export interface SuccessOptions<Status extends number> {
  * status parameter.
  *
  * Reach for it where the concrete status is erased — for example, the
- * options argument of the {@link Success} constructor, which destructures
+ * options argument of the {@link Success} constructor, which destructured
  * `status` without caring about its literal type.
  */
 export type AnySuccessOptions = SuccessOptions<any>;
@@ -177,10 +177,10 @@ export interface SuccessConstructor {
  * @param options - Optional behavior switches; see {@link SuccessOptions}.
  * @example
  * ```typescript
- * const created = new Success({ id: "abc" }, { status: 201 });
+ * const created = new Success({ a: "v1" }, { status: 1 });
  *
- * created.content; // { id: "abc" }
- * created.status;  // 201
+ * created.content; // { a: "v1" }
+ * created.status;  // 1
  * created.success; // true
  * ```
  */
