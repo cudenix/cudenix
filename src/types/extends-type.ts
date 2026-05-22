@@ -21,8 +21,8 @@
  * @example
  * ```typescript
  * type A = ExtendsType<string, string>; // true
- * type B = ExtendsType<"foo", string>;  // false (subtype only)
- * type C = ExtendsType<string, "foo">;  // false (supertype only)
+ * type B = ExtendsType<"v1", string>;   // false (subtype only)
+ * type C = ExtendsType<string, "v1">;   // false (supertype only)
  * ```
  */
 export type ExtendsType<Type, Extends> = [Type, Extends] extends [Extends, Type]
