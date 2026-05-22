@@ -18,11 +18,11 @@
  * @typeParam SecondType - Overrides applied on top of `FirstType`.
  * @example
  * ```typescript
- * type A = { id: string; tags: string[] };
- * type B = { tags: readonly string[]; total: number };
+ * type A = { a: string; b: string[] };
+ * type B = { b: readonly string[]; c: number };
  *
- * type Merged = Merge<A, B>;
- * // { id: string; tags: readonly string[]; total: number }
+ * type C = Merge<A, B>;
+ * // { a: string; b: readonly string[]; c: number }
  * ```
  */
 export type Merge<FirstType extends object, SecondType extends object> = {
