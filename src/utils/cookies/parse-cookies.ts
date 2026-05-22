@@ -25,11 +25,11 @@ import { Empty } from "@/utils/objects/empty";
  *   parseable pairs.
  * @example
  * ```typescript
- * parseCookies("sid=abc123; theme=dark");
- * // { sid: "abc123", theme: "dark" }
+ * parseCookies("a=v1; b=v2");
+ * // { a: "v1", b: "v2" }
  *
- * parseCookies("flag; sid=abc"); // entries without `=` are ignored
- * // { sid: "abc" }
+ * parseCookies("flag; a=v1"); // entries without `=` are ignored
+ * // { a: "v1" }
  *
  * parseCookies("a=1;b=2"); // only `; ` separates entries
  * // { a: "1;b=2" }
