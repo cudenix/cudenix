@@ -20,10 +20,10 @@
  * @typeParam Type - Object type whose keys are partitioned.
  * @example
  * ```typescript
- * type Source = { name: string; nickname?: string; age: number | undefined };
+ * type A = { a: string; b?: string; c: number | undefined };
  *
- * type Required = RequiredKeys<Source>;
- * // "name"
+ * type B = RequiredKeys<A>;
+ * // "a"
  * ```
  */
 export type RequiredKeys<Type extends object> = {
