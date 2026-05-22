@@ -33,10 +33,10 @@ type OmitKeys<Type, OmitType> = {
  * @typeParam OmitType - Value type whose owning keys are removed.
  * @example
  * ```typescript
- * type Source = { name: string; flag: never; count: number };
+ * type A = { a: string; b: never; c: number };
  *
- * type Pruned = ConditionallyOmit<Source, never>;
- * // { name: string; count: number }
+ * type B = ConditionallyOmit<A, never>;
+ * // { a: string; c: number }
  * ```
  */
 export type ConditionallyOmit<Type extends object, OmitType> = Omit<
