@@ -397,7 +397,7 @@ export interface ValidatorOptions<Request extends Partial<ValidatorRequest>> {
  *
  * Reach for it where the concrete schema shape is erased — for example,
  * the `options` argument of the `Module.prototype.validator` runtime
- * implementation, which destructured `request` without caring about its
+ * implementation, which destructures `request` without caring about its
  * generic.
  *
  * @example
