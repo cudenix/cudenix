@@ -26,10 +26,10 @@
  *   from it become optional.
  * @example
  * ```typescript
- * type Source = { id: string; nickname: string | undefined };
+ * type A = { a: string; b: string | undefined };
  *
- * type Result = ConditionallyOptional<Source, undefined>;
- * // { id: string; nickname?: string | undefined }
+ * type B = ConditionallyOptional<A, undefined>;
+ * // { a: string; b?: string | undefined }
  * ```
  */
 export type ConditionallyOptional<Type extends object, OptionalType> = {
