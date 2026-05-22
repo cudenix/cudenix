@@ -29,14 +29,14 @@ import type { AnyError } from "@/core/error";
  *   built from every prior validator in the chain.
  * @example
  * ```typescript
- * type A = StoreFn<{ userId: string }, {}, {}>;
+ * type A = StoreFn<{ a: string }, {}, {}>;
  * // (context: DeveloperContext<{}, {}>) =>
- * //   { userId: string } | Promise<{ userId: string }>
+ * //   { a: string } | Promise<{ a: string }>
  *
- * type B = StoreFn<{ userId: string } | AnyError, {}, {}>;
+ * type B = StoreFn<{ a: string } | AnyError, {}, {}>;
  * // (context: DeveloperContext<{}, {}>) =>
- * //   { userId: string } | AnyError
- * //   | Promise<{ userId: string } | AnyError>
+ * //   { a: string } | AnyError
+ * //   | Promise<{ a: string } | AnyError>
  * ```
  */
 export type StoreFn<
@@ -58,7 +58,7 @@ export type StoreFn<
  * type A = AnyStoreFn;
  * // StoreFn<any, any, any>
  *
- * type B = StoreFn<{ userId: string }, {}, {}> extends AnyStoreFn ? true : false;
+ * type B = StoreFn<{ a: string }, {}, {}> extends AnyStoreFn ? true : false;
  * // true
  * ```
  */
@@ -78,9 +78,9 @@ export type AnyStoreFn = StoreFn<any, any, any>;
  * @typeParam Validators - Validated request fields visible to this unit.
  * @example
  * ```typescript
- * type A = Store<{ userId: string }, {}, {}>;
+ * type A = Store<{ a: string }, {}, {}>;
  * // {
- * //   store: StoreFn<{ userId: string }, {}, {}>;
+ * //   store: StoreFn<{ a: string }, {}, {}>;
  * //   type: "STORE";
  * // }
  *
@@ -110,7 +110,7 @@ export interface Store<
  * type A = AnyStore;
  * // Store<any, any, any>
  *
- * type B = Store<{ userId: string }, {}, {}> extends AnyStore ? true : false;
+ * type B = Store<{ a: string }, {}, {}> extends AnyStore ? true : false;
  * // true
  *
  * type C = AnyStore["type"];
