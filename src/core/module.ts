@@ -1,5 +1,3 @@
-import type { MaybePromise } from "bun";
-
 import type { DeveloperContext } from "@/core/context";
 import type {
 	AnyError,
@@ -54,13 +52,14 @@ import type {
 import type { AllPropertiesAreUnknown } from "@/types/all-properties-are-unknown";
 import type { ExtractUrlParams } from "@/types/extract-url-params";
 import type { HttpMethod } from "@/types/http-method";
+import type { MaybePromise } from "@/types/maybe-promise";
 import type { MergePaths } from "@/types/merge-paths";
 import type { RequiredKeys } from "@/types/required-keys";
 import type { ValueOf } from "@/types/value-of";
 import { isGenerator } from "@/utils/functions/is-generator";
-import { FreezeEmpty } from "@/utils/objects/empty";
+import { FrozenEmpty } from "@/utils/objects/empty";
 
-type ModuleChain = (
+export type ModuleChain = (
 	| AnyGroup
 	| AnyMiddleware
 	| AnyModule
@@ -69,7 +68,7 @@ type ModuleChain = (
 	| AnyValidator
 )[];
 
-interface ModuleExtendsOptions {
+export interface ModuleExtendsOptions {
 	execute?: boolean;
 }
 
@@ -153,8 +152,8 @@ export interface Module<
 	>;
 	middleware<
 		const MiddlewareReturn extends MaybePromise<
-			AnyError | AnySuccess | void
-		> = void,
+			AnyError | AnySuccess | undefined
+		> = undefined,
 	>(
 		middleware: MiddlewareFn<
 			MiddlewareReturn,
@@ -305,23 +304,49 @@ export interface ModuleOptions<Prefix extends `/${string}`> {
 
 export type AnyModuleOptions = ModuleOptions<any>;
 
-type Constructor = new (options?: AnyModuleOptions) => AnyModule;
+export interface ModuleConstructor {
+	new <
+		const Errors extends Record<
+			PropertyKey,
+			unknown
+		> = NonNullable<unknown>,
+		const Prefix extends `/${string}` = "/",
+		const Routes extends Record<
+			PropertyKey,
+			unknown
+		> = NonNullable<unknown>,
+		const Stores extends Record<
+			PropertyKey,
+			unknown
+		> = NonNullable<unknown>,
+		const Successes extends Record<
+			PropertyKey,
+			unknown
+		> = NonNullable<unknown>,
+		const Validators extends {
+			inputs: Record<PropertyKey, unknown>;
+			outputs: Record<PropertyKey, unknown>;
+		} = { inputs: NonNullable<unknown>; outputs: NonNullable<unknown> },
+	>(
+		options?: ModuleOptions<Prefix>,
+	): Module<Errors, Prefix, Routes, Stores, Successes, Validators>;
+}
 
 export const Module = function Module(
 	this: AnyModule,
-	{ prefix = "" }: AnyModuleOptions = FreezeEmpty,
+	{ prefix = "" }: AnyModuleOptions = FrozenEmpty,
 ) {
 	this.chain = [];
 	this.prefix = prefix;
 	this.type = "MODULE";
-} as unknown as Constructor;
+} as unknown as ModuleConstructor;
 
 Module.prototype.extends = function (
 	this: AnyModule,
 	module: AnyModule,
-	{ execute }: ModuleExtendsOptions = FreezeEmpty,
+	{ execute = true }: ModuleExtendsOptions = FrozenEmpty,
 ) {
-	if (execute !== false) {
+	if (execute) {
 		this.chain.push(module);
 	}
 
@@ -331,13 +356,9 @@ Module.prototype.extends = function (
 Module.prototype.group = function (
 	this: AnyModule,
 	group: AnyGroupFn,
-	{ prefix = "" }: AnyGroupOptions = FreezeEmpty,
+	{ prefix = "" }: AnyGroupOptions = FrozenEmpty,
 ) {
-	this.chain.push({
-		group,
-		prefix,
-		type: "GROUP" as const,
-	});
+	this.chain.push({ group, prefix, type: "GROUP" as const });
 
 	return this;
 };
@@ -346,10 +367,7 @@ Module.prototype.middleware = function (
 	this: AnyModule,
 	middleware: AnyMiddlewareFn,
 ) {
-	this.chain.push({
-		middleware,
-		type: "MIDDLEWARE" as const,
-	});
+	this.chain.push({ middleware, type: "MIDDLEWARE" as const });
 
 	return this;
 };
@@ -359,24 +377,19 @@ Module.prototype.route = function (
 	method: HttpMethod,
 	path: `/${string}`,
 	handler: AnyRouteHandler,
-	{ static: staticOption, validator }: AnyRouteOptions = FreezeEmpty,
+	{ jit, validator }: AnyRouteOptions = FrozenEmpty,
 ) {
-	const generator = isGenerator(handler as AnyRouteFn);
 	const isFn = typeof handler === "function";
-	const literal = !isFn;
 
 	this.chain.push({
-		generator,
-		literal,
+		generator: isGenerator(handler as AnyRouteFn),
+		jit,
 		method,
 		path,
 		route: isFn
 			? (handler as AnyRouteFn)
-			: () => {
-					return handler as AnyError | AnySuccess;
-				},
-		static:
-			method !== "WS" && !generator && (staticOption ?? literal) === true,
+			: () => handler as AnyError | AnySuccess,
+		static: !isFn,
 		type: "ROUTE" as const,
 		validator: validator
 			? {
@@ -393,10 +406,7 @@ Module.prototype.route = function (
 };
 
 Module.prototype.store = function (this: AnyModule, store: AnyStoreFn) {
-	this.chain.push({
-		store,
-		type: "STORE" as const,
-	});
+	this.chain.push({ store, type: "STORE" as const });
 
 	return this;
 };
@@ -412,30 +422,4 @@ Module.prototype.validator = function validator(
 	});
 
 	return this;
-};
-
-export const module = <
-	const Errors extends Record<PropertyKey, unknown> = NonNullable<unknown>,
-	const Prefix extends `/${string}` = "/",
-	const Routes extends Record<PropertyKey, unknown> = NonNullable<unknown>,
-	const Stores extends Record<PropertyKey, unknown> = NonNullable<unknown>,
-	const Successes extends Record<PropertyKey, unknown> = NonNullable<unknown>,
-	const Validators extends {
-		inputs: Record<PropertyKey, unknown>;
-		outputs: Record<PropertyKey, unknown>;
-	} = {
-		inputs: NonNullable<unknown>;
-		outputs: NonNullable<unknown>;
-	},
->(
-	options?: ModuleOptions<Prefix>,
-) => {
-	return new Module(options) as Module<
-		Errors,
-		Prefix,
-		Routes,
-		Stores,
-		Successes,
-		Validators
-	>;
 };
