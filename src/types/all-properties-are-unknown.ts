@@ -1,10 +1,10 @@
 /**
  * @module
- * Predicate that reports whether every property in `Type` is typed as `unknown`.
+ * Predicate that reports whether every property in `T` is typed as `unknown`.
  */
 
 /**
- * Resolve to `true` when every property of `Type` has type `unknown`,
+ * Resolve to `true` when every property of `T` has type `unknown`,
  * otherwise `false`.
  *
  * The mapped type rewrites each member to the literal `true` or `false`
@@ -18,7 +18,7 @@
  * Useful as a sentinel for detecting completely-unrefined generics, e.g.
  * picking a default branch when a validator schema was never supplied.
  *
- * @typeParam Type - Object type whose property types are inspected.
+ * @typeParam T - Object type whose property types are inspected.
  * @example
  * ```typescript
  * type A = AllPropertiesAreUnknown<{ a: unknown; b: unknown }>; // true
@@ -26,8 +26,8 @@
  * type C = AllPropertiesAreUnknown<{}>;                          // true
  * ```
  */
-export type AllPropertiesAreUnknown<Type extends object> = {
-	[Key in keyof Type]: unknown extends Type[Key] ? true : false;
-}[keyof Type] extends true | undefined
+export type AllPropertiesAreUnknown<T extends object> = {
+	[K in keyof T]: unknown extends T[K] ? true : false;
+}[keyof T] extends true | undefined
 	? true
 	: false;
