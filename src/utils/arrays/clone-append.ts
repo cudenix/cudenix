@@ -33,7 +33,7 @@
  *   length, so there is no incremental resizing as elements are copied
  *   across.
  *
- * @typeParam Type - Element type shared by the source array and the appended
+ * @typeParam T - Element type shared by the source array and the appended
  *   item.
  * @param array - Source array to clone. Left untouched.
  * @param item - Element appended at the end of the returned array.
@@ -63,7 +63,7 @@
  * // ["a", ["b", "c"]]
  * ```
  */
-export const cloneAppend = <Type>(array: Type[], item: Type) => {
+export const cloneAppend = <T>(array: T[], item: T) => {
 	const length = array.length;
 
 	if (length === 0) {
@@ -74,7 +74,7 @@ export const cloneAppend = <Type>(array: Type[], item: Type) => {
 		return [array[0]!, item];
 	}
 
-	const out = new Array<Type>(length + 1);
+	const out = new Array<T>(length + 1);
 
 	for (let i = 0; i < length; i++) {
 		out[i] = array[i]!;
