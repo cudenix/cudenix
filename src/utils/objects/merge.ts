@@ -1,27 +1,53 @@
 /**
  * @module
- * In-place object merge helper.
+ * Shallow object merge utility.
+ *
+ * Use {@link merge} to copy keys from one object into another in place,
+ * letting you overlay overrides onto a base dictionary without allocating
+ * a new container.
  */
 
 /**
- * Copy every enumerable own and inherited string key from `object2` to
- * `object1`.
+ * Copy every enumerable string key from `object2` into `object1`,
+ * overwriting any matching keys that already exist on the target.
  *
- * The merge happens in place — `object1` is mutated and no new container is
- * allocated. Values in `object2` overwrite matching keys in `object1`, and
- * the iteration relies on `for..in` so prototype chains are walked. Symbol
- * keys are not copied because `for..in` does not visit them.
+ * Reach for this when you need to apply overrides on top of a base object
+ * (for example, merging user options into a defaults dictionary) and want
+ * the change to land on the original reference rather than on a copy.
  *
- * @param object1 - Target dictionary that receives the keys.
- * @param object2 - Source dictionary whose entries are copied into `object1`.
- * @returns `object1` after the merge.
+ * Behavior worth knowing before you call it:
+ *
+ * - **In place** — `object1` is mutated. Nothing is returned, so keep a
+ *   reference to the target if you need to read the result later.
+ * - **Shallow** — nested objects and arrays are copied by reference, not
+ *   cloned. Mutating a nested value through one object also affects the
+ *   other.
+ * - **Last write wins** — keys present in both objects take the value
+ *   from `object2`; there is no conflict resolution.
+ * - **String keys only** — symbol keys and non-enumerable properties are
+ *   skipped.
+ *
+ * @param object1 - Target object that receives the keys. Mutated in place.
+ * @param object2 - Source object whose entries are copied into `object1`.
  * @example
+ * Apply user options on top of a defaults dictionary.
  * ```typescript
- * const target = { a: 1, b: 2 };
+ * const config = { a: "v1", b: 1 };
  *
- * merge(target, { b: 3, c: 4 });
+ * merge(config, { b: 2, c: true });
  *
- * target; // { a: 1, b: 3, c: 4 }
+ * config; // { a: "v1", b: 2, c: true }
+ * ```
+ * @example
+ * The original reference is mutated, so any alias of `object1` also sees
+ * the merged result.
+ * ```typescript
+ * const target = { a: 1 };
+ * const alias = target;
+ *
+ * merge(target, { b: 2 });
+ *
+ * alias; // { a: 1, b: 2 }
  * ```
  */
 export const merge = (
