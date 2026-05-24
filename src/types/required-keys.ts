@@ -17,7 +17,7 @@
  * which would then leak into the result alongside the legitimate key
  * names.
  *
- * @typeParam Type - Object type whose keys are partitioned.
+ * @typeParam T - Object type whose keys are partitioned.
  * @example
  * ```typescript
  * type A = { a: string; b?: string; c: number | undefined };
@@ -26,6 +26,6 @@
  * // "a"
  * ```
  */
-export type RequiredKeys<Type extends object> = {
-	[Key in keyof Type]-?: undefined extends Type[Key] ? never : Key;
-}[keyof Type];
+export type RequiredKeys<T extends object> = {
+	[K in keyof T]-?: undefined extends T[K] ? never : K;
+}[keyof T];
