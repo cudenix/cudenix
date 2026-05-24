@@ -1,76 +1,102 @@
 /**
  * @module
- * Compile route-style paths into capture-group patterns.
+ * Compile route-style path patterns into regular expression sources.
+ *
+ * Use {@link pathToRegexp} to turn a path like `/a/:p1` into a regex
+ * source plus the parameter metadata you need to extract named values from a
+ * match. Pair it with `new RegExp()` to power URL matching inside a router.
  */
 
 /**
- * Regex fragment that captures a single named parameter (`:name`).
+ * Regex fragment that captures a single required path segment.
  *
- * Forbids `/`, whitespace, `?` and `#` to stop the segment from spilling into
- * the next path component or the query string.
+ * Backs the `:name` syntax in {@link pathToRegexp}. The capture excludes `/`,
+ * whitespace, `?`, and `#`, so it never bleeds into the next segment or into
+ * the URL's query/fragment.
  */
 const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
 
 /**
- * Regex fragment that captures a rest parameter (`...name`).
+ * Regex fragment that captures one or more path segments greedily.
  *
- * Greedily consumes one or more slash-delimited segments while still
- * stopping before query and fragment markers.
+ * Backs the `...name` syntax in {@link pathToRegexp}. The match spans every
+ * remaining segment but still stops short of the query string and fragment.
  */
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
 
 /**
- * Non-capturing variant of {@link REST_CAPTURE} used for the catch-all `*`
- * segment when no key is exposed to the caller.
+ * Non-capturing counterpart to {@link REST_CAPTURE}.
+ *
+ * Backs the wildcard `*` syntax in {@link pathToRegexp}: use it when you need
+ * to allow extra segments but do not care to extract them.
  */
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
 
 /**
- * Compile a route pattern into a regex source string and the metadata needed
- * to bind matches back to named parameters.
+ * Compile a route pattern into a regex source string plus the parameter
+ * metadata required to read named captures back from a successful match.
+ *
+ * Use this to translate framework-style routes (`/a/:p1`,
+ * `/a/...r1`) into a `RegExp` you can run against incoming URLs. The
+ * returned `paramKeys` line up with the regex capture groups so you can build
+ * a `Record<string, string>` of parameters after calling `regex.exec(url)`.
  *
  * Supported segment syntax:
  *
- * - `:name` — required named parameter.
+ * - `:name` — required named parameter, captures one path segment.
  * - `:name?` — optional named parameter.
  * - `...name` — rest parameter capturing one or more remaining segments.
  * - `...name?` — optional rest parameter.
  * - `*` — wildcard segment, matches one or more segments without capturing.
- * - Any other literal — matched after `RegExp.escape`, so the generated
- *   source may contain escaped code points such as `\\x75`.
+ * - Anything else — matched as a literal (escaped via `RegExp.escape`, so
+ *   special characters in the path are safe to use).
  *
- * Optionality is applied after segment parsing; a trailing `?` therefore also
- * makes literal or wildcard segments optional if those forms are used.
+ * A trailing `?` on any segment makes that segment optional.
  *
- * The function advances segment by segment, using `indexOf("/")` for
- * boundaries and `charCodeAt` comparisons against the relevant ASCII codes
- * (`/` 47, `?` 63, `:` 58, `*` 42, `.` 46) for dispatch. It only creates
- * substrings for captured names and literal segments. The pattern is seeded
- * with an empty `()` capture so each compiled path contributes exactly
- * `1 + paramKeys.length` groups — a fixed count that the offset arithmetic
- * relies on when callers concatenate several patterns into one regex.
+ * The compiled pattern always opens with an empty `()` capture group, so the
+ * total capture count is always `1 + paramKeys.length`. This makes it safe to
+ * concatenate several compiled patterns into one regex without breaking the
+ * offset math that maps capture groups back to parameter names.
  *
- * @param path - Route pattern to compile. Use `/` for the root path.
- * @returns Compiled artefacts:
+ * @param path - Route pattern to compile. Pass `"/"` for the root path.
+ * @returns Compiled artifacts ready to plug into a router:
  *
- * - `paramKeys` — names of every captured `:name` and `...name` segment, in
- *   left-to-right order.
- * - `pattern` — regex source string ready for `new RegExp(pattern)`.
- * - `restKeys` — names of rest parameters only, or `undefined` when the path
- *   contains none.
+ * - `paramKeys` — names of every `:name` and `...name` segment, in
+ *   left-to-right order. The `n`-th name aligns with `match[n + 2]` because
+ *   the pattern opens with an empty `()` group at `match[1]`.
+ * - `pattern` — regex source string. Wrap it with `new RegExp(pattern)` to
+ *   run it against URLs.
+ * - `restKeys` — names of rest parameters only, or `undefined` when the
+ *   path has none. Use it to detect which extracted values should be split
+ *   on `/` to recover the original segment list.
  * @example
+ * Match a path with a named parameter.
  * ```typescript
- * pathToRegexp("/");
- * // { paramKeys: [], pattern: "()\\/", restKeys: undefined }
+ * const { paramKeys, pattern } = pathToRegexp("/a/:p1");
+ * const regex = new RegExp(`^${pattern}$`);
+ * const match = regex.exec("/a/v1");
  *
- * pathToRegexp("/a/:p1");
- * // { paramKeys: ["p1"], pattern: "()\\/\\x61\\/([^/\\s?#]+)", restKeys: undefined }
- *
+ * if (match) {
+ *   const params = Object.fromEntries(
+ *     paramKeys.map((key, i) => [key, match[i + 2]]),
+ *   );
+ *   // params === { p1: "v1" }
+ * }
+ * ```
+ * @example
+ * A rest parameter captures the tail of the path.
+ * ```typescript
  * pathToRegexp("/a/...r1");
- * // { paramKeys: ["r1"], pattern: "()\\/\\x61\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))", restKeys: ["r1"] }
- *
+ * // {
+ * //   paramKeys: ["r1"],
+ * //   pattern: "()\\/\\x61\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))",
+ * //   restKeys: ["r1"],
+ * // }
+ * ```
+ * @example
+ * An optional segment matches both `/a` and `/a/v1`.
+ * ```typescript
  * pathToRegexp("/a/:p1?");
- * // { paramKeys: ["p1"], pattern: "()\\/\\x61(?:\\/([^/\\s?#]+))?", restKeys: undefined }
  * ```
  */
 export const pathToRegexp = (path: string) => {
@@ -145,3 +171,5 @@ export const pathToRegexp = (path: string) => {
 
 	return { paramKeys, pattern, restKeys };
 };
+
+console.log(pathToRegexp("/a/...r1"));
