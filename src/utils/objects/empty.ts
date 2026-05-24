@@ -76,18 +76,16 @@ Empty.prototype = Object.create(null);
  * @example
  * Skip the per-call `{}` allocation when destructuring an optional argument.
  * ```typescript
- * const greet = ({ name = "world" }: { name?: string } = FrozenEmpty) => {
- *   return `Hello, ${name}!`;
- * };
+ * const fn = ({ a = "v1" }: { a?: string } = FrozenEmpty) => a;
  *
- * greet(); // "Hello, world!" — no allocation for the missing argument
+ * fn(); // "v1" — no allocation for the missing argument
  * ```
  * @example
  * Treat it as a sentinel for "no overrides provided" without forcing callers
  * to pass `undefined`.
  * ```typescript
- * const apply = (overrides: Record<string, unknown> = FrozenEmpty) => {
- *   // ...read-only consumption of overrides
+ * const fn = (a: Record<string, unknown> = FrozenEmpty) => {
+ *   // ...read-only consumption of a
  * };
  * ```
  */
