@@ -4,33 +4,31 @@
  */
 
 /**
- * Resolve to the union of keys in `Type` whose value is mutually assignable
- * with `OmitType`.
+ * Resolve to the union of keys in `T` whose value is mutually assignable
+ * with `U`.
  *
  * The bidirectional `extends` check forces assignability in *both*
  * directions, not just one — so only structurally equal entries are picked.
  * Used internally by {@link ConditionallyOmit} to decide which keys to drop.
  *
- * @typeParam Type - Object whose keys are inspected.
- * @typeParam OmitType - Marker type a property's value must equal in order
+ * @typeParam T - Object whose keys are inspected.
+ * @typeParam U - Marker type a property's value must equal in order
  *   for its key to be selected.
  */
-type OmitKeys<Type, OmitType> = {
-	[Key in keyof Type]: [Type[Key], OmitType] extends [OmitType, Type[Key]]
-		? Key
-		: never;
-}[keyof Type];
+type OmitKeys<T extends object, U> = {
+	[K in keyof T]: [T[K], U] extends [U, T[K]] ? K : never;
+}[keyof T];
 
 /**
- * Strip every key from `Type` whose value is mutually assignable with
- * `OmitType`.
+ * Strip every key from `T` whose value is mutually assignable with
+ * `U`.
  *
  * Useful for pruning sentinel-typed properties — for example, removing the
  * fields a builder marks as `never` or `unknown` so downstream consumers see
  * a tighter object shape.
  *
- * @typeParam Type - Source object to filter.
- * @typeParam OmitType - Value type whose owning keys are removed.
+ * @typeParam T - Source object to filter.
+ * @typeParam U - Value type whose owning keys are removed.
  * @example
  * ```typescript
  * type A = { a: string; b: never; c: number };
@@ -39,7 +37,4 @@ type OmitKeys<Type, OmitType> = {
  * // { a: string; c: number }
  * ```
  */
-export type ConditionallyOmit<Type extends object, OmitType> = Omit<
-	Type,
-	OmitKeys<Type, OmitType>
->;
+export type ConditionallyOmit<T extends object, U> = Omit<T, OmitKeys<T, U>>;
