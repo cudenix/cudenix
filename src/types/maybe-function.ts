@@ -4,7 +4,7 @@
  */
 
 /**
- * Accept either a concrete `Type` or a zero-argument factory that produces
+ * Accept either a concrete `T` or a zero-argument factory that produces
  * one — synchronously or asynchronously.
  *
  * Useful for slots that should be evaluated lazily — for example,
@@ -12,7 +12,7 @@
  * time, or defaults that should not be computed when a caller supplies an
  * explicit value.
  *
- * @typeParam Type - Value type the producer ultimately yields.
+ * @typeParam T - Value type the producer ultimately yields.
  * @example
  * ```typescript
  * type A = MaybeFunction<number>;
@@ -28,4 +28,4 @@
  * // true (async factory)
  * ```
  */
-export type MaybeFunction<Type> = Type | (() => Type | Promise<Type>);
+export type MaybeFunction<T> = T | (() => T | Promise<T>);
