@@ -10,7 +10,7 @@
  * needed — the consuming code can `await` the result without paying a tick
  * when the producer was synchronous.
  *
- * @typeParam Type - Value type that may also arrive as a `Promise<Type>`.
+ * @typeParam T - Value type that may also arrive as a `Promise<T>`.
  * @example
  * ```typescript
  * type A = MaybePromise<number>;             // number | Promise<number>
@@ -18,4 +18,4 @@
  * type C = Awaited<MaybePromise<number>>;    // number
  * ```
  */
-export type MaybePromise<Type> = Type | Promise<Type>;
+export type MaybePromise<T> = T | Promise<T>;
