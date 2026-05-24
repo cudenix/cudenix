@@ -171,5 +171,3 @@ export const pathToRegexp = (path: string) => {
 
 	return { paramKeys, pattern, restKeys };
 };
-
-console.log(pathToRegexp("/a/...r1"));
