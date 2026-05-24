@@ -2,40 +2,74 @@ import { Empty } from "@/utils/objects/empty";
 
 /**
  * @module
- * `Cookie` header parser for semicolon-space separated pairs.
+ * Parse the `Cookie` request header into a name/value dictionary.
+ *
+ * Use {@link parseCookies} when you need to read individual cookies out of
+ * an incoming request without pulling in a heavier cookie library.
  */
 
 /**
- * Parse the value of a `Cookie` request header into a key/value dictionary.
+ * Parse a `Cookie` request header into a dictionary keyed by cookie name.
  *
- * Scans the header with `indexOf`/`charCodeAt` (61 is `=`) instead of
- * `split("; ")`, avoiding the intermediate array of cookie pairs. The
- * delimiter is the exact `"; "` sequence; entries separated by `";"` without
- * the following space stay inside the current value. The first `=` in each
- * entry separates the name from the value, so later `=` characters remain in
- * the value. Entries without an `=` are skipped, entries with an empty name
- * are dropped, and duplicate names keep the last value because each iteration
- * unconditionally writes into the result object.
+ * Reach for this inside a request handler when you need a quick lookup of
+ * cookies by name. The function takes the raw header value and returns a
+ * plain dictionary you can index into with the names you care about.
  *
- * The result is built on top of {@link Empty}.
+ * Behavior worth knowing before you call it:
  *
- * @param header - Raw `Cookie` header value (`"a=1; b=2"`).
- * @returns Dictionary mapping cookie name to its raw, undecoded value.
- *   Returns an empty {@link Empty} instance when the header carries no
- *   parseable pairs.
+ * - **No decoding** — values are returned exactly as they appear in the
+ *   header. If your cookies are URL-encoded, run `decodeURIComponent` on
+ *   the value yourself after lookup.
+ * - **Last write wins** — when the header lists the same name more than
+ *   once, only the final occurrence is kept in the result.
+ * - **Strict `"; "` separator** — entries must be split by a semicolon
+ *   followed by a space, which is what browsers send. A bare `";"` is not
+ *   treated as a separator, so anything after it stays attached to the
+ *   previous value.
+ * - **Malformed entries are dropped** — pairs that lack an `=`, or whose
+ *   name is empty, are skipped silently instead of throwing.
+ * - **Later `=` characters stay in the value** — only the first `=` in
+ *   each entry separates the name from the value, so values that contain
+ *   `=` round-trip intact.
+ * - **Prototype-free result** — the returned dictionary is built on
+ *   {@link Empty}, so cookie names like `toString` or `__proto__` are safe
+ *   to read without colliding with `Object.prototype` members.
+ *
+ * @param header - Raw value of the `Cookie` request header, e.g.
+ *   `"a=v1; b=v2"`. Pass an empty string when the header is missing from
+ *   the request.
+ * @returns Dictionary mapping each cookie name to its raw, undecoded value.
+ *   Empty when the header carries no parseable pairs.
  * @example
+ * Read a couple of cookies out of an incoming request.
  * ```typescript
- * parseCookies("a=v1; b=v2");
- * // { a: "v1", b: "v2" }
+ * const a = parseCookies("a=v1; b=v2");
  *
- * parseCookies("flag; a=v1"); // entries without `=` are ignored
+ * a.a; // "v1"
+ * a.b; // "v2"
+ * ```
+ * @example
+ * Values are returned undecoded — decode them at the call site when needed.
+ * ```typescript
+ * const a = parseCookies("a=a%20b%3Dc");
+ *
+ * decodeURIComponent(a.a); // "a b=c"
+ * ```
+ * @example
+ * Malformed or value-only entries are skipped without throwing, and an
+ * empty header produces an empty dictionary.
+ * ```typescript
+ * parseCookies("flag; a=v1");
  * // { a: "v1" }
- *
- * parseCookies("a=1;b=2"); // only `; ` separates entries
- * // { a: "1;b=2" }
  *
  * parseCookies("");
  * // {}
+ * ```
+ * @example
+ * Only `"; "` separates entries; a bare `";"` stays inside the value.
+ * ```typescript
+ * parseCookies("a=1;b=2");
+ * // { a: "1;b=2" }
  * ```
  */
 export const parseCookies = (header: string) => {
