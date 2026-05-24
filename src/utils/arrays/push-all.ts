@@ -33,7 +33,7 @@
  *   `target.push(...source)` would throw `RangeError: Maximum call stack
  *   size exceeded`.
  *
- * @typeParam Type - Element type shared by both arrays.
+ * @typeParam T - Element type shared by both arrays.
  * @param target - Array that receives the appended elements. Mutated in
  *   place.
  * @param source - Array whose elements are copied into `target`.
@@ -67,7 +67,7 @@
  * target; // [1, 2, 3, 1, 2, 3]
  * ```
  */
-export const pushAll = <Type>(target: Type[], source: Type[]) => {
+export const pushAll = <T>(target: T[], source: T[]) => {
 	const baseLength = target.length;
 	const sourceLength = source.length;
 
