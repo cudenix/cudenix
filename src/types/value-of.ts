@@ -9,11 +9,11 @@
  */
 
 /**
- * Resolve to the union of every value type declared in `Type`.
+ * Resolve to the union of every value type declared in `T`.
  *
  * Reach for this whenever you have an object type that behaves like an enum
  * or a lookup table and you want its value side as a union. It mirrors
- * `keyof Type` — which returns the keys — but returns the values instead, so
+ * `keyof T` — which returns the keys — but returns the values instead, so
  * the union stays in sync with the source dictionary as new entries are
  * added.
  *
@@ -30,7 +30,7 @@
  *   dictionary whose values repeat resolves to a smaller union than the
  *   number of keys.
  *
- * @typeParam Type - Object-shaped type whose value side is collapsed into a
+ * @typeParam T - Object-shaped type whose value side is collapsed into a
  *   union. Must extend `object`.
  * @example
  * Pull the union of literal values out of an enum-shaped dictionary.
@@ -62,4 +62,4 @@
  * // "v1" | "v2"
  * ```
  */
-export type ValueOf<Type extends object> = Type[keyof Type];
+export type ValueOf<T extends object> = T[keyof T];
