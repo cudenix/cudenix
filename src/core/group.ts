@@ -2,90 +2,93 @@ import type { AnyModule } from "@/core/module";
 
 /**
  * @module
- * Group chain unit: scoped sub-tree of routes nested under a prefix.
+ * Group chain link — encapsulate a sub-module so that links added inside the
+ * factory (middlewares, stores, validators) only affect routes declared in
+ * the group, while everything the parent had set up earlier (including
+ * `.extends()` and prior middlewares) still flows in.
  */
 
 /**
- * Options accepted by `Module.group`.
+ * Options accepted by `module.group()`. The `prefix` is concatenated with the
+ * parent module's prefix when the inner module is mounted; omit it to keep the
+ * inner routes at the parent's root.
  *
- * `prefix` is appended to the parent module's accumulated path at compile
- * time to form the base under which every route defined inside the group is
- * registered. Each segment is normalized so that a lone `"/"` contributes
- * nothing — preventing double slashes — but otherwise the segments are
- * joined verbatim, which is why the leading slash is required at the type
- * level.
+ * Must start with `/` so the type-level path merger can normalize the
+ * boundary slash.
  *
- * @typeParam Prefix - Literal string type of the prefix, preserved through
- *   the type system so the routes defined inside the group can be inferred
- *   with their full, merged path.
+ * @typeParam Prefix - Subtree prefix. Must start with `/`.
+ * @example
+ * ```typescript
+ * const a: GroupOptions<"/v1"> = { prefix: "/v1" };
+ * const b: GroupOptions<"/"> = {};
+ * ```
  */
 export interface GroupOptions<Prefix extends `/${string}`> {
 	prefix?: Prefix;
 }
 
 /**
- * Convenience alias matching any {@link GroupOptions} regardless of the
- * prefix parameter.
+ * Erased {@link GroupOptions} for runtime call sites that do not need to
+ * preserve the literal prefix.
  *
- * Reach for it where the concrete prefix is erased — for example, the
- * options argument of `Module.prototype.group`, which destructures the
- * prefix without caring about its literal type.
+ * @example
+ * ```typescript
+ * const fn = (options: AnyGroupOptions = {}) => options.prefix ?? "/";
+ * ```
  */
 export type AnyGroupOptions = GroupOptions<any>;
 
 /**
- * Function signature of a group registered through `Module.group`.
+ * Factory that receives a fresh inner module (already typed with the merged
+ * prefix and the parent's stores/validators) and returns the configured
+ * module to mount. Whatever routes the returned module declares are merged
+ * into the parent under the group's prefix.
  *
- * The compiler invokes the function with a freshly constructed module
- * whose prefix has already been merged from the parent module's
- * accumulated path and the group's own prefix, and whose chain has been
- * pre-loaded with every middleware, store, and validator accumulated up to
- * that point — including those inherited from ancestors, not only the
- * immediate parent. The function is expected to return a module — typically
- * the same instance, with routes (and optionally further units) chained on.
- * At compile time the routes from the returned module are folded into the
- * parent's route tree under the merged prefix, while any middlewares,
- * stores, and validators registered inside the group stay scoped to routes
- * defined inside it and do not affect units declared elsewhere in the
- * parent's chain.
- *
- * @typeParam Module - Type of the module handed to the group, already
- *   carrying the merged prefix and the parent's inherited chain state.
- * @typeParam Return - Type of the module returned by the group; its
- *   `routes` shape is intersected into the parent's route tree.
+ * @typeParam Module - Inner module handed to the factory.
+ * @typeParam Return - Inner module the factory returns after configuration.
+ * @example
+ * ```typescript
+ * const fn: GroupFn<AnyModule, AnyModule> = (module) =>
+ *   module.route("GET", "/a", () => "v1");
+ * ```
  */
 export type GroupFn<Module extends AnyModule, Return extends AnyModule> = (
 	module: Module,
 ) => Return;
 
 /**
- * Convenience alias matching any {@link GroupFn} regardless of input or
- * return module parameters.
+ * Erased {@link GroupFn} for chain storage and runtime dispatch — keeps the
+ * structural shape without carrying the inner module's full generic baggage.
  *
- * Reach for it where the concrete generics are erased — for example, the
- * parameter type of `Module.prototype.group`, which receives whichever
- * group function the caller registered without seeing the routes it
- * defines.
+ * @example
+ * ```typescript
+ * const fn: AnyGroupFn = (module) => module;
+ * ```
  */
 export type AnyGroupFn = GroupFn<any, any>;
 
 /**
- * Internal descriptor for a group, pushed onto a module's chain by
- * `Module.group` and consumed by the compiler when it walks the chain.
+ * Chain link emitted by `module.group()`. The compiler walks the parent's
+ * chain, instantiates an inner module that inherits the parent's prior links
+ * (so prior middlewares and `.extends()` cascades still apply), and hands it
+ * to {@link GroupFn} to gather routes. Anything the factory adds stays inside
+ * the group — it is not appended to the parent's chain, so siblings declared
+ * after the group are not affected.
  *
- * - `group` — user-supplied function invoked by the compiler when the
- *   group is reached.
- * - `prefix` — literal string forwarded from {@link GroupOptions}, or the
- *   empty string when the caller omitted `options.prefix`. The compiler
- *   treats both `""` and `"/"` as no-ops when concatenating the merged
- *   path.
- * - `type` — discriminant the compiler uses to tell groups apart from
- *   middlewares, validators, stores, nested modules, and routes while
- *   traversing the chain in declaration order.
+ * The `type: "GROUP"` discriminator is what the chain walker matches on — do
+ * not change it manually.
  *
- * @typeParam Module - Type of the module handed to the group function.
- * @typeParam Prefix - Literal string prefix scoped to this group.
- * @typeParam Return - Type of the module returned by the group function.
+ * @typeParam Module - Inner module type passed to the factory.
+ * @typeParam Prefix - Subtree prefix mounted under the parent.
+ * @typeParam Return - Inner module type the factory returns.
+ * @example
+ * ```typescript
+ * const group: Group<AnyModule, "/v1", AnyModule> = {
+ *   group: (module) => module.route("GET", "/a", () => "v1"),
+ *   prefix: "/v1",
+ *   type: "GROUP",
+ * };
+ * ```
  */
 export interface Group<
 	Module extends AnyModule,
@@ -98,11 +101,12 @@ export interface Group<
 }
 
 /**
- * Convenience alias matching any {@link Group} regardless of module,
- * prefix, or return parameters.
+ * Erased {@link Group} for chain arrays and runtime helpers that store mixed
+ * link types side-by-side.
  *
- * Reach for it in container or registry types where the concrete generics
- * are irrelevant — for example, the heterogeneous `ModuleChain` array
- * that holds every unit attached to a module.
+ * @example
+ * ```typescript
+ * const links: AnyGroup[] = [];
+ * ```
  */
 export type AnyGroup = Group<any, any, any>;
