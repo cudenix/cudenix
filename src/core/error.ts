@@ -8,17 +8,17 @@ import { FrozenEmpty } from "@/utils/objects/empty";
  */
 
 /**
- * Pick every {@link AnyError}-shaped member out of `T`. Use it to isolate the
- * error half of a handler's return union before the module compiler folds it
- * into the parent's error dictionary.
+ * Pick every {@link AnyError}-shaped member out of `T`. Use it to isolate
+ * the error half of a handler's return union before the module compiler
+ * folds it into the parent's error dictionary.
  *
- * Thin wrapper over the builtin `Extract<T, AnyError>` — members that are not
- * assignable to {@link AnyError} are discarded.
+ * Thin wrapper over the builtin `Extract<T, AnyError>` — members that are
+ * not assignable to {@link AnyError} are discarded.
  *
  * @typeParam T - Union to filter.
  * @example
  * ```typescript
- * type A = FilterError<Error<"v1", 400> | { a: "v2" }>;
+ * type A = FilterError<Error<"v1", 400> | Success<"v2", 200>>;
  * // Error<"v1", 400>
  * ```
  */
@@ -26,26 +26,26 @@ export type FilterError<T> = Extract<T, AnyError>;
 
 /**
  * Drop every {@link AnyError}-shaped member from `T`, keeping the non-error
- * branches intact. Mirrors {@link FilterError} — the module compiler reaches
- * for this when it needs the success or store side of a return union
- * separated from the error envelopes that halt the chain.
+ * branches intact. Mirror of {@link FilterError} — the module compiler
+ * reaches for this when it needs the success or store side of a return
+ * union separated from the error envelopes that halt the chain.
  *
  * Thin wrapper over the builtin `Exclude<T, AnyError>`.
  *
  * @typeParam T - Union to filter.
  * @example
  * ```typescript
- * type A = IgnoreError<Error<"v1", 400> | { a: "v2" }>;
- * // { a: "v2" }
+ * type A = IgnoreError<Error<"v1", 400> | Success<"v2", 200>>;
+ * // Success<"v2", 200>
  * ```
  */
 export type IgnoreError<T> = Exclude<T, AnyError>;
 
 /**
  * Re-key a single {@link AnyError} by its `status` code, producing the
- * one-entry record `{ [T["status"]]: T }`. Used by the module compiler so the
- * per-module error map stays deduplicated when two units emit the same
- * status.
+ * one-entry record `{ [T["status"]]: T }`. Used by the module compiler so
+ * the per-module error map stays deduplicated when two units emit the
+ * same status.
  *
  * @typeParam T - Error envelope whose `status` becomes the dictionary key.
  * @example
@@ -59,8 +59,8 @@ export type TransformError<T extends AnyError> = Record<T["status"], T>;
 /**
  * Deeply merge two status-keyed error dictionaries. Reached for by
  * `Module.extends`, `Module.middleware`, `Module.route`, `Module.store`, and
- * `Module.validator` to accumulate the error shapes contributed by each unit
- * without dropping any branch.
+ * `Module.validator` to accumulate the error shapes contributed by each
+ * unit without dropping any branch.
  *
  * For every status present in only one operand the value is taken verbatim.
  * When both operands carry an entry under the same status the inner
@@ -96,17 +96,45 @@ export type MergeErrors<T extends object, U extends object> = {
 			: never;
 };
 
+/**
+ * Options accepted by the {@link Error} constructor. The `Status` parameter
+ * threads the literal status code through the type system so the resulting
+ * envelope keeps its narrow `status` literal instead of widening to
+ * `number`. Defaults to `400` when omitted.
+ *
+ * @typeParam Status - Numeric literal type of the response status code.
+ * @example
+ * ```typescript
+ * const a: ErrorOptions<401> = { status: 401 };
+ *
+ * new Error({ id: 1 }, a); // Error<{ id: 1 }, 401>
+ * ```
+ */
 interface ErrorOptions<Status extends number> {
 	status?: Status;
 }
 
+/**
+ * Convenience alias matching any {@link ErrorOptions} regardless of the
+ * status parameter. Reach for it where the concrete status is erased — for
+ * example, the options argument of the {@link Error} constructor, which
+ * destructures `status` without caring about its literal type.
+ *
+ * @example
+ * ```typescript
+ * const fn = ({ status = 400 }: AnyErrorOptions) => status;
+ *
+ * fn({ status: 401 }); // 401
+ * fn({}); // 400
+ * ```
+ */
 type AnyErrorOptions = ErrorOptions<any>;
 
 /**
  * Error envelope returned by middlewares, stores, validators, and route
- * handlers to signal a failure response. `success: false` is the discriminant
- * that lets the runtime tell errors apart from `Success` values without
- * inspecting the status code.
+ * handlers to signal a failed response. `success: false` is the
+ * discriminant that lets the runtime tell errors apart from `Success`
+ * values without inspecting the status code.
  *
  * @typeParam Content - Type of the payload supplied to the constructor. At
  *   the type level it flows through {@link ExtractContent}, so a
@@ -132,9 +160,9 @@ export interface Error<Content, Status extends number = 400> {
 /**
  * Convenience alias matching any {@link Error} regardless of content or
  * status parameters. Reach for it in container or registry types where the
- * concrete generics are irrelevant — for example, the union threaded through
- * {@link FilterError} or the error-tagged returns walked by the module
- * compiler.
+ * concrete generics are irrelevant — for example, the union threaded
+ * through {@link FilterError} or the error-tagged returns walked by the
+ * module compiler.
  *
  * @example
  * ```typescript
@@ -147,9 +175,9 @@ export interface Error<Content, Status extends number = 400> {
 export type AnyError = Error<any, any>;
 
 /**
- * Constructor signature of {@link Error}, declared separately so the runtime
- * value can be defined with a plain `function` and cast to a constructable
- * type.
+ * Constructor signature of {@link Error}, declared separately so the
+ * runtime value can be defined with a plain `function` and cast to a
+ * constructable type.
  *
  * @example
  * ```typescript
@@ -168,18 +196,18 @@ export interface ErrorConstructor {
 }
 
 /**
- * Construct an {@link Error} envelope from a content payload and an optional
- * status code. Must be invoked with `new`; the resulting instance carries
- * `content`, `status`, and `success: false` — the three fields the runtime
- * reads when serializing the response.
+ * Construct an {@link Error} envelope from a content payload and an
+ * optional status code. Must be invoked with `new`; the resulting instance
+ * carries `content`, `status`, and `success: false` — the three fields the
+ * runtime reads when serializing the response.
  *
  * `status` defaults to `400` when `options` is omitted; {@link FrozenEmpty}
  * is the default options object, so the no-argument path skips a fresh `{}`
- * allocation. The interface's type-level {@link ExtractContent} unwrapping is
- * not mirrored at runtime — a function-typed `content` is stored as-is.
+ * allocation. The interface's type-level {@link ExtractContent} unwrapping
+ * is not mirrored at runtime — a function-typed `content` is stored as-is.
  *
  * @param content - Payload assigned to `this.content` verbatim.
- * @param options - Optional behavior switches; `status` falls back to `400`.
+ * @param options - Optional behavior switches; see {@link ErrorOptions}.
  * @example
  * ```typescript
  * const a = new Error({ a: "v1" });
@@ -188,7 +216,7 @@ export interface ErrorConstructor {
  * a.status;  // 400
  * a.success; // false
  *
- * const b = new Error("v2", { status: 401 });
+ * const b = new Error({ id: 1 }, { status: 401 });
  *
  * b.status; // 401
  * ```
