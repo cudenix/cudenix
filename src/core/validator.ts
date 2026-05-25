@@ -3,49 +3,38 @@ import type { MaybePromise } from "@/types/maybe-promise";
 
 /**
  * @module
- * Validator descriptors, plugin contract, and the type-level utilities that
- * fold per-request schemas into module and route inference.
+ * Validator types: the runtime plugin contract used to validate each request
+ * slot, the type-level helpers that infer inputs, outputs, and errors from
+ * user schemas, and the compiled descriptor stored on the chain.
  */
 
 /**
- * Adapter that bridges the framework to a third-party validation library.
+ * Runtime contract every validator adapter (Standard Schema, custom) must
+ * satisfy. Registered once on the app and invoked per request slot, it
+ * receives the user-supplied schema, the raw incoming value, and the slot
+ * key, and returns the validated payload along with a success flag.
  *
- * Stored in `app.memory` under the `"validator"` key and invoked by
- * `processValidators` once per declared slot. Each call hands the plugin the
- * schema attached to that slot, the raw value pulled from
- * `context.request[key]`, and the slot name being validated; the plugin
- * decides how the schema is executed and reports the outcome back through a
- * uniform envelope:
+ * `content` on success is the parsed value written back onto
+ * `context.request[type]`. On failure it is the issue (or issues) folded
+ * into the `422` {@link Error} envelope emitted by the validator step.
+ * The function may resolve synchronously or asynchronously — the runtime
+ * awaits both paths uniformly through {@link MaybePromise}.
  *
- * - `success: true` — `content` is treated as the validated value and
- *   overwrites the slot on `context.request`.
- * - `success: false` — `content` is appended to the per-slot error bucket
- *   that ultimately backs the 422 envelope. If `content` is an array, each
- *   entry is pushed individually so multi-issue results stay flat.
- *
- * The return type allows either a synchronous answer or a `Promise`, so the
- * runtime can short-circuit without paying an extra microtask when the
- * underlying library is sync.
- *
- * @param schema - Schema declared for this slot in
- *   {@link ValidatorOptions}. Typed as `any` because the framework is
- *   library-agnostic.
- * @param input - Raw value pulled from `context.request[type]` before
- *   validation.
- * @param type - Slot being validated; one of {@link ValidatorRequest}'s
- *   key names.
- * @returns Result envelope — sync or async — carrying the propagated
- *   `content` and a boolean `success` discriminant.
+ * @param schema - User-supplied schema for the slot, as registered through
+ *   {@link ValidatorOptions}.
+ * @param input - Raw value pulled from the request slot before validation.
+ * @param type - Slot key being validated; one of the keys of
+ *   {@link ValidatorRequest}.
+ * @returns A `{ content, success }` pair, possibly wrapped in a promise.
  * @example
  * ```typescript
- * type A = Parameters<ValidatorPlugin>;
- * // [schema: any, input: unknown, type: "body" | "cookies" | "headers" | "params" | "query"]
+ * const a: ValidatorPlugin = async (schema, input) => {
+ *   const result = await schema["~standard"].validate(input);
  *
- * type B = ReturnType<ValidatorPlugin>;
- * // MaybePromise<{ content: unknown; success: boolean }>
- *
- * type C = Awaited<ReturnType<ValidatorPlugin>>;
- * // { content: unknown; success: boolean }
+ *   return result.issues
+ *     ? { content: result.issues, success: false }
+ *     : { content: result.value, success: true };
+ * };
  * ```
  */
 export type ValidatorPlugin = (
@@ -55,243 +44,154 @@ export type ValidatorPlugin = (
 ) => MaybePromise<{ content: unknown; success: boolean }>;
 
 /**
- * Map every value of a per-slot schema record to its inferred error shape.
+ * Map each request slot in `T` to the issue type its schema produces, via the
+ * ambient `Cudenix.InferValidatorError`. Used to type the per-slot details
+ * carried by the `422` envelope a validator emits on failure.
  *
- * Each value flows through the global `Cudenix.InferValidatorError`, which
- * returns the library-specific issue list for `StandardSchemaV1` schemas
- * and falls back to the raw `Type[Key]` otherwise. Fed into
- * {@link TransformValidatorError} so the 422 envelope produced by
- * `Module.validator` and `RouteOptions.validator` reflects the exact issue
- * type each schema can emit.
+ * Slots without a schema fall through as their declared value type. The
+ * mapping is shallow — only top-level slot keys are walked.
  *
- * @typeParam Type - Record mapping {@link ValidatorRequest} slot names to
- *   the schema declared for each.
+ * @typeParam T - Partial {@link ValidatorRequest} whose slots hold schemas.
  * @example
  * ```typescript
- * type A = DeepInferValidatorError<{
- *   body: StandardSchemaV1<{ a: string }>;
- *   query: { a: number };
- * }>;
- * // { body: StandardSchemaV1.Issue[]; query: { a: number } }
- *
- * type B = DeepInferValidatorError<{}>;
- * // {}
+ * type A = DeepInferValidatorError<{ body: SomeSchema; query: SomeSchema }>;
+ * // { body: BodyIssues; query: QueryIssues }
  * ```
  */
-export type DeepInferValidatorError<Type extends Record<PropertyKey, unknown>> =
-	{
-		[Key in keyof Type]: Cudenix.InferValidatorError<Type[Key]>;
-	};
-
-/**
- * Map every value of a per-slot schema record to its inferred input shape.
- *
- * Counterpart of {@link DeepInferValidatorOutput}. Each value flows through
- * `Cudenix.InferValidatorInput`, which extracts the pre-validation type a
- * schema accepts. Used by `Module.validator` and `Module.route` to populate
- * the `inputs` half of a module's validator dictionary so route consumers
- * see the raw payload shape clients are expected to send.
- *
- * @typeParam Type - Record mapping {@link ValidatorRequest} slot names to
- *   the schema declared for each.
- * @example
- * ```typescript
- * type A = DeepInferValidatorInput<{
- *   body: StandardSchemaV1<{ a: string }, { a: number }>;
- *   query: { a: number };
- * }>;
- * // { body: { a: string }; query: { a: number } }
- *
- * type B = DeepInferValidatorInput<{ params: { a: string } }>;
- * // { params: { a: string } }
- * ```
- */
-export type DeepInferValidatorInput<Type extends Record<PropertyKey, unknown>> =
-	{
-		[Key in keyof Type]: Cudenix.InferValidatorInput<Type[Key]>;
-	};
-
-/**
- * Map every value of a per-slot schema record to its inferred output shape.
- *
- * Counterpart of {@link DeepInferValidatorInput}. Each value flows through
- * `Cudenix.InferValidatorOutput`, which extracts the post-validation type a
- * schema produces. Used by `Module.validator` and `Module.route` to populate
- * the `outputs` half of a module's validator dictionary, so route handlers
- * see the parsed request shape with schema-level transformations already
- * applied.
- *
- * @typeParam Type - Record mapping {@link ValidatorRequest} slot names to
- *   the schema declared for each.
- * @example
- * ```typescript
- * type A = DeepInferValidatorOutput<{
- *   body: StandardSchemaV1<{ a: string }, { a: number }>;
- *   query: { a: number };
- * }>;
- * // { body: { a: number }; query: { a: number } }
- *
- * type B = DeepInferValidatorOutput<{ params: { a: string } }>;
- * // { params: { a: string } }
- * ```
- */
-export type DeepInferValidatorOutput<
-	Type extends Record<PropertyKey, unknown>,
-> = {
-	[Key in keyof Type]: Cudenix.InferValidatorOutput<Type[Key]>;
+export type DeepInferValidatorError<T extends object> = {
+	[K in keyof T]: Cudenix.InferValidatorError<T[K]>;
 };
 
 /**
- * Resolve to the discriminated union of per-slot error wrappers.
+ * Map each request slot in `T` to the input type its schema accepts, via the
+ * ambient `Cudenix.InferValidatorInput`. Drives the type of the `request`
+ * argument exposed to handlers further down the chain.
  *
- * For every key in `Type`, the mapped step produces an entry shaped
- * `{ details: [Type[Key]]; type: Key }`; indexing by `keyof Type` folds
- * those entries into a single union discriminated by `type`. Consumers can
- * narrow on `type` to recover the matching `details` payload at compile
- * time.
+ * Slots without a schema fall through as their declared value type. The
+ * mapping is shallow — only top-level slot keys are walked.
  *
- * @typeParam Type - Record whose keys become the discriminant and whose
- *   values become the wrapped detail payload.
+ * @typeParam T - Partial {@link ValidatorRequest} whose slots hold schemas.
  * @example
  * ```typescript
- * type A = ValidatorErrorDetails<{
- *   body: string[];
- *   query: number[];
- * }>;
- * // | { details: [string[]]; type: "body" }
- * // | { details: [number[]]; type: "query" }
+ * type A = DeepInferValidatorInput<{ body: SomeSchema }>;
+ * // { body: BodyInput }
  * ```
  */
-export type ValidatorErrorDetails<Type> = {
-	[Key in keyof Type]: { details: [Type[Key]]; type: Key };
-}[keyof Type];
+export type DeepInferValidatorInput<T extends object> = {
+	[K in keyof T]: Cudenix.InferValidatorInput<T[K]>;
+};
 
 /**
- * Wrap a per-slot error dictionary in the canonical 422 envelope.
+ * Map each request slot in `T` to the output type its schema produces, via
+ * the ambient `Cudenix.InferValidatorOutput`. Drives the type of the
+ * validated value written back into `context.request` and consumed by later
+ * middlewares, stores, and routes.
  *
- * Produces the one-entry record
- * `{ 422: Error<[{ details: [union] }], 422> }`, where the inner union is
- * the {@link ValidatorErrorDetails} of `ValidatorError`. The module and
- * route compilers fold this entry into the surrounding error dictionary
- * via `MergeErrors`, so a failed validation surfaces alongside any other
- * 4xx/5xx a handler can emit.
+ * Slots without a schema fall through as their declared value type. The
+ * mapping is shallow — only top-level slot keys are walked.
  *
- * The type-level `content` is a 1-tuple containing a single discriminated
- * entry, expressing the *shape* of one failed slot. At runtime,
- * `processValidators` writes a multi-entry array — one entry per slot
- * that actually failed — into the 422 envelope, so consumers reading the
- * payload should iterate it rather than relying on the tuple length.
- *
- * @typeParam ValidatorError - Record produced by
- *   {@link DeepInferValidatorError}, mapping slot names to their inferred
- *   error type.
+ * @typeParam T - Partial {@link ValidatorRequest} whose slots hold schemas.
  * @example
  * ```typescript
- * type A = TransformValidatorError<{
- *   body: string[];
- *   query: number[];
- * }>;
- * // {
- * //   422: Error<
- * //     [{
- * //       details: [
- * //         | { details: [string[]]; type: "body" }
- * //         | { details: [number[]]; type: "query" }
- * //       ];
- * //     }],
- * //     422
- * //   >;
- * // }
+ * type A = DeepInferValidatorOutput<{ body: SomeSchema }>;
+ * // { body: BodyOutput }
  * ```
  */
-export interface TransformValidatorError<
-	ValidatorError extends Record<PropertyKey, unknown>,
-> {
-	422: Error<[{ details: [ValidatorErrorDetails<ValidatorError>] }], 422>;
+export type DeepInferValidatorOutput<T extends object> = {
+	[K in keyof T]: Cudenix.InferValidatorOutput<T[K]>;
+};
+
+/**
+ * Discriminated union of per-slot error entries built from `T`. Each member
+ * has the shape `{ details: [SlotError]; type: SlotKey }`, so a consumer can
+ * narrow on `type` to read the matching `details` payload.
+ *
+ * Slots whose error type is `never` collapse out of the union. The order of
+ * members follows the order of keys in `T`.
+ *
+ * @typeParam T - Per-slot error map, typically the result of
+ *   {@link DeepInferValidatorError}.
+ * @example
+ * ```typescript
+ * type A = ValidatorErrorDetails<{ body: BodyIssues; query: QueryIssues }>;
+ * // | { details: [BodyIssues]; type: "body" }
+ * // | { details: [QueryIssues]; type: "query" }
+ * ```
+ */
+export type ValidatorErrorDetails<T extends object> = {
+	[K in keyof T]: { details: [T[K]]; type: K };
+}[keyof T];
+
+/**
+ * Wrap a per-slot error map into the `422`-keyed {@link Error} envelope the
+ * validator step emits on failure. Used by the module compiler to fold the
+ * validator's contribution into the surrounding error dictionary.
+ *
+ * The wrapped content is a one-element tuple `[{ details: [...] }]` whose
+ * inner detail unions every slot via {@link ValidatorErrorDetails}, matching
+ * the shape `processValidators` builds at runtime.
+ *
+ * @typeParam T - Per-slot error map, typically the result of
+ *   {@link DeepInferValidatorError}.
+ * @example
+ * ```typescript
+ * type A = TransformValidatorError<{ body: BodyIssues }>;
+ * // { 422: Error<[{ details: [{ details: [BodyIssues]; type: "body" }] }], 422> }
+ * ```
+ */
+export interface TransformValidatorError<T extends object> {
+	422: Error<[{ details: [ValidatorErrorDetails<T>] }], 422>;
 }
 
 /**
- * Combine two slot-keyed validator-request shapes, letting `SecondType`
- * override `FirstType` unless its entry is left as `unknown`.
+ * Merge two per-slot request maps with right-side precedence. For each slot,
+ * if `U` declares a concrete type (not `unknown`) it wins; otherwise `T`'s
+ * declaration carries through. Slots that are `unknown` on both sides are
+ * dropped so they do not pollute downstream signatures.
  *
- * The mapped type iterates over the fixed slot vocabulary
- * `body | cookies | headers | params | query`. For each slot:
+ * Used by `Module` to thread previously-declared inputs/outputs through new
+ * validator and route registrations, so each unit sees the cumulative shape
+ * of the request rather than only the slots it touches.
  *
- * - The key is dropped entirely when both operands carry `unknown` — the
- *   slot was never declared on either side, so it stays absent from the
- *   merged result.
- * - The value is taken from `SecondType` when it is concrete (not
- *   `unknown`), overriding whatever `FirstType` contributed.
- * - Otherwise the value falls back to `FirstType`'s slot.
- *
- * The `[unknown] extends [Type[Key]]` tuple wrapping suppresses the
- * implicit distribution that conditional types perform over naked union
- * operands, so a slot typed as `unknown | T` is treated as a single shape
- * rather than splitting member-by-member. Used by `Module.extends`,
- * `Module.route`, and nested validators so the most recent declaration
- * shadows the accumulated one without losing slots that the new layer
- * leaves untouched.
- *
- * @typeParam FirstType - Accumulated validator shape so far.
- * @typeParam SecondType - Newly contributed validator shape; concrete
- *   slots override `FirstType`, `unknown` slots defer to it.
+ * @typeParam T - Base per-slot map, usually the parent module's accumulator.
+ * @typeParam U - New per-slot map contributed by the current registration.
  * @example
  * ```typescript
  * type A = MergeInferValidatorRequest<
- *   { body: { a: string }; query: unknown },
- *   { body: unknown;       query: { a: number } }
+ *   { body: { a: string }; query: unknown; cookies: unknown; headers: unknown; params: unknown },
+ *   { body: unknown; query: { b: number }; cookies: unknown; headers: unknown; params: unknown }
  * >;
- * // { body: { a: string }; query: { a: number } }
+ * // { body: { a: string }; query: { b: number } }
  * ```
  */
-export type MergeInferValidatorRequest<
-	FirstType extends Record<PropertyKey, unknown>,
-	SecondType extends Record<PropertyKey, unknown>,
-> = {
-	[Key in "body" | "cookies" | "headers" | "params" | "query" as [
+export type MergeInferValidatorRequest<T extends object, U extends object> = {
+	[K in "body" | "cookies" | "headers" | "params" | "query" as [
 		unknown,
-	] extends [SecondType[Key]]
-		? [unknown] extends [FirstType[Key]]
+	] extends [U[K]]
+		? [unknown] extends [T[K]]
 			? never
-			: Key
-		: Key]: [unknown] extends [SecondType[Key]]
-		? FirstType[Key]
-		: SecondType[Key];
+			: K
+		: K]: [unknown] extends [U[K]] ? T[K] : U[K];
 };
 
 /**
- * Fixed dictionary of the five request slots that validators can target.
+ * Shape of the five request slots a validator may operate on. Each generic
+ * defaults to `unknown` so a partial declaration can refine only the slots
+ * it cares about and leave the rest opaque for later steps to narrow.
  *
- * Each generic parameter pins the type of the corresponding slot — `body`,
- * `cookies`, `headers`, `params`, `query` — and defaults to `unknown` so
- * callers fill only the slots they actually validate. The literal key set
- * is reused by the runtime as the canonical slot vocabulary:
- * `processValidators` indexes `context.request` with
- * `keyof ValidatorRequest`, and `Module.prototype.validator` /
- * `Module.prototype.route` snapshot `Object.keys(options.request)` as
- * `(keyof ValidatorRequest)[]`.
+ * The same key set drives the runtime: `processValidators` iterates these
+ * slots in registration order and writes the parsed value back onto
+ * `context.request[slot]`.
  *
- * @typeParam Body - Type of the validated request body.
- * @typeParam Cookies - Type of the validated cookie bag.
- * @typeParam Headers - Type of the validated header bag.
- * @typeParam Params - Type of the validated path-parameter dictionary.
- * @typeParam Query - Type of the validated query-string dictionary.
+ * @typeParam Body - Parsed request body.
+ * @typeParam Cookies - Parsed cookie dictionary.
+ * @typeParam Headers - Parsed request headers.
+ * @typeParam Params - Parsed route parameters.
+ * @typeParam Query - Parsed query string.
  * @example
  * ```typescript
- * type A = ValidatorRequest;
- * // { body: unknown; cookies: unknown; headers: unknown; params: unknown; query: unknown }
- *
- * type B = ValidatorRequest<
- *   { a: string },
- *   unknown,
- *   unknown,
- *   unknown,
- *   { a: number }
- * >;
- * // { body: { a: string }; cookies: unknown; headers: unknown; params: unknown; query: { a: number } }
- *
- * type C = keyof ValidatorRequest;
- * // "body" | "cookies" | "headers" | "params" | "query"
+ * type A = ValidatorRequest<{ a: string }, unknown, unknown, unknown, { b: number }>;
+ * // { body: { a: string }; cookies: unknown; headers: unknown; params: unknown; query: { b: number } }
  * ```
  */
 export interface ValidatorRequest<
@@ -309,29 +209,24 @@ export interface ValidatorRequest<
 }
 
 /**
- * Runtime descriptor for an attached validator chain link.
+ * Compiled validator descriptor stored on the chain. Produced by
+ * `module.validator` (or the per-route `validator` option) from a
+ * {@link ValidatorOptions} argument, then consumed by `processValidators`
+ * at request time.
  *
- * Produced by `Module.prototype.validator` and `Module.prototype.route`
- * when they snapshot the user-supplied {@link ValidatorOptions}. `keys` is
- * the cached list of `request`'s own property names, narrowed to
- * {@link ValidatorRequest}'s slot vocabulary so `processValidators` can
- * walk the schema map without revisiting `Object.keys`. `type` is the
- * `"VALIDATOR"` discriminant the compile pass and `processValidators`
- * switch on to dispatch validator links from the chain.
+ * `keys` is pre-extracted from `request` so the runtime can iterate slots
+ * without rebuilding the array on every request. `type: "VALIDATOR"` is the
+ * discriminant the chain walker uses to dispatch on link kind.
  *
- * @typeParam Request - Partial {@link ValidatorRequest} listing the
- *   schemas the caller actually declared.
+ * @typeParam Request - Partial {@link ValidatorRequest} of schemas declared
+ *   for this validator.
  * @example
  * ```typescript
- * type A = Validator<{ body: { a: string } }>;
- * // {
- * //   keys: ("body" | "cookies" | "headers" | "params" | "query")[];
- * //   request: { body: { a: string } };
- * //   type: "VALIDATOR";
- * // }
- *
- * type B = A["type"];
- * // "VALIDATOR"
+ * const a: Validator<{ body: SomeSchema }> = {
+ *   keys: ["body"],
+ *   request: { body: someSchema },
+ *   type: "VALIDATOR",
+ * };
  * ```
  */
 export interface Validator<Request extends Partial<ValidatorRequest>> {
@@ -341,50 +236,24 @@ export interface Validator<Request extends Partial<ValidatorRequest>> {
 }
 
 /**
- * Convenience alias matching any {@link Validator} regardless of the
- * request parameter.
- *
- * Reach for it in container or registry types where the concrete schema
- * shape is irrelevant — for example, the `link` typed `chain` walked by
- * `processValidators`, which dispatches by `type` rather than by generic.
- *
- * @example
- * ```typescript
- * type A = AnyValidator;
- * // Validator<any>
- *
- * type B = Validator<{ body: { a: string } }> extends AnyValidator ? true : false;
- * // true
- *
- * type C = AnyValidator["type"];
- * // "VALIDATOR"
- * ```
+ * Convenience alias matching any {@link Validator} regardless of its request
+ * shape. Reach for it in container or chain types where the concrete schemas
+ * are irrelevant — for example, the union of link kinds walked by the chain.
  */
 export type AnyValidator = Validator<any>;
 
 /**
- * Options accepted by `Module.prototype.validator` and
- * `RouteOptions.validator`.
+ * Options accepted by `module.validator` and the per-route `validator`
+ * option. Just carries the per-slot schema map; the runtime extracts `keys`
+ * and tags `type` when compiling the descriptor.
  *
- * The single `request` field maps slot names to their schemas; the runtime
- * later snapshots `Object.keys(request)` into a {@link Validator}
- * descriptor and stores the original map on `request` for plugin lookup.
- * Wrapped in its own interface so consumers can constrain or extend it
- * through a `_ValidatorOptions` generic without recreating the field by
- * hand.
- *
- * @typeParam Request - Partial {@link ValidatorRequest} listing which
- *   slots the caller wants validated and the schema declared for each.
+ * @typeParam Request - Partial {@link ValidatorRequest} of schemas being
+ *   registered.
  * @example
  * ```typescript
- * type A = ValidatorOptions<{
- *   body: { a: string };
- *   query: { a: number };
- * }>;
- * // { request: { body: { a: string }; query: { a: number } } }
- *
- * type B = ValidatorOptions<{ params: { a: string } }>["request"];
- * // { params: { a: string } }
+ * const a: ValidatorOptions<{ body: SomeSchema }> = {
+ *   request: { body: someSchema },
+ * };
  * ```
  */
 export interface ValidatorOptions<Request extends Partial<ValidatorRequest>> {
@@ -392,26 +261,9 @@ export interface ValidatorOptions<Request extends Partial<ValidatorRequest>> {
 }
 
 /**
- * Convenience alias matching any {@link ValidatorOptions} regardless of
- * the request parameter.
- *
- * Reach for it where the concrete schema shape is erased — for example,
- * the `options` argument of the `Module.prototype.validator` runtime
- * implementation, which destructures `request` without caring about its
- * generic.
- *
- * @example
- * ```typescript
- * type A = AnyValidatorOptions;
- * // ValidatorOptions<any>
- *
- * type B = ValidatorOptions<{ body: { a: string } }> extends AnyValidatorOptions
- *   ? true
- *   : false;
- * // true
- *
- * type C = AnyValidatorOptions["request"];
- * // any
- * ```
+ * Convenience alias matching any {@link ValidatorOptions} regardless of its
+ * request shape. Used where the concrete schemas are irrelevant — for
+ * example, the runtime body of `module.validator`, which only reads
+ * `Object.keys(options.request)`.
  */
 export type AnyValidatorOptions = ValidatorOptions<any>;
