@@ -164,7 +164,10 @@ export interface TransformValidatorError<T extends object> {
  * // { body: { a: string }; query: { b: number } }
  * ```
  */
-export type MergeInferValidatorRequest<T extends object, U extends object> = {
+export type MergeInferValidatorRequest<
+	T extends Record<PropertyKey, unknown>,
+	U extends Record<PropertyKey, unknown>,
+> = {
 	[K in "body" | "cookies" | "headers" | "params" | "query" as [
 		unknown,
 	] extends [U[K]]
