@@ -3,40 +3,31 @@ import type { AnyError } from "@/core/error";
 
 /**
  * @module
- * Per-request chain unit that contributes keys to `context.store`.
+ * Store step — function shape and chain descriptor for `.store()` links that
+ * compute values and merge them into the request-scoped store.
  */
 
 /**
- * Function signature of a store unit registered through `Module.store`.
+ * Callable shape of a `.store()` step. Receives a {@link DeveloperContext}
+ * carrying the stores accumulated by earlier links and the parsed validator
+ * outputs, and returns either a record merged into `context.store` or an
+ * {@link AnyError} that halts the chain and becomes the response.
  *
- * A store runs once per request, inside the same chain that walks
- * middlewares and validators, and produces a dictionary that the runtime
- * merges into the request-scoped `context.store` before the next link is
- * invoked. Returning an {@link AnyError} short-circuits the chain — the
- * error becomes the response and no further units run.
+ * Sync and async functions are both accepted; async returns are awaited
+ * before the next link runs.
  *
- * The function may be synchronous or return a `Promise`; both shapes are
- * accepted so callers can avoid an async tick when the data they need is
- * already available.
- *
- * @typeParam Return - Dictionary contributed to `context.store`, or an
- *   {@link AnyError} that aborts the chain. The non-error half of `Return`
- *   is intersected into the downstream `Stores` shape so later units see
- *   the new keys with their concrete types.
- * @typeParam Stores - Shape of `context.store` visible to this unit, built
- *   from every prior store in the chain.
- * @typeParam Validators - Validated request fields visible to this unit,
- *   built from every prior validator in the chain.
+ * @typeParam Return - Object merged into `context.store`, or an error halting the chain.
+ * @typeParam Stores - Shape of `context.store` visible to this step.
+ * @typeParam Validators - Shape of the validated request fields on `context.request`.
  * @example
  * ```typescript
- * type A = StoreFn<{ a: string }, {}, {}>;
- * // (context: DeveloperContext<{}, {}>) =>
- * //   { a: string } | Promise<{ a: string }>
+ * const a: StoreFn<{ a: string }, {}, {}> = () => ({ a: "v1" });
  *
- * type B = StoreFn<{ a: string } | AnyError, {}, {}>;
- * // (context: DeveloperContext<{}, {}>) =>
- * //   { a: string } | AnyError
- * //   | Promise<{ a: string } | AnyError>
+ * const b: StoreFn<{ a: string } | AnyError, {}, {}> = (context) => {
+ *   const v1 = context.request.raw.headers.get("a");
+ *
+ *   return v1 ? { a: v1 } : new Error("v1", { status: 401 });
+ * };
  * ```
  */
 export type StoreFn<
@@ -46,46 +37,33 @@ export type StoreFn<
 > = (context: DeveloperContext<Stores, Validators>) => Return | Promise<Return>;
 
 /**
- * Convenience alias matching any {@link StoreFn} regardless of return,
- * stores, or validators parameters.
- *
- * Reach for it where the concrete generics are erased — for example, the
- * parameter type of `Module.prototype.store`, which receives whichever
- * store the caller registered without seeing the keys it produces.
+ * Parameter-free alias matching any {@link StoreFn} regardless of return,
+ * store, or validator generics. Use in container, registry, or boundary
+ * types where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript
- * type A = AnyStoreFn;
- * // StoreFn<any, any, any>
- *
- * type B = StoreFn<{ a: string }, {}, {}> extends AnyStoreFn ? true : false;
- * // true
+ * const a: AnyStoreFn[] = [];
  * ```
  */
 export type AnyStoreFn = StoreFn<any, any, any>;
 
 /**
- * Internal descriptor for a store unit, pushed onto a module's chain by
- * `Module.store` and consumed by the runtime on every request.
+ * Compiled store descriptor pushed onto the chain by `module.store`. Pairs
+ * the user-supplied {@link StoreFn} with a `"STORE"` discriminator so the
+ * chain walker can dispatch on link kind.
  *
- * `store` holds the user-supplied function; `type` is the discriminant
- * the runtime uses to tell store units apart from middlewares, validators,
- * and routes while walking the chain in declaration order.
+ * Built by the framework — application code rarely constructs one directly.
  *
- * @typeParam Return - Dictionary contributed to `context.store`, or an
- *   {@link AnyError} that aborts the chain.
- * @typeParam Stores - Shape of `context.store` visible to this unit.
- * @typeParam Validators - Validated request fields visible to this unit.
+ * @typeParam Return - Object merged into `context.store`, or an error halting the chain.
+ * @typeParam Stores - Shape of `context.store` visible to the inner function.
+ * @typeParam Validators - Shape of the validated request fields on `context.request`.
  * @example
  * ```typescript
- * type A = Store<{ a: string }, {}, {}>;
- * // {
- * //   store: StoreFn<{ a: string }, {}, {}>;
- * //   type: "STORE";
- * // }
- *
- * type B = A["type"];
- * // "STORE"
+ * const a: Store<{ a: string }, {}, {}> = {
+ *   store: () => ({ a: "v1" }),
+ *   type: "STORE",
+ * };
  * ```
  */
 export interface Store<
@@ -98,23 +76,13 @@ export interface Store<
 }
 
 /**
- * Convenience alias matching any {@link Store} regardless of return,
- * stores, or validators parameters.
- *
- * Reach for it in container or registry types where the concrete generics
- * are irrelevant — for example, the heterogeneous `Chain` array that holds
- * every unit attached to an endpoint.
+ * Parameter-free alias matching any {@link Store} regardless of return,
+ * store, or validator generics. Use in container, registry, or boundary
+ * types where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript
- * type A = AnyStore;
- * // Store<any, any, any>
- *
- * type B = Store<{ a: string }, {}, {}> extends AnyStore ? true : false;
- * // true
- *
- * type C = AnyStore["type"];
- * // "STORE"
+ * const a: AnyStore[] = [];
  * ```
  */
 export type AnyStore = Store<any, any, any>;
