@@ -100,6 +100,4 @@ export const SSE = function SSE(
 export const sse = <const Generator extends AnyGeneratorSSE>(
 	url: string | URL,
 	options?: EventSourceInit,
-) => {
-	return new SSE(url, options) as SSE<Generator>;
-};
+) => new SSE(url, options) as SSE<Generator>;
