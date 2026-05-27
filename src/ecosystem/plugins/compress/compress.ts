@@ -1,8 +1,8 @@
-import { module } from "@/core/module";
+import { Module } from "@/core/module";
 import { processResponse } from "@/core/response";
-import { success } from "@/core/success";
+import { Success } from "@/core/success";
 import { selectHeader } from "@/utils/headers/select-header";
-import { FreezeEmpty } from "@/utils/objects/empty";
+import { FrozenEmpty } from "@/utils/objects/empty";
 
 const COMPRESSIBLE_REGEXP =
 	/^\s*(?:text\/(?!event-stream(?:[;\s]|$))[^;\s]+|application\/(?:json|javascript|xml|x-www-form-urlencoded)|[^;\s]+\/[^;\s]+\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
@@ -20,8 +20,8 @@ interface CompressOptions {
 	threshold?: number;
 }
 
-export const compress = ({ threshold = 1024 }: CompressOptions = FreezeEmpty) =>
-	module().middleware(async ({ request: { raw }, response }, next) => {
+export const compress = ({ threshold = 1024 }: CompressOptions = FrozenEmpty) =>
+	new Module().middleware(async ({ request: { raw }, response }, next) => {
 		await next();
 
 		if (!response.content || raw.method === "HEAD") {
@@ -112,10 +112,8 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FreezeEmpty) =>
 
 		processedHeaders.set("content-encoding", encodingName);
 
-		response.content = success(
+		response.content = new Success(
 			new Response(compressed, processedResponse),
-			{
-				status: processedResponse.status,
-			},
+			{ status: processedResponse.status },
 		);
 	});
