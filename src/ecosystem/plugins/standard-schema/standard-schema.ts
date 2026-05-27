@@ -1,22 +1,20 @@
-import type { App } from "@/core/app";
+import type { Cudenix } from "@/core/cudenix";
 
 export const initializeStandardSchema = () =>
-	function initializeStandardSchema(this: App) {
-		this.memory.set("validator", (schema: any, input: unknown) => {
+	function initializeStandardSchema(this: Cudenix) {
+		this.memory.validator = (schema: any, input: unknown) => {
 			const returned = schema["~standard"].validate(input);
 
 			if (returned instanceof Promise) {
-				return returned.then(({ issues, value }) => {
-					return {
-						content: issues ?? value,
-						success: !issues,
-					};
-				});
+				return returned.then(({ issues, value }) => ({
+					content: issues ?? value,
+					success: !issues,
+				}));
 			}
 
 			return {
 				content: returned.issues ?? returned.value,
 				success: !returned.issues,
 			};
-		});
+		};
 	};
