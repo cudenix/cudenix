@@ -28,12 +28,12 @@ const ASYNC_GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(
  * isGenerator(async () => {}); // false
  * isGenerator(() => {}); // false
  *
- * if (isGenerator(handler)) {
- *   for await (const value of handler(input)) {
+ * if (isGenerator(fn)) {
+ *   for await (const v1 of fn(p1)) {
  *     // consume each yielded value
  *   }
  * } else {
- *   await handler(input);
+ *   await fn(p1);
  * }
  * ```
  */
