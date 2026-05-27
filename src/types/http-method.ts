@@ -28,5 +28,4 @@ export type HttpMethod =
 	| "PATCH"
 	| "POST"
 	| "PUT"
-	| "WS"
 	| (Uppercase<string> & NonNullable<unknown>);
