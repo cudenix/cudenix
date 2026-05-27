@@ -1,11 +1,9 @@
 import type { AnyDeveloperContext } from "@/core/context";
-import { module } from "@/core/module";
-import { success } from "@/core/success";
-import { FreezeEmpty } from "@/utils/objects/empty";
+import { Module } from "@/core/module";
+import { Success } from "@/core/success";
+import { FrozenEmpty } from "@/utils/objects/empty";
 
-const OPTIONS_RESPONSE = success(undefined, {
-	status: 204,
-});
+const OPTIONS_RESPONSE = new Success(undefined, { status: 204 });
 
 interface CorsOptions {
 	allowHeaders?: string;
@@ -28,7 +26,7 @@ export const cors = ({
 	exposeHeaders,
 	maxAge,
 	origin = "*",
-}: CorsOptions = FreezeEmpty) => {
+}: CorsOptions = FrozenEmpty) => {
 	const optionsPairs = ["access-control-allow-methods", allowMethods];
 
 	if (maxAge !== undefined) {
@@ -67,7 +65,7 @@ export const cors = ({
 		const needsVary = origin !== "*";
 
 		if (origin === "*" && credentials === true) {
-			return module()
+			return new Module()
 				.middleware((context, next) => {
 					const raw = context.request.raw;
 					const headers = context.response.headers;
@@ -100,12 +98,10 @@ export const cors = ({
 					return next();
 				})
 
-				.route("OPTIONS", "/...path?", () => {
-					return OPTIONS_RESPONSE;
-				});
+				.route("OPTIONS", "/...path?", () => OPTIONS_RESPONSE);
 		}
 
-		return module()
+		return new Module()
 			.middleware((context, next) => {
 				const raw = context.request.raw;
 				const headers = context.response.headers;
@@ -131,12 +127,10 @@ export const cors = ({
 				return next();
 			})
 
-			.route("OPTIONS", "/...path?", () => {
-				return OPTIONS_RESPONSE;
-			});
+			.route("OPTIONS", "/...path?", () => OPTIONS_RESPONSE);
 	}
 
-	return module()
+	return new Module()
 		.middleware((context, next) => {
 			const raw = context.request.raw;
 			const headers = context.response.headers;
@@ -166,7 +160,5 @@ export const cors = ({
 			return next();
 		})
 
-		.route("OPTIONS", "/...path?", () => {
-			return OPTIONS_RESPONSE;
-		});
+		.route("OPTIONS", "/...path?", () => OPTIONS_RESPONSE);
 };
