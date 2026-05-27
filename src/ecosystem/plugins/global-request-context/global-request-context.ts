@@ -1,16 +1,13 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { AnyDeveloperContext } from "@/core/context";
-import { module } from "@/core/module";
+import { Module } from "@/core/module";
 
 const ASYNC_LOCAL_STORAGE = new AsyncLocalStorage<AnyDeveloperContext>();
 
-export const getRequestContext = () => {
-	return ASYNC_LOCAL_STORAGE.getStore();
-};
+export const getRequestContext = () => ASYNC_LOCAL_STORAGE.getStore();
 
-export const globalRequestContext = () => {
-	return module().middleware(async (context, next) => {
+export const globalRequestContext = () =>
+	new Module().middleware(async (context, next) => {
 		await ASYNC_LOCAL_STORAGE.run(context, next);
 	});
-};
