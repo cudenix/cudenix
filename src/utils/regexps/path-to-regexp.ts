@@ -28,7 +28,8 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  * lets several compiled patterns be concatenated without breaking the offset
  * math.
  *
- * @param path - Route pattern to compile. Pass `"/"` for the root path.
+ * @param path - Route pattern to compile. Use `"/"` to represent the root
+ *   path.
  * @returns Compiled artifacts:
  *
  * - `paramKeys` — names of every `:name` and `...name` segment, in
