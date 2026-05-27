@@ -9,8 +9,10 @@
  * allocating a new container.
  *
  * In place — `object1` is mutated and nothing is returned. Shallow — nested
- * objects and arrays are copied by reference. Last write wins. Symbol keys
- * and non-enumerable properties are skipped.
+ * objects and arrays are copied by reference. Last write wins. Iteration is
+ * driven by `for...in`, so every enumerable string key reachable on `object2`
+ * (including those inherited through its prototype chain) is copied; symbol
+ * keys and non-enumerable properties are skipped.
  *
  * @param object1 - Target object that receives the keys. Mutated in place.
  * @param object2 - Source object whose entries are copied into `object1`.
