@@ -72,16 +72,18 @@ export interface ModuleExtendsOptions {
 	execute?: boolean;
 }
 
+export interface ModuleValidatorsConstraint {
+	inputs: Record<PropertyKey, unknown>;
+	outputs: Record<PropertyKey, unknown>;
+}
+
 export interface Module<
 	Errors extends Record<PropertyKey, unknown>,
 	Prefix extends `/${string}`,
 	Routes extends Record<PropertyKey, unknown>,
 	Stores extends Record<PropertyKey, unknown>,
 	Successes extends Record<PropertyKey, unknown>,
-	Validators extends {
-		inputs: Record<PropertyKey, unknown>;
-		outputs: Record<PropertyKey, unknown>;
-	},
+	Validators extends ModuleValidatorsConstraint,
 > {
 	chain: ModuleChain;
 	extends<
@@ -90,10 +92,7 @@ export interface Module<
 		const ModuleRoutes extends Record<PropertyKey, unknown>,
 		const ModuleStores extends Record<PropertyKey, unknown>,
 		const ModuleSuccesses extends Record<PropertyKey, unknown>,
-		const ModuleValidators extends {
-			inputs: Record<PropertyKey, unknown>;
-			outputs: Record<PropertyKey, unknown>;
-		},
+		const ModuleValidators extends ModuleValidatorsConstraint,
 	>(
 		module: Module<
 			ModuleErrors,
@@ -323,10 +322,10 @@ export interface ModuleConstructor {
 			PropertyKey,
 			unknown
 		> = NonNullable<unknown>,
-		const Validators extends {
-			inputs: Record<PropertyKey, unknown>;
-			outputs: Record<PropertyKey, unknown>;
-		} = { inputs: NonNullable<unknown>; outputs: NonNullable<unknown> },
+		const Validators extends ModuleValidatorsConstraint = {
+			inputs: NonNullable<unknown>;
+			outputs: NonNullable<unknown>;
+		},
 	>(
 		options?: ModuleOptions<Prefix>,
 	): Module<Errors, Prefix, Routes, Stores, Successes, Validators>;
