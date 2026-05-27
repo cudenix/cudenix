@@ -22,7 +22,7 @@
  * @example
  * ```typescript
  * const a: WSData = {
- *   open(socket) { socket.send("ready"); },
+ *   open(socket) { socket.send("v1"); },
  *   message(socket, payload) { socket.send(payload); },
  * };
  *
