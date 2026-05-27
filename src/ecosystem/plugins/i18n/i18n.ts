@@ -1,16 +1,14 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
-import { module } from "@/core/module";
+import { Module } from "@/core/module";
 import { getRequestContext } from "@/ecosystem/plugins/global-request-context/global-request-context";
 import { selectHeader } from "@/utils/headers/select-header";
-import { Empty, FreezeEmpty } from "@/utils/objects/empty";
+import { Empty, FrozenEmpty } from "@/utils/objects/empty";
 
 const STORE = new Empty() as unknown as I18n;
 
-const PREFIX_MATCH_OPTIONS = Object.freeze({
-	prefixMatch: true,
-});
+const PREFIX_MATCH_OPTIONS = Object.freeze({ prefixMatch: true });
 
 type DeepPaths<Type extends Record<PropertyKey, unknown>> = {
 	[Key in keyof Type]: Key extends string
@@ -63,9 +61,7 @@ interface I18n {
 const loadTranslations = async (directory: string) => {
 	const result = new Empty() as Translation;
 
-	const entries = await readdir(directory, {
-		withFileTypes: true,
-	});
+	const entries = await readdir(directory, { withFileTypes: true });
 
 	const promises = [] as Promise<void>[];
 
@@ -183,7 +179,7 @@ export const translate = <
 		replace: replacements,
 	}: TranslateOptions<
 		DeepValue<Cudenix.i18n.Translations, Path>
-	> = FreezeEmpty,
+	> = FrozenEmpty,
 ) => {
 	const translations = STORE.translations[language ?? getLanguage()];
 
@@ -221,11 +217,9 @@ export const initializeI18n = async (
 		types,
 	}: Pick<I18n, "cookie" | "header"> & {
 		types: boolean;
-	} = FreezeEmpty as any,
+	} = FrozenEmpty as any,
 ) => {
-	const directories = await readdir(path, {
-		withFileTypes: true,
-	});
+	const directories = await readdir(path, { withFileTypes: true });
 
 	const languages = [] as string[];
 
@@ -277,7 +271,7 @@ export const initializeI18n = async (
 };
 
 export const i18n = () =>
-	module().middleware(
+	new Module().middleware(
 		({ request: { raw }, response: { cookies }, store }, next) => {
 			(store as Record<"i18n", Partial<I18n>>).i18n = {
 				language:
