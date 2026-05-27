@@ -7,7 +7,7 @@ import type { ConditionallyOptional } from "@/types/conditionally-optional";
 import type { AnyGeneratorSSE } from "@/types/generator-sse";
 import type { MaybeFunction } from "@/types/maybe-function";
 import type { Merge } from "@/types/merge";
-import { Empty, FreezeEmpty } from "@/utils/objects/empty";
+import { Empty, FrozenEmpty } from "@/utils/objects/empty";
 
 const PARAM_REGEX_REPLACE = /\/:(\w+\??)/g;
 const SPREAD_REGEX_REPLACE = /\/\.{3}(\w+\??)/g;
@@ -57,13 +57,11 @@ export type InferRouteResponse<Route> = Route extends (...options: any[]) => any
 	: never;
 
 type ClientOptions = MaybeFunction<
-	{
-		url: string;
-	} & Omit<RequestInit, "method">
+	{ url: string } & Omit<RequestInit, "method">
 >;
 
 const proxyHandler: ProxyHandler<any> = {
-	async apply(target, _thisArg, [requestOptions = FreezeEmpty]) {
+	async apply(target, _thisArg, [requestOptions = FrozenEmpty]) {
 		const globalOptions = target._options;
 		const path = target._path;
 		const method = target._method;
@@ -266,6 +264,5 @@ const createProxy = (globalOptions: ClientOptions, path = "", method = "") => {
 	return new Proxy(target, proxyHandler);
 };
 
-export const client = <const App extends AnyModule>(options: ClientOptions) => {
-	return createProxy(options) as unknown as ClientChain<App["routes"]>;
-};
+export const client = <const App extends AnyModule>(options: ClientOptions) =>
+	createProxy(options) as unknown as ClientChain<App["routes"]>;
