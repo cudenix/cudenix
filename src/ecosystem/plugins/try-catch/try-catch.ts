@@ -1,13 +1,13 @@
-import { error } from "@/core/error";
-import { module } from "@/core/module";
-import { FreezeEmpty } from "@/utils/objects/empty";
+import { Error } from "@/core/error";
+import { Module } from "@/core/module";
+import { FrozenEmpty } from "@/utils/objects/empty";
 
 interface TryCatchOptions {
 	debug?: boolean;
 }
 
-export const tryCatch = ({ debug = false }: TryCatchOptions = FreezeEmpty) =>
-	module().middleware(async (context, next) => {
+export const tryCatch = ({ debug = false }: TryCatchOptions = FrozenEmpty) =>
+	new Module().middleware(async (_context, next) => {
 		try {
 			await next();
 		} catch (_error) {
@@ -15,7 +15,7 @@ export const tryCatch = ({ debug = false }: TryCatchOptions = FreezeEmpty) =>
 				console.error(_error);
 			}
 
-			return error(_error || "An unknown error has occurred.", {
+			return new Error(_error || "An unknown error has occurred.", {
 				status: 500,
 			});
 		}
