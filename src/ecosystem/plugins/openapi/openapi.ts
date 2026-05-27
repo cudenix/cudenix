@@ -1,8 +1,8 @@
-import type { App } from "@/core/app";
-import { module } from "@/core/module";
-import { success } from "@/core/success";
+import type { Cudenix } from "@/core/cudenix";
+import { Module } from "@/core/module";
+import { Success } from "@/core/success";
 import { scalar } from "@/ecosystem/plugins/openapi/scalar";
-import { Empty, FreezeEmpty } from "@/utils/objects/empty";
+import { Empty, FrozenEmpty } from "@/utils/objects/empty";
 
 const PARAM_RE = /(?::|\.{3})(\w+)\??/g;
 
@@ -29,13 +29,23 @@ export const initializeOpenapi = (
 		description = "Cudenix Documentation",
 		title = "Cudenix Documentation",
 		version = "0.0.1",
-	}: OpenapiPluginOptions = FreezeEmpty,
+	}: OpenapiPluginOptions = FrozenEmpty,
 ) =>
-	function initializeOpenapi(this: App) {
+	function initializeOpenapi(this: Cudenix) {
 		const paths = new Empty();
 		const tags = new Set<string>();
+		const keys = Object.keys(this.methods);
 
-		for (const [method, methodData] of this.methods) {
+		for (let i = 0; i < keys.length; i++) {
+			const method = keys[i];
+
+			if (!method) {
+				continue;
+			}
+
+			const methodData =
+				this.methods[method as keyof typeof this.methods];
+
 			if (!methodData) {
 				continue;
 			}
@@ -61,10 +71,10 @@ export const initializeOpenapi = (
 					}
 
 					paramNames.push(name);
-					paramOptional!.push(
+					paramOptional?.push(
 						match.charCodeAt(match.length - 1) === 63,
 					);
-					paramSpread!.push(match.charCodeAt(0) === 46);
+					paramSpread?.push(match.charCodeAt(0) === 46);
 
 					return `{${name}}`;
 				});
@@ -128,17 +138,12 @@ export const initializeOpenapi = (
 									string,
 									unknown
 								>[]
-							).push({
-								in: _in,
-								schema,
-							});
+							).push({ in: _in, schema });
 
 							continue;
 						}
 
-						operation.requestBody ??= {
-							content: new Empty(),
-						};
+						operation.requestBody ??= { content: new Empty() };
 
 						const bodySchema = toJsonSchema(link.request[key]);
 
@@ -146,15 +151,9 @@ export const initializeOpenapi = (
 							operation.requestBody as Record<string, unknown>
 						).content as Record<string, unknown>;
 
-						content["application/json"] = {
-							schema: bodySchema,
-						};
-						content["multipart/form-data"] = {
-							schema: bodySchema,
-						};
-						content["text/plain"] = {
-							schema: bodySchema,
-						};
+						content["application/json"] = { schema: bodySchema };
+						content["multipart/form-data"] = { schema: bodySchema };
+						content["text/plain"] = { schema: bodySchema };
 					}
 				}
 
@@ -229,29 +228,21 @@ export const initializeOpenapi = (
 			}
 		}
 
-		this.memory.set("openapi", {
-			info: {
-				description,
-				title,
-				version,
-			},
+		this.memory.openapi = {
+			info: { description, title, version },
 			openapi: "3.1.0",
 			paths,
-			tags: Array.from(tags, (tag) => {
-				return {
-					name: tag,
-				};
-			}),
-		});
+			tags: Array.from(tags, (tag) => ({ name: tag })),
+		};
 	};
 
-export const openapi = ({ path }: OpenapiModuleOptions = FreezeEmpty) => {
+export const openapi = ({ path }: OpenapiModuleOptions = FrozenEmpty) => {
 	const url = (path ?? "/openapi") as `/${string}`;
 
 	let cachedHtml: string | undefined;
 	let cachedJson: string | undefined;
 
-	return module()
+	return new Module()
 		.route("GET", url, ({ memory, response: { headers } }) => {
 			headers.set("Content-Type", "text/html");
 
@@ -265,7 +256,7 @@ export const openapi = ({ path }: OpenapiModuleOptions = FreezeEmpty) => {
 				);
 			}
 
-			return success(cachedHtml);
+			return new Success(cachedHtml);
 		})
 
 		.route("GET", `${url}/json`, ({ memory, response: { headers } }) => {
@@ -275,6 +266,6 @@ export const openapi = ({ path }: OpenapiModuleOptions = FreezeEmpty) => {
 
 			headers.set("Content-Type", "application/json");
 
-			return success(cachedJson);
+			return new Success(cachedJson);
 		});
 };
