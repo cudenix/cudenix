@@ -1,5 +1,5 @@
-import type { App, Chain, Endpoint } from "@/core/app";
 import type { Context } from "@/core/context";
+import type { App, Chain, Endpoint } from "@/core/cudenix";
 import { Error } from "@/core/error";
 import { processResponse } from "@/core/response";
 import type { RouteFnReturnGenerator } from "@/core/route";
@@ -15,18 +15,12 @@ import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 
 interface ValidatorState {
-	errors?: {
-		details: unknown[];
-		type: keyof ValidatorRequest;
-	}[];
+	errors?: { details: unknown[]; type: keyof ValidatorRequest }[];
 	index?: Record<string, number>;
 }
 
 const applyValidation = (
-	validated: {
-		content: unknown;
-		success: boolean;
-	},
+	validated: { content: unknown; success: boolean },
 	key: keyof ValidatorRequest,
 	context: Context,
 	state: ValidatorState,
@@ -46,17 +40,14 @@ const applyValidation = (
 	state.index ??= new Empty() as Record<string, number>;
 
 	if (state.index[key] !== undefined) {
-		pushAll(state.errors[state.index[key]]!.details, content);
+		pushAll(state.errors[state.index[key]]?.details, content);
 
 		return;
 	}
 
 	state.index[key] = state.errors.length;
 
-	state.errors.push({
-		details: content,
-		type: key,
-	});
+	state.errors.push({ details: content, type: key });
 };
 
 export const processValidators = (
@@ -97,9 +88,7 @@ export const processValidators = (
 	}
 
 	if (state.errors) {
-		context.response.content = new Error(state.errors, {
-			status: 422,
-		});
+		context.response.content = new Error(state.errors, { status: 422 });
 	}
 };
 
@@ -117,21 +106,13 @@ const resolveRoute = (
 					ws: Bun.ServerWebSocket<unknown>,
 					code: number,
 					reason: string,
-				) => {
-					return (returned as WSData)?.close?.(ws, code, reason);
-				},
-				drain: (ws: Bun.ServerWebSocket<unknown>) => {
-					return (returned as WSData)?.drain?.(ws);
-				},
-				message: (
-					ws: Bun.ServerWebSocket<unknown>,
-					message: string,
-				) => {
-					return (returned as WSData)?.message?.(ws, message);
-				},
-				open: (ws: Bun.ServerWebSocket<unknown>) => {
-					return (returned as WSData)?.open?.(ws);
-				},
+				) => (returned as WSData)?.close?.(ws, code, reason),
+				drain: (ws: Bun.ServerWebSocket<unknown>) =>
+					(returned as WSData)?.drain?.(ws),
+				message: (ws: Bun.ServerWebSocket<unknown>, message: string) =>
+					(returned as WSData)?.message?.(ws, message),
+				open: (ws: Bun.ServerWebSocket<unknown>) =>
+					(returned as WSData)?.open?.(ws),
 			},
 		});
 
@@ -166,8 +147,8 @@ const step = (
 		}
 
 		if (link.type === "MIDDLEWARE") {
-			const middleware = link.middleware(context, () => {
-				return step(
+			const middleware = link.middleware(context, () =>
+				step(
 					app,
 					context,
 					endpoint,
@@ -175,8 +156,8 @@ const step = (
 					chain,
 					i + 1,
 					validatorPlugin,
-				);
-			});
+				),
+			);
 
 			if (middleware instanceof Promise) {
 				return middleware.then((resolved) => {
@@ -240,10 +221,7 @@ const step = (
 			link as AnyValidator,
 			validatorPlugin,
 			0,
-			{
-				errors: undefined,
-				index: undefined,
-			},
+			{ errors: undefined, index: undefined },
 		);
 
 		if (validationReturned instanceof Promise) {
@@ -372,11 +350,11 @@ export const stepAndRespond = (
 	);
 
 	if (returned instanceof Promise) {
-		return returned.then(() => {
-			return processResponse(context.response, {
+		return returned.then(() =>
+			processResponse(context.response, {
 				serializeCookies: endpoint.router === "cudenix",
-			});
-		});
+			}),
+		);
 	}
 
 	return processResponse(context.response, {
