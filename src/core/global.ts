@@ -3,23 +3,17 @@ import type { StandardSchemaV1 } from "@/types/standard-schema";
 declare global {
 	namespace Cudenix {
 		type InferValidatorError<Type> = Type extends StandardSchemaV1
-			? Type extends {
-					"~types"?: unknown;
-				}
-				? NonNullable<Type["~types"]> extends {
-						issue: infer Issue;
-					}
-					? Issue
-					: StandardSchemaV1.Issue[]
+			? Type extends { "~types"?: { issue: infer Issue } }
+				? Issue
 				: StandardSchemaV1.Issue[]
 			: Type;
 
 		type InferValidatorInput<Type> = Type extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Type>
+			? NonNullable<Type["~standard"]["types"]>["input"]
 			: Type;
 
 		type InferValidatorOutput<Type> = Type extends StandardSchemaV1
-			? StandardSchemaV1.InferOutput<Type>
+			? NonNullable<Type["~standard"]["types"]>["output"]
 			: Type;
 	}
 }
