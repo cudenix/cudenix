@@ -5,12 +5,11 @@ import {
 	USE_PARAMS,
 	USE_QUERY,
 } from "@/core/analyzer";
-import type { Endpoint } from "@/core/app";
+import type { Endpoint } from "@/core/cudenix";
 import type { AnyError } from "@/core/error";
 import type { AnySuccess } from "@/core/success";
 import type { MaybePromise } from "@/types/maybe-promise";
 import { parseCookies } from "@/utils/cookies/parse-cookies";
-import { tryParse } from "@/utils/json/try-parse";
 import { Empty } from "@/utils/objects/empty";
 
 const Q_KEY_PLUS = 1;
@@ -23,9 +22,7 @@ export interface DeveloperContext<
 	Validators extends Record<PropertyKey, unknown>,
 > {
 	memory: Map<string, unknown>;
-	request: {
-		raw: Request;
-	} & Validators;
+	request: { raw: Request } & Validators;
 	response: ContextResponse;
 	server: Bun.Server<unknown>;
 	store: Stores;
@@ -299,7 +296,7 @@ Context.prototype.loadRequestParams = function loadRequestParams(
 
 	const params = new Empty() as Record<string, string | string[]>;
 	const restKeys = endpoint.restKeys;
-	const offset = endpoint.markerIndex! + 1;
+	const offset = endpoint.matchOffset! + 1;
 
 	for (let i = 0; i < paramKeys.length; i++) {
 		const value = match[offset + i];
@@ -419,7 +416,11 @@ Context.prototype.loadRequestQuery = function loadRequestQuery(this: Context) {
 					(firstChar === 123 && lastChar === 125) ||
 					(firstChar === 91 && lastChar === 93)
 				) {
-					parsed = tryParse(value);
+					try {
+						parsed = JSON.parse(value);
+					} catch {
+						parsed = value;
+					}
 				}
 			}
 
