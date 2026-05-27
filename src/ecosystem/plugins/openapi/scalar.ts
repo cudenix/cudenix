@@ -1,5 +1,4 @@
-export const scalar = (title: string, spec: string, configuration: string) => {
-	return `
+export const scalar = (title: string, spec: string, configuration: string) => `
         <!DOCTYPE html>
         <html>
             <head>
@@ -22,4 +21,3 @@ export const scalar = (title: string, spec: string, configuration: string) => {
             </body>
         </html>
     `;
-};
