@@ -93,23 +93,6 @@ export type ParseRoute<
 >;
 
 /**
- * Return shape of a `"WS"` route — Bun's `WebSocketHandler` parameterized by
- * the per-connection context. Wires `open`, `message`, `drain`, and `close`
- * callbacks straight to the underlying socket.
- *
- * @typeParam Context - Per-connection context handed to each callback,
- *   typically the route's {@link DeveloperContext} with `response` omitted.
- * @example
- * ```typescript
- * const a: RouteFnReturnWS<{ store: { a: "v1" } }> = {
- *   open(socket) { socket.send("v1"); },
- *   message(socket, payload) { socket.send(payload); },
- * };
- * ```
- */
-export type RouteFnReturnWS<Context> = Bun.WebSocketHandler<Context>;
-
-/**
  * Union of the two envelope shapes a streaming route can emit — either an
  * {@link AnyError} or an {@link AnySuccess}. Used as the payload of each
  * {@link RouteFnReturnGeneratorFrame} and as the final return of a
@@ -194,26 +177,17 @@ export type ValidatorsWithParams<
 /**
  * Function signature of a route handler. Receives a fully-typed
  * {@link DeveloperContext} — augmented with any URL parameters parsed from
- * `Path` — and returns the kind of value the verb allows: a
- * {@link RouteFnReturnWS} for `"WS"`, otherwise a sync or async
- * `AnyError | AnySuccess` envelope, or a {@link RouteFnReturnGenerator} for
- * streaming.
+ * `Path` — and returns either a sync or async `AnyError | AnySuccess`
+ * envelope, or a {@link RouteFnReturnGenerator} for streaming.
  *
- * For `"WS"` routes the context's `response` slot is omitted — the upgrade
- * handshake replaces the response pipeline, so the handler interacts with
- * the socket directly through its returned callbacks.
- *
- * @typeParam Method - HTTP verb the route binds to.
  * @typeParam Path - Route pattern. Drives the inferred `params` slot.
- * @typeParam Return - Concrete return type the handler produces, constrained
- *   by `Method`.
+ * @typeParam Return - Concrete return type the handler produces.
  * @typeParam Stores - Cumulative store shape threaded from `module.store`.
  * @typeParam Validators - Cumulative per-slot request map threaded from
  *   prior validators.
  * @example
  * ```typescript
  * const fn: RouteFn<
- *   "GET",
  *   "/a/:p1",
  *   MaybePromise<AnySuccess>,
  *   NonNullable<unknown>,
@@ -222,19 +196,8 @@ export type ValidatorsWithParams<
  * ```
  */
 export type RouteFn<
-	Method extends HttpMethod,
-	Path extends string,
-	Return extends Method extends "WS"
-		? RouteFnReturnWS<
-				Omit<
-					DeveloperContext<
-						Stores,
-						ValidatorsWithParams<Path, Validators>
-					>,
-					"response"
-				>
-			>
-		: MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
+	Path extends `/${string}`,
+	Return extends MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > = (
@@ -252,7 +215,7 @@ export type RouteFn<
  *   new Success({ a: context.request.raw.url });
  * ```
  */
-export type AnyRouteFn = RouteFn<any, any, any, any, any>;
+export type AnyRouteFn = RouteFn<any, any, any, any>;
 
 /**
  * Compiled route descriptor stored on the chain. Holds the static metadata
@@ -267,7 +230,8 @@ export type AnyRouteFn = RouteFn<any, any, any, any, any>;
  * - `jit` — opt-in per-route JIT compilation override. Unset falls back to
  *   the app-level default.
  * - `route` — the always-callable handler. A static envelope handed to
- *   `module.route` is wrapped in a no-op function before it lands here.
+ *   `module.route` is wrapped in a function that returns it before it lands
+ *   here.
  * - `static` — `true` when the handler was registered as a value, not a
  *   function; pairs with the wrapped `route` above.
  * - `type` — `"ROUTE"` discriminant the chain walker dispatches on.
@@ -296,25 +260,7 @@ export type AnyRouteFn = RouteFn<any, any, any, any, any>;
 export interface Route<
 	Method extends HttpMethod,
 	Path extends `/${string}`,
-	Return extends Method extends "WS"
-		? RouteFnReturnWS<
-				Omit<
-					DeveloperContext<
-						Stores,
-						ValidatorsWithParams<
-							Path,
-							MergeInferValidatorRequest<
-								Validators,
-								DeepInferValidatorOutput<
-									_ValidatorOptions["request"]
-								>
-							>
-						>
-					>,
-					"response"
-				>
-			>
-		: MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
+	Return extends MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
 	Stores extends Record<PropertyKey, unknown>,
 	_ValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
 	Validators extends Record<PropertyKey, unknown>,
@@ -324,7 +270,6 @@ export interface Route<
 	method: Method;
 	path: Path;
 	route: RouteFn<
-		Method,
 		Path,
 		Return,
 		Stores,
@@ -356,7 +301,6 @@ export type AnyRoute = Route<any, any, any, any, any, any>;
  * envelope it would return. The runtime normalizes the static form by
  * wrapping it in a function before storing the route on the chain.
  *
- * @typeParam Method - HTTP verb the route binds to.
  * @typeParam Path - Route pattern starting with `/`.
  * @typeParam Return - Return type expected from the function form.
  * @typeParam Stores - Cumulative store shape.
@@ -370,23 +314,12 @@ export type AnyRoute = Route<any, any, any, any, any, any>;
  * ```
  */
 export type RouteHandler<
-	Method extends HttpMethod,
 	Path extends `/${string}`,
-	Return extends Method extends "WS"
-		? RouteFnReturnWS<
-				Omit<
-					DeveloperContext<
-						Stores,
-						ValidatorsWithParams<Path, Validators>
-					>,
-					"response"
-				>
-			>
-		: MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
+	Return extends MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > =
-	| RouteFn<Method, Path, Return, Stores, Validators>
+	| RouteFn<Path, Return, Stores, Validators>
 	| Extract<Awaited<Return>, AnyError | AnySuccess>;
 
 /**
@@ -399,7 +332,7 @@ export type RouteHandler<
  * const fn = (handler: AnyRouteHandler) => handler;
  * ```
  */
-export type AnyRouteHandler = RouteHandler<any, any, any, any, any>;
+export type AnyRouteHandler = RouteHandler<any, any, any, any>;
 
 /**
  * Options object accepted as the trailing argument to `module.route`.
