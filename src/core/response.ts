@@ -1,5 +1,5 @@
 import type { ContextResponse } from "@/core/context";
-import { FreezeEmpty } from "@/utils/objects/empty";
+import { FrozenEmpty } from "@/utils/objects/empty";
 
 interface ProcessResponseOptions {
 	serializeCookies?: boolean;
@@ -7,7 +7,7 @@ interface ProcessResponseOptions {
 
 export const processResponse = (
 	response: ContextResponse,
-	{ serializeCookies }: ProcessResponseOptions = FreezeEmpty,
+	{ serializeCookies }: ProcessResponseOptions = FrozenEmpty,
 ) => {
 	if (
 		serializeCookies &&
@@ -33,50 +33,60 @@ export const processResponse = (
 			headers.set("content-type", "text/event-stream");
 		}
 
-		return new Response(content, {
-			headers,
-		});
+		return new Response(content, { headers });
 	}
 
 	const headers = (response as any)._headers;
 
 	if (!content) {
-		return new Response(undefined, {
-			headers,
-			status: 204,
-		});
+		return new Response(undefined, { headers, status: 204 });
 	}
 
-	if (content.content instanceof Response) {
-		if (!headers) {
-			return content.content;
+	const inner = content.content;
+	const status = content.status;
+
+	if (inner === null || inner === undefined) {
+		return new Response(inner as null, { headers, status });
+	}
+
+	switch (inner.constructor?.name) {
+		case "Response": {
+			const res = inner as Response;
+
+			if (!headers) {
+				return res;
+			}
+
+			for (const [key, value] of headers) {
+				res.headers.append(key, value);
+			}
+
+			return res;
 		}
 
-		const original = content.content;
+		case "String":
+		case "ReadableStream":
+		case "Blob":
+		case "File":
+		case "ArrayBuffer":
+		case "DataView":
+		case "Buffer":
+		case "Uint8Array":
+		case "Uint8ClampedArray":
+		case "Int8Array":
+		case "Uint16Array":
+		case "Int16Array":
+		case "Uint32Array":
+		case "Int32Array":
+		case "Float32Array":
+		case "Float64Array":
+		case "BigInt64Array":
+		case "BigUint64Array":
+		case "FormData":
+		case "URLSearchParams":
+			return new Response(inner as BodyInit, { headers, status });
 
-		for (const [key, value] of headers) {
-			original.headers.append(key, value);
-		}
-
-		return original;
+		default:
+			return Response.json(inner, { headers, status });
 	}
-
-	if (content.transform) {
-		return Response.json(
-			{
-				content: content.content,
-				status: content.status,
-				success: content.success,
-			},
-			{
-				headers,
-				status: content.status,
-			},
-		);
-	}
-
-	return new Response(content.content, {
-		headers,
-		status: content.status,
-	});
 };
