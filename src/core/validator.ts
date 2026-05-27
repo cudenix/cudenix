@@ -106,9 +106,6 @@ export type DeepInferValidatorOutput<T extends object> = {
  * has the shape `{ details: [SlotError]; type: SlotKey }`, so a consumer can
  * narrow on `type` to read the matching `details` payload.
  *
- * Slots whose error type is `never` collapse out of the union. The order of
- * members follows the order of keys in `T`.
- *
  * @typeParam T - Per-slot error map, typically the result of
  *   {@link DeepInferValidatorError}.
  * @example
@@ -128,8 +125,7 @@ export type ValidatorErrorDetails<T extends object> = {
  * validator's contribution into the surrounding error dictionary.
  *
  * The wrapped content is a one-element tuple `[{ details: [...] }]` whose
- * inner detail unions every slot via {@link ValidatorErrorDetails}, matching
- * the shape `processValidators` builds at runtime.
+ * inner detail unions every slot via {@link ValidatorErrorDetails}.
  *
  * @typeParam T - Per-slot error map, typically the result of
  *   {@link DeepInferValidatorError}.
