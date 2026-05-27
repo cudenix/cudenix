@@ -93,7 +93,7 @@ export type MergeSuccesses<T extends object, U extends object> = {
  * new Success({ id: 1 }, a); // Success<{ id: 1 }, 201>
  * ```
  */
-export interface SuccessOptions<Status extends number> {
+export interface SuccessOptions<Status extends number = 200> {
 	status?: Status;
 }
 
