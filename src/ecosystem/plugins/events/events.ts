@@ -13,8 +13,6 @@ export const Event = function Event(this: AnyEvent) {
 
 export const event = <
 	const Events extends Record<keyof Events, unknown[]> = Cudenix.Events.List,
->() => {
-	return new Event() as Event<Events>;
-};
+>() => new Event() as Event<Events>;
 
 export const events = event();
