@@ -1,5 +1,6 @@
 import type { DeveloperContext } from "@/core/context";
 import type { AnyError } from "@/core/error";
+import type { MaybePromise } from "@/types/maybe-promise";
 
 /**
  * @module
@@ -34,7 +35,7 @@ export type StoreFn<
 	Return extends Record<PropertyKey, unknown> | AnyError,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
-> = (context: DeveloperContext<Stores, Validators>) => Return | Promise<Return>;
+> = (context: DeveloperContext<Stores, Validators>) => MaybePromise<Return>;
 
 /**
  * Parameter-free alias matching any {@link StoreFn} regardless of return,
