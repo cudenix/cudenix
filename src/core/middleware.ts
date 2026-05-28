@@ -52,7 +52,7 @@ export type MiddlewareFn<
 ) => Return;
 
 /**
- * Parameter-free alias matching any {@link MiddlewareFn} regardless of
+ * Wildcard alias matching any {@link MiddlewareFn} regardless of
  * return, store, or validator generics. Use in container, registry, or
  * boundary types where the concrete generics are irrelevant.
  *
@@ -93,7 +93,7 @@ export interface Middleware<
 }
 
 /**
- * Parameter-free alias matching any {@link Middleware} regardless of return,
+ * Wildcard alias matching any {@link Middleware} regardless of return,
  * store, or validator generics. Use in container, registry, or boundary
  * types where the concrete generics are irrelevant.
  *
