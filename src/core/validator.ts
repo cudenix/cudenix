@@ -237,7 +237,7 @@ export interface Validator<Request extends Partial<ValidatorRequest>> {
 }
 
 /**
- * Convenience alias matching any {@link Validator} regardless of its request
+ * Wildcard alias matching any {@link Validator} regardless of its request
  * shape. Reach for it in container or chain types where the concrete schemas
  * are irrelevant — for example, the union of link kinds walked by the chain.
  */
@@ -262,7 +262,7 @@ export interface ValidatorOptions<Request extends Partial<ValidatorRequest>> {
 }
 
 /**
- * Convenience alias matching any {@link ValidatorOptions} regardless of its
+ * Wildcard alias matching any {@link ValidatorOptions} regardless of its
  * request shape. Used where the concrete schemas are irrelevant — for
  * example, the runtime body of `module.validator`, which only reads
  * `Object.keys(options.request)`.
