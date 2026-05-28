@@ -64,8 +64,10 @@ export type DeepInferValidatorError<T extends object> = {
 
 /**
  * Map each request slot in `T` to the input type its schema accepts, via the
- * ambient `Cudenix.InferValidatorInput`. Drives the type of the `request`
- * argument exposed to handlers further down the chain.
+ * ambient `Cudenix.InferValidatorInput`. Drives the `request` shape recorded
+ * in the client-facing route tree — the pre-validation payload a caller must
+ * send, in contrast to the parsed value handlers receive via
+ * {@link DeepInferValidatorOutput}.
  *
  * Slots without a schema fall through as their declared value type. The
  * mapping is shallow — only top-level slot keys are walked.
