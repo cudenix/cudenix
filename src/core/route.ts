@@ -134,6 +134,8 @@ export type RouteFnReturnGeneratorFrame = GeneratorSSE<
  * const fn = async function* (): RouteFnReturnGenerator {
  *   yield { data: new Success({ a: "v1" }) };
  *   yield { data: new Success({ a: "v2" }) };
+ *
+ *   return new Success({ a: "v3" });
  * };
  * ```
  */
@@ -307,8 +309,12 @@ export type AnyRoute = Route<any, any, any, any, any, any>;
  * @typeParam Validators - Cumulative per-slot request map.
  * @example
  * ```typescript
- * const fn: AnyRouteHandler = (context) =>
- *   new Success({ a: context.request.params.p1 });
+ * const fn: RouteHandler<
+ *   "/a/:p1",
+ *   MaybePromise<AnySuccess>,
+ *   NonNullable<unknown>,
+ *   NonNullable<unknown>
+ * > = (context) => new Success({ a: context.request.params.p1 });
  *
  * const a: AnyRouteHandler = new Success({ a: "v1" }); // static form
  * ```
