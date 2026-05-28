@@ -38,7 +38,7 @@ export type StoreFn<
 > = (context: DeveloperContext<Stores, Validators>) => MaybePromise<Return>;
 
 /**
- * Parameter-free alias matching any {@link StoreFn} regardless of return,
+ * Wildcard alias matching any {@link StoreFn} regardless of return,
  * store, or validator generics. Use in container, registry, or boundary
  * types where the concrete generics are irrelevant.
  *
@@ -77,7 +77,7 @@ export interface Store<
 }
 
 /**
- * Parameter-free alias matching any {@link Store} regardless of return,
+ * Wildcard alias matching any {@link Store} regardless of return,
  * store, or validator generics. Use in container, registry, or boundary
  * types where the concrete generics are irrelevant.
  *
