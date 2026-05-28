@@ -107,7 +107,7 @@ export type MergeErrors<T extends object, U extends object> = {
  * ```typescript
  * const a: ErrorOptions<401> = { status: 401 };
  *
- * new Error({ id: 1 }, a); // Error<{ id: 1 }, 401>
+ * new Error({ a: 1 }, a); // Error<{ a: 1 }, 401>
  * ```
  */
 export interface ErrorOptions<Status extends number = 400> {
@@ -115,7 +115,7 @@ export interface ErrorOptions<Status extends number = 400> {
 }
 
 /**
- * Convenience alias matching any {@link ErrorOptions} regardless of the
+ * Wildcard alias matching any {@link ErrorOptions} regardless of the
  * status parameter. Reach for it where the concrete status is erased — for
  * example, the options argument of the {@link Error} constructor, which
  * destructures `status` without caring about its literal type.
@@ -158,7 +158,7 @@ export interface Error<Content, Status extends number = 400> {
 }
 
 /**
- * Convenience alias matching any {@link Error} regardless of content or
+ * Wildcard alias matching any {@link Error} regardless of content or
  * status parameters. Reach for it in container or registry types where the
  * concrete generics are irrelevant — for example, the union threaded
  * through {@link FilterError} or the error-tagged returns walked by the
@@ -216,7 +216,7 @@ export interface ErrorConstructor {
  * a.status;  // 400
  * a.success; // false
  *
- * const b = new Error({ id: 1 }, { status: 401 });
+ * const b = new Error({ a: 1 }, { status: 401 });
  *
  * b.status; // 401
  * ```
