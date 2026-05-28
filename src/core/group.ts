@@ -49,7 +49,7 @@ export type AnyGroupOptions = GroupOptions<any>;
  * @example
  * ```typescript
  * const fn: GroupFn<AnyModule, AnyModule> = (module) =>
- *   module.route("GET", "/a", () => "v1");
+ *   module.route("GET", "/a", () => new Success("v1"));
  * ```
  */
 export type GroupFn<Module extends AnyModule, Return extends AnyModule> = (
@@ -84,7 +84,7 @@ export type AnyGroupFn = GroupFn<any, any>;
  * @example
  * ```typescript
  * const group: Group<AnyModule, "/v1", AnyModule> = {
- *   group: (module) => module.route("GET", "/a", () => "v1"),
+ *   group: (module) => module.route("GET", "/a", () => new Success("v1")),
  *   prefix: "/v1",
  *   type: "GROUP",
  * };
