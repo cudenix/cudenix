@@ -4,9 +4,9 @@
  */
 
 /**
- * Resolve `T` to the payload it produces — non-functions pass through, sync
- * factories collapse to their return type, and async factories have their
- * promise awaited (recursively, so nested promises also unwrap).
+ * Resolve `T` to the payload it produces — non-functions pass through, while a
+ * factory collapses to its return type with any promise awaited (recursively,
+ * so nested promises also unwrap).
  *
  * The function branch matches `(...args: any[])`, so factories of any arity
  * unwrap the same way. A bare `Promise<T>` (not wrapped in a factory) stays
