@@ -17,9 +17,9 @@
  * ```typescript
  * const a = new Empty();
  *
- * a["p1"] = "v1";
+ * a["b"] = "v1";
  *
- * Object.hasOwn(a, "p1"); // true
+ * Object.hasOwn(a, "b"); // true
  * ```
  */
 export const Empty = function Empty() {} as unknown as new () => Record<
