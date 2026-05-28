@@ -41,9 +41,8 @@ export type TransformSuccess<T extends AnySuccess> = Record<T["status"], T>;
 
 /**
  * Deeply merge two status-keyed success dictionaries. Reached for by
- * `Module.extends`, `Module.middleware`, `Module.route`, `Module.store`, and
- * `Module.validator` to accumulate the success shapes contributed by each
- * unit without dropping any branch.
+ * `Module.extends` and `Module.middleware` to accumulate the success shapes
+ * contributed by each unit without dropping any branch.
  *
  * For every status present in only one operand the value is taken verbatim.
  * When both operands carry an entry under the same status the inner
@@ -90,7 +89,7 @@ export type MergeSuccesses<T extends object, U extends object> = {
  * ```typescript
  * const a: SuccessOptions<201> = { status: 201 };
  *
- * new Success({ id: 1 }, a); // Success<{ id: 1 }, 201>
+ * new Success({ a: 1 }, a); // Success<{ a: 1 }, 201>
  * ```
  */
 export interface SuccessOptions<Status extends number = 200> {
@@ -98,7 +97,7 @@ export interface SuccessOptions<Status extends number = 200> {
 }
 
 /**
- * Convenience alias matching any {@link SuccessOptions} regardless of the
+ * Wildcard alias matching any {@link SuccessOptions} regardless of the
  * status parameter. Reach for it where the concrete status is erased — for
  * example, the options argument of the {@link Success} constructor, which
  * destructures `status` without caring about its literal type.
@@ -141,7 +140,7 @@ export interface Success<Content, Status extends number = 200> {
 }
 
 /**
- * Convenience alias matching any {@link Success} regardless of content or
+ * Wildcard alias matching any {@link Success} regardless of content or
  * status parameters. Reach for it in container or registry types where the
  * concrete generics are irrelevant — for example, the union threaded
  * through {@link FilterSuccess} or the success-tagged returns walked by the
@@ -199,7 +198,7 @@ export interface SuccessConstructor {
  * a.status;  // 200
  * a.success; // true
  *
- * const b = new Success({ id: 1 }, { status: 201 });
+ * const b = new Success({ a: 1 }, { status: 201 });
  *
  * b.status; // 201
  * ```
