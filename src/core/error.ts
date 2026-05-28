@@ -110,7 +110,7 @@ export type MergeErrors<T extends object, U extends object> = {
  * new Error({ id: 1 }, a); // Error<{ id: 1 }, 401>
  * ```
  */
-interface ErrorOptions<Status extends number> {
+export interface ErrorOptions<Status extends number = 400> {
 	status?: Status;
 }
 
@@ -128,7 +128,7 @@ interface ErrorOptions<Status extends number> {
  * fn({}); // 400
  * ```
  */
-type AnyErrorOptions = ErrorOptions<any>;
+export type AnyErrorOptions = ErrorOptions<any>;
 
 /**
  * Error envelope returned by middlewares, stores, validators, and route
