@@ -98,6 +98,8 @@ export const step = (
 
 export const compile = (app: Cudenix) => {
 	const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
+	const jit = app.jit;
+	const routes = app.routes;
 
 	step(endpoints, app.memory.module as AnyModule, { chain: [], path: "/" });
 
@@ -108,7 +110,6 @@ export const compile = (app: Cudenix) => {
 			continue;
 		}
 
-		const routes = app.routes;
 		const methodRegexps: string[] = [];
 		const regexpEndpoints: Endpoint[] = [];
 
@@ -125,7 +126,7 @@ export const compile = (app: Cudenix) => {
 				methodEndpoint.path,
 			);
 
-			methodEndpoint.jit = methodEndpoint.route.jit ?? app.jit;
+			methodEndpoint.jit = methodEndpoint.route.jit ?? jit;
 			methodEndpoint.matchOffset = matchOffset;
 			methodEndpoint.paramKeys = paramKeys;
 			methodEndpoint.restKeys = restKeys;
@@ -144,17 +145,8 @@ export const compile = (app: Cudenix) => {
 						new Empty() as (typeof routes)[string];
 				}
 
-				routes[methodEndpoint.path]![method] = (
-					request: Request,
-					server: Cudenix["server"],
-					match?: RegExpExecArray,
-				) =>
-					app.endpoint(
-						methodEndpoint,
-						match?.[2] ?? methodEndpoint.path,
-						request,
-						match,
-					);
+				routes[methodEndpoint.path]![method] = (request: Request) =>
+					app.endpoint(methodEndpoint, methodEndpoint.path, request);
 			}
 		}
 
