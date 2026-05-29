@@ -208,6 +208,18 @@ describe("parseParams", () => {
 			expect(result.p1).toBe("v1");
 			expect("p2" in result).toBe(false);
 		});
+
+		test("should skip a rest parameter whose capture is undefined", () => {
+			const result = parseParams(
+				exec("()/a(?:/(.+))?", "/a"),
+				["r1"],
+				1,
+				["r1"],
+			);
+
+			expect("r1" in result).toBe(false);
+			expect(Object.keys(result)).toHaveLength(0);
+		});
 	});
 
 	describe("dangerous key names", () => {
