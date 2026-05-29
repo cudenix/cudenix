@@ -99,10 +99,11 @@ Cudenix.prototype.endpoint = async function (
 	match?: RegExpExecArray,
 ) {
 	await execute(
-		this,
-		new Context(this, endpoint, request, match),
 		endpoint,
 		request,
+		new Context(this, endpoint, request, match),
+		endpoint.chain,
+		0,
 	);
 };
 
