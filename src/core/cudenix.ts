@@ -97,13 +97,7 @@ Cudenix.prototype.endpoint = async function (
 	request: Request,
 	match?: RegExpExecArray,
 ) {
-	const context = new Context(
-		endpoint,
-		this.memory,
-		request,
-		this.server!,
-		match,
-	);
+	const context = new Context(this, endpoint, request, match);
 
 	await context.loadRequest();
 
