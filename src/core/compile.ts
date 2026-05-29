@@ -89,6 +89,7 @@ export const step = (
 			path: finalPath,
 			restKeys: [],
 			route: link,
+			router: "cudenix",
 			sse: link.sse,
 		});
 	}
@@ -147,6 +148,8 @@ export const compile = (app: Cudenix) => {
 
 				routes[methodEndpoint.path]![method] = (request: Request) =>
 					app.endpoint(methodEndpoint, request);
+
+				methodEndpoint.router = "bun";
 			}
 		}
 
