@@ -26,14 +26,14 @@ export interface Endpoint {
 	sse: boolean;
 }
 
-interface MethodData {
+export interface MethodData {
 	endpoints: Endpoint[];
 	regexp: RegExp;
 }
 
-type Plugin = (...options: any[]) => void;
+export type Plugin = (...options: any[]) => void;
 
-interface CudenixOptions {
+export interface CudenixOptions {
 	jit?: boolean;
 }
 
@@ -60,7 +60,7 @@ export interface Cudenix {
 	server?: Bun.Server<unknown>;
 }
 
-interface CudenixConstructor {
+export interface CudenixConstructor {
 	new (module: AnyModule, options?: CudenixOptions): Cudenix;
 }
 
