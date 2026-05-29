@@ -247,7 +247,7 @@ export const openapi = ({ path }: OpenapiModuleOptions = FrozenEmpty) => {
 			headers.set("Content-Type", "text/html");
 
 			if (!cachedHtml) {
-				cachedJson ??= JSON.stringify(memory.get("openapi"));
+				cachedJson ??= JSON.stringify(memory.openapi);
 
 				cachedHtml = scalar(
 					"Cudenix Documentation",
@@ -261,7 +261,7 @@ export const openapi = ({ path }: OpenapiModuleOptions = FrozenEmpty) => {
 
 		.route("GET", `${url}/json`, ({ memory, response: { headers } }) => {
 			if (!cachedJson) {
-				cachedJson = JSON.stringify(memory.get("openapi"));
+				cachedJson = JSON.stringify(memory.openapi);
 			}
 
 			headers.set("Content-Type", "application/json");
