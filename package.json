@@ -65,8 +65,7 @@
 		"server",
 		"sse",
 		"typescript",
-		"web",
-		"websocket"
+		"web"
 	],
 	"license": "MIT",
 	"main": "dist/index.js",

@@ -2,7 +2,6 @@ import type { AnyError } from "@/core/error";
 import type { AnyModule } from "@/core/module";
 import type { AnySuccess } from "@/core/success";
 import type { SSE } from "@/ecosystem/client/sse";
-import type { WS } from "@/ecosystem/client/ws";
 import type { ConditionallyOptional } from "@/types/conditionally-optional";
 import type { AnyGeneratorSSE } from "@/types/generator-sse";
 import type { MaybeFunction } from "@/types/maybe-function";
@@ -21,17 +20,17 @@ type RequestOptions<Request> = Merge<
 		: NonNullable<unknown>
 >;
 
-type ParseResponse<Method, Request, Response> = Method extends "WS"
-	? WS<Request, Response>
-	: Response extends Generator<infer Yield> | AsyncGenerator<infer Yield>
-		? SSE<Yield extends AnyGeneratorSSE ? Yield : never>
-		: Response extends AnyError | AnySuccess
-			? Response["content"]
-			: Response;
+type ParseResponse<Response> = Response extends
+	| Generator<infer Yield>
+	| AsyncGenerator<infer Yield>
+	? SSE<Yield extends AnyGeneratorSSE ? Yield : never>
+	: Response extends AnyError | AnySuccess
+		? Response["content"]
+		: Response;
 
-type RouteHandler<Method, Request, Response> = (
+type RouteHandler<Request, Response> = (
 	options?: RequestOptions<Request>,
-) => Promise<ParseResponse<Method, Request, Response>>;
+) => Promise<ParseResponse<Response>>;
 
 type ClientChain<Routes extends Record<PropertyKey, unknown>> = {
 	[Key in keyof Routes]: Routes[Key] extends Record<PropertyKey, unknown>
@@ -39,11 +38,7 @@ type ClientChain<Routes extends Record<PropertyKey, unknown>> = {
 				request: infer Request;
 				response: infer Response;
 			}
-			? RouteHandler<
-					Key extends string ? Uppercase<Key> : never,
-					Request,
-					Response
-				>
+			? RouteHandler<Request, Response>
 			: ClientChain<Routes[Key]>
 		: never;
 };
@@ -190,14 +185,6 @@ const proxyHandler: ProxyHandler<any> = {
 		}
 
 		options.method = method;
-
-		if (method === "ws") {
-			url = url.startsWith("https://")
-				? url.replace("https://", "wss://")
-				: url.replace("http://", "ws://");
-
-			return (await import("@/ecosystem/client/ws")).ws(url);
-		}
 
 		const response = await fetch(url, options);
 

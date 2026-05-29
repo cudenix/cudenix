@@ -72,7 +72,7 @@ const step = (
 			continue;
 		}
 
-		const method = link.method === "WS" ? "GET" : link.method;
+		const method = link.method;
 
 		let methodEndpoints = endpoints[method];
 

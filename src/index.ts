@@ -27,4 +27,3 @@ export * from "@/types/merge-paths";
 export * from "@/types/required-keys";
 export * from "@/types/standard-schema";
 export * from "@/types/value-of";
-export * from "@/types/ws";

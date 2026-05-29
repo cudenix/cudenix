@@ -9,7 +9,6 @@ import type {
 	ValidatorRequest,
 } from "@/core/validator";
 import type { MaybePromise } from "@/types/maybe-promise";
-import type { WSData } from "@/types/ws";
 import { pushAll } from "@/utils/arrays/push-all";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
@@ -92,38 +91,7 @@ export const processValidators = (
 	}
 };
 
-const resolveRoute = (
-	app: App,
-	context: Context,
-	request: Request,
-	endpoint: Endpoint,
-	returned: any,
-) => {
-	if (endpoint.route.method === "WS") {
-		app.server?.upgrade(request, {
-			data: {
-				close: (
-					ws: Bun.ServerWebSocket<unknown>,
-					code: number,
-					reason: string,
-				) => (returned as WSData)?.close?.(ws, code, reason),
-				drain: (ws: Bun.ServerWebSocket<unknown>) =>
-					(returned as WSData)?.drain?.(ws),
-				message: (ws: Bun.ServerWebSocket<unknown>, message: string) =>
-					(returned as WSData)?.message?.(ws, message),
-				open: (ws: Bun.ServerWebSocket<unknown>) =>
-					(returned as WSData)?.open?.(ws),
-			},
-		});
-
-		return;
-	}
-
-	context.response.content = returned;
-};
-
 const step = (
-	app: App,
 	context: Context,
 	endpoint: Endpoint,
 	request: Request,
@@ -148,15 +116,7 @@ const step = (
 
 		if (link.type === "MIDDLEWARE") {
 			const middleware = link.middleware(context, () =>
-				step(
-					app,
-					context,
-					endpoint,
-					request,
-					chain,
-					i + 1,
-					validatorPlugin,
-				),
+				step(context, endpoint, request, chain, i + 1, validatorPlugin),
 			);
 
 			if (middleware instanceof Promise) {
@@ -192,7 +152,6 @@ const step = (
 					);
 
 					return step(
-						app,
 						context,
 						endpoint,
 						request,
@@ -231,7 +190,6 @@ const step = (
 				}
 
 				return step(
-					app,
 					context,
 					endpoint,
 					request,
@@ -306,11 +264,11 @@ const step = (
 
 	if (returned instanceof Promise) {
 		return returned.then((resolved) => {
-			resolveRoute(app, context, request, endpoint, resolved);
+			context.response.content = resolved;
 		});
 	}
 
-	resolveRoute(app, context, request, endpoint, returned);
+	context.response.content = returned;
 };
 
 export const stepAndRespond = (
@@ -340,7 +298,6 @@ export const stepAndRespond = (
 	}
 
 	const returned = step(
-		app,
 		context,
 		endpoint,
 		request,
