@@ -42,8 +42,7 @@ describe("HttpMethod", () => {
 				| "OPTIONS"
 				| "PATCH"
 				| "POST"
-				| "PUT"
-				| "WS";
+				| "PUT";
 
 			expectTypeOf<A>().toExtend<HttpMethod>();
 		});
