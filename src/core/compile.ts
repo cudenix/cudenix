@@ -90,7 +90,6 @@ const step = (
 			chain: link.validator
 				? cloneAppend(merged, link.validator)
 				: merged.slice(),
-			generator: link.generator,
 			jit: link.jit ?? true,
 			path: finalPath,
 			route: link,
@@ -98,6 +97,7 @@ const step = (
 				finalPath.indexOf("?") !== -1 || finalPath.indexOf("...") !== -1
 					? "cudenix"
 					: "bun",
+			sse: link.sse,
 			use: bits === USE_ALL ? USE_ALL : bits | getLinkInfo(link).bits,
 		});
 	}

@@ -227,13 +227,13 @@ export type AnyRouteFn = RouteFn<any, any, any, any>;
  *
  * Fields:
  *
- * - `generator` — `true` when the handler was a `function*`/`async function*`,
- *   so the dispatcher iterates frames into the SSE encoder.
  * - `jit` — opt-in per-route JIT compilation override. Unset falls back to
  *   the app-level default.
  * - `route` — the always-callable handler. A static envelope handed to
  *   `module.route` is wrapped in a function that returns it before it lands
  *   here.
+ * - `sse` — `true` when the handler was a `function*`/`async function*`,
+ *   so the dispatcher iterates frames into the SSE encoder.
  * - `static` — `true` when the handler was registered as a value, not a
  *   function; pairs with the wrapped `route` above.
  * - `type` — `"ROUTE"` discriminant the chain walker dispatches on.
@@ -250,10 +250,10 @@ export type AnyRouteFn = RouteFn<any, any, any, any>;
  * @example
  * ```typescript
  * const a: AnyRoute = {
- *   generator: false,
  *   method: "GET",
  *   path: "/a",
  *   route: () => new Success({ a: "v1" }),
+ *   sse: false,
  *   static: true,
  *   type: "ROUTE",
  * };
@@ -267,7 +267,6 @@ export interface Route<
 	_ValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
-	generator: boolean;
 	jit?: boolean | undefined;
 	method: Method;
 	path: Path;
@@ -280,6 +279,7 @@ export interface Route<
 			DeepInferValidatorOutput<_ValidatorOptions["request"]>
 		>
 	>;
+	sse: boolean;
 	static: boolean;
 	type: "ROUTE";
 	validator?: AnyValidator | undefined;

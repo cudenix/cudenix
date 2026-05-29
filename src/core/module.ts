@@ -361,13 +361,13 @@ Module.prototype.route = function (
 	const isFn = typeof handler === "function";
 
 	this.chain.push({
-		generator: isGenerator(handler as AnyRouteFn),
 		jit,
 		method,
 		path,
 		route: isFn
 			? (handler as AnyRouteFn)
 			: () => handler as AnyError | AnySuccess,
+		sse: isGenerator(handler as AnyRouteFn),
 		static: !isFn,
 		type: "ROUTE" as const,
 		validator: validator

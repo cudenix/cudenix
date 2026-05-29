@@ -205,7 +205,7 @@ const step = (
 		return;
 	}
 
-	if (endpoint.generator) {
+	if (endpoint.sse) {
 		context.response.content = new ReadableStream({
 			async start(controller) {
 				let closed = false;
@@ -277,7 +277,7 @@ export const stepAndRespond = (
 	endpoint: Endpoint,
 	request: Request,
 ) => {
-	if (endpoint.chain.length === 0 && !endpoint.generator) {
+	if (endpoint.chain.length === 0 && !endpoint.sse) {
 		const returned = endpoint.route.route(context);
 
 		if (returned instanceof Promise) {
