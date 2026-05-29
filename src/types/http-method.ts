@@ -1,23 +1,22 @@
 /**
  * @module
- * HTTP method literals plus an upper-case string brand for custom verbs.
+ * HTTP method literals plus an open string brand for custom verbs.
  */
 
 /**
- * Union of canonical HTTP verbs and any other upper-case string. Named
- * literals drive editor autocomplete; the `Uppercase<string> &
- * NonNullable<unknown>` intersection keeps custom verbs like `"PURGE"` or
- * `"X-CUSTOM"` assignable without collapsing the named literals into plain
- * `string`.
+ * Union of canonical HTTP verbs and any other string. Named literals drive
+ * editor autocomplete; the `string & NonNullable<unknown>` intersection keeps
+ * custom verbs like `"PURGE"` or `"X-CUSTOM"` assignable without collapsing
+ * the named literals into plain `string` — which would drop the suggestions.
  *
- * Lower-case or mixed-case verbs (`"get"`, `"Get"`) are rejected at compile
- * time — upper-case the verb before it reaches this type.
+ * Any string is accepted, including lower- and mixed-case verbs; normalise the
+ * case elsewhere when a canonical form is required.
  *
  * @example
  * ```typescript
  * type A = "GET" extends HttpMethod ? true : false; // true
  * type B = "PURGE" extends HttpMethod ? true : false; // true
- * type C = "get" extends HttpMethod ? true : false; // false
+ * type C = "get" extends HttpMethod ? true : false; // true
  * ```
  */
 export type HttpMethod =
@@ -28,4 +27,4 @@ export type HttpMethod =
 	| "PATCH"
 	| "POST"
 	| "PUT"
-	| (Uppercase<string> & NonNullable<unknown>);
+	| (string & NonNullable<unknown>);
