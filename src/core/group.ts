@@ -5,7 +5,7 @@ import type { AnyModule } from "@/core/module";
  * Group chain link — encapsulate a sub-module so that links added inside the
  * factory (middlewares, stores, validators) only affect routes declared in
  * the group, while everything the parent had set up earlier (including
- * `.extends()` and prior middlewares) still flows in.
+ * `.mount()` and prior middlewares) still flows in.
  */
 
 /**
@@ -71,7 +71,7 @@ export type AnyGroupFn = GroupFn<any, any>;
 /**
  * Chain link emitted by `module.group()`. The compiler walks the parent's
  * chain, instantiates an inner module that inherits the parent's prior links
- * (so prior middlewares and `.extends()` cascades still apply), and hands it
+ * (so prior middlewares and `.mount()` cascades still apply), and hands it
  * to {@link GroupFn} to gather routes. Anything the factory adds stays inside
  * the group — it is not appended to the parent's chain, so siblings declared
  * after the group are not affected.
