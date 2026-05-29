@@ -84,7 +84,7 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 		const plugins = this.memory.plugins as Plugin[];
 
 		for (let i = 0; i < plugins.length; i++) {
-			plugins[i]?.call(this);
+			plugins[i]!.call(this);
 		}
 	}
 
