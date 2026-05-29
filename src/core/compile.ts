@@ -1,6 +1,6 @@
 import type { Chain, Cudenix, Endpoint } from "@/core/cudenix";
-import { compileEndpointFetch } from "@/core/jit";
 import { type AnyModule, Module } from "@/core/module";
+import type { HttpMethod } from "@/types/http-method";
 import { cloneAppend } from "@/utils/arrays/clone-append";
 import { pushAll } from "@/utils/arrays/push-all";
 import { Empty } from "@/utils/objects/empty";
@@ -9,18 +9,18 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 interface PreviousStep {
 	bits: number;
 	chain: Chain;
-	path: string;
+	path: `/${string}`;
 }
 
-const step = (
-	endpoints: Record<string, Endpoint[]>,
+export const step = (
+	endpoints: Record<HttpMethod, Endpoint[]>,
 	module: AnyModule,
 	previous: PreviousStep,
 ) => {
-	const chain = [] as Chain;
+	const chain: Chain = [];
 	const merged = previous.chain.slice();
 
-	let bits = previous.bits;
+	const bits = previous.bits;
 	let path = module.prefix;
 
 	for (let i = 0; i < module.chain.length; i++) {
@@ -37,7 +37,7 @@ const step = (
 
 			module.chain = merged.slice();
 
-			step(endpoints, link.group(module), { bits, chain: [], path: "" });
+			step(endpoints, link.group(module), { bits, chain: [], path: "/" });
 
 			continue;
 		}
@@ -50,8 +50,6 @@ const step = (
 			chain.push(link);
 
 			merged.push(link);
-
-			bits |= getLinkInfo(link).bits;
 
 			continue;
 		}
@@ -72,14 +70,12 @@ const step = (
 			continue;
 		}
 
-		const method = link.method;
-
-		let methodEndpoints = endpoints[method];
+		let methodEndpoints = endpoints[link.method];
 
 		if (!methodEndpoints) {
 			methodEndpoints = [];
 
-			endpoints[method] = methodEndpoints;
+			endpoints[link.method] = methodEndpoints;
 		}
 
 		const finalPath =
@@ -91,50 +87,25 @@ const step = (
 				? cloneAppend(merged, link.validator)
 				: merged.slice(),
 			jit: link.jit ?? true,
+			matchOffset: 0,
+			paramKeys: [],
 			path: finalPath,
+			restKeys: [],
 			route: link,
-			router:
-				finalPath.indexOf("?") !== -1 || finalPath.indexOf("...") !== -1
-					? "cudenix"
-					: "bun",
 			sse: link.sse,
-			use: bits === USE_ALL ? USE_ALL : bits | getLinkInfo(link).bits,
 		});
 	}
 
 	return { chain, path };
 };
 
-const getDispatcher = (app: Cudenix, endpoint: Endpoint) => {
-	let dispatcher = (request: Request, match?: RegExpExecArray) =>
-		app.endpoint(endpoint, match?.[2] ?? endpoint.path, request, match);
-
-	const safeStatic =
-		endpoint.route.static &&
-		endpoint.use === 0 &&
-		endpoint.chain.length === 0;
-
-	if (endpoint.jit && !safeStatic) {
-		dispatcher = compileEndpointFetch(endpoint, app);
-	}
-
-	if (safeStatic) {
-		return {
-			constant: dispatcher(undefined as any) as Response,
-			dispatcher,
-		};
-	}
-
-	return { dispatcher };
-};
-
 export const compile = (app: Cudenix) => {
-	const endpoints = new Empty() as Record<string, Endpoint[]>;
+	const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
 
 	step(endpoints, app.memory.module as AnyModule, {
 		bits: 0,
 		chain: [],
-		path: "",
+		path: "/",
 	});
 
 	for (const method in endpoints) {
@@ -145,9 +116,8 @@ export const compile = (app: Cudenix) => {
 		}
 
 		const routes = app.routes;
-
-		const methodRegexps = [] as string[];
-		const regexpEndpoints = [] as Endpoint[];
+		const methodRegexps: string[] = [];
+		const regexpEndpoints: Endpoint[] = [];
 
 		let matchOffset = 3;
 
@@ -176,19 +146,22 @@ export const compile = (app: Cudenix) => {
 				methodEndpoint.path.indexOf("?") === -1 &&
 				methodEndpoint.path.indexOf("...") === -1
 			) {
-				const { constant, dispatcher } = getDispatcher(
-					app,
-					methodEndpoint,
-				);
-
 				if (!(methodEndpoint.path in routes)) {
 					routes[methodEndpoint.path] =
 						new Empty() as (typeof routes)[string];
 				}
 
-				routes[methodEndpoint.path]![method] =
-					constant ??
-					(dispatcher as Bun.Serve.Handler<any, any, any>);
+				routes[methodEndpoint.path]![method] = (
+					request: Request,
+					server: Cudenix["server"],
+					match?: RegExpExecArray,
+				) =>
+					app.endpoint(
+						methodEndpoint,
+						match?.[2] ?? methodEndpoint.path,
+						request,
+						match,
+					);
 			}
 		}
 
@@ -196,7 +169,7 @@ export const compile = (app: Cudenix) => {
 			continue;
 		}
 
-		app.methods.method = {
+		app.methods[method] = {
 			endpoints: regexpEndpoints,
 			regexp: new RegExp(
 				`^(https?:\\/\\/)[^\\s\\/]+(${methodRegexps.join("|")})(?![^?#])`,
