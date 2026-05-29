@@ -7,7 +7,6 @@ import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 
 interface PreviousStep {
-	bits: number;
 	chain: Chain;
 	path: `/${string}`;
 }
@@ -20,7 +19,6 @@ export const step = (
 	const chain: Chain = [];
 	const merged = previous.chain.slice();
 
-	const bits = previous.bits;
 	let path = module.prefix;
 
 	for (let i = 0; i < module.chain.length; i++) {
@@ -37,7 +35,7 @@ export const step = (
 
 			module.chain = merged.slice();
 
-			step(endpoints, link.group(module), { bits, chain: [], path: "/" });
+			step(endpoints, link.group(module), { chain: [], path: "/" });
 
 			continue;
 		}
@@ -56,7 +54,6 @@ export const step = (
 
 		if (link.type === "MODULE") {
 			const compiled = step(endpoints, link, {
-				bits,
 				chain: merged,
 				path: `${previous.path}${path === "/" ? "" : path}`,
 			});
@@ -102,11 +99,7 @@ export const step = (
 export const compile = (app: Cudenix) => {
 	const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
 
-	step(endpoints, app.memory.module as AnyModule, {
-		bits: 0,
-		chain: [],
-		path: "/",
-	});
+	step(endpoints, app.memory.module as AnyModule, { chain: [], path: "/" });
 
 	for (const method in endpoints) {
 		const methodEndpoints = endpoints[method];
