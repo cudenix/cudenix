@@ -1,11 +1,4 @@
-import {
-	USE_BODY,
-	USE_COOKIES,
-	USE_HEADERS,
-	USE_PARAMS,
-	USE_QUERY,
-} from "@/core/analyzer";
-import type { Endpoint } from "@/core/cudenix";
+import type { Cudenix, Endpoint } from "@/core/cudenix";
 import type { AnyError } from "@/core/error";
 import type { AnySuccess } from "@/core/success";
 import type { MaybePromise } from "@/types/maybe-promise";
@@ -21,10 +14,10 @@ export interface DeveloperContext<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
-	memory: Map<string, unknown>;
+	memory: Cudenix["memory"];
 	request: { raw: Request } & Validators;
 	response: ContextResponse;
-	server: Bun.Server<unknown>;
+	server: NonNullable<Cudenix["server"]>;
 	store: Stores;
 }
 
@@ -32,8 +25,8 @@ export type AnyDeveloperContext = DeveloperContext<any, any>;
 
 export interface ContextResponse {
 	content?: AnyError | AnySuccess | ReadableStream;
-	cookies: Bun.CookieMap;
-	headers: Headers;
+	cookies: Record<string, string>;
+	headers: Record<string, string>;
 }
 
 interface ContextRequest {
@@ -55,150 +48,78 @@ export interface Context {
 	loadRequestParams(): void;
 	loadRequestQuery(): void;
 	match?: RegExpExecArray;
-	memory: Map<string, unknown>;
+	memory: Cudenix["memory"];
 	request: ContextRequest;
 	response: ContextResponse;
-	server: Bun.Server<unknown>;
+	server: NonNullable<Cudenix["server"]>;
 	store: Record<PropertyKey, unknown>;
 }
 
-type ContextResponseConstructor = new (
-	cookies?: Bun.CookieMap,
-) => ContextResponse;
-
-const ContextResponse = function (
-	this: ContextResponse,
-	cookies?: Bun.CookieMap,
-) {
-	this.content = undefined;
-
-	if (cookies) {
-		(this as any)._cookies = cookies;
-	}
-} as unknown as ContextResponseConstructor;
-
-Object.defineProperty(ContextResponse.prototype, "headers", {
-	configurable: true,
-	enumerable: true,
-	get() {
-		const headers = this._headers;
-
-		if (headers) {
-			return headers;
-		}
-
-		this._headers = new Headers();
-
-		return this._headers;
-	},
-	set(value: Headers) {
-		this._headers = value;
-	},
-});
-
-Object.defineProperty(ContextResponse.prototype, "cookies", {
-	configurable: true,
-	enumerable: true,
-	get() {
-		const cookies = this._cookies;
-
-		if (cookies) {
-			return cookies;
-		}
-
-		this._cookies = new Bun.CookieMap();
-
-		return this._cookies;
-	},
-	set(value: Bun.CookieMap) {
-		this._cookies = value;
-	},
-});
-
-type Constructor = new (
-	endpoint: Endpoint,
-	memory: Map<string, unknown>,
-	path: string,
-	request: Request,
-	server: Bun.Server<unknown>,
-	match?: RegExpExecArray,
-) => Context;
+export interface ContextConstructor {
+	new (
+		endpoint: Endpoint,
+		memory: Record<PropertyKey, unknown>,
+		path: string,
+		request: Request,
+		server: NonNullable<Cudenix["server"]>,
+		match?: RegExpExecArray,
+	): Context;
+}
 
 export const Context = function (
 	this: Context,
 	endpoint: Endpoint,
-	memory: Map<string, unknown>,
+	memory: Record<PropertyKey, unknown>,
 	path: string,
 	request: Request,
-	server: Bun.Server<unknown>,
+	server: NonNullable<Cudenix["server"]>,
 	match?: RegExpExecArray,
 ) {
 	this.endpoint = endpoint;
 	this.match = match;
 	this.memory = memory;
-	this.request = {
-		body: undefined,
-		cookies: undefined,
-		headers: undefined,
-		params: undefined,
-		path,
-		query: undefined,
-		raw: request,
+	this.request = { path, raw: request };
+	this.response = {
+		cookies: new Empty() as ContextResponse["cookies"],
+		headers: new Empty() as ContextResponse["headers"],
 	};
-	this.response = new ContextResponse(
-		endpoint.router === "bun"
-			? (request as Bun.BunRequest).cookies
-			: undefined,
-	);
 	this.server = server;
 	this.store = new Empty();
-} as unknown as Constructor;
+} as unknown as ContextConstructor;
 
 Context.prototype.loadRequest = function loadRequest(this: Context) {
-	const use = this.endpoint.use;
+	this.loadRequestHeaders();
 
-	if (use & USE_HEADERS) {
-		this.loadRequestHeaders();
-	}
+	this.loadRequestCookies();
 
-	if (use & USE_COOKIES) {
-		this.loadRequestCookies();
-	}
+	this.loadRequestParams();
 
-	if (use & USE_PARAMS) {
-		this.loadRequestParams();
-	}
+	this.loadRequestQuery();
 
-	if (use & USE_QUERY) {
-		this.loadRequestQuery();
-	}
-
-	if (use & USE_BODY) {
-		return this.loadRequestBody();
-	}
+	return this.loadRequestBody();
 };
 
 Context.prototype.loadRequestBody = async function loadRequestBody(
 	this: Context,
 ) {
-	const rawContentType = this.request.raw.headers.get("content-type");
+	const contentType = this.request.raw.headers.get("content-type");
 
-	if (!rawContentType) {
+	if (!contentType) {
 		this.request.body = await this.request.raw.text();
 
 		return;
 	}
 
-	const first = rawContentType.charCodeAt(0);
+	const first = contentType.charCodeAt(0);
 
 	let isForm = false;
 
 	if (first === 97) {
-		const length = rawContentType.length;
+		const length = contentType.length;
 
 		if (
-			(length === 16 || rawContentType.charCodeAt(16) === 59) &&
-			rawContentType.startsWith("application/json")
+			(length === 16 || contentType.charCodeAt(16) === 59) &&
+			contentType.startsWith("application/json")
 		) {
 			this.request.body = await this.request.raw.json();
 
@@ -206,8 +127,8 @@ Context.prototype.loadRequestBody = async function loadRequestBody(
 		}
 
 		if (
-			(length === 24 || rawContentType.charCodeAt(24) === 59) &&
-			rawContentType.startsWith("application/octet-stream")
+			(length === 24 || contentType.charCodeAt(24) === 59) &&
+			contentType.startsWith("application/octet-stream")
 		) {
 			this.request.body = await this.request.raw.arrayBuffer();
 
@@ -215,14 +136,14 @@ Context.prototype.loadRequestBody = async function loadRequestBody(
 		}
 
 		isForm =
-			(length === 33 || rawContentType.charCodeAt(33) === 59) &&
-			rawContentType.startsWith("application/x-www-form-urlencoded");
+			(length === 33 || contentType.charCodeAt(33) === 59) &&
+			contentType.startsWith("application/x-www-form-urlencoded");
 	} else if (first === 109) {
-		const length = rawContentType.length;
+		const length = contentType.length;
 
 		isForm =
-			(length === 19 || rawContentType.charCodeAt(19) === 59) &&
-			rawContentType.startsWith("multipart/form-data");
+			(length === 19 || contentType.charCodeAt(19) === 59) &&
+			contentType.startsWith("multipart/form-data");
 	}
 
 	if (isForm) {
