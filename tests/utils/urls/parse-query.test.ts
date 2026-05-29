@@ -205,6 +205,27 @@ describe("parseQuery", () => {
 
 			expect(result.b).toEqual(["v1", "v2", "v3"]);
 		});
+
+		test("should wrap a JSON array value as a single element when the key repeats", () => {
+			const result = parseQuery("/a?b=[1,2]&b=v3");
+
+			expect(result.b).toEqual([[1, 2], "v3"]);
+		});
+
+		test("should wrap a JSON object value as a single element when the key repeats", () => {
+			const result = parseQuery('/a?b={"c":1}&b=v3');
+
+			expect(result.b).toEqual([{ c: 1 }, "v3"]);
+		});
+
+		test("should keep repeated JSON array values as distinct elements", () => {
+			const result = parseQuery("/a?b=[1,2]&b=[3,4]");
+
+			expect(result.b).toEqual([
+				[1, 2],
+				[3, 4],
+			]);
+		});
 	});
 
 	describe("entries skipped or dropped", () => {

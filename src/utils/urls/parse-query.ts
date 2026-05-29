@@ -2,7 +2,7 @@ import { Empty } from "@/utils/objects/empty";
 
 /**
  * @module
- * Parse the query string of a URL into a key/value dictionary.
+ * Parse the query string of a URL into a parameter name/value dictionary.
  */
 
 const Q_KEY_PLUS = 1;
@@ -47,6 +47,7 @@ export const parseQuery = (url: string) => {
 		return params;
 	}
 
+	const multiValue = new Set<string>();
 	const urlLength = url.length;
 
 	let i = queryIndex + 1;
@@ -143,9 +144,11 @@ export const parseQuery = (url: string) => {
 
 			if (params[key] === undefined) {
 				params[key] = parsed;
-			} else if (Array.isArray(params[key])) {
+			} else if (multiValue.has(key)) {
 				(params[key] as unknown[]).push(parsed);
 			} else {
+				multiValue.add(key);
+
 				params[key] = [params[key], parsed];
 			}
 		}
