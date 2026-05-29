@@ -15,21 +15,20 @@ const NOT_FOUND = new Response(undefined, { status: 404 });
 
 export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
-export interface Endpoint {
+export interface Endpoint<Router extends "bun" | "cudenix"> {
 	chain: Chain;
 	jit: boolean;
-	matchOffset?: number;
-	paramKeys?: string[];
+	matchOffset: Router extends "cudenix" ? number : never;
+	paramKeys: Router extends "cudenix" ? string[] : never;
 	path: string;
-	restKeys?: string[];
+	restKeys: Router extends "cudenix" ? string[] : never;
 	route: AnyRoute;
-	router: "bun" | "cudenix";
+	router: Router;
 	sse: boolean;
-	use: number;
 }
 
 interface MethodData {
-	endpoints: Endpoint[];
+	endpoints: Endpoint<"cudenix">[];
 	regexp: RegExp;
 }
 
@@ -42,7 +41,7 @@ interface CudenixOptions {
 export interface Cudenix {
 	compile(): void;
 	endpoint(
-		endpoint: Endpoint,
+		endpoint: Endpoint<"cudenix">,
 		path: string,
 		request: Request,
 		match?: RegExpExecArray,
@@ -55,7 +54,7 @@ export interface Cudenix {
 			"fetch" | "unix"
 		>,
 	): Omit<Cudenix, "listen">;
-	memory: Record<string, unknown>;
+	memory: Record<PropertyKey, unknown>;
 	methods: Record<HttpMethod, MethodData>;
 	plugins(plugins: Plugin[]): Cudenix;
 	routes: Record<string, Bun.Serve.Routes<unknown, string>>;
@@ -74,7 +73,7 @@ export const Cudenix = function (
 	this.jit = jit;
 	this.memory = new Empty();
 	this.methods = new Empty() as Cudenix["methods"];
-	this.routes = new Empty() as NonNullable<Cudenix["routes"]>;
+	this.routes = new Empty() as Cudenix["routes"];
 
 	this.memory.module = module;
 } as unknown as CudenixConstructor;
@@ -96,7 +95,7 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 
 Cudenix.prototype.endpoint = async function (
 	this: Cudenix,
-	endpoint: Endpoint,
+	endpoint: Endpoint<"cudenix">,
 	path: string,
 	request: Request,
 	match?: RegExpExecArray,
@@ -119,29 +118,29 @@ Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
 	const data = this.methods[request.method as HttpMethod];
 
 	if (!data) {
-		return NOT_FOUND;
+		return NOT_FOUND.clone();
 	}
 
 	const match = data.regexp.exec(request.url);
 
 	if (!match) {
-		return NOT_FOUND;
+		return NOT_FOUND.clone();
 	}
 
 	const path = match[2];
 
 	if (!path) {
-		return NOT_FOUND;
+		return NOT_FOUND.clone();
 	}
 
 	const endpoints = data.endpoints;
 
-	let endpoint: Endpoint | undefined;
+	let endpoint: Endpoint<"cudenix"> | undefined;
 
 	for (let i = 0; i < endpoints.length; i++) {
 		const candidate = endpoints[i]!;
 
-		if (match[candidate.matchOffset!] !== undefined) {
+		if (match[candidate.matchOffset] !== undefined) {
 			endpoint = candidate;
 
 			break;
@@ -149,7 +148,7 @@ Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
 	}
 
 	if (!endpoint) {
-		return NOT_FOUND;
+		return NOT_FOUND.clone();
 	}
 
 	return this.endpoint(endpoint, path, request, match);
