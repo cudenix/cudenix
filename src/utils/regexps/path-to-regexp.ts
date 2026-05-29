@@ -35,8 +35,7 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  * - `paramKeys` — names of every `:name` and `...name` segment, in
  *   declaration order.
  * - `pattern` — regex source string for `new RegExp(pattern)`.
- * - `restKeys` — names of rest parameters only, or `undefined` when the
- *   path has none.
+ * - `restKeys` — names of rest parameters only
  * @example
  * ```typescript
  * const { paramKeys, pattern } = pathToRegexp("/a/:p1");
@@ -53,17 +52,13 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  */
 export const pathToRegexp = (path: string) => {
 	if (path === "/") {
-		return {
-			paramKeys: [],
-			pattern: String.raw`()\/`,
-			restKeys: undefined,
-		};
+		return { paramKeys: [], pattern: String.raw`()\/`, restKeys: [] };
 	}
 
 	const length = path.length;
 	const paramKeys: string[] = [];
+	const restKeys: string[] = [];
 
-	let restKeys: string[] | undefined;
 	let pattern = "()";
 	let i = 0;
 
@@ -100,10 +95,6 @@ export const pathToRegexp = (path: string) => {
 			const name = path.substring(i + 3, end);
 
 			paramKeys.push(name);
-
-			if (!restKeys) {
-				restKeys = [];
-			}
 
 			restKeys.push(name);
 

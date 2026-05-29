@@ -15,7 +15,7 @@ describe("pathToRegexp", () => {
 
 			expect(result.paramKeys).toEqual([]);
 			expect(result.pattern).toBe(String.raw`()\/`);
-			expect(result.restKeys).toBeUndefined();
+			expect(result.restKeys).toEqual([]);
 		});
 
 		test("should compile a regex that matches only '/'", () => {
@@ -33,7 +33,7 @@ describe("pathToRegexp", () => {
 
 			expect(paramKeys).toEqual([]);
 			expect(pattern).toBe("()");
-			expect(restKeys).toBeUndefined();
+			expect(restKeys).toEqual([]);
 		});
 
 		test("should compile a regex that matches only the empty string", () => {
@@ -50,7 +50,7 @@ describe("pathToRegexp", () => {
 			const { paramKeys, regex, restKeys } = compile("/a");
 
 			expect(paramKeys).toEqual([]);
-			expect(restKeys).toBeUndefined();
+			expect(restKeys).toEqual([]);
 			expect(regex.test("/a")).toBe(true);
 			expect(regex.test("/b")).toBe(false);
 			expect(regex.test("/a/1")).toBe(false);
@@ -134,7 +134,7 @@ describe("pathToRegexp", () => {
 			const { paramKeys, pattern, regex, restKeys } = compile("/?");
 
 			expect(paramKeys).toEqual([]);
-			expect(restKeys).toBeUndefined();
+			expect(restKeys).toEqual([]);
 			expect(pattern).toBe(String.raw`()(?:\/)?`);
 			expect(regex.test("")).toBe(true);
 			expect(regex.test("/")).toBe(true);
@@ -145,7 +145,7 @@ describe("pathToRegexp", () => {
 			const { paramKeys, regex, restKeys } = compile("/.a");
 
 			expect(paramKeys).toEqual([]);
-			expect(restKeys).toBeUndefined();
+			expect(restKeys).toEqual([]);
 			expect(regex.test("/.a")).toBe(true);
 		});
 
@@ -153,7 +153,7 @@ describe("pathToRegexp", () => {
 			const { paramKeys, regex, restKeys } = compile("/..a");
 
 			expect(paramKeys).toEqual([]);
-			expect(restKeys).toBeUndefined();
+			expect(restKeys).toEqual([]);
 			expect(regex.test("/..a")).toBe(true);
 		});
 
@@ -161,7 +161,7 @@ describe("pathToRegexp", () => {
 			const { paramKeys, regex, restKeys } = compile("/*a");
 
 			expect(paramKeys).toEqual([]);
-			expect(restKeys).toBeUndefined();
+			expect(restKeys).toEqual([]);
 			expect(regex.test("/*a")).toBe(true);
 			expect(regex.test("/a")).toBe(false);
 		});
@@ -177,7 +177,7 @@ describe("pathToRegexp", () => {
 
 			test("should capture the required param value", () => {
 				expect(compiled.paramKeys).toEqual(["p1"]);
-				expect(compiled.restKeys).toBeUndefined();
+				expect(compiled.restKeys).toEqual([]);
 
 				const match = "/a/v1".match(compiled.regex);
 
@@ -228,7 +228,7 @@ describe("pathToRegexp", () => {
 			const { paramKeys, regex, restKeys } = compile("/a/:p1?");
 
 			expect(paramKeys).toEqual(["p1"]);
-			expect(restKeys).toBeUndefined();
+			expect(restKeys).toEqual([]);
 
 			expect(regex.test("/a")).toBe(true);
 			expect(regex.test("/a/v1")).toBe(true);
@@ -368,7 +368,7 @@ describe("pathToRegexp", () => {
 
 			test("should match one or more segments without capturing", () => {
 				expect(compiled.paramKeys).toEqual([]);
-				expect(compiled.restKeys).toBeUndefined();
+				expect(compiled.restKeys).toEqual([]);
 
 				expect(compiled.regex.test("/a/v1")).toBe(true);
 				expect(compiled.regex.test("/a/v1/v2/v3")).toBe(true);
@@ -397,7 +397,7 @@ describe("pathToRegexp", () => {
 
 			test("should match with and without the wildcard tail", () => {
 				expect(compiled.paramKeys).toEqual([]);
-				expect(compiled.restKeys).toBeUndefined();
+				expect(compiled.restKeys).toEqual([]);
 
 				expect(compiled.regex.test("/a")).toBe(true);
 				expect(compiled.regex.test("/a/v1/v2")).toBe(true);
