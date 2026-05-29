@@ -1,4 +1,3 @@
-import type { DeveloperContext } from "@/core/context";
 import type {
 	AnyError,
 	FilterError,
@@ -26,10 +25,8 @@ import type {
 	ParseRoute,
 	PathToObject,
 	RouteFnReturnGenerator,
-	RouteFnReturnWS,
 	RouteHandler,
 	RouteOptions,
-	ValidatorsWithParams,
 } from "@/core/route";
 import type { AnyStore, AnyStoreFn, StoreFn } from "@/core/store";
 import type {
@@ -68,7 +65,7 @@ export type ModuleChain = (
 	| AnyValidator
 )[];
 
-export interface ModuleExtendsOptions {
+export interface ModuleMountOptions {
 	execute?: boolean;
 }
 
@@ -86,45 +83,6 @@ export interface Module<
 	Validators extends ModuleValidatorsConstraint,
 > {
 	chain: ModuleChain;
-	extends<
-		const ModuleErrors extends Record<PropertyKey, unknown>,
-		const ModulePrefix extends `/${string}`,
-		const ModuleRoutes extends Record<PropertyKey, unknown>,
-		const ModuleStores extends Record<PropertyKey, unknown>,
-		const ModuleSuccesses extends Record<PropertyKey, unknown>,
-		const ModuleValidators extends ModuleValidatorsConstraint,
-	>(
-		module: Module<
-			ModuleErrors,
-			ModulePrefix,
-			ModuleRoutes,
-			ModuleStores,
-			ModuleSuccesses,
-			ModuleValidators
-		>,
-		options?: ModuleExtendsOptions,
-	): Module<
-		MergeErrors<Errors, ModuleErrors>,
-		MergePaths<Prefix, ModulePrefix>,
-		Routes &
-			(Prefix extends "/"
-				? ModuleRoutes
-				: Prefix extends `/${infer Rest}`
-					? PathToObject<Rest, ModuleRoutes>
-					: ModuleRoutes),
-		Stores & ModuleStores,
-		MergeSuccesses<Successes, ModuleSuccesses>,
-		{
-			inputs: MergeInferValidatorRequest<
-				Validators["inputs"],
-				ModuleValidators["inputs"]
-			>;
-			outputs: MergeInferValidatorRequest<
-				Validators["outputs"],
-				ModuleValidators["outputs"]
-			>;
-		}
-	>;
 	group<
 		const GroupReturn extends AnyModule,
 		const GroupPrefix extends `/${string}` = "/",
@@ -170,29 +128,52 @@ export interface Module<
 		>,
 		Validators
 	>;
+	mount<
+		const ModuleErrors extends Record<PropertyKey, unknown>,
+		const ModulePrefix extends `/${string}`,
+		const ModuleRoutes extends Record<PropertyKey, unknown>,
+		const ModuleStores extends Record<PropertyKey, unknown>,
+		const ModuleSuccesses extends Record<PropertyKey, unknown>,
+		const ModuleValidators extends ModuleValidatorsConstraint,
+	>(
+		module: Module<
+			ModuleErrors,
+			ModulePrefix,
+			ModuleRoutes,
+			ModuleStores,
+			ModuleSuccesses,
+			ModuleValidators
+		>,
+		options?: ModuleMountOptions,
+	): Module<
+		MergeErrors<Errors, ModuleErrors>,
+		MergePaths<Prefix, ModulePrefix>,
+		Routes &
+			(Prefix extends "/"
+				? ModuleRoutes
+				: Prefix extends `/${infer Rest}`
+					? PathToObject<Rest, ModuleRoutes>
+					: ModuleRoutes),
+		Stores & ModuleStores,
+		MergeSuccesses<Successes, ModuleSuccesses>,
+		{
+			inputs: MergeInferValidatorRequest<
+				Validators["inputs"],
+				ModuleValidators["inputs"]
+			>;
+			outputs: MergeInferValidatorRequest<
+				Validators["outputs"],
+				ModuleValidators["outputs"]
+			>;
+		}
+	>;
 	prefix: string;
 	route<
 		const RouteMethod extends HttpMethod,
 		const RoutePath extends `/${string}`,
-		const RouteReturn extends RouteMethod extends "WS"
-			? RouteFnReturnWS<
-					Omit<
-						DeveloperContext<
-							Stores,
-							ValidatorsWithParams<
-								RoutePath,
-								MergeInferValidatorRequest<
-									Validators["outputs"],
-									DeepInferValidatorOutput<
-										RouteValidatorOptions["request"]
-									>
-								>
-							>
-						>,
-						"response"
-					>
-				>
-			: MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
+		const RouteReturn extends
+			| MaybePromise<AnyError | AnySuccess>
+			| RouteFnReturnGenerator,
 		const RouteValidatorOptions extends ValidatorOptions<
 			Partial<ValidatorRequest>
 		>,
@@ -200,7 +181,6 @@ export interface Module<
 		method: RouteMethod,
 		path: RoutePath,
 		handler: RouteHandler<
-			RouteMethod,
 			RoutePath,
 			RouteReturn,
 			Stores,
@@ -340,18 +320,6 @@ export const Module = function Module(
 	this.type = "MODULE";
 } as unknown as ModuleConstructor;
 
-Module.prototype.extends = function (
-	this: AnyModule,
-	module: AnyModule,
-	{ execute = true }: ModuleExtendsOptions = FrozenEmpty,
-) {
-	if (execute) {
-		this.chain.push(module);
-	}
-
-	return this;
-};
-
 Module.prototype.group = function (
 	this: AnyModule,
 	group: AnyGroupFn,
@@ -367,6 +335,18 @@ Module.prototype.middleware = function (
 	middleware: AnyMiddlewareFn,
 ) {
 	this.chain.push({ middleware, type: "MIDDLEWARE" as const });
+
+	return this;
+};
+
+Module.prototype.mount = function (
+	this: AnyModule,
+	module: AnyModule,
+	{ execute = true }: ModuleMountOptions = FrozenEmpty,
+) {
+	if (execute) {
+		this.chain.push(module);
+	}
 
 	return this;
 };
