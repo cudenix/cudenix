@@ -58,8 +58,8 @@ export type TransformError<T extends AnyError> = Record<T["status"], T>;
 
 /**
  * Deeply merge two status-keyed error dictionaries. Reached for by
- * `Module.extends`, `Module.middleware`, `Module.route`, `Module.store`, and
- * `Module.validator` to accumulate the error shapes contributed by each
+ * `module.extends`, `module.middleware`, `module.route`, `module.store`, and
+ * `module.validator` to accumulate the error shapes contributed by each
  * unit without dropping any branch.
  *
  * For every status present in only one operand the value is taken verbatim.
