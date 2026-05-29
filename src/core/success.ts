@@ -3,8 +3,8 @@ import { FrozenEmpty } from "@/utils/objects/empty";
 
 /**
  * @module
- * Success envelope plus the type-level utilities that filter, transform, and
- * merge success dictionaries.
+ * Success envelope plus the type-level utilities that filter, exclude,
+ * transform, and merge success dictionaries.
  */
 
 /**
@@ -23,6 +23,22 @@ import { FrozenEmpty } from "@/utils/objects/empty";
  * ```
  */
 export type FilterSuccess<T> = Extract<T, AnySuccess>;
+
+/**
+ * Drop every {@link AnySuccess}-shaped member from `T`, keeping the
+ * non-success branches intact. Mirror of {@link FilterSuccess} — isolates
+ * the error side of a return union by discarding the success envelopes.
+ *
+ * Thin wrapper over the builtin `Exclude<T, AnySuccess>`.
+ *
+ * @typeParam T - Union to filter.
+ * @example
+ * ```typescript
+ * type A = IgnoreSuccess<Success<"v1", 200> | Error<"v2", 400>>;
+ * // Error<"v2", 400>
+ * ```
+ */
+export type IgnoreSuccess<T> = Exclude<T, AnySuccess>;
 
 /**
  * Re-key a single {@link AnySuccess} by its `status` code, producing the
