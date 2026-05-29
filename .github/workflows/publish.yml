@@ -28,7 +28,7 @@ jobs:
 
             - run: bun --bun install --ignore-scripts
 
-            - run: bun --bun test
+            - run: bun --bun run test
 
             - run: bun --bun run build
 
