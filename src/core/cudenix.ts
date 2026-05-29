@@ -41,7 +41,6 @@ export interface Cudenix {
 	compile(): void;
 	endpoint(
 		endpoint: Endpoint,
-		path: string,
 		request: Request,
 		match?: RegExpExecArray,
 	): Promise<Response>;
@@ -95,14 +94,12 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 Cudenix.prototype.endpoint = async function (
 	this: Cudenix,
 	endpoint: Endpoint,
-	path: string,
 	request: Request,
 	match?: RegExpExecArray,
 ) {
 	const context = new Context(
 		endpoint,
 		this.memory,
-		path,
 		request,
 		this.server!,
 		match,
@@ -126,9 +123,7 @@ Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
 		return NOT_FOUND.clone();
 	}
 
-	const path = match[2];
-
-	if (!path) {
+	if (!match[2]) {
 		return NOT_FOUND.clone();
 	}
 
@@ -150,7 +145,7 @@ Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
 		return NOT_FOUND.clone();
 	}
 
-	return this.endpoint(endpoint, path, request, match);
+	return this.endpoint(endpoint, request, match);
 };
 
 Cudenix.prototype.listen = function listen(

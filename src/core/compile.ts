@@ -146,7 +146,7 @@ export const compile = (app: Cudenix) => {
 				}
 
 				routes[methodEndpoint.path]![method] = (request: Request) =>
-					app.endpoint(methodEndpoint, methodEndpoint.path, request);
+					app.endpoint(methodEndpoint, request);
 			}
 		}
 
