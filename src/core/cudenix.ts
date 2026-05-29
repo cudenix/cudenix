@@ -15,20 +15,19 @@ const NOT_FOUND = new Response(undefined, { status: 404 });
 
 export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
-export interface Endpoint<Router extends "bun" | "cudenix"> {
+export interface Endpoint {
 	chain: Chain;
 	jit: boolean;
-	matchOffset: Router extends "cudenix" ? number : never;
-	paramKeys: Router extends "cudenix" ? string[] : never;
+	matchOffset: number;
+	paramKeys: string[];
 	path: string;
-	restKeys: Router extends "cudenix" ? string[] : never;
+	restKeys: string[];
 	route: AnyRoute;
-	router: Router;
 	sse: boolean;
 }
 
 interface MethodData {
-	endpoints: Endpoint<"cudenix">[];
+	endpoints: Endpoint[];
 	regexp: RegExp;
 }
 
@@ -41,7 +40,7 @@ interface CudenixOptions {
 export interface Cudenix {
 	compile(): void;
 	endpoint(
-		endpoint: Endpoint<"cudenix">,
+		endpoint: Endpoint,
 		path: string,
 		request: Request,
 		match?: RegExpExecArray,
@@ -95,7 +94,7 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 
 Cudenix.prototype.endpoint = async function (
 	this: Cudenix,
-	endpoint: Endpoint<"cudenix">,
+	endpoint: Endpoint,
 	path: string,
 	request: Request,
 	match?: RegExpExecArray,
@@ -135,7 +134,7 @@ Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
 
 	const endpoints = data.endpoints;
 
-	let endpoint: Endpoint<"cudenix"> | undefined;
+	let endpoint: Endpoint | undefined;
 
 	for (let i = 0; i < endpoints.length; i++) {
 		const candidate = endpoints[i]!;
