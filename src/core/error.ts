@@ -27,8 +27,8 @@ export type FilterError<T> = Extract<T, AnyError>;
 /**
  * Drop every {@link AnyError}-shaped member from `T`, keeping the non-error
  * branches intact. Mirror of {@link FilterError} — the module compiler
- * reaches for this when it needs the success or store side of a return
- * union separated from the error envelopes that halt the chain.
+ * reaches for this when it needs the store side of a return union
+ * separated from the error envelopes that halt the chain.
  *
  * Thin wrapper over the builtin `Exclude<T, AnyError>`.
  *
