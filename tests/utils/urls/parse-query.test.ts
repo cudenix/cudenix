@@ -92,10 +92,17 @@ describe("parseQuery", () => {
 		});
 
 		test("should preserve non-ASCII characters in keys and values", () => {
-			const result = parseQuery("/a?café=☕&b=😀");
+			const result = parseQuery("/a?café=☕&b=v1");
 
 			expect(result.café).toBe("☕");
-			expect(result.b).toBe("😀");
+			expect(result.b).toBe("v1");
+		});
+
+		test("should preserve surrogate-pair characters (codepoints outside the BMP)", () => {
+			const result = parseQuery("/a?b=𝕊&c=😀");
+
+			expect(result.b).toBe("𝕊");
+			expect(result.c).toBe("😀");
 		});
 	});
 
@@ -265,7 +272,7 @@ describe("parseQuery", () => {
 			const result = parseQuery("/a?constructor=v1&b=v2");
 
 			expect(Object.hasOwn(result, "constructor")).toBe(true);
-			expect(Reflect.get(result, "constructor") as unknown).toBe("v1");
+			expect(Reflect.get(result, "constructor")).toBe("v1");
 			expect(result.b).toBe("v2");
 		});
 	});
