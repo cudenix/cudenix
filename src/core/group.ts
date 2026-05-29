@@ -40,9 +40,10 @@ export type AnyGroupOptions = GroupOptions<any>;
 
 /**
  * Factory that receives a fresh inner module (already typed with the merged
- * prefix and the parent's stores/validators) and returns the configured
- * module to mount. Whatever routes the returned module declares are merged
- * into the parent under the group's prefix.
+ * prefix and the parent's accumulated stores, validators, successes, and
+ * errors) and returns the configured module to mount. Whatever routes the
+ * returned module declares are merged into the parent under the group's
+ * prefix.
  *
  * @typeParam Module - Inner module handed to the factory.
  * @typeParam Return - Inner module the factory returns after configuration.
