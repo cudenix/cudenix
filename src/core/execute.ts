@@ -1,165 +1,36 @@
 import type { AnyContext } from "@/core/context";
-import type { Chain, Cudenix, Endpoint } from "@/core/cudenix";
+import type { Chain, Endpoint } from "@/core/cudenix";
 import { Error } from "@/core/error";
-import type { RouteFnReturnGenerator } from "@/core/route";
-import type {
-	AnyValidator,
-	ValidatorPlugin,
-	ValidatorRequest,
-} from "@/core/validator";
-import type { MaybePromise } from "@/types/maybe-promise";
-import { pushAll } from "@/utils/arrays/push-all";
-import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 
-interface ValidatorState {
-	errors?: { details: unknown[]; type: keyof ValidatorRequest }[];
-	index?: Record<string, number>;
-}
-
-const applyValidation = (
-	validated: { content: unknown; success: boolean },
-	key: keyof ValidatorRequest,
-	context: AnyContext,
-	state: ValidatorState,
-) => {
-	if (validated.success) {
-		context.request[key as keyof typeof context.request] =
-			validated.content as any;
-
-		return;
-	}
-
-	const content = Array.isArray(validated.content)
-		? validated.content
-		: [validated.content];
-
-	state.errors ??= [];
-	state.index ??= new Empty() as Record<string, number>;
-
-	if (state.index[key] !== undefined) {
-		pushAll(state.errors[state.index[key]]?.details, content);
-
-		return;
-	}
-
-	state.index[key] = state.errors.length;
-
-	state.errors.push({ details: content, type: key });
-};
-
-export const processValidators = (
-	context: AnyContext,
-	link: AnyValidator,
-	validatorPlugin: ValidatorPlugin,
-	startI: number,
-	state: ValidatorState,
-): MaybePromise<void> => {
-	for (let i = startI; i < link.keys.length; i++) {
-		const key = link.keys[i];
-
-		if (!key) {
-			continue;
-		}
-
-		const validated = validatorPlugin(
-			link.request[key],
-			context.request[key as keyof typeof context.request],
-			key,
-		);
-
-		if (validated instanceof Promise) {
-			return validated.then((resolved) => {
-				applyValidation(resolved, key, context, state);
-
-				return processValidators(
-					context,
-					link,
-					validatorPlugin,
-					i + 1,
-					state,
-				);
-			});
-		}
-
-		applyValidation(validated, key, context, state);
-	}
-
-	if (state.errors) {
-		context.response.content = new Error(state.errors, { status: 422 });
-	}
-};
-
-const step = (
-	context: AnyContext,
+export const execute = async (
 	endpoint: Endpoint,
 	request: Request,
+	context: AnyContext,
 	chain: Chain,
 	index: number,
-	validatorPlugin: ValidatorPlugin | undefined,
-): MaybePromise<void> => {
+) => {
 	for (let i = index; i < chain.length; i++) {
 		if (context.response.content) {
-			return;
+			break;
 		}
 
 		const link = chain[i];
 
-		if (!link) {
-			continue;
-		}
-
-		if (link.type === "ROUTE") {
+		if (!link || link.type === "ROUTE") {
 			continue;
 		}
 
 		if (link.type === "MIDDLEWARE") {
-			const middleware = link.middleware(context, () =>
-				step(context, endpoint, request, chain, i + 1, validatorPlugin),
+			context.response.content = await link.middleware(context, () =>
+				execute(endpoint, request, context, chain, i + 1),
 			);
-
-			if (middleware instanceof Promise) {
-				return middleware.then((resolved) => {
-					if (resolved) {
-						context.response.content =
-							resolved as unknown as typeof context.response.content;
-					}
-				});
-			}
-
-			if (middleware) {
-				context.response.content = middleware;
-			}
 
 			return;
 		}
 
 		if (link.type === "STORE") {
-			const store = link.store(context);
-
-			if (store instanceof Promise) {
-				return store.then((resolved: unknown) => {
-					if (resolved instanceof Error) {
-						context.response.content = resolved;
-
-						return;
-					}
-
-					merge(
-						context.store,
-						resolved as Record<PropertyKey, unknown>,
-					);
-
-					return step(
-						context,
-						endpoint,
-						request,
-						chain,
-						i + 1,
-						validatorPlugin,
-					);
-				});
-			}
+			const store = await link.store(context);
 
 			if (store instanceof Error) {
 				context.response.content = store;
@@ -170,132 +41,8 @@ const step = (
 			continue;
 		}
 
-		if (!link.request || !validatorPlugin) {
-			continue;
-		}
-
-		const validationReturned = processValidators(
-			context,
-			link as AnyValidator,
-			validatorPlugin,
-			0,
-			{ errors: undefined, index: undefined },
-		);
-
-		if (validationReturned instanceof Promise) {
-			return validationReturned.then(() => {
-				if (context.response.content) {
-					return;
-				}
-
-				return step(
-					context,
-					endpoint,
-					request,
-					chain,
-					i + 1,
-					validatorPlugin,
-				);
-			});
+		if (link.type === "VALIDATOR") {
+			// TODO: Add validator plugin support
 		}
 	}
-
-	if (context.response.content) {
-		return;
-	}
-
-	if (endpoint.sse) {
-		context.response.content = new ReadableStream({
-			async start(controller) {
-				let closed = false;
-
-				const onAbort = () => {
-					closed = true;
-
-					try {
-						controller.close();
-					} catch {}
-				};
-
-				request.signal.addEventListener("abort", onAbort, {
-					once: true,
-				});
-
-				try {
-					for await (const chunk of endpoint.route.route(
-						context,
-					) as RouteFnReturnGenerator) {
-						if (closed) {
-							break;
-						}
-
-						if (chunk.id) {
-							controller.enqueue(`id: ${chunk.id}\n`);
-						}
-
-						if (chunk.event) {
-							controller.enqueue(`event: ${chunk.event}\n`);
-						}
-
-						if (chunk.retry) {
-							controller.enqueue(
-								`retry: ${chunk.retry.toString()}\n`,
-							);
-						}
-
-						controller.enqueue(
-							`data: ${JSON.stringify(chunk.data.content)}\n\n`,
-						);
-					}
-				} catch {
-				} finally {
-					request.signal.removeEventListener("abort", onAbort);
-
-					onAbort();
-				}
-			},
-		});
-
-		return;
-	}
-
-	const returned = endpoint.route.route(context);
-
-	if (returned instanceof Promise) {
-		return returned.then((resolved) => {
-			context.response.content = resolved;
-		});
-	}
-
-	context.response.content = returned;
-};
-
-export const execute = (
-	app: Cudenix,
-	context: AnyContext,
-	endpoint: Endpoint,
-	request: Request,
-): MaybePromise<void> => {
-	if (endpoint.chain.length === 0 && !endpoint.sse) {
-		const returned = endpoint.route.route(context);
-
-		if (returned instanceof Promise) {
-			return returned.then((resolved) => {
-				context.response.content = resolved;
-			});
-		}
-
-		context.response.content = returned;
-
-		return;
-	}
-
-	return step(
-		context,
-		endpoint,
-		request,
-		endpoint.chain,
-		0,
-		app.memory.validator as ValidatorPlugin | undefined,
-	);
 };
