@@ -97,11 +97,12 @@ Cudenix.prototype.endpoint = async function (
 	request: Request,
 	match?: RegExpExecArray,
 ) {
-	const context = new Context(this, endpoint, request, match);
-
-	await context.loadRequest();
-
-	return stepAndRespond(this, context, endpoint, request);
+	return stepAndRespond(
+		this,
+		new Context(this, endpoint, request, match),
+		endpoint,
+		request,
+	);
 };
 
 Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
