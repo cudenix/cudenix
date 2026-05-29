@@ -167,7 +167,7 @@ export interface Module<
 			>;
 		}
 	>;
-	prefix: string;
+	prefix: `/${string}`;
 	route<
 		const RouteMethod extends HttpMethod,
 		const RoutePath extends `/${string}`,
