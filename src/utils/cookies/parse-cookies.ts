@@ -34,6 +34,11 @@ import { Empty } from "@/utils/objects/empty";
  */
 export const parseCookies = (header: string) => {
 	const cookies = new Empty() as Record<string, string>;
+
+	if (!header) {
+		return cookies;
+	}
+
 	const length = header.length;
 
 	let start = 0;
