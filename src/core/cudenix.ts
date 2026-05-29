@@ -1,9 +1,9 @@
 import { compile } from "@/core/compile";
 import { Context } from "@/core/context";
+import { execute } from "@/core/execute";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
 import type { AnyRoute } from "@/core/route";
-import { stepAndRespond } from "@/core/step";
 import type { AnyStore } from "@/core/store";
 import type { AnyValidator } from "@/core/validator";
 import type { HttpMethod } from "@/types/http-method";
@@ -98,7 +98,7 @@ Cudenix.prototype.endpoint = async function (
 	request: Request,
 	match?: RegExpExecArray,
 ) {
-	return stepAndRespond(
+	await execute(
 		this,
 		new Context(this, endpoint, request, match),
 		endpoint,
