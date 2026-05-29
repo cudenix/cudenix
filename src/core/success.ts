@@ -41,7 +41,7 @@ export type TransformSuccess<T extends AnySuccess> = Record<T["status"], T>;
 
 /**
  * Deeply merge two status-keyed success dictionaries. Reached for by
- * `Module.extends` and `Module.middleware` to accumulate the success shapes
+ * `module.extends` and `module.middleware` to accumulate the success shapes
  * contributed by each unit without dropping any branch.
  *
  * For every status present in only one operand the value is taken verbatim.
