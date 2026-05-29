@@ -23,6 +23,7 @@ export interface Endpoint {
 	path: string;
 	restKeys: string[];
 	route: AnyRoute;
+	router: "bun" | "cudenix";
 	sse: boolean;
 }
 
