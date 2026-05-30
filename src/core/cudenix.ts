@@ -1,6 +1,6 @@
 import { compile } from "@/core/compile";
 import { Context } from "@/core/context";
-import { execute } from "@/core/execute";
+import { dispatch } from "@/core/dispatch";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
 import type { AnyRoute } from "@/core/route";
@@ -118,7 +118,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 		return NOT_FOUND.clone();
 	}
 
-	return execute(
+	return dispatch(
 		endpoint,
 		request,
 		new Context(this, endpoint, request, match),

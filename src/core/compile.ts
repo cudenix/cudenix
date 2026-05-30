@@ -1,6 +1,6 @@
 import { Context } from "@/core/context";
 import type { Chain, Cudenix, Endpoint } from "@/core/cudenix";
-import { execute } from "@/core/execute";
+import { dispatch } from "@/core/dispatch";
 import { type AnyModule, Module } from "@/core/module";
 import type { HttpMethod } from "@/types/http-method";
 import { cloneAppend } from "@/utils/arrays/clone-append";
@@ -150,7 +150,7 @@ export const compile = (app: Cudenix) => {
 				}
 
 				routes[methodEndpoint.path]![method] = (request: Request) =>
-					execute(
+					dispatch(
 						methodEndpoint,
 						request,
 						new Context(app, methodEndpoint, request),
