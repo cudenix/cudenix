@@ -8,7 +8,7 @@ import { pushAll } from "@/utils/arrays/push-all";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 
-interface Inherited {
+export interface FlattenInherited {
 	chain: Chain;
 	path: `/${string}`;
 }
@@ -16,7 +16,7 @@ interface Inherited {
 export const flatten = (
 	endpoints: Record<HttpMethod, Endpoint[]>,
 	module: AnyModule,
-	inherited: Inherited,
+	inherited: FlattenInherited,
 ) => {
 	const chain: Chain = [];
 	const merged = inherited.chain.slice();
