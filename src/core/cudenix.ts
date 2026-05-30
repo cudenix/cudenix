@@ -96,11 +96,7 @@ Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
 
 	const match = data.regexp.exec(request.url);
 
-	if (!match) {
-		return NOT_FOUND.clone();
-	}
-
-	if (!match[2]) {
+	if (!match?.[2]) {
 		return NOT_FOUND.clone();
 	}
 
