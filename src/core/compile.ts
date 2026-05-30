@@ -8,18 +8,18 @@ import { pushAll } from "@/utils/arrays/push-all";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 
-interface PreviousStep {
+interface Inherited {
 	chain: Chain;
 	path: `/${string}`;
 }
 
-export const step = (
+export const flatten = (
 	endpoints: Record<HttpMethod, Endpoint[]>,
 	module: AnyModule,
-	previous: PreviousStep,
+	inherited: Inherited,
 ) => {
 	const chain: Chain = [];
-	const merged = previous.chain.slice();
+	const merged = inherited.chain.slice();
 
 	let path = module.prefix;
 
@@ -32,12 +32,12 @@ export const step = (
 
 		if (link.type === "GROUP") {
 			const module = new Module({
-				prefix: `${previous.path}${path === "/" ? "" : path}${link.prefix === "/" ? "" : link.prefix}`,
+				prefix: `${inherited.path}${path === "/" ? "" : path}${link.prefix === "/" ? "" : link.prefix}`,
 			});
 
 			module.chain = merged.slice();
 
-			step(endpoints, link.group(module), { chain: [], path: "/" });
+			flatten(endpoints, link.group(module), { chain: [], path: "/" });
 
 			continue;
 		}
@@ -55,9 +55,9 @@ export const step = (
 		}
 
 		if (link.type === "MODULE") {
-			const compiled = step(endpoints, link, {
+			const compiled = flatten(endpoints, link, {
 				chain: merged,
-				path: `${previous.path}${path === "/" ? "" : path}`,
+				path: `${inherited.path}${path === "/" ? "" : path}`,
 			});
 
 			pushAll(chain, compiled.chain);
@@ -77,10 +77,6 @@ export const step = (
 			endpoints[link.method] = methodEndpoints;
 		}
 
-		const finalPath =
-			`${previous.path}${path === "/" ? "" : path}${link.path === "/" ? "" : link.path}` ||
-			"/";
-
 		methodEndpoints.push({
 			chain: link.validator
 				? cloneAppend(merged, link.validator)
@@ -88,7 +84,9 @@ export const step = (
 			jit: link.jit ?? true,
 			matchOffset: 0,
 			paramKeys: [],
-			path: finalPath,
+			path:
+				`${inherited.path}${path === "/" ? "" : path}${link.path === "/" ? "" : link.path}` ||
+				"/",
 			restKeys: [],
 			route: link,
 			router: "cudenix",
@@ -104,7 +102,10 @@ export const compile = (app: Cudenix) => {
 	const jit = app.jit;
 	const routes = app.routes;
 
-	step(endpoints, app.memory.module as AnyModule, { chain: [], path: "/" });
+	flatten(endpoints, app.memory.module as AnyModule, {
+		chain: [],
+		path: "/",
+	});
 
 	for (const method in endpoints) {
 		const methodEndpoints = endpoints[method];
