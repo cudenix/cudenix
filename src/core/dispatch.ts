@@ -13,10 +13,6 @@ export const dispatch = async (
 	index: number,
 ) => {
 	for (let i = index; i < chain.length; i++) {
-		if (context.response.content) {
-			return;
-		}
-
 		const link = chain[i];
 
 		if (!link) {
@@ -24,25 +20,27 @@ export const dispatch = async (
 		}
 
 		if (link.type === "MIDDLEWARE") {
-			const middleware = await link.middleware(context, () =>
+			const returned = await link.middleware(context, () =>
 				dispatch(endpoint, request, context, chain, i + 1),
 			);
 
-			if (middleware) {
-				context.response.content = middleware;
+			if (returned) {
+				context.response.content = returned;
 			}
 
 			return;
 		}
 
 		if (link.type === "STORE") {
-			const store = await link.store(context);
+			const returned = await link.store(context);
 
-			if (store instanceof Error) {
-				context.response.content = store;
-			} else {
-				merge(context.store, store);
+			if (returned instanceof Error) {
+				context.response.content = returned;
+
+				return;
 			}
+
+			merge(context.store, returned);
 
 			continue;
 		}
@@ -90,10 +88,6 @@ export const dispatch = async (
 				return;
 			}
 		}
-	}
-
-	if (context.response.content) {
-		return;
 	}
 
 	context.response.content = await endpoint.route.route(context);
