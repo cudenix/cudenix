@@ -45,8 +45,8 @@ export type ValidatorPlugin = (
 
 /**
  * Map each request slot in `T` to the issue type its schema produces, via the
- * ambient `Cudenix.InferValidatorError`. Used to type the per-slot details
- * carried by the `422` envelope a validator emits on failure.
+ * ambient `Cudenix.InferValidatorError`. Used to type the per-slot error map
+ * carried by the `422` {@link Error} envelope a validator emits on failure.
  *
  * Slots without a schema fall through as their declared value type. The
  * mapping is shallow — only top-level slot keys are walked.
@@ -104,41 +104,26 @@ export type DeepInferValidatorOutput<T extends object> = {
 };
 
 /**
- * Discriminated union of per-slot error entries built from `T`. Each member
- * has the shape `{ details: [SlotError]; type: SlotKey }`, so a consumer can
- * narrow on `type` to read the matching `details` payload.
- *
- * @typeParam T - Per-slot error map, typically the result of
- *   {@link DeepInferValidatorError}.
- * @example
- * ```typescript
- * type A = ValidatorErrorDetails<{ body: BodyIssues; query: QueryIssues }>;
- * // | { details: [BodyIssues]; type: "body" }
- * // | { details: [QueryIssues]; type: "query" }
- * ```
- */
-export type ValidatorErrorDetails<T extends object> = {
-	[K in keyof T]: { details: [T[K]]; type: K };
-}[keyof T];
-
-/**
  * Wrap a per-slot error map into the `422`-keyed {@link Error} envelope the
  * validator step emits on failure. Used by the module compiler to fold the
  * validator's contribution into the surrounding error dictionary.
  *
- * The wrapped content is a one-element tuple `[{ details: [...] }]` whose
- * inner detail unions every slot via {@link ValidatorErrorDetails}.
+ * The content is the per-slot map itself, keyed by request slot (`body`,
+ * `query`, …), each slot holding its inferred issues (Standard Schema's
+ * `Issue[]` via `Cudenix.InferValidatorError`). Keys are optional: a single
+ * registration aggregates every failing slot, but a slot that validates
+ * cleanly is absent from the payload.
  *
  * @typeParam T - Per-slot error map, typically the result of
  *   {@link DeepInferValidatorError}.
  * @example
  * ```typescript
- * type A = TransformValidatorError<{ body: BodyIssues }>;
- * // { 422: Error<[{ details: [{ details: [BodyIssues]; type: "body" }] }], 422> }
+ * type A = TransformValidatorError<{ body: BodyIssues; query: QueryIssues }>;
+ * // { 422: Error<{ body?: BodyIssues; query?: QueryIssues }, 422> }
  * ```
  */
 export interface TransformValidatorError<T extends object> {
-	422: Error<[{ details: [ValidatorErrorDetails<T>] }], 422>;
+	422: Error<Partial<T>, 422>;
 }
 
 /**
