@@ -22,11 +22,15 @@ export const execute = async (
 		}
 
 		if (link.type === "MIDDLEWARE") {
-			context.response.content = await link.middleware(context, () =>
+			const middleware = await link.middleware(context, () =>
 				execute(endpoint, request, context, chain, i + 1),
 			);
 
-			return;
+			if (middleware) {
+				context.response.content = middleware;
+			}
+
+			continue;
 		}
 
 		if (link.type === "STORE") {
