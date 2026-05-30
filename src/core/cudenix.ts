@@ -40,11 +40,6 @@ export interface CudenixOptions {
 
 export interface Cudenix {
 	compile(): void;
-	endpoint(
-		endpoint: Endpoint,
-		request: Request,
-		match?: RegExpExecArray,
-	): Promise<Response>;
 	fetch(request: Request): MaybePromise<Response>;
 	jit: boolean;
 	listen(
@@ -92,21 +87,6 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 	delete this.memory.plugins;
 };
 
-Cudenix.prototype.endpoint = async function (
-	this: Cudenix,
-	endpoint: Endpoint,
-	request: Request,
-	match?: RegExpExecArray,
-) {
-	await execute(
-		endpoint,
-		request,
-		new Context(this, endpoint, request, match),
-		endpoint.chain,
-		0,
-	);
-};
-
 Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
 	const data = this.methods[request.method as HttpMethod];
 
@@ -142,7 +122,13 @@ Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
 		return NOT_FOUND.clone();
 	}
 
-	return this.endpoint(endpoint, request, match);
+	return execute(
+		endpoint,
+		request,
+		new Context(this, endpoint, request, match),
+		endpoint.chain,
+		0,
+	);
 };
 
 Cudenix.prototype.listen = function listen(
