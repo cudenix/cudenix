@@ -87,7 +87,7 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 	delete this.memory.plugins;
 };
 
-Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
+Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 	const data = this.methods[request.method as HttpMethod];
 
 	if (!data) {
@@ -127,7 +127,7 @@ Cudenix.prototype.fetch = function fetch(this: Cudenix, request: Request) {
 	);
 };
 
-Cudenix.prototype.listen = function listen(
+Cudenix.prototype.listen = function (
 	this: Cudenix,
 	options?: Omit<
 		Extract<Bun.Serve.Options<unknown>, { websocket?: never }>,
