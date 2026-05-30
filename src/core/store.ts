@@ -32,10 +32,10 @@ import type { MaybePromise } from "@/types/maybe-promise";
  * ```
  */
 export type StoreFn<
-	Return extends Record<PropertyKey, unknown> | AnyError,
+	Return extends MaybePromise<Record<PropertyKey, unknown> | AnyError>,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
-> = (context: DeveloperContext<Stores, Validators>) => MaybePromise<Return>;
+> = (context: DeveloperContext<Stores, Validators>) => Return;
 
 /**
  * Wildcard alias matching any {@link StoreFn} regardless of return,
