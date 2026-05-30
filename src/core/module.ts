@@ -65,10 +65,6 @@ export type ModuleChain = (
 	| AnyValidator
 )[];
 
-export interface ModuleMountOptions {
-	execute?: boolean;
-}
-
 export interface ModuleValidatorsConstraint {
 	inputs: Record<PropertyKey, unknown>;
 	outputs: Record<PropertyKey, unknown>;
@@ -109,7 +105,7 @@ export interface Module<
 	>;
 	middleware<
 		const MiddlewareReturn extends MaybePromise<
-			AnyError | AnySuccess | undefined
+			AnyError | AnySuccess | void
 		> = undefined,
 	>(
 		middleware: MiddlewareFn<
@@ -144,7 +140,6 @@ export interface Module<
 			ModuleSuccesses,
 			ModuleValidators
 		>,
-		options?: ModuleMountOptions,
 	): Module<
 		MergeErrors<Errors, ModuleErrors>,
 		MergePaths<Prefix, ModulePrefix>,
@@ -311,7 +306,7 @@ export interface ModuleConstructor {
 	): Module<Errors, Prefix, Routes, Stores, Successes, Validators>;
 }
 
-export const Module = function Module(
+export const Module = function (
 	this: AnyModule,
 	{ prefix = "" }: AnyModuleOptions = FrozenEmpty,
 ) {
@@ -339,14 +334,8 @@ Module.prototype.middleware = function (
 	return this;
 };
 
-Module.prototype.mount = function (
-	this: AnyModule,
-	module: AnyModule,
-	{ execute = true }: ModuleMountOptions = FrozenEmpty,
-) {
-	if (execute) {
-		this.chain.push(module);
-	}
+Module.prototype.mount = function (this: AnyModule, module: AnyModule) {
+	this.chain.push(module);
 
 	return this;
 };
@@ -390,7 +379,7 @@ Module.prototype.store = function (this: AnyModule, store: AnyStoreFn) {
 	return this;
 };
 
-Module.prototype.validator = function validator(
+Module.prototype.validator = function (
 	this: AnyModule,
 	options: AnyValidatorOptions,
 ) {
