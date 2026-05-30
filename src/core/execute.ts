@@ -17,7 +17,7 @@ export const execute = async (
 
 		const link = chain[i];
 
-		if (!link || link.type === "ROUTE") {
+		if (!link) {
 			continue;
 		}
 
@@ -30,7 +30,7 @@ export const execute = async (
 				context.response.content = middleware;
 			}
 
-			continue;
+			return;
 		}
 
 		if (link.type === "STORE") {
@@ -49,4 +49,10 @@ export const execute = async (
 			// TODO: Add validator plugin support
 		}
 	}
+
+	if (context.response.content) {
+		return;
+	}
+
+	context.response.content = await endpoint.route.route(context);
 };
