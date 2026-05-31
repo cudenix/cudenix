@@ -342,7 +342,7 @@ Module.prototype.route = function (
 		jit,
 		method,
 		path,
-		sse: isGenerator(handler as AnyRouteFn),
+		sse: isFn && isGenerator(handler as AnyRouteFn),
 		static: !isFn,
 		type: "ROUTE" as const,
 		validator: validator
