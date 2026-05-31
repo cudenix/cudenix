@@ -5,7 +5,7 @@ import type { ValidatorPlugin } from "@/core/validator";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 
-export const dispatch = async (
+const walk = async (
 	endpoint: Endpoint,
 	request: Request,
 	context: AnyContext,
@@ -21,7 +21,7 @@ export const dispatch = async (
 
 		if (link.type === "MIDDLEWARE") {
 			const returned = await link.handler(context, () =>
-				dispatch(endpoint, request, context, chain, i + 1),
+				walk(endpoint, request, context, chain, i + 1),
 			);
 
 			if (returned) {
@@ -91,4 +91,16 @@ export const dispatch = async (
 	}
 
 	context.response.content = await endpoint.route.handler(context);
+};
+
+export const dispatch = async (
+	endpoint: Endpoint,
+	request: Request,
+	context: AnyContext,
+	chain: Chain,
+	index: number,
+) => {
+	await walk(endpoint, request, context, chain, index);
+
+	return new Response();
 };
