@@ -169,9 +169,8 @@ export interface Module<
 		const RouteReturn extends
 			| MaybePromise<AnyError | AnySuccess>
 			| RouteFnReturnGenerator,
-		const RouteValidatorOptions extends ValidatorOptions<
-			Partial<ValidatorRequest>
-		>,
+		const RouteValidatorRequest extends
+			Partial<ValidatorRequest> = NonNullable<unknown>,
 	>(
 		method: RouteMethod,
 		path: RoutePath,
@@ -181,16 +180,13 @@ export interface Module<
 			Stores,
 			MergeInferValidatorRequest<
 				Validators["outputs"],
-				DeepInferValidatorOutput<RouteValidatorOptions["request"]>
+				DeepInferValidatorOutput<RouteValidatorRequest>
 			>
 		>,
-		options?: RouteOptions<RouteValidatorOptions>,
+		options?: RouteOptions<ValidatorOptions<RouteValidatorRequest>>,
 	): MergePaths<Prefix, RoutePath> extends infer MergedPath extends
 		`/${string}`
-		? ExtractUrlParams<MergedPath> extends infer PathParams extends Record<
-				string,
-				string | string[] | undefined
-			>
+		? ExtractUrlParams<MergedPath> extends infer PathParams extends object
 			? Module<
 					Errors,
 					Prefix,
@@ -200,9 +196,7 @@ export interface Module<
 							MergedPath,
 							MergeInferValidatorRequest<
 								Validators["inputs"],
-								DeepInferValidatorInput<
-									RouteValidatorOptions["request"]
-								>
+								DeepInferValidatorInput<RouteValidatorRequest>
 							> &
 								([NonNullable<unknown>] extends [PathParams]
 									? NonNullable<unknown>
@@ -212,20 +206,16 @@ export interface Module<
 												: PathParams;
 										}),
 							| Awaited<RouteReturn>
-							| (AllPropertiesAreUnknown<
-									RouteValidatorOptions["request"]
-							  > extends true
-									? ValueOf<Errors>
-									: ValueOf<
-											MergeErrors<
+							| ValueOf<
+									AllPropertiesAreUnknown<RouteValidatorRequest> extends true
+										? Errors
+										: MergeErrors<
 												Errors,
 												TransformValidatorError<
-													DeepInferValidatorError<
-														RouteValidatorOptions["request"]
-													>
+													DeepInferValidatorError<RouteValidatorRequest>
 												>
 											>
-										>)
+							  >
 							| ValueOf<Successes>
 						>,
 					Stores,
