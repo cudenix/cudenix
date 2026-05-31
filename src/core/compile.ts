@@ -37,7 +37,7 @@ export const flatten = (
 
 			module.chain = merged.slice();
 
-			flatten(endpoints, link.group(module), { chain: [], path: "/" });
+			flatten(endpoints, link.handler(module), { chain: [], path: "/" });
 
 			continue;
 		}
