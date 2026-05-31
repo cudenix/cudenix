@@ -83,7 +83,7 @@ export interface Module<
 		const GroupReturn extends AnyModule,
 		const GroupPrefix extends `/${string}` = "/",
 	>(
-		group: GroupFn<
+		handler: GroupFn<
 			Module<
 				Errors,
 				MergePaths<Prefix, GroupPrefix>,
@@ -108,11 +108,7 @@ export interface Module<
 			AnyError | AnySuccess | void
 		> = undefined,
 	>(
-		middleware: MiddlewareFn<
-			MiddlewareReturn,
-			Stores,
-			Validators["outputs"]
-		>,
+		handler: MiddlewareFn<MiddlewareReturn, Stores, Validators["outputs"]>,
 	): Module<
 		MergeErrors<Errors, TransformError<FilterError<MiddlewareReturn>>>,
 		Prefix,
@@ -226,7 +222,7 @@ export interface Module<
 		: never;
 	routes: Routes;
 	store<const StoreReturn extends Record<PropertyKey, unknown> | AnyError>(
-		store: StoreFn<StoreReturn, Stores, Validators["outputs"]>,
+		handler: StoreFn<StoreReturn, Stores, Validators["outputs"]>,
 	): Module<
 		MergeErrors<Errors, TransformError<FilterError<StoreReturn>>>,
 		Prefix,
@@ -307,19 +303,19 @@ export const Module = function (
 
 Module.prototype.group = function (
 	this: AnyModule,
-	group: AnyGroupFn,
+	handler: AnyGroupFn,
 	{ prefix = "" }: AnyGroupOptions = FrozenEmpty,
 ) {
-	this.chain.push({ group, prefix, type: "GROUP" as const });
+	this.chain.push({ handler, prefix, type: "GROUP" as const });
 
 	return this;
 };
 
 Module.prototype.middleware = function (
 	this: AnyModule,
-	middleware: AnyMiddlewareFn,
+	handler: AnyMiddlewareFn,
 ) {
-	this.chain.push({ middleware, type: "MIDDLEWARE" as const });
+	this.chain.push({ handler, type: "MIDDLEWARE" as const });
 
 	return this;
 };
@@ -340,12 +336,12 @@ Module.prototype.route = function (
 	const isFn = typeof handler === "function";
 
 	this.chain.push({
+		handler: isFn
+			? (handler as AnyRouteFn)
+			: () => handler as AnyError | AnySuccess,
 		jit,
 		method,
 		path,
-		route: isFn
-			? (handler as AnyRouteFn)
-			: () => handler as AnyError | AnySuccess,
 		sse: isGenerator(handler as AnyRouteFn),
 		static: !isFn,
 		type: "ROUTE" as const,
@@ -363,8 +359,8 @@ Module.prototype.route = function (
 	return this;
 };
 
-Module.prototype.store = function (this: AnyModule, store: AnyStoreFn) {
-	this.chain.push({ store, type: "STORE" as const });
+Module.prototype.store = function (this: AnyModule, handler: AnyStoreFn) {
+	this.chain.push({ handler, type: "STORE" as const });
 
 	return this;
 };
