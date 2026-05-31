@@ -76,7 +76,7 @@ export type AnyMiddlewareFn = MiddlewareFn<any, any, any>;
  * @example
  * ```typescript
  * const a: Middleware<MaybePromise<void>, {}, {}> = {
- *   middleware: async (_, next) => {
+ *   handler: async (_, next) => {
  *     await next();
  *   },
  *   type: "MIDDLEWARE",
@@ -88,7 +88,7 @@ export interface Middleware<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
-	middleware: MiddlewareFn<Return, Stores, Validators>;
+	handler: MiddlewareFn<Return, Stores, Validators>;
 	type: "MIDDLEWARE";
 }
 

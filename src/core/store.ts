@@ -62,7 +62,7 @@ export type AnyStoreFn = StoreFn<any, any, any>;
  * @example
  * ```typescript
  * const a: Store<{ a: string }, {}, {}> = {
- *   store: () => ({ a: "v1" }),
+ *   handler: () => ({ a: "v1" }),
  *   type: "STORE",
  * };
  * ```
@@ -72,7 +72,7 @@ export interface Store<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
-	store: StoreFn<Return, Stores, Validators>;
+	handler: StoreFn<Return, Stores, Validators>;
 	type: "STORE";
 }
 

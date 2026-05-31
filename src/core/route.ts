@@ -244,7 +244,7 @@ export type AnyRouteFn = RouteFn<any, any, any, any>;
  * @typeParam Path - Route pattern starting with `/`.
  * @typeParam Return - Concrete return type produced by the handler.
  * @typeParam Stores - Cumulative store shape.
- * @typeParam _ValidatorOptions - Per-route validator options, used to refine
+ * @typeParam RouteValidatorOptions - Per-route validator options, used to refine
  *   `Validators` for the handler's typed context.
  * @typeParam Validators - Cumulative per-slot request map.
  * @example
@@ -252,7 +252,7 @@ export type AnyRouteFn = RouteFn<any, any, any, any>;
  * const a: AnyRoute = {
  *   method: "GET",
  *   path: "/a",
- *   route: () => new Success({ a: "v1" }),
+ *   handler: () => new Success({ a: "v1" }),
  *   sse: false,
  *   static: true,
  *   type: "ROUTE",
@@ -264,21 +264,21 @@ export interface Route<
 	Path extends `/${string}`,
 	Return extends MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
 	Stores extends Record<PropertyKey, unknown>,
-	_ValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
+	RouteValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
-	jit?: boolean | undefined;
-	method: Method;
-	path: Path;
-	route: RouteFn<
+	handler: RouteFn<
 		Path,
 		Return,
 		Stores,
 		MergeInferValidatorRequest<
 			Validators,
-			DeepInferValidatorOutput<_ValidatorOptions["request"]>
+			DeepInferValidatorOutput<RouteValidatorOptions["request"]>
 		>
 	>;
+	jit?: boolean | undefined;
+	method: Method;
+	path: Path;
 	sse: boolean;
 	static: boolean;
 	type: "ROUTE";
@@ -349,7 +349,7 @@ export type AnyRouteHandler = RouteHandler<any, any, any, any>;
  *   refines the handler's typed `request` slot via
  *   {@link MergeInferValidatorRequest}.
  *
- * @typeParam _ValidatorOptions - Route-scoped validator options, used to
+ * @typeParam RouteValidatorOptions - Route-scoped validator options, used to
  *   drive the handler's typed context.
  * @example
  * ```typescript
@@ -360,10 +360,10 @@ export type AnyRouteHandler = RouteHandler<any, any, any, any>;
  * ```
  */
 export interface RouteOptions<
-	_ValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
+	RouteValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
 > {
 	jit?: boolean;
-	validator?: _ValidatorOptions;
+	validator?: RouteValidatorOptions;
 }
 
 /**

@@ -85,7 +85,7 @@ export type AnyGroupFn = GroupFn<any, any>;
  * @example
  * ```typescript
  * const group: Group<AnyModule, "/v1", AnyModule> = {
- *   group: (module) => module.route("GET", "/a", () => new Success("v1")),
+ *   handler: (module) => module.route("GET", "/a", () => new Success("v1")),
  *   prefix: "/v1",
  *   type: "GROUP",
  * };
@@ -96,7 +96,7 @@ export interface Group<
 	Prefix extends `/${string}`,
 	Return extends AnyModule,
 > {
-	group: GroupFn<Module, Return>;
+	handler: GroupFn<Module, Return>;
 	prefix: Prefix;
 	type: "GROUP";
 }
