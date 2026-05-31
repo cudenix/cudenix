@@ -20,7 +20,7 @@ export const dispatch = async (
 		}
 
 		if (link.type === "MIDDLEWARE") {
-			const returned = await link.middleware(context, () =>
+			const returned = await link.handler(context, () =>
 				dispatch(endpoint, request, context, chain, i + 1),
 			);
 
@@ -32,7 +32,7 @@ export const dispatch = async (
 		}
 
 		if (link.type === "STORE") {
-			const returned = await link.store(context);
+			const returned = await link.handler(context);
 
 			if (returned instanceof Error) {
 				context.response.content = returned;
@@ -90,5 +90,5 @@ export const dispatch = async (
 		}
 	}
 
-	context.response.content = await endpoint.route.route(context);
+	context.response.content = await endpoint.route.handler(context);
 };
