@@ -15,11 +15,33 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
  * regular expressions, and register the static fast paths on the Bun router.
  */
 
+/**
+ * Recursion state `flatten` threads down the module tree — the
+ * middleware/store/validator {@link Chain} inherited from enclosing modules and
+ * the path prefix built up from their merged prefixes.
+ */
 interface FlattenInherited {
 	chain: Chain;
 	path: `/${string}`;
 }
 
+/**
+ * Recursively flatten a module subtree into `endpoints`, keyed by HTTP method.
+ * Walks `module.chain` in order, accumulating middleware/store/validator links
+ * and the path prefix as it descends, and for every route link emits an
+ * {@link Endpoint} carrying the chain that leads up to it. Mounted sub-modules
+ * (`MODULE`) are flattened with the chain so far and bubble their own chain and
+ * path back up; a group (`GROUP`) seeds a fresh inner module with that chain but
+ * does not fold the group's own links back, keeping them scoped to the group.
+ *
+ * Mutates `endpoints` in place; the returned `{ chain, path }` is what a parent
+ * `MODULE` link folds back into its own accumulation.
+ *
+ * @param endpoints - Per-method endpoint accumulator, populated in place.
+ * @param module - Module whose `chain` is flattened.
+ * @param inherited - Chain and path prefix carried down from enclosing modules.
+ * @returns The chain and path accumulated from this subtree.
+ */
 const flatten = (
 	endpoints: Record<HttpMethod, Endpoint[]>,
 	module: AnyModule,
@@ -105,23 +127,19 @@ const flatten = (
 };
 
 /**
- * Compile an app's module chain into the runtime routing tables. Flattens the
+ * Compile an app's module tree into the runtime routing tables. Flattens the
  * nested {@link Cudenix} module — descending into groups and mounted
  * sub-modules — into a flat list of {@link Endpoint}s per HTTP method, each
  * carrying the cumulative middleware/store/validator chain that leads up to
  * its route. Backs `app.compile()`, so it runs once before the server starts
  * serving requests.
  *
- * For every method it compiles each endpoint's path with {@link pathToRegexp},
- * records the `paramKeys`/`restKeys`/`matchOffset` needed to read captures back
- * from a combined match, and concatenates the sources into one alternation
- * regular expression stored on `app.methods`. Endpoints whose path is fully
- * static — no optional (`?`) or rest (`...`) segments — are additionally
- * registered on `app.routes` as direct Bun route handlers and tagged
- * `router: "bun"`, letting Bun match them ahead of the regex fallback.
- *
- * Mutates `app` in place (`app.methods` and `app.routes`) and returns nothing;
- * `app.jit` seeds the per-route JIT default when a route does not override it.
+ * Populates `app.methods` with one per-method table — its endpoints folded
+ * under a single merged matching regexp. Every fully-static endpoint — no
+ * optional (`?`) or rest (`...`) segment — is also registered on `app.routes`
+ * as a direct Bun handler tagged `router: "bun"`, so Bun matches those ahead of
+ * the regexp fallback. Mutates `app` in place; `app.jit` seeds the per-route
+ * JIT default when a route does not override it.
  *
  * @param app - App whose `memory.module` chain is compiled. Its `methods` and
  *   `routes` are populated in place.
