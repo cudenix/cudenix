@@ -227,15 +227,17 @@ export type AnyRouteFn = RouteFn<any, any, any, any>;
  *
  * Fields:
  *
- * - `jit` — opt-in per-route JIT compilation override. Unset falls back to
- *   the app-level default.
- * - `route` — the always-callable handler. A static envelope handed to
+ * - `handler` — the always-callable handler. A static envelope handed to
  *   `module.route` is wrapped in a function that returns it before it lands
  *   here.
+ * - `jit` — opt-in per-route JIT compilation override. Unset falls back to
+ *   the app-level default.
+ * - `method` — HTTP verb the route binds to.
+ * - `path` — route pattern starting with `/`.
  * - `sse` — `true` when the handler was a `function*`/`async function*`,
  *   so the dispatcher iterates frames into the SSE encoder.
  * - `static` — `true` when the handler was registered as a value, not a
- *   function; pairs with the wrapped `route` above.
+ *   function; pairs with the wrapped `handler` above.
  * - `type` — `"ROUTE"` discriminant the chain walker dispatches on.
  * - `validator` — optional per-route compiled {@link AnyValidator} whose
  *   output threads into the handler's typed `request`.
