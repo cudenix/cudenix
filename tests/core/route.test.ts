@@ -916,9 +916,16 @@ describe("RouteHandler", () => {
 		});
 
 		test("should be usable as a function parameter type", () => {
-			expectTypeOf<
-				(handler: AnyRouteHandler) => AnyRouteHandler
-			>().toExtend<(handler: AnyRouteHandler) => AnyRouteHandler>();
+			expectTypeOf<(handler: AnyRouteHandler) => void>().toExtend<
+				(
+					handler: RouteHandler<
+						"/a",
+						MaybePromise<AnySuccess>,
+						NonNullable<unknown>,
+						NonNullable<unknown>
+					>,
+				) => void
+			>();
 		});
 
 		test("should be usable as an array element type", () => {
