@@ -9,7 +9,7 @@ import type { AnyModule } from "@/core/module";
  */
 
 /**
- * Options accepted by `module.group()`. The `prefix` is concatenated with the
+ * Options accepted by `module.group`. The `prefix` is concatenated with the
  * parent module's prefix when the inner module is mounted; omit it to keep the
  * inner routes at the parent's root.
  *
@@ -28,8 +28,10 @@ export interface GroupOptions<Prefix extends `/${string}`> {
 }
 
 /**
- * Erased {@link GroupOptions} for runtime call sites that do not need to
- * preserve the literal prefix.
+ * Wildcard alias matching any {@link GroupOptions} regardless of its prefix
+ * parameter. Reach for it where the concrete prefix is erased — for example,
+ * the runtime body of `module.group`, which destructures `prefix` without
+ * caring about its literal type.
  *
  * @example
  * ```typescript
@@ -58,8 +60,10 @@ export type GroupFn<Module extends AnyModule, Return extends AnyModule> = (
 ) => Return;
 
 /**
- * Erased {@link GroupFn} for chain storage and runtime dispatch — keeps the
- * structural shape without carrying the inner module's full generic baggage.
+ * Wildcard alias matching any {@link GroupFn} regardless of its module or
+ * return generics. Reach for it in chain storage and runtime dispatch where
+ * the concrete generics are irrelevant — for example, the `handler` parameter
+ * of the runtime `module.group`.
  *
  * @example
  * ```typescript
@@ -69,22 +73,23 @@ export type GroupFn<Module extends AnyModule, Return extends AnyModule> = (
 export type AnyGroupFn = GroupFn<any, any>;
 
 /**
- * Chain link emitted by `module.group()`. The compiler walks the parent's
+ * Compiled group descriptor pushed onto the chain by `module.group`. Pairs
+ * the user-supplied {@link GroupFn} with a `"GROUP"` discriminator so the
+ * chain walker can dispatch on link kind. The compiler walks the parent's
  * chain, instantiates an inner module that inherits the parent's prior links
- * (so prior middlewares and `.mount()` cascades still apply), and hands it
- * to {@link GroupFn} to gather routes. Anything the factory adds stays inside
- * the group — it is not appended to the parent's chain, so siblings declared
+ * (so prior middlewares and `.mount()` cascades still apply), and hands it to
+ * the factory to gather routes. Anything the factory adds stays inside the
+ * group — it is not appended to the parent's chain, so siblings declared
  * after the group are not affected.
  *
- * The `type: "GROUP"` discriminator is what the chain walker matches on — do
- * not change it manually.
+ * Built by the framework — application code rarely constructs one directly.
  *
  * @typeParam Module - Inner module type passed to the factory.
  * @typeParam Prefix - Subtree prefix mounted under the parent.
  * @typeParam Return - Inner module type the factory returns.
  * @example
  * ```typescript
- * const group: Group<AnyModule, "/v1", AnyModule> = {
+ * const a: Group<AnyModule, "/v1", AnyModule> = {
  *   handler: (module) => module.route("GET", "/a", () => new Success("v1")),
  *   prefix: "/v1",
  *   type: "GROUP",
@@ -102,12 +107,13 @@ export interface Group<
 }
 
 /**
- * Erased {@link Group} for chain arrays and runtime helpers that store mixed
- * link types side-by-side.
+ * Wildcard alias matching any {@link Group} regardless of its module, prefix,
+ * or return generics. Reach for it in chain arrays and runtime helpers that
+ * store mixed link kinds side-by-side.
  *
  * @example
  * ```typescript
- * const links: AnyGroup[] = [];
+ * const a: AnyGroup[] = [];
  * ```
  */
 export type AnyGroup = Group<any, any, any>;
