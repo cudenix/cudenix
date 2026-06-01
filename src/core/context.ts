@@ -73,8 +73,8 @@ export type AnyDeveloperContext = DeveloperContext<any, any>;
  * ```typescript
  * const a: ContextResponse = {
  *   content: new Success({ a: "v1" }),
- *   cookies: {},
- *   headers: { "content-type": "application/json" },
+ *   cookies: { b: "v2" },
+ *   headers: { c: "v3" },
  * };
  * ```
  */
