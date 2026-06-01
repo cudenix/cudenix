@@ -8,6 +8,13 @@ import { pushAll } from "@/utils/arrays/push-all";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 
+/**
+ * @module
+ * Compile a Cudenix app's module tree into the runtime routing tables —
+ * flatten the nested chain into per-method endpoints, build the matching
+ * regular expressions, and register the static fast paths on the Bun router.
+ */
+
 interface FlattenInherited {
 	chain: Chain;
 	path: `/${string}`;
@@ -97,6 +104,39 @@ const flatten = (
 	return { chain, path };
 };
 
+/**
+ * Compile an app's module chain into the runtime routing tables. Flattens the
+ * nested {@link Cudenix} module — descending into groups and mounted
+ * sub-modules — into a flat list of {@link Endpoint}s per HTTP method, each
+ * carrying the cumulative middleware/store/validator chain that leads up to
+ * its route. Backs `app.compile()`, so it runs once before the server starts
+ * serving requests.
+ *
+ * For every method it compiles each endpoint's path with {@link pathToRegexp},
+ * records the `paramKeys`/`restKeys`/`matchOffset` needed to read captures back
+ * from a combined match, and concatenates the sources into one alternation
+ * regular expression stored on `app.methods`. Endpoints whose path is fully
+ * static — no optional (`?`) or rest (`...`) segments — are additionally
+ * registered on `app.routes` as direct Bun route handlers and tagged
+ * `router: "bun"`, letting Bun match them ahead of the regex fallback.
+ *
+ * Mutates `app` in place (`app.methods` and `app.routes`) and returns nothing;
+ * `app.jit` seeds the per-route JIT default when a route does not override it.
+ *
+ * @param app - App whose `memory.module` chain is compiled. Its `methods` and
+ *   `routes` are populated in place.
+ * @example
+ * ```typescript
+ * const a = new Cudenix(
+ *   new Module().route("GET", "/a", () => new Success("v1")),
+ * );
+ *
+ * compile(a);
+ *
+ * a.methods.GET; // { endpoints: [...], regexp: /.../ }
+ * a.routes["/a"]; // { GET: (request) => ... }
+ * ```
+ */
 export const compile = (app: Cudenix) => {
 	const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
 	const jit = app.jit;
