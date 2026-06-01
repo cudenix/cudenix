@@ -3,7 +3,7 @@ import type { MaybePromise } from "@/types/maybe-promise";
 
 /**
  * @module
- * Validator types: the runtime plugin contract used to validate each request
+ * Validator types — the runtime plugin contract used to validate each request
  * slot, the type-level helpers that infer inputs, outputs, and errors from
  * user schemas, and the compiled descriptor stored on the chain.
  */
@@ -165,8 +165,8 @@ export type MergeInferValidatorRequest<
  * defaults to `unknown` so a partial declaration can refine only the slots
  * it cares about and leave the rest opaque for later steps to narrow.
  *
- * The same key set drives the runtime: `processValidators` iterates these
- * slots in registration order and writes the parsed value back onto
+ * The same key set drives the runtime: the chain walker iterates the slots a
+ * validator declares and writes each parsed value back onto
  * `context.request[slot]`.
  *
  * @typeParam Body - Parsed request body.
@@ -197,7 +197,7 @@ export interface ValidatorRequest<
 /**
  * Compiled validator descriptor stored on the chain. Produced by
  * `module.validator` (or the per-route `validator` option) from a
- * {@link ValidatorOptions} argument, then consumed by `processValidators`
+ * {@link ValidatorOptions} argument, then consumed by the chain walker
  * at request time.
  *
  * `keys` is pre-extracted from `request` so the runtime can iterate slots
@@ -225,6 +225,11 @@ export interface Validator<Request extends Partial<ValidatorRequest>> {
  * Wildcard alias matching any {@link Validator} regardless of its request
  * shape. Reach for it in container or chain types where the concrete schemas
  * are irrelevant — for example, the union of link kinds walked by the chain.
+ *
+ * @example
+ * ```typescript
+ * const a: AnyValidator[] = [];
+ * ```
  */
 export type AnyValidator = Validator<any>;
 
@@ -251,5 +256,10 @@ export interface ValidatorOptions<Request extends Partial<ValidatorRequest>> {
  * request shape. Used where the concrete schemas are irrelevant — for
  * example, the runtime body of `module.validator`, which only reads
  * `Object.keys(options.request)`.
+ *
+ * @example
+ * ```typescript
+ * const fn = (options: AnyValidatorOptions) => Object.keys(options.request);
+ * ```
  */
 export type AnyValidatorOptions = ValidatorOptions<any>;
