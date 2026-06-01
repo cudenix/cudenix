@@ -30,12 +30,13 @@ interface FlattenInherited {
  * Walks `module.chain` in order, accumulating middleware/store/validator links
  * and the path prefix as it descends, and for every route link emits an
  * {@link Endpoint} carrying the chain that leads up to it. Mounted sub-modules
- * (`MODULE`) are flattened with the chain so far and bubble their own chain and
- * path back up; a group (`GROUP`) seeds a fresh inner module with that chain but
- * does not fold the group's own links back, keeping them scoped to the group.
+ * (`"MODULE"`) are flattened with the chain so far and bubble their own chain
+ * and path back up; a group (`"GROUP"`) seeds a fresh inner module with that
+ * chain but does not fold the group's own links back, keeping them scoped to
+ * the group.
  *
  * Mutates `endpoints` in place; the returned `{ chain, path }` is what a parent
- * `MODULE` link folds back into its own accumulation.
+ * `"MODULE"` link folds back into its own accumulation.
  *
  * @param endpoints - Per-method endpoint accumulator, populated in place.
  * @param module - Module whose `chain` is flattened.
@@ -135,11 +136,11 @@ const flatten = (
  * serving requests.
  *
  * Populates `app.methods` with one per-method table — its endpoints folded
- * under a single merged matching regexp. Every fully-static endpoint — no
- * optional (`?`) or rest (`...`) segment — is also registered on `app.routes`
- * as a direct Bun handler tagged `router: "bun"`, so Bun matches those ahead of
- * the regexp fallback. Mutates `app` in place; `app.jit` seeds the per-route
- * JIT default when a route does not override it.
+ * under a single merged matching regexp. Every endpoint static enough for
+ * Bun's own router — no optional (`?`) or rest (`...`) segment — is also
+ * registered on `app.routes` as a direct Bun handler tagged `router: "bun"`,
+ * so Bun matches those ahead of the regexp fallback. Mutates `app` in place;
+ * `app.jit` seeds the per-route JIT default when a route does not override it.
  *
  * @param app - App whose `memory.module` chain is compiled. Its `methods` and
  *   `routes` are populated in place.
