@@ -4,9 +4,7 @@
  */
 
 const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
-
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
-
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
 
 /**
