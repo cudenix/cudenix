@@ -14,7 +14,7 @@ describe("Cudenix.InferValidatorInput", () => {
 			}>();
 		});
 
-		test("should fall back to the shared type when only the input generic is set", () => {
+		test("should resolve the input from a schema declaring only the input generic", () => {
 			interface A extends StandardSchemaV1<{ a: string }> {}
 
 			expectTypeOf<Cudenix.InferValidatorInput<A>>().toEqualTypeOf<{
