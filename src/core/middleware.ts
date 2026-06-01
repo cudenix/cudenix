@@ -1,7 +1,7 @@
 import type { DeveloperContext } from "@/core/context";
 import type { AnyError } from "@/core/error";
 import type { AnySuccess } from "@/core/success";
-import type { MaybePromise } from "@/types/maybe-promise";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
  * @module

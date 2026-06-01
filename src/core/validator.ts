@@ -1,5 +1,5 @@
 import type { Error } from "@/core/error";
-import type { MaybePromise } from "@/types/maybe-promise";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
  * @module

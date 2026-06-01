@@ -1,5 +1,5 @@
-import type { ExtractContent } from "@/types/extract-content";
 import { FrozenEmpty } from "@/utils/objects/empty";
+import type { ExtractContent } from "@/utils/types/extract-content";
 
 /**
  * @module

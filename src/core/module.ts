@@ -46,15 +46,15 @@ import type {
 	ValidatorOptions,
 	ValidatorRequest,
 } from "@/core/validator";
-import type { AllPropertiesAreUnknown } from "@/types/all-properties-are-unknown";
-import type { ExtractUrlParams } from "@/types/extract-url-params";
-import type { HttpMethod } from "@/types/http-method";
-import type { MaybePromise } from "@/types/maybe-promise";
-import type { MergePaths } from "@/types/merge-paths";
-import type { RequiredKeys } from "@/types/required-keys";
-import type { ValueOf } from "@/types/value-of";
 import { isGenerator } from "@/utils/functions/is-generator";
 import { FrozenEmpty } from "@/utils/objects/empty";
+import type { AllPropertiesAreUnknown } from "@/utils/types/all-properties-are-unknown";
+import type { ExtractUrlParams } from "@/utils/types/extract-url-params";
+import type { HttpMethod } from "@/utils/types/http-method";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
+import type { MergePaths } from "@/utils/types/merge-paths";
+import type { RequiredKeys } from "@/utils/types/required-keys";
+import type { ValueOf } from "@/utils/types/value-of";
 
 /**
  * @module

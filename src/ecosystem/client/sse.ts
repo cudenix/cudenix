@@ -1,4 +1,4 @@
-import type { AnyGeneratorSSE } from "@/types/generator-sse";
+import type { AnyGeneratorSSE } from "@/utils/types/generator-sse";
 
 export type SSE<Generator extends AnyGeneratorSSE> = Omit<
 	EventSource,

@@ -6,10 +6,10 @@ import type { AnyModule } from "@/core/module";
 import type { AnyRoute } from "@/core/route";
 import type { AnyStore } from "@/core/store";
 import type { AnyValidator } from "@/core/validator";
-import type { HttpMethod } from "@/types/http-method";
-import type { MaybePromise } from "@/types/maybe-promise";
 import { pushAll } from "@/utils/arrays/push-all";
 import { Empty, FrozenEmpty } from "@/utils/objects/empty";
+import type { HttpMethod } from "@/utils/types/http-method";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
  * @module

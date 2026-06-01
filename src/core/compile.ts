@@ -2,11 +2,11 @@ import { Context } from "@/core/context";
 import type { Chain, Cudenix, Endpoint } from "@/core/cudenix";
 import { dispatch } from "@/core/dispatch";
 import { type AnyModule, Module } from "@/core/module";
-import type { HttpMethod } from "@/types/http-method";
 import { cloneAppend } from "@/utils/arrays/clone-append";
 import { pushAll } from "@/utils/arrays/push-all";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
+import type { HttpMethod } from "@/utils/types/http-method";
 
 /**
  * @module

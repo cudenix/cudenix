@@ -2,11 +2,11 @@ import type { AnyError } from "@/core/error";
 import type { AnyModule } from "@/core/module";
 import type { AnySuccess } from "@/core/success";
 import type { SSE } from "@/ecosystem/client/sse";
-import type { ConditionallyOptional } from "@/types/conditionally-optional";
-import type { AnyGeneratorSSE } from "@/types/generator-sse";
-import type { MaybeFunction } from "@/types/maybe-function";
-import type { Merge } from "@/types/merge";
 import { Empty, FrozenEmpty } from "@/utils/objects/empty";
+import type { ConditionallyOptional } from "@/utils/types/conditionally-optional";
+import type { AnyGeneratorSSE } from "@/utils/types/generator-sse";
+import type { MaybeFunction } from "@/utils/types/maybe-function";
+import type { Merge } from "@/utils/types/merge";
 
 const PARAM_REGEX_REPLACE = /\/:(\w+\??)/g;
 const SPREAD_REGEX_REPLACE = /\/\.{3}(\w+\??)/g;

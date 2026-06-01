@@ -8,10 +8,10 @@ import type {
 	ValidatorOptions,
 	ValidatorRequest,
 } from "@/core/validator";
-import type { ExtractUrlParams } from "@/types/extract-url-params";
-import type { GeneratorSSE } from "@/types/generator-sse";
-import type { HttpMethod } from "@/types/http-method";
-import type { MaybePromise } from "@/types/maybe-promise";
+import type { ExtractUrlParams } from "@/utils/types/extract-url-params";
+import type { GeneratorSSE } from "@/utils/types/generator-sse";
+import type { HttpMethod } from "@/utils/types/http-method";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
  * @module
