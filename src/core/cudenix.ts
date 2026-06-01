@@ -132,10 +132,9 @@ export interface MethodData {
 export type Plugin = (...options: any[]) => void;
 
 /**
- * Options accepted by the {@link Cudenix} constructor.
- *
- * - `jit` — app-wide default for per-route JIT compilation, used whenever a
- *   route does not set its own override. Defaults to `true`.
+ * Options accepted by the {@link Cudenix} constructor. The `jit` flag sets the
+ * app-wide default for per-route JIT compilation, applied whenever a route does
+ * not set its own override. Defaults to `true` when omitted.
  *
  * @example
  * ```typescript
@@ -151,6 +150,16 @@ export interface CudenixOptions {
  * serve, and extend the app plus the run-time state the dispatcher reads. An
  * application builds one with `new Cudenix(module)`, then either drives it
  * through `.fetch()` directly or hands control to Bun via `.listen()`.
+ *
+ * Methods:
+ *
+ * - `compile` — flatten the root module into the `methods` and `routes` tables
+ *   and run every registered {@link Plugin}; `.listen()` calls it for you.
+ * - `fetch` — resolve a `Request` to a `Response`, matching it against the
+ *   compiled tables and dispatching the endpoint's chain.
+ * - `listen` — compile, then start serving through `Bun.serve`.
+ * - `plugins` — register {@link Plugin} hooks to run during the next
+ *   `.compile()`.
  *
  * Fields:
  *
