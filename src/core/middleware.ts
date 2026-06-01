@@ -14,9 +14,9 @@ import type { MaybePromise } from "@/types/maybe-promise";
  * carrying the stores and validator outputs visible at this point in the
  * chain, plus a `next` continuation that advances the chain when invoked.
  *
- * Return one of three shapes: an {@link AnyError} or {@link AnySuccess} to
- * short-circuit and become the response (overriding whatever downstream
- * produced), or `void` to defer the outcome to the rest of the chain. Skip
+ * Return one of three shapes: an {@link AnyError} or {@link AnySuccess}
+ * becomes the response — overriding whatever downstream produced — while
+ * `void` defers the outcome to the rest of the chain. Skip
  * the `next` call to halt the chain and keep control entirely. Sync and async
  * functions are both accepted; async returns are awaited before the
  * surrounding step continues.
