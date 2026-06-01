@@ -5,6 +5,7 @@ export * from "@/core/dispatch";
 export * from "@/core/error";
 export * from "@/core/global";
 export * from "@/core/group";
+export * from "@/core/jit";
 export * from "@/core/middleware";
 export * from "@/core/module";
 export * from "@/core/response";

@@ -1,6 +1,7 @@
 import type { AnyContext } from "@/core/context";
 import type { Chain, Endpoint } from "@/core/cudenix";
 import { Error } from "@/core/error";
+import { jit } from "@/core/jit";
 import { response } from "@/core/response";
 import type { ValidatorPlugin } from "@/core/validator";
 import { Empty } from "@/utils/objects/empty";
@@ -102,6 +103,8 @@ export const dispatch = async (
 	index: number,
 ) => {
 	await walk(endpoint, request, context, chain, index);
+
+	void jit();
 
 	return response(context.response.content);
 };
