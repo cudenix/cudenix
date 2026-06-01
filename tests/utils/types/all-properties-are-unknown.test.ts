@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { AllPropertiesAreUnknown } from "@/types/all-properties-are-unknown";
+import type { AllPropertiesAreUnknown } from "@/utils/types/all-properties-are-unknown";
 
 describe("AllPropertiesAreUnknown", () => {
 	describe("homogeneous unknown shapes", () => {

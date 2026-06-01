@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { ValueOf } from "@/types/value-of";
+import type { ValueOf } from "@/utils/types/value-of";
 
 describe("ValueOf", () => {
 	describe("plain dictionaries", () => {

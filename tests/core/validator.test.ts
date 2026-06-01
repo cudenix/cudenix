@@ -15,8 +15,8 @@ import type {
 	ValidatorPlugin,
 	ValidatorRequest,
 } from "@/core/validator";
-import type { MaybePromise } from "@/types/maybe-promise";
-import type { StandardSchemaV1 } from "@/types/standard-schema";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
+import type { StandardSchemaV1 } from "@/utils/types/standard-schema";
 
 describe("ValidatorPlugin", () => {
 	describe("signature", () => {

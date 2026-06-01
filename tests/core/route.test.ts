@@ -21,9 +21,9 @@ import type {
 } from "@/core/route";
 import type { AnySuccess } from "@/core/success";
 import type { AnyValidator, ValidatorOptions } from "@/core/validator";
-import type { GeneratorSSE } from "@/types/generator-sse";
-import type { MaybePromise } from "@/types/maybe-promise";
-import type { RequiredKeys } from "@/types/required-keys";
+import type { GeneratorSSE } from "@/utils/types/generator-sse";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
+import type { RequiredKeys } from "@/utils/types/required-keys";
 
 describe("PathToObject", () => {
 	describe("structural shape", () => {

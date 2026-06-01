@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { ExtractContent } from "@/types/extract-content";
+import type { ExtractContent } from "@/utils/types/extract-content";
 
 describe("ExtractContent", () => {
 	describe("value passthrough", () => {

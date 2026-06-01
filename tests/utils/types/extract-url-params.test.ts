@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { ExtractUrlParams } from "@/types/extract-url-params";
+import type { ExtractUrlParams } from "@/utils/types/extract-url-params";
 
 describe("ExtractUrlParams", () => {
 	describe("root path '/'", () => {

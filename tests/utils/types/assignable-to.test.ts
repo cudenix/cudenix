@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { AssignableTo } from "@/types/assignable-to";
+import type { AssignableTo } from "@/utils/types/assignable-to";
 
 describe("AssignableTo", () => {
 	describe("identical primitive types", () => {

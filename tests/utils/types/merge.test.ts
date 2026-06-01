@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { Merge } from "@/types/merge";
+import type { Merge } from "@/utils/types/merge";
 
 describe("Merge", () => {
 	describe("with empty operands", () => {

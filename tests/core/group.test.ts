@@ -9,7 +9,7 @@ import type {
 	GroupOptions,
 } from "@/core/group";
 import type { AnyModule } from "@/core/module";
-import type { RequiredKeys } from "@/types/required-keys";
+import type { RequiredKeys } from "@/utils/types/required-keys";
 
 describe("GroupOptions", () => {
 	describe("structural shape", () => {

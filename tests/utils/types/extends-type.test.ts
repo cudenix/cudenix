@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { ExtendsType } from "@/types/extends-type";
+import type { ExtendsType } from "@/utils/types/extends-type";
 
 describe("ExtendsType", () => {
 	describe("primitive types", () => {

@@ -9,8 +9,8 @@ import type {
 	MiddlewareFn,
 } from "@/core/middleware";
 import type { AnySuccess } from "@/core/success";
-import type { MaybePromise } from "@/types/maybe-promise";
-import type { RequiredKeys } from "@/types/required-keys";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
+import type { RequiredKeys } from "@/utils/types/required-keys";
 
 describe("MiddlewareFn", () => {
 	describe("call signature", () => {

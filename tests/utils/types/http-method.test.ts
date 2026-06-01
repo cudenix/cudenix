@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { HttpMethod } from "@/types/http-method";
+import type { HttpMethod } from "@/utils/types/http-method";
 
 describe("HttpMethod", () => {
 	describe("custom verbs via the string brand", () => {

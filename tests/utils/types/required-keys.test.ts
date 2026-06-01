@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { RequiredKeys } from "@/types/required-keys";
+import type { RequiredKeys } from "@/utils/types/required-keys";
 
 describe("RequiredKeys", () => {
 	describe("plain required properties", () => {

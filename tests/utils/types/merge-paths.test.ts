@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { MergePaths } from "@/types/merge-paths";
+import type { MergePaths } from "@/utils/types/merge-paths";
 
 describe("MergePaths", () => {
 	describe("typical concatenation", () => {

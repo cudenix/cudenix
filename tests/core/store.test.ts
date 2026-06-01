@@ -3,8 +3,8 @@ import { describe, expectTypeOf, test } from "bun:test";
 import type { DeveloperContext } from "@/core/context";
 import type { AnyError } from "@/core/error";
 import type { AnyStore, AnyStoreFn, Store, StoreFn } from "@/core/store";
-import type { MaybePromise } from "@/types/maybe-promise";
-import type { RequiredKeys } from "@/types/required-keys";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
+import type { RequiredKeys } from "@/utils/types/required-keys";
 
 describe("StoreFn", () => {
 	describe("call signature", () => {

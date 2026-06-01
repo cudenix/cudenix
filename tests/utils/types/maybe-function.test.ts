@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { MaybeFunction } from "@/types/maybe-function";
+import type { MaybeFunction } from "@/utils/types/maybe-function";
 
 describe("MaybeFunction", () => {
 	describe("direct-value branch", () => {

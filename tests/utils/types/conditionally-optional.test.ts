@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { ConditionallyOptional } from "@/types/conditionally-optional";
+import type { ConditionallyOptional } from "@/utils/types/conditionally-optional";
 
 describe("ConditionallyOptional", () => {
 	describe("`undefined` marker on a single key", () => {

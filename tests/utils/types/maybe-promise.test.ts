@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { MaybePromise } from "@/types/maybe-promise";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 describe("MaybePromise", () => {
 	describe("direct-value branch", () => {

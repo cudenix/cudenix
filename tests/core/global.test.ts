@@ -1,7 +1,7 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
 import "@/core/global";
-import type { StandardSchemaV1 } from "@/types/standard-schema";
+import type { StandardSchemaV1 } from "@/utils/types/standard-schema";
 
 describe("Cudenix.InferValidatorInput", () => {
 	describe("schema slots", () => {

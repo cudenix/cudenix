@@ -2,8 +2,11 @@ import { describe, expectTypeOf, test } from "bun:test";
 
 import type { AnyError, Error } from "@/core/error";
 import type { AnySuccess, Success } from "@/core/success";
-import type { AnyGeneratorSSE, GeneratorSSE } from "@/types/generator-sse";
-import type { RequiredKeys } from "@/types/required-keys";
+import type {
+	AnyGeneratorSSE,
+	GeneratorSSE,
+} from "@/utils/types/generator-sse";
+import type { RequiredKeys } from "@/utils/types/required-keys";
 
 describe("GeneratorSSE", () => {
 	describe("minimal frame", () => {

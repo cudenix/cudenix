@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { ConditionallyOmit } from "@/types/conditionally-omit";
+import type { ConditionallyOmit } from "@/utils/types/conditionally-omit";
 
 describe("ConditionallyOmit", () => {
 	describe("with marker `never`", () => {
