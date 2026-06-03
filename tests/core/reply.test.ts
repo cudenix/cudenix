@@ -474,6 +474,12 @@ describe("Success", () => {
 			>().not.toEqualTypeOf<boolean>();
 		});
 
+		test("should unwrap a function-typed content to its return type", () => {
+			expectTypeOf<
+				Success<() => "v1">["content"]
+			>().toEqualTypeOf<"v1">();
+		});
+
 		test("should await a promise-returning content factory", () => {
 			expectTypeOf<Success<() => Promise<"v1">>>().toEqualTypeOf<{
 				content: "v1";
@@ -539,6 +545,10 @@ describe("ReplyOptions", () => {
 
 		test("should preserve a custom status literal", () => {
 			expectTypeOf<ReplyOptions<201>>().toEqualTypeOf<{ status?: 201 }>();
+		});
+
+		test("should default the status parameter to number when omitted", () => {
+			expectTypeOf<ReplyOptions>().toEqualTypeOf<{ status?: number }>();
 		});
 
 		test("should accept options that omit the status field", () => {
@@ -863,6 +873,27 @@ describe("MergeSuccesses", () => {
 				200: { content: ["a"] | ["b"]; status: 200; success: true };
 			}>();
 		});
+
+		test("should keep inner keys exclusive to one side", () => {
+			expectTypeOf<
+				MergeSuccesses<{ 200: { a: 1 } }, { 200: { b: 2 } }>
+			>().branded.toEqualTypeOf<{ 200: { a: 1; b: 2 } }>();
+		});
+	});
+
+	describe("with shared and disjoint statuses combined", () => {
+		test("should union shared entries and pass first-only and second-only entries through", () => {
+			expectTypeOf<
+				MergeSuccesses<
+					{ 200: { a: 1 }; 201: { b: 2 } },
+					{ 200: { a: 2 }; 202: { c: 3 } }
+				>
+			>().branded.toEqualTypeOf<{
+				200: { a: 1 | 2 };
+				201: { b: 2 };
+				202: { c: 3 };
+			}>();
+		});
 	});
 
 	describe("idempotence", () => {
@@ -872,6 +903,13 @@ describe("MergeSuccesses", () => {
 			}
 
 			expectTypeOf<MergeSuccesses<A, A>>().branded.toEqualTypeOf<A>();
+		});
+	});
+
+	describe("input constraint", () => {
+		test("should reject a non-object operand at compile time", () => {
+			// @ts-expect-error - operands must extend object
+			type _A = MergeSuccesses<{ 200: { content: "v1" } }, number>;
 		});
 	});
 });
