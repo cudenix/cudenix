@@ -83,6 +83,10 @@ describe("Reply", () => {
 		test("should expose 'Reply' as the constructor name", () => {
 			expect(Reply.name).toBe("Reply");
 		});
+
+		test("should declare two required formal parameters", () => {
+			expect(Reply.length).toBe(2);
+		});
 	});
 
 	describe("invocation contract", () => {
@@ -638,6 +642,12 @@ describe("FilterSuccess", () => {
 				FilterSuccess<Success<"v1", 200> | string | number>
 			>().toEqualTypeOf<Success<"v1", 200>>();
 		});
+
+		test("should keep every success member of a multi-success union", () => {
+			expectTypeOf<
+				FilterSuccess<Success<"v1", 200> | Success<"v2", 201> | string>
+			>().toEqualTypeOf<Success<"v1", 200> | Success<"v2", 201>>();
+		});
 	});
 
 	describe("degenerate inputs", () => {
@@ -745,6 +755,15 @@ describe("TransformSuccess", () => {
 		}>();
 	});
 
+	test("should map every status to the full union without distributing", () => {
+		expectTypeOf<
+			TransformSuccess<Success<"v1", 200> | Success<"v2", 201>>
+		>().branded.toEqualTypeOf<{
+			200: Success<"v1", 200> | Success<"v2", 201>;
+			201: Success<"v1", 200> | Success<"v2", 201>;
+		}>();
+	});
+
 	test("should reject a non-success argument at compile time", () => {
 		// @ts-expect-error - argument must extend AnySuccess
 		type _A = TransformSuccess<Error<"v1", 400>>;
@@ -782,6 +801,21 @@ describe("MergeErrors", () => {
 			expectTypeOf<
 				MergeErrors<{ 400: { a: 1 } }, { 400: { b: 2 } }>
 			>().branded.toEqualTypeOf<{ 400: { a: 1; b: 2 } }>();
+		});
+	});
+
+	describe("with shared and disjoint statuses combined", () => {
+		test("should union shared entries and pass first-only and second-only entries through", () => {
+			expectTypeOf<
+				MergeErrors<
+					{ 400: { a: 1 }; 500: { b: 2 } },
+					{ 400: { a: 2 }; 600: { c: 3 } }
+				>
+			>().branded.toEqualTypeOf<{
+				400: { a: 1 | 2 };
+				500: { b: 2 };
+				600: { c: 3 };
+			}>();
 		});
 	});
 
