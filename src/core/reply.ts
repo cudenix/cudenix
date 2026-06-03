@@ -356,10 +356,11 @@ export interface ReplyConstructor {
 
 /**
  * Low-level constructor for a {@link Reply} envelope. Must be invoked with
- * `new`; assigns `content`, `status`, and `success` verbatim — the three
- * fields the runtime reads when serializing the response. Prefer the
- * {@link ok} / {@link fail} factories, which bind the discriminant and a
- * sensible default status.
+ * `new`; assigns `content`, `status`, and `success` verbatim — the runtime
+ * reads `content` and `status` when serializing the response, while
+ * `success` is the discriminant the dispatcher reads to tell the error
+ * direction apart. Prefer the {@link ok} / {@link fail} factories, which
+ * bind the discriminant and a sensible default status.
  *
  * @param content - Payload assigned to `this.content` verbatim.
  * @param options - Explicit `status` code and `success` discriminant.
