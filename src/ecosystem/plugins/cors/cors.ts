@@ -1,9 +1,9 @@
 import type { AnyDeveloperContext } from "@/core/context";
 import { Module } from "@/core/module";
-import { Success } from "@/core/success";
+import { ok } from "@/core/reply";
 import { FrozenEmpty } from "@/utils/objects/empty";
 
-const OPTIONS_RESPONSE = new Success(undefined, { status: 204 });
+const OPTIONS_RESPONSE = ok(undefined, { status: 204 });
 
 interface CorsOptions {
 	allowHeaders?: string;

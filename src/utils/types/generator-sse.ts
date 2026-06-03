@@ -1,5 +1,4 @@
-import type { AnyError } from "@/core/error";
-import type { AnySuccess } from "@/core/success";
+import type { AnyError, AnySuccess } from "@/core/reply";
 
 /**
  * @module

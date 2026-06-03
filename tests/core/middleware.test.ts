@@ -1,14 +1,13 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
 import type { DeveloperContext } from "@/core/context";
-import type { AnyError } from "@/core/error";
 import type {
 	AnyMiddleware,
 	AnyMiddlewareFn,
 	Middleware,
 	MiddlewareFn,
 } from "@/core/middleware";
-import type { AnySuccess } from "@/core/success";
+import type { AnyError, AnySuccess } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 import type { RequiredKeys } from "@/utils/types/required-keys";
 

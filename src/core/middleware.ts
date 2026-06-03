@@ -1,6 +1,5 @@
 import type { DeveloperContext } from "@/core/context";
-import type { AnyError } from "@/core/error";
-import type { AnySuccess } from "@/core/success";
+import type { AnyError, AnySuccess } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
@@ -35,7 +34,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  *   next,
  * ) => {
  *   if (!context.request.raw.headers.get("a")) {
- *     return new Error("v1", { status: 401 });
+ *     return fail("v1", { status: 401 });
  *   }
  *
  *   return next();

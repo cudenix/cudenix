@@ -1,6 +1,5 @@
 import type { DeveloperContext } from "@/core/context";
-import type { AnyError } from "@/core/error";
-import type { AnySuccess } from "@/core/success";
+import type { AnyError, AnySuccess } from "@/core/reply";
 import type {
 	AnyValidator,
 	DeepInferValidatorOutput,
@@ -100,7 +99,7 @@ export type ParseRoute<
  *
  * @example
  * ```typescript
- * const a: RouteFnReturnGeneratorEnvelope = new Success({ a: "v1" });
+ * const a: RouteFnReturnGeneratorEnvelope = ok({ a: "v1" });
  * ```
  */
 export type RouteFnReturnGeneratorEnvelope = AnyError | AnySuccess;
@@ -113,7 +112,7 @@ export type RouteFnReturnGeneratorEnvelope = AnyError | AnySuccess;
  * @example
  * ```typescript
  * const a: RouteFnReturnGeneratorFrame = {
- *   data: new Success({ a: "v1" }),
+ *   data: ok({ a: "v1" }),
  *   event: "message",
  * };
  * ```
@@ -132,10 +131,10 @@ export type RouteFnReturnGeneratorFrame = GeneratorSSE<
  * @example
  * ```typescript
  * const fn = async function* (): RouteFnReturnGenerator {
- *   yield { data: new Success({ a: "v1" }) };
- *   yield { data: new Success({ a: "v2" }) };
+ *   yield { data: ok({ a: "v1" }) };
+ *   yield { data: ok({ a: "v2" }) };
  *
- *   return new Success({ a: "v3" });
+ *   return ok({ a: "v3" });
  * };
  * ```
  */
@@ -194,7 +193,7 @@ export type ValidatorsWithParams<
  *   MaybePromise<AnySuccess>,
  *   NonNullable<unknown>,
  *   NonNullable<unknown>
- * > = (context) => new Success({ a: context.request.params.p1 });
+ * > = (context) => ok({ a: context.request.params.p1 });
  * ```
  */
 export type RouteFn<
@@ -214,7 +213,7 @@ export type RouteFn<
  * @example
  * ```typescript
  * const fn: AnyRouteFn = (context) =>
- *   new Success({ a: context.request.raw.url });
+ *   ok({ a: context.request.raw.url });
  * ```
  */
 export type AnyRouteFn = RouteFn<any, any, any, any>;
@@ -254,7 +253,7 @@ export type AnyRouteFn = RouteFn<any, any, any, any>;
  * const a: AnyRoute = {
  *   method: "GET",
  *   path: "/a",
- *   handler: () => new Success({ a: "v1" }),
+ *   handler: () => ok({ a: "v1" }),
  *   sse: false,
  *   static: true,
  *   type: "ROUTE",
@@ -316,9 +315,9 @@ export type AnyRoute = Route<any, any, any, any, any, any>;
  *   MaybePromise<AnySuccess>,
  *   NonNullable<unknown>,
  *   NonNullable<unknown>
- * > = (context) => new Success({ a: context.request.params.p1 });
+ * > = (context) => ok({ a: context.request.params.p1 });
  *
- * const a: AnyRouteHandler = new Success({ a: "v1" }); // static form
+ * const a: AnyRouteHandler = ok({ a: "v1" }); // static form
  * ```
  */
 export type RouteHandler<

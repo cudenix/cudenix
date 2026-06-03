@@ -1,6 +1,5 @@
 import type { Cudenix, Endpoint } from "@/core/cudenix";
-import type { AnyError } from "@/core/error";
-import type { AnySuccess } from "@/core/success";
+import type { AnyError, AnySuccess } from "@/core/reply";
 import { Empty } from "@/utils/objects/empty";
 
 /**
@@ -72,7 +71,7 @@ export type AnyDeveloperContext = DeveloperContext<any, any>;
  * @example
  * ```typescript
  * const a: ContextResponse = {
- *   content: new Success({ a: "v1" }),
+ *   content: ok({ a: "v1" }),
  *   cookies: { b: "v2" },
  *   headers: { c: "v3" },
  * };
@@ -108,7 +107,7 @@ export interface ContextResponse {
  * ```typescript
  * const fn = (context: Context<{ a: string }, {}>) => {
  *   context.store.a; // string
- *   context.response.content = new Success({ a: "v1" });
+ *   context.response.content = ok({ a: "v1" });
  * };
  * ```
  */

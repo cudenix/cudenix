@@ -1,6 +1,6 @@
 import type { Cudenix } from "@/core/cudenix";
 import { Module } from "@/core/module";
-import { Success } from "@/core/success";
+import { ok } from "@/core/reply";
 import { scalar } from "@/ecosystem/plugins/openapi/scalar";
 import { Empty, FrozenEmpty } from "@/utils/objects/empty";
 
@@ -256,7 +256,7 @@ export const openapi = ({ path }: OpenapiModuleOptions = FrozenEmpty) => {
 				);
 			}
 
-			return new Success(cachedHtml);
+			return ok(cachedHtml);
 		})
 
 		.route("GET", `${url}/json`, ({ memory, response: { headers } }) => {
@@ -266,6 +266,6 @@ export const openapi = ({ path }: OpenapiModuleOptions = FrozenEmpty) => {
 
 			headers.set("Content-Type", "application/json");
 
-			return new Success(cachedJson);
+			return ok(cachedJson);
 		});
 };

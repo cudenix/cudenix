@@ -1,4 +1,4 @@
-import type { Error } from "@/core/error";
+import type { Error } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**

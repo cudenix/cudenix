@@ -1,6 +1,5 @@
-import type { AnyError } from "@/core/error";
 import type { AnyModule } from "@/core/module";
-import type { AnySuccess } from "@/core/success";
+import type { AnyError, AnySuccess } from "@/core/reply";
 import type { SSE } from "@/ecosystem/client/sse";
 import { Empty, FrozenEmpty } from "@/utils/objects/empty";
 import type { ConditionallyOptional } from "@/utils/types/conditionally-optional";

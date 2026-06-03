@@ -1,5 +1,5 @@
-import { Error } from "@/core/error";
 import { Module } from "@/core/module";
+import { fail } from "@/core/reply";
 import { FrozenEmpty } from "@/utils/objects/empty";
 
 interface TryCatchOptions {
@@ -15,7 +15,7 @@ export const tryCatch = ({ debug = false }: TryCatchOptions = FrozenEmpty) =>
 				console.error(_error);
 			}
 
-			return new Error(_error || "An unknown error has occurred.", {
+			return fail(_error || "An unknown error has occurred.", {
 				status: 500,
 			});
 		}

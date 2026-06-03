@@ -1,6 +1,6 @@
 import { Module } from "@/core/module";
+import { ok } from "@/core/reply";
 import { processResponse } from "@/core/response";
-import { Success } from "@/core/success";
 import { selectHeader } from "@/utils/headers/select-header";
 import { FrozenEmpty } from "@/utils/objects/empty";
 
@@ -112,8 +112,7 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FrozenEmpty) =>
 
 		processedHeaders.set("content-encoding", encodingName);
 
-		response.content = new Success(
-			new Response(compressed, processedResponse),
-			{ status: processedResponse.status },
-		);
+		response.content = ok(new Response(compressed, processedResponse), {
+			status: processedResponse.status,
+		});
 	});

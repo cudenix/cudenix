@@ -18,7 +18,6 @@ export const response = (content: ContextResponse["content"]) => {
 	}
 
 	const inner = content.content;
-	const status = content.status;
 
 	if (inner === null || inner === undefined) {
 		return NOT_CONTENT.clone();
@@ -28,29 +27,11 @@ export const response = (content: ContextResponse["content"]) => {
 		case "Response":
 			return inner as Response;
 
-		case "String":
-		case "ReadableStream":
-		case "Blob":
-		case "File":
-		case "ArrayBuffer":
-		case "DataView":
-		case "Buffer":
-		case "Uint8Array":
-		case "Uint8ClampedArray":
-		case "Int8Array":
-		case "Int16Array":
-		case "Uint16Array":
-		case "Uint32Array":
-		case "Int32Array":
-		case "Float32Array":
-		case "Float64Array":
-		case "BigInt64Array":
-		case "BigUint64Array":
-		case "FormData":
-		case "URLSearchParams":
-			return new Response(inner as BodyInit, { status });
+		case "Array":
+		case "Object":
+			return Response.json(inner, { status: content.status });
 
 		default:
-			return Response.json(inner, { status });
+			return new Response(inner as BodyInit, { status: content.status });
 	}
 };

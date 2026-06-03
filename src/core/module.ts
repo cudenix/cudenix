@@ -1,11 +1,4 @@
 import type {
-	AnyError,
-	FilterError,
-	IgnoreError,
-	MergeErrors,
-	TransformError,
-} from "@/core/error";
-import type {
 	AnyGroup,
 	AnyGroupFn,
 	AnyGroupOptions,
@@ -18,6 +11,17 @@ import type {
 	MiddlewareFn,
 } from "@/core/middleware";
 import type {
+	AnyError,
+	AnySuccess,
+	FilterError,
+	FilterSuccess,
+	IgnoreError,
+	MergeErrors,
+	MergeSuccesses,
+	TransformError,
+	TransformSuccess,
+} from "@/core/reply";
+import type {
 	AnyRoute,
 	AnyRouteFn,
 	AnyRouteHandler,
@@ -29,12 +33,6 @@ import type {
 	RouteOptions,
 } from "@/core/route";
 import type { AnyStore, AnyStoreFn, StoreFn } from "@/core/store";
-import type {
-	AnySuccess,
-	FilterSuccess,
-	MergeSuccesses,
-	TransformSuccess,
-} from "@/core/success";
 import type {
 	AnyValidator,
 	AnyValidatorOptions,
@@ -150,7 +148,7 @@ export interface ModuleValidatorsConstraint {
  * const a = new Module()
  *   .store(() => ({ a: "v1" }))
  *   .route("GET", "/a/:p1", (context) =>
- *     new Success({ a: context.request.params.p1, b: context.store.a }),
+ *     ok({ a: context.request.params.p1, b: context.store.a }),
  *   );
  * ```
  */
@@ -476,7 +474,7 @@ export const Module = function (
  * @example
  * ```typescript
  * const a = new Module().group(
- *   (module) => module.route("GET", "/a", () => new Success("v1")),
+ *   (module) => module.route("GET", "/a", () => ok("v1")),
  *   { prefix: "/v1" },
  * );
  * ```
@@ -525,7 +523,7 @@ Module.prototype.middleware = function (
  * @example
  * ```typescript
  * const a = new Module({ prefix: "/v1" }).mount(
- *   new Module().route("GET", "/a", () => new Success("v1")),
+ *   new Module().route("GET", "/a", () => ok("v1")),
  * );
  * ```
  */
@@ -557,7 +555,7 @@ Module.prototype.mount = function (this: AnyModule, module: AnyModule) {
  * const a = new Module().route(
  *   "GET",
  *   "/a/:p1",
- *   (context) => new Success({ a: context.request.params.p1 }),
+ *   (context) => ok({ a: context.request.params.p1 }),
  * );
  * ```
  */

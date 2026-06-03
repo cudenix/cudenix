@@ -1,7 +1,7 @@
 import type { AnyContext } from "@/core/context";
 import type { Chain, Endpoint } from "@/core/cudenix";
-import { Error } from "@/core/error";
 import { jit } from "@/core/jit";
+import { fail, Reply } from "@/core/reply";
 import { response } from "@/core/response";
 import type { ValidatorPlugin } from "@/core/validator";
 import { Empty } from "@/utils/objects/empty";
@@ -36,7 +36,7 @@ const walk = async (
 		if (link.type === "STORE") {
 			const returned = await link.handler(context);
 
-			if (returned instanceof Error) {
+			if (returned instanceof Reply && !returned.success) {
 				context.response.content = returned;
 
 				return;
@@ -85,7 +85,7 @@ const walk = async (
 			}
 
 			if (errors) {
-				context.response.content = new Error(errors, { status: 422 });
+				context.response.content = fail(errors, { status: 422 });
 
 				return;
 			}

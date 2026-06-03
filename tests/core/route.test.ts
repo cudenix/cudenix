@@ -1,8 +1,8 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
 import type { DeveloperContext } from "@/core/context";
-import type { AnyError } from "@/core/error";
 import "@/core/global";
+import type { AnyError, AnySuccess } from "@/core/reply";
 import type {
 	AnyRoute,
 	AnyRouteFn,
@@ -19,7 +19,6 @@ import type {
 	RouteOptions,
 	ValidatorsWithParams,
 } from "@/core/route";
-import type { AnySuccess } from "@/core/success";
 import type { AnyValidator, ValidatorOptions } from "@/core/validator";
 import type { GeneratorSSE } from "@/utils/types/generator-sse";
 import type { MaybePromise } from "@/utils/types/maybe-promise";

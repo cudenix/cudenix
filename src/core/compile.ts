@@ -147,7 +147,7 @@ const flatten = (
  * @example
  * ```typescript
  * const a = new Cudenix(
- *   new Module().route("GET", "/a", () => new Success("v1")),
+ *   new Module().route("GET", "/a", () => ok("v1")),
  * );
  *
  * compile(a);

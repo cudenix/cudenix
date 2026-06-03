@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { Error } from "@/core/error";
+import type { Error } from "@/core/reply";
 import "@/core/global";
 import type {
 	AnyValidator,

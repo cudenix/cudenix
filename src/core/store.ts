@@ -1,5 +1,5 @@
 import type { DeveloperContext } from "@/core/context";
-import type { AnyError } from "@/core/error";
+import type { AnyError } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
@@ -27,7 +27,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  * const b: StoreFn<{ a: string } | AnyError, {}, {}> = (context) => {
  *   const v1 = context.request.raw.headers.get("a");
  *
- *   return v1 ? { a: v1 } : new Error("v1", { status: 401 });
+ *   return v1 ? { a: v1 } : fail("v1", { status: 401 });
  * };
  * ```
  */

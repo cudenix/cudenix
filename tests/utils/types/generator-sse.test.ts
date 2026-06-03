@@ -1,7 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { AnyError, Error } from "@/core/error";
-import type { AnySuccess, Success } from "@/core/success";
+import type { AnyError, AnySuccess, Error, Success } from "@/core/reply";
 import type {
 	AnyGeneratorSSE,
 	GeneratorSSE,

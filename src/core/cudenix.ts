@@ -68,7 +68,7 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
  *   route: {
  *     method: "GET",
  *     path: "/a/:p1",
- *     handler: () => new Success("v1"),
+ *     handler: () => ok("v1"),
  *     sse: false,
  *     static: false,
  *     type: "ROUTE",
@@ -233,7 +233,7 @@ export interface CudenixConstructor {
  * @param options - Optional behavior switches; see {@link CudenixOptions}.
  * @example
  * ```typescript
- * const a = new Cudenix(new Module().route("GET", "/a", () => new Success("v1")));
+ * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
  *
  * a.jit; // true
  *
@@ -266,7 +266,7 @@ export const Cudenix = function (
  *
  * @example
  * ```typescript
- * const a = new Cudenix(new Module().route("GET", "/a", () => new Success("v1")));
+ * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
  *
  * a.compile();
  *
@@ -303,7 +303,7 @@ Cudenix.prototype.compile = function (this: Cudenix) {
  * @returns The handler's `Response`, or a `404` clone on any miss.
  * @example
  * ```typescript
- * const a = new Cudenix(new Module().route("GET", "/a", () => new Success("v1")));
+ * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
  *
  * a.compile();
  *
@@ -368,7 +368,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
  * @returns The same app, narrowed to omit `.listen()`.
  * @example
  * ```typescript
- * const a = new Cudenix(new Module().route("GET", "/a", () => new Success("v1")));
+ * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
  *
  * a.listen({ port: 3000 });
  *
