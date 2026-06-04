@@ -10,9 +10,10 @@
  * defaults, registration-time options, or any slot where the cost of
  * producing the value should be deferred.
  *
- * The factory must be zero-argument; a function taking parameters does not
- * satisfy the alias. A producer can quietly upgrade from sync to async work
- * later without breaking callers.
+ * The factory must be callable with no arguments; a function requiring one or
+ * more parameters does not satisfy the alias, though optional and rest
+ * parameters remain compatible. A producer can quietly upgrade from sync to
+ * async work later without breaking callers.
  *
  * @typeParam T - Value type the producer ultimately yields.
  * @example
