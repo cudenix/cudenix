@@ -131,4 +131,144 @@ describe("compile", () => {
 			expect(await result.text()).toBe("v1");
 		});
 	});
+
+	describe("unbuffered content", () => {
+		test("should not pre-build a Response for a ReadableStream envelope", () => {
+			const app = new Cudenix(
+				new Module().route("GET", "/a", ok(new ReadableStream())),
+			);
+
+			app.compile();
+
+			expect(app.routes["/a"]?.GET).toBeTypeOf("function");
+		});
+
+		test("should not pre-build a Response for a Response envelope", () => {
+			const app = new Cudenix(
+				new Module().route(
+					"GET",
+					"/a",
+					ok(Response.redirect("https://example.com", 302)),
+				),
+			);
+
+			app.compile();
+
+			expect(app.routes["/a"]?.GET).toBeTypeOf("function");
+		});
+
+		test("should boot and serve a static ReadableStream route through `listen`", async () => {
+			const app = new Cudenix(
+				new Module().route(
+					"GET",
+					"/a",
+					ok(
+						new ReadableStream({
+							start(controller) {
+								controller.enqueue(
+									new TextEncoder().encode("v1"),
+								);
+								controller.close();
+							},
+						}),
+					),
+				),
+			);
+
+			app.listen({ port: 0 });
+
+			const result = await fetch(
+				`http://localhost:${app.server!.port}/a`,
+			);
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v1");
+
+			app.server!.stop(true);
+		});
+
+		test("should not pre-build a Response for an async-iterable envelope", () => {
+			const app = new Cudenix(
+				new Module().route(
+					"GET",
+					"/a",
+					ok(
+						(async function* () {
+							yield new TextEncoder().encode("v1");
+						})(),
+					),
+				),
+			);
+
+			app.compile();
+
+			expect(app.routes["/a"]?.GET).toBeTypeOf("function");
+		});
+
+		test("should boot a static async-iterable route through `listen`", () => {
+			const app = new Cudenix(
+				new Module().route(
+					"GET",
+					"/a",
+					ok(
+						(async function* () {
+							yield new TextEncoder().encode("v1");
+						})(),
+					),
+				),
+			);
+
+			expect(() => app.listen({ port: 0 })).not.toThrow();
+
+			app.server?.stop(true);
+		});
+	});
+
+	describe("repeatable serving", () => {
+		test("should serve a static Response envelope on every request", async () => {
+			const app = new Cudenix(
+				new Module().route(
+					"GET",
+					"/a",
+					ok(new Response("v1", { status: 201 })),
+				),
+			);
+
+			app.listen({ port: 0 });
+
+			const url = `http://localhost:${app.server!.port}/a`;
+			const first = await fetch(url);
+			const second = await fetch(url);
+
+			expect(first.status).toBe(201);
+			expect(await first.text()).toBe("v1");
+			expect(second.status).toBe(201);
+			expect(await second.text()).toBe("v1");
+
+			app.server!.stop(true);
+		});
+
+		test("should serve a static redirect envelope on every request", async () => {
+			const app = new Cudenix(
+				new Module().route(
+					"GET",
+					"/a",
+					ok(Response.redirect("https://example.com/dest", 302)),
+				),
+			);
+
+			app.listen({ port: 0 });
+
+			const url = `http://localhost:${app.server!.port}/a`;
+			const first = await fetch(url, { redirect: "manual" });
+			const second = await fetch(url, { redirect: "manual" });
+
+			expect(first.headers.get("location")).toBe(
+				second.headers.get("location"),
+			);
+			expect(second.headers.get("location")).not.toBeNull();
+
+			app.server!.stop(true);
+		});
+	});
 });
