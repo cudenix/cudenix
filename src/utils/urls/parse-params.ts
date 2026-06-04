@@ -15,7 +15,8 @@ import { Empty } from "@/utils/objects/empty";
  *   slot after the pattern's leading empty group.
  * - A capture that came back `undefined` (an unmatched optional segment) is
  *   skipped, so its name is absent from the result.
- * - `%xx` escapes are decoded; a value with no `"%"` is taken verbatim.
+ * - `%xx` escapes are decoded; a value with no `"%"` is taken verbatim, and a
+ *   malformed escape is kept verbatim instead of throwing.
  * - A rest parameter (its name is listed in `restKeys`) is decoded and then
  *   split on `"/"` into an array of segments; every other parameter stays a
  *   string.
@@ -66,8 +67,15 @@ export const parseParams = (
 			continue;
 		}
 
-		const decoded =
-			value.indexOf("%") === -1 ? value : decodeURIComponent(value);
+		let decoded = value;
+
+		if (value.indexOf("%") !== -1) {
+			try {
+				decoded = decodeURIComponent(value);
+			} catch {
+				decoded = value;
+			}
+		}
 
 		if (restKeys.includes(name)) {
 			params[name] = decoded.split("/");
