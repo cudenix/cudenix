@@ -1,25 +1,18 @@
 import { describe, expect, expectTypeOf, test } from "bun:test";
 
 import {
-	type AnyError,
+	type AnyFail,
+	type AnyOk,
 	type AnyReply,
 	type AnyReplyOptions,
-	type AnySuccess,
-	type Error,
-	type FilterError,
-	type FilterSuccess,
+	type Fail,
 	fail,
-	type IgnoreError,
-	type IgnoreSuccess,
-	type MergeErrors,
-	type MergeSuccesses,
+	type MergeReplies,
+	type Ok,
 	ok,
 	Reply,
 	type ReplyConstructor,
 	type ReplyOptions,
-	type Success,
-	type TransformError,
-	type TransformSuccess,
 } from "@/core/reply";
 
 describe("Reply", () => {
@@ -170,11 +163,11 @@ describe("AnyReply", () => {
 	});
 
 	test("should be extended by a concrete success envelope", () => {
-		expectTypeOf<Success<"v1", 200>>().toExtend<AnyReply>();
+		expectTypeOf<Ok<"v1", 200>>().toExtend<AnyReply>();
 	});
 
 	test("should be extended by a concrete error envelope", () => {
-		expectTypeOf<Error<"v1", 400>>().toExtend<AnyReply>();
+		expectTypeOf<Fail<"v1", 400>>().toExtend<AnyReply>();
 	});
 });
 
@@ -269,19 +262,19 @@ describe("ok", () => {
 	});
 
 	describe("type-level", () => {
-		test("should infer content and the default status into a Success envelope", () => {
-			expectTypeOf(ok("v1")).toEqualTypeOf<Success<"v1", 200>>();
+		test("should infer content and the default status into an Ok envelope", () => {
+			expectTypeOf(ok("v1")).toEqualTypeOf<Ok<"v1", 200>>();
 		});
 
 		test("should thread the options status literal into the result", () => {
 			expectTypeOf(ok("v1", { status: 201 })).toEqualTypeOf<
-				Success<"v1", 201>
+				Ok<"v1", 201>
 			>();
 		});
 
 		test("should infer object content as a readonly literal via the const type parameter", () => {
 			expectTypeOf(ok({ a: "v1" }, { status: 201 })).toEqualTypeOf<
-				Success<{ readonly a: "v1" }, 201>
+				Ok<{ readonly a: "v1" }, 201>
 			>();
 		});
 
@@ -291,7 +284,7 @@ describe("ok", () => {
 
 		test("should not widen the status to number", () => {
 			expectTypeOf(ok("v1", { status: 503 })).not.toEqualTypeOf<
-				Success<"v1", number>
+				Ok<"v1", number>
 			>();
 		});
 	});
@@ -388,34 +381,34 @@ describe("fail", () => {
 	});
 
 	describe("type-level", () => {
-		test("should infer content and the default status into an Error envelope", () => {
-			expectTypeOf(fail("v1")).toEqualTypeOf<Error<"v1", 400>>();
+		test("should infer content and the default status into a Fail envelope", () => {
+			expectTypeOf(fail("v1")).toEqualTypeOf<Fail<"v1", 400>>();
 		});
 
 		test("should thread the options status literal into the result", () => {
 			expectTypeOf(fail("v1", { status: 401 })).toEqualTypeOf<
-				Error<"v1", 401>
+				Fail<"v1", 401>
 			>();
 		});
 
 		test("should infer object content as a readonly literal via the const type parameter", () => {
 			expectTypeOf(fail({ a: "v1" }, { status: 401 })).toEqualTypeOf<
-				Error<{ readonly a: "v1" }, 401>
+				Fail<{ readonly a: "v1" }, 401>
 			>();
 		});
 
 		test("should not widen the status to number", () => {
 			expectTypeOf(fail("v1", { status: 503 })).not.toEqualTypeOf<
-				Error<"v1", number>
+				Fail<"v1", number>
 			>();
 		});
 	});
 });
 
-describe("Error", () => {
+describe("Fail", () => {
 	describe("type-level envelope", () => {
 		test("should default the status to 400 and fix success to false", () => {
-			expectTypeOf<Error<"v1">>().toEqualTypeOf<{
+			expectTypeOf<Fail<"v1">>().toEqualTypeOf<{
 				content: "v1";
 				status: 400;
 				success: false;
@@ -423,40 +416,40 @@ describe("Error", () => {
 		});
 
 		test("should preserve a custom status literal", () => {
-			expectTypeOf<Error<"v1", 401>["status"]>().toEqualTypeOf<401>();
+			expectTypeOf<Fail<"v1", 401>["status"]>().toEqualTypeOf<401>();
 		});
 
 		test("should not widen the status to number", () => {
 			expectTypeOf<
-				Error<"v1", 401>["status"]
+				Fail<"v1", 401>["status"]
 			>().not.toEqualTypeOf<number>();
 		});
 
 		test("should fix success to the literal false", () => {
-			expectTypeOf<Error<"v1">["success"]>().toEqualTypeOf<false>();
+			expectTypeOf<Fail<"v1">["success"]>().toEqualTypeOf<false>();
 		});
 
 		test("should unwrap a function-typed content to its return type", () => {
-			expectTypeOf<Error<() => "v1">["content"]>().toEqualTypeOf<"v1">();
+			expectTypeOf<Fail<() => "v1">["content"]>().toEqualTypeOf<"v1">();
 		});
 
 		test("should expose exactly content, status and success", () => {
-			expectTypeOf<keyof Error<"v1">>().toEqualTypeOf<
+			expectTypeOf<keyof Fail<"v1">>().toEqualTypeOf<
 				"content" | "status" | "success"
 			>();
 		});
 
 		test("should reject a non-numeric status at compile time", () => {
 			// @ts-expect-error - Status must extend number
-			type _A = Error<"v1", "400">;
+			type _A = Fail<"v1", "400">;
 		});
 	});
 });
 
-describe("Success", () => {
+describe("Ok", () => {
 	describe("type-level envelope", () => {
 		test("should default the status to 200 and fix success to true", () => {
-			expectTypeOf<Success<"v1">>().toEqualTypeOf<{
+			expectTypeOf<Ok<"v1">>().toEqualTypeOf<{
 				content: "v1";
 				status: 200;
 				success: true;
@@ -464,24 +457,20 @@ describe("Success", () => {
 		});
 
 		test("should preserve a custom status literal", () => {
-			expectTypeOf<Success<"v1", 201>["status"]>().toEqualTypeOf<201>();
+			expectTypeOf<Ok<"v1", 201>["status"]>().toEqualTypeOf<201>();
 		});
 
 		test("should fix success to the literal true", () => {
-			expectTypeOf<Success<"v1">["success"]>().toEqualTypeOf<true>();
-			expectTypeOf<
-				Success<"v1">["success"]
-			>().not.toEqualTypeOf<boolean>();
+			expectTypeOf<Ok<"v1">["success"]>().toEqualTypeOf<true>();
+			expectTypeOf<Ok<"v1">["success"]>().not.toEqualTypeOf<boolean>();
 		});
 
 		test("should unwrap a function-typed content to its return type", () => {
-			expectTypeOf<
-				Success<() => "v1">["content"]
-			>().toEqualTypeOf<"v1">();
+			expectTypeOf<Ok<() => "v1">["content"]>().toEqualTypeOf<"v1">();
 		});
 
 		test("should await a promise-returning content factory", () => {
-			expectTypeOf<Success<() => Promise<"v1">>>().toEqualTypeOf<{
+			expectTypeOf<Ok<() => Promise<"v1">>>().toEqualTypeOf<{
 				content: "v1";
 				status: 200;
 				success: true;
@@ -490,22 +479,22 @@ describe("Success", () => {
 
 		test("should reject a non-numeric status at compile time", () => {
 			// @ts-expect-error - Status must extend number
-			type _A = Success<"v1", "200">;
+			type _A = Ok<"v1", "200">;
 		});
 	});
 });
 
-describe("AnyError", () => {
+describe("AnyFail", () => {
 	test("should equal Reply with any content, any status and success false", () => {
-		expectTypeOf<AnyError>().toEqualTypeOf<Error<any, any>>();
+		expectTypeOf<AnyFail>().toEqualTypeOf<Fail<any, any>>();
 	});
 
 	test("should match a concrete error envelope", () => {
-		expectTypeOf<Error<"v1", 400>>().toExtend<AnyError>();
+		expectTypeOf<Fail<"v1", 400>>().toExtend<AnyFail>();
 	});
 
 	test("should fix the success discriminant to false", () => {
-		expectTypeOf<AnyError["success"]>().toEqualTypeOf<false>();
+		expectTypeOf<AnyFail["success"]>().toEqualTypeOf<false>();
 	});
 
 	test("should not match a success-shaped envelope", () => {
@@ -513,25 +502,25 @@ describe("AnyError", () => {
 			content: "v1";
 			status: 200;
 			success: true;
-		}>().not.toExtend<AnyError>();
+		}>().not.toExtend<AnyFail>();
 	});
 });
 
-describe("AnySuccess", () => {
+describe("AnyOk", () => {
 	test("should equal Reply with any content, any status and success true", () => {
-		expectTypeOf<AnySuccess>().toEqualTypeOf<Success<any, any>>();
+		expectTypeOf<AnyOk>().toEqualTypeOf<Ok<any, any>>();
 	});
 
 	test("should match a concrete success envelope", () => {
-		expectTypeOf<Success<"v1", 200>>().toExtend<AnySuccess>();
+		expectTypeOf<Ok<"v1", 200>>().toExtend<AnyOk>();
 	});
 
 	test("should fix the success discriminant to true", () => {
-		expectTypeOf<AnySuccess["success"]>().toEqualTypeOf<true>();
+		expectTypeOf<AnyOk["success"]>().toEqualTypeOf<true>();
 	});
 
 	test("should not match an error-shaped envelope", () => {
-		expectTypeOf<Error<"v1", 400>>().not.toExtend<AnySuccess>();
+		expectTypeOf<Fail<"v1", 400>>().not.toExtend<AnyOk>();
 	});
 });
 
@@ -603,188 +592,11 @@ describe("ReplyConstructor", () => {
 	});
 });
 
-describe("FilterError", () => {
-	describe("isolating error members", () => {
-		test("should keep the error member and drop a success member", () => {
-			expectTypeOf<
-				FilterError<Error<"v1", 400> | Success<"v2", 200>>
-			>().toEqualTypeOf<Error<"v1", 400>>();
-		});
-
-		test("should drop a primitive member", () => {
-			expectTypeOf<
-				FilterError<Error<"v1", 400> | string>
-			>().toEqualTypeOf<Error<"v1", 400>>();
-		});
-
-		test("should keep multiple error members", () => {
-			expectTypeOf<
-				FilterError<Error<"v1", 400> | Error<"v2", 500> | string>
-			>().toEqualTypeOf<Error<"v1", 400> | Error<"v2", 500>>();
-		});
-
-		test("should resolve to AnyError when given AnyError", () => {
-			expectTypeOf<FilterError<AnyError>>().toEqualTypeOf<AnyError>();
-		});
-	});
-
-	describe("degenerate inputs", () => {
-		test("should resolve to never when no member is an error", () => {
-			expectTypeOf<FilterError<string | number>>().toBeNever();
-		});
-
-		test("should resolve to never for never", () => {
-			expectTypeOf<FilterError<never>>().toBeNever();
-		});
-	});
-});
-
-describe("FilterSuccess", () => {
-	describe("isolating success members", () => {
-		test("should keep the success branch out of a success/error union", () => {
-			expectTypeOf<
-				FilterSuccess<Success<"v1", 200> | Error<"v2", 400>>
-			>().toEqualTypeOf<Success<"v1", 200>>();
-		});
-
-		test("should discard members that are not success envelopes", () => {
-			expectTypeOf<
-				FilterSuccess<Success<"v1", 200> | string | number>
-			>().toEqualTypeOf<Success<"v1", 200>>();
-		});
-
-		test("should keep every success member of a multi-success union", () => {
-			expectTypeOf<
-				FilterSuccess<Success<"v1", 200> | Success<"v2", 201> | string>
-			>().toEqualTypeOf<Success<"v1", 200> | Success<"v2", 201>>();
-		});
-	});
-
-	describe("degenerate inputs", () => {
-		test("should resolve to never when the union holds only errors", () => {
-			expectTypeOf<FilterSuccess<Error<"v1", 400>>>().toBeNever();
-		});
-
-		test("should resolve to never for a never input", () => {
-			expectTypeOf<FilterSuccess<never>>().toBeNever();
-		});
-	});
-});
-
-describe("IgnoreError", () => {
-	describe("isolating non-error members", () => {
-		test("should drop the error member and keep a success member", () => {
-			expectTypeOf<
-				IgnoreError<Error<"v1", 400> | Success<"v2", 200>>
-			>().toEqualTypeOf<Success<"v2", 200>>();
-		});
-
-		test("should keep a primitive member", () => {
-			expectTypeOf<
-				IgnoreError<Error<"v1", 400> | string>
-			>().toEqualTypeOf<string>();
-		});
-	});
-
-	describe("degenerate inputs", () => {
-		test("should resolve to never when every member is an error", () => {
-			expectTypeOf<
-				IgnoreError<Error<"v1", 400> | Error<"v2", 500>>
-			>().toBeNever();
-		});
-
-		test("should resolve to never for never", () => {
-			expectTypeOf<IgnoreError<never>>().toBeNever();
-		});
-	});
-});
-
-describe("IgnoreSuccess", () => {
-	describe("dropping success members", () => {
-		test("should keep the error branch out of a success/error union", () => {
-			expectTypeOf<
-				IgnoreSuccess<Success<"v1", 200> | Error<"v2", 400>>
-			>().toEqualTypeOf<Error<"v2", 400>>();
-		});
-
-		test("should keep every error member of a multi-error union", () => {
-			expectTypeOf<
-				IgnoreSuccess<
-					Error<"v1", 400> | Error<"v2", 500> | Success<"v3", 200>
-				>
-			>().toEqualTypeOf<Error<"v1", 400> | Error<"v2", 500>>();
-		});
-	});
-
-	describe("degenerate inputs", () => {
-		test("should resolve to never when the union holds only successes", () => {
-			expectTypeOf<IgnoreSuccess<Success<"v1", 200>>>().toBeNever();
-		});
-
-		test("should resolve to never for a never input", () => {
-			expectTypeOf<IgnoreSuccess<never>>().toBeNever();
-		});
-	});
-});
-
-describe("TransformError", () => {
-	test("should re-key a single error by its status", () => {
-		expectTypeOf<TransformError<Error<"v1", 400>>>().branded.toEqualTypeOf<{
-			400: Error<"v1", 400>;
-		}>();
-	});
-
-	test("should re-key an error that relies on the default status", () => {
-		expectTypeOf<TransformError<Error<"v1">>>().branded.toEqualTypeOf<{
-			400: Error<"v1">;
-		}>();
-	});
-
-	test("should keep the narrow status literal as the key, not widen to number", () => {
-		expectTypeOf<
-			keyof TransformError<Error<"v1", 400>>
-		>().toEqualTypeOf<400>();
-	});
-
-	test("should reject a non-error argument at compile time", () => {
-		// @ts-expect-error - argument must extend AnyError
-		type _A = TransformError<Success<"v1", 200>>;
-	});
-});
-
-describe("TransformSuccess", () => {
-	test("should re-key a single success by its status", () => {
-		expectTypeOf<
-			TransformSuccess<Success<"v1", 200>>
-		>().branded.toEqualTypeOf<{ 200: Success<"v1", 200> }>();
-	});
-
-	test("should re-key a success that relies on the default status", () => {
-		expectTypeOf<TransformSuccess<Success<"v1">>>().branded.toEqualTypeOf<{
-			200: Success<"v1">;
-		}>();
-	});
-
-	test("should map every status to the full union without distributing", () => {
-		expectTypeOf<
-			TransformSuccess<Success<"v1", 200> | Success<"v2", 201>>
-		>().branded.toEqualTypeOf<{
-			200: Success<"v1", 200> | Success<"v2", 201>;
-			201: Success<"v1", 200> | Success<"v2", 201>;
-		}>();
-	});
-
-	test("should reject a non-success argument at compile time", () => {
-		// @ts-expect-error - argument must extend AnySuccess
-		type _A = TransformSuccess<Error<"v1", 400>>;
-	});
-});
-
-describe("MergeErrors", () => {
+describe("MergeReplies", () => {
 	describe("with disjoint statuses", () => {
 		test("should keep entries present only in one operand", () => {
 			expectTypeOf<
-				MergeErrors<
+				MergeReplies<
 					{ 400: { content: "v1"; status: 400; success: false } },
 					{ 500: { content: "v2"; status: 500; success: false } }
 				>
@@ -798,7 +610,7 @@ describe("MergeErrors", () => {
 	describe("with a shared status", () => {
 		test("should union differing inner value types under a shared status", () => {
 			expectTypeOf<
-				MergeErrors<
+				MergeReplies<
 					{ 400: { content: ["a"]; status: 400; success: false } },
 					{ 400: { content: ["b"]; status: 400; success: false } }
 				>
@@ -809,7 +621,7 @@ describe("MergeErrors", () => {
 
 		test("should keep inner keys exclusive to one side", () => {
 			expectTypeOf<
-				MergeErrors<{ 400: { a: 1 } }, { 400: { b: 2 } }>
+				MergeReplies<{ 400: { a: 1 } }, { 400: { b: 2 } }>
 			>().branded.toEqualTypeOf<{ 400: { a: 1; b: 2 } }>();
 		});
 	});
@@ -817,7 +629,7 @@ describe("MergeErrors", () => {
 	describe("with shared and disjoint statuses combined", () => {
 		test("should union shared entries and pass first-only and second-only entries through", () => {
 			expectTypeOf<
-				MergeErrors<
+				MergeReplies<
 					{ 400: { a: 1 }; 500: { b: 2 } },
 					{ 400: { a: 2 }; 600: { c: 3 } }
 				>
@@ -835,81 +647,14 @@ describe("MergeErrors", () => {
 				400: { content: "v1"; status: 400; success: false };
 			}
 
-			expectTypeOf<MergeErrors<A, A>>().branded.toEqualTypeOf<A>();
+			expectTypeOf<MergeReplies<A, A>>().branded.toEqualTypeOf<A>();
 		});
 	});
 
 	describe("input constraint", () => {
 		test("should reject a non-object operand at compile time", () => {
 			// @ts-expect-error - operands must extend object
-			type _A = MergeErrors<{ 400: { content: "v1" } }, number>;
-		});
-	});
-});
-
-describe("MergeSuccesses", () => {
-	describe("with disjoint statuses", () => {
-		test("should take each entry verbatim when the statuses do not overlap", () => {
-			expectTypeOf<
-				MergeSuccesses<
-					{ 200: { content: ["a"] } },
-					{ 201: { content: ["b"] } }
-				>
-			>().branded.toEqualTypeOf<{
-				200: { content: ["a"] };
-				201: { content: ["b"] };
-			}>();
-		});
-	});
-
-	describe("with a shared status", () => {
-		test("should merge the inner values when both operands share a status", () => {
-			expectTypeOf<
-				MergeSuccesses<
-					{ 200: { content: ["a"]; status: 200; success: true } },
-					{ 200: { content: ["b"]; status: 200; success: true } }
-				>
-			>().branded.toEqualTypeOf<{
-				200: { content: ["a"] | ["b"]; status: 200; success: true };
-			}>();
-		});
-
-		test("should keep inner keys exclusive to one side", () => {
-			expectTypeOf<
-				MergeSuccesses<{ 200: { a: 1 } }, { 200: { b: 2 } }>
-			>().branded.toEqualTypeOf<{ 200: { a: 1; b: 2 } }>();
-		});
-	});
-
-	describe("with shared and disjoint statuses combined", () => {
-		test("should union shared entries and pass first-only and second-only entries through", () => {
-			expectTypeOf<
-				MergeSuccesses<
-					{ 200: { a: 1 }; 201: { b: 2 } },
-					{ 200: { a: 2 }; 202: { c: 3 } }
-				>
-			>().branded.toEqualTypeOf<{
-				200: { a: 1 | 2 };
-				201: { b: 2 };
-				202: { c: 3 };
-			}>();
-		});
-	});
-
-	describe("idempotence", () => {
-		test("should resolve to the same dictionary when merged with itself", () => {
-			interface A {
-				200: { content: ["a"]; status: 200; success: true };
-			}
-
-			expectTypeOf<MergeSuccesses<A, A>>().branded.toEqualTypeOf<A>();
-		});
-	});
-
-	describe("input constraint", () => {
-		test("should reject a non-object operand at compile time", () => {
-			// @ts-expect-error - operands must extend object
-			type _A = MergeSuccesses<{ 200: { content: "v1" } }, number>;
+			type _A = MergeReplies<{ 400: { content: "v1" } }, number>;
 		});
 	});
 });
