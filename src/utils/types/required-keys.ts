@@ -17,9 +17,7 @@
  * @typeParam T - Object-shaped type whose required keys are extracted.
  * @example
  * ```typescript
- * type A = RequiredKeys<{ a: string; b?: string; c: number | undefined }>;
- * // "a"
- *
+ * type A = RequiredKeys<{ a: string; b?: string; c: number | undefined }>; // "a"
  * type B = RequiredKeys<{ readonly a: number; b?: string }>; // "a"
  * type C = RequiredKeys<{ a?: string; b?: number }>; // never
  * ```

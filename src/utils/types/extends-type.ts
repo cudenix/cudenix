@@ -10,8 +10,9 @@
  * confirming two derived shapes really line up.
  *
  * Unions are compared as a single shape (no distribution). `any` is permissive
- * on either side and always resolves to `true` — reach for a dedicated
- * `IsAny` helper if you need to detect `any` rather than compare against it.
+ * on either side and resolves to `true` against any type except `never` — reach
+ * for a dedicated `IsAny` helper if you need to detect `any` rather than compare
+ * against it.
  *
  * @typeParam T - Candidate type to test for equality.
  * @typeParam U - Reference type compared against `T`.
