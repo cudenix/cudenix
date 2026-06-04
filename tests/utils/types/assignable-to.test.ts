@@ -31,7 +31,7 @@ describe("AssignableTo", () => {
 
 	describe("subtype relations", () => {
 		test("should resolve to true when a literal flows into its widening primitive", () => {
-			expectTypeOf<AssignableTo<"foo", string>>().toEqualTypeOf<true>();
+			expectTypeOf<AssignableTo<"a", string>>().toEqualTypeOf<true>();
 		});
 
 		test("should resolve to true when a narrow numeric literal flows into `number`", () => {
@@ -43,7 +43,7 @@ describe("AssignableTo", () => {
 		});
 
 		test("should resolve to false when a primitive flows into one of its literals", () => {
-			expectTypeOf<AssignableTo<string, "foo">>().toEqualTypeOf<false>();
+			expectTypeOf<AssignableTo<string, "a">>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when `boolean` flows into the literal `true`", () => {
@@ -226,7 +226,7 @@ describe("AssignableTo", () => {
 
 		test("should resolve to true when a function returns a subtype of the expected return type", () => {
 			type A = () => string;
-			type B = () => "foo";
+			type B = () => "a";
 
 			expectTypeOf<AssignableTo<B, A>>().toEqualTypeOf<true>();
 		});

@@ -27,11 +27,11 @@ describe("ExtendsType", () => {
 		});
 
 		test("should resolve to false when comparing a literal to its widening primitive", () => {
-			expectTypeOf<ExtendsType<"foo", string>>().toEqualTypeOf<false>();
+			expectTypeOf<ExtendsType<"a", string>>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when comparing a primitive to one of its literals", () => {
-			expectTypeOf<ExtendsType<string, "foo">>().toEqualTypeOf<false>();
+			expectTypeOf<ExtendsType<string, "a">>().toEqualTypeOf<false>();
 		});
 
 		test("should resolve to false when comparing a narrow numeric literal to `number`", () => {
@@ -224,8 +224,8 @@ describe("ExtendsType", () => {
 		});
 
 		test("should yield the same result regardless of argument order for one-way subtype pairs", () => {
-			expectTypeOf<ExtendsType<"foo", string>>().toEqualTypeOf<
-				ExtendsType<string, "foo">
+			expectTypeOf<ExtendsType<"a", string>>().toEqualTypeOf<
+				ExtendsType<string, "a">
 			>();
 		});
 

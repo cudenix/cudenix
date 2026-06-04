@@ -9,7 +9,7 @@ describe("ExtractContent", () => {
 		});
 
 		test("should pass a string literal through unchanged", () => {
-			expectTypeOf<ExtractContent<"foo">>().toEqualTypeOf<"foo">();
+			expectTypeOf<ExtractContent<"a">>().toEqualTypeOf<"a">();
 		});
 
 		test("should pass `bigint` through unchanged", () => {

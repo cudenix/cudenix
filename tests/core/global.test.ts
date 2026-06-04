@@ -148,7 +148,7 @@ describe("Cudenix.InferValidatorError", () => {
 
 		test("should fall back to the issue array when `~types` lacks an issue key", () => {
 			interface A extends StandardSchemaV1 {
-				"~types": { foo: string };
+				"~types": { a: string };
 			}
 
 			expectTypeOf<Cudenix.InferValidatorError<A>>().toEqualTypeOf<
