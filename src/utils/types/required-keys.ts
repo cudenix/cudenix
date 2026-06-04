@@ -6,8 +6,8 @@
 /**
  * Pick the keys of `T` that are required at the type level — any key declared
  * with `?`, or whose value type already includes `undefined`, is excluded.
- * Useful for building `Pick`s that drop the optionals, or generating
- * validation rules only for must-provide keys.
+ * Use it to build `Pick`s that drop the optionals, or generate validation
+ * rules only for must-provide keys.
  *
  * - `readonly` does not exclude keys.
  * - Keys typed as `any` are excluded (because `undefined` is assignable to
