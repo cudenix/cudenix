@@ -17,7 +17,8 @@ const Q_VAL_PCT = 8;
  *
  * - Everything up to and including the first `"?"` is skipped; a `"#"` fragment
  *   ends parsing.
- * - `"+"` becomes a space and `%xx` escapes are decoded in both keys and values.
+ * - `"+"` becomes a space and `%xx` escapes are decoded in both keys and
+ *   values; a malformed `%xx` escape is kept verbatim instead of throwing.
  * - A value wrapped in `{...}` or `[...]` is run through `JSON.parse`; invalid
  *   JSON falls back to the raw string.
  * - A repeated key collapses into an array in first-seen order.
@@ -115,7 +116,9 @@ export const parseQuery = (url: string) => {
 			}
 
 			if (flags & Q_KEY_PCT) {
-				key = decodeURIComponent(key);
+				try {
+					key = decodeURIComponent(key);
+				} catch {}
 			}
 
 			if (hasValue) {
@@ -124,7 +127,9 @@ export const parseQuery = (url: string) => {
 				}
 
 				if (flags & Q_VAL_PCT) {
-					value = decodeURIComponent(value);
+					try {
+						value = decodeURIComponent(value);
+					} catch {}
 				}
 			}
 
