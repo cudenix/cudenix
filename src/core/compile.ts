@@ -2,6 +2,8 @@ import { Context } from "@/core/context";
 import type { Chain, Cudenix, Endpoint } from "@/core/cudenix";
 import { dispatch } from "@/core/dispatch";
 import { type AnyModule, Module } from "@/core/module";
+import type { AnyFail, AnyOk } from "@/core/reply";
+import { response } from "@/core/response";
 import { cloneAppend } from "@/utils/arrays/clone-append";
 import { pushAll } from "@/utils/arrays/push-all";
 import { Empty } from "@/utils/objects/empty";
@@ -12,8 +14,12 @@ import type { HttpMethod } from "@/utils/types/http-method";
  * @module
  * Compile a Cudenix app's module tree into the runtime routing tables —
  * flatten the nested chain into per-method endpoints, build the matching
- * regular expressions, and register the static fast paths on the Bun router.
+ * regular expressions, and register the static fast paths on the Bun router,
+ * pre-building a `Response` for value-handler routes with no chain so Bun
+ * serves them as zero-allocation static responses.
  */
+
+const REDUNDANT_SLASHES = /\/{2,}/g;
 
 /**
  * Recursion state `flatten` threads down the module tree — the
@@ -136,10 +142,16 @@ const flatten = (
  * serving requests.
  *
  * Populates `app.methods` with one per-method table — its endpoints folded
- * under a single merged matching regexp. Every endpoint static enough for
- * Bun's own router — no optional (`?`) or rest (`...`) segment — is also
- * registered on `app.routes` as a direct Bun handler tagged `router: "bun"`,
- * so Bun matches those ahead of the regexp fallback. Mutates `app` in place;
+ * under a single merged matching regexp. Each endpoint's compiled path first
+ * has the redundant slashes left by prefix concatenation collapsed to one, so
+ * it forms a valid Bun route key. Every endpoint static enough for Bun's own
+ * router — no optional (`?`) or rest (`...`) segment — is also registered on
+ * `app.routes`, tagged `router: "bun"`, so Bun matches it ahead of the regexp
+ * fallback. A route whose handler is a static value rather than
+ * a function and whose chain carries no middleware, store, or validator is
+ * registered as a pre-built `Response` — which Bun serves as a zero-allocation
+ * static response — instead of a per-request dispatch handler; every other
+ * endpoint is registered as the dispatch handler. Mutates `app` in place;
  * `app.jit` seeds the per-route JIT default when a route does not override it.
  *
  * @param app - App whose `memory.module` chain is compiled. Its `methods` and
@@ -147,13 +159,16 @@ const flatten = (
  * @example
  * ```typescript
  * const a = new Cudenix(
- *   new Module().route("GET", "/a", () => ok("v1")),
+ *   new Module()
+ *     .route("GET", "/a", () => ok("v1"))
+ *     .route("GET", "/b", ok("v2")),
  * );
  *
  * compile(a);
  *
  * a.methods.GET; // { endpoints: [...], regexp: /.../ }
- * a.routes["/a"]; // { GET: (request) => ... }
+ * a.routes["/a"]; // { GET: (request) => ... } — dispatch handler
+ * a.routes["/b"]; // { GET: Response } — pre-built static response
  * ```
  */
 export const compile = (app: Cudenix) => {
@@ -185,6 +200,11 @@ export const compile = (app: Cudenix) => {
 				continue;
 			}
 
+			methodEndpoint.path = methodEndpoint.path.replace(
+				REDUNDANT_SLASHES,
+				"/",
+			);
+
 			const { restKeys, paramKeys, pattern } = pathToRegexp(
 				methodEndpoint.path,
 			);
@@ -208,14 +228,24 @@ export const compile = (app: Cudenix) => {
 						new Empty() as (typeof routes)[string];
 				}
 
-				routes[methodEndpoint.path]![method] = (request: Request) =>
-					dispatch(
-						methodEndpoint,
-						request,
-						new Context(app, methodEndpoint, request),
-						methodEndpoint.chain,
-						0,
-					);
+				routes[methodEndpoint.path]![method] =
+					methodEndpoint.route.static &&
+					methodEndpoint.chain.length === 0
+						? response(
+								(
+									methodEndpoint.route.handler as () =>
+										| AnyFail
+										| AnyOk
+								)(),
+							)
+						: (request: Request) =>
+								dispatch(
+									methodEndpoint,
+									request,
+									new Context(app, methodEndpoint, request),
+									methodEndpoint.chain,
+									0,
+								);
 
 				methodEndpoint.router = "bun";
 			}
