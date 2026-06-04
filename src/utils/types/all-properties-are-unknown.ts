@@ -1,7 +1,7 @@
 /**
  * @module
- * Predicate: does every property in an object type carry the value type
- * `unknown`?
+ * Check whether every property of an object type carries the value type
+ * `unknown`.
  */
 
 /**
