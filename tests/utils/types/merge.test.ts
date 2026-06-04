@@ -320,4 +320,16 @@ describe("Merge", () => {
 			}>();
 		});
 	});
+
+	describe("rejected inputs", () => {
+		test("should reject a primitive base operand", () => {
+			// @ts-expect-error - string does not satisfy `T extends object`
+			type _A = Merge<string, { a: 1 }>;
+		});
+
+		test("should reject a primitive overrides operand", () => {
+			// @ts-expect-error - number does not satisfy `U extends object`
+			type _A = Merge<{ a: 1 }, number>;
+		});
+	});
 });

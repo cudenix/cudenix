@@ -88,6 +88,12 @@ describe("MergePaths", () => {
 					"/a/b" | "/a/c"
 				>();
 			});
+
+			test("should distribute pairwise over a union on both sides", () => {
+				expectTypeOf<
+					MergePaths<"/a" | "/b", "/c" | "/d">
+				>().toEqualTypeOf<"/a/c" | "/a/d" | "/b/c" | "/b/d">();
+			});
 		});
 
 		describe("input constraint", () => {

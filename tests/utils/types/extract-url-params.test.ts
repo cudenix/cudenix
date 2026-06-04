@@ -120,6 +120,12 @@ describe("ExtractUrlParams", () => {
 			}>();
 		});
 
+		test("should keep capturing a named param that follows a rest segment", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/...r1/:p1">
+			>().branded.toEqualTypeOf<{ r1: string[]; p1: string }>();
+		});
+
 		test("should capture a required rest as the only segment", () => {
 			expectTypeOf<ExtractUrlParams<"...r1">>().branded.toEqualTypeOf<{
 				r1: string[];
@@ -189,6 +195,20 @@ describe("ExtractUrlParams", () => {
 				p1: string | undefined;
 				r1: string[];
 			}>();
+		});
+	});
+
+	describe("union distribution", () => {
+		test("should distribute over a union of route literals", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/a/:p1" | "/b/:p2">
+			>().branded.toEqualTypeOf<{ p1: string } | { p2: string }>();
+		});
+
+		test("should distribute over a union mixing a param route and a literal-only route", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/a/:p1" | "/a/b">
+			>().branded.toEqualTypeOf<{ p1: string } | NonNullable<unknown>>();
 		});
 	});
 

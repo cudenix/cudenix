@@ -165,6 +165,13 @@ describe("Empty", () => {
 			);
 		});
 
+		test("should report an assigned key as own via Object.hasOwn", () => {
+			instance.b = "v1";
+
+			expect(Object.hasOwn(instance, "b")).toBe(true);
+			expect(instance.b).toBe("v1");
+		});
+
 		test("should accept symbol-keyed assignment", () => {
 			const key = Symbol();
 

@@ -208,6 +208,18 @@ describe("cloneAppend", () => {
 		});
 	});
 
+	describe("frozen source", () => {
+		test("should clone a frozen source without throwing", () => {
+			const source = Object.freeze([1, 2]);
+
+			const result = cloneAppend(source as number[], 3);
+
+			expect(result).toEqual([1, 2, 3]);
+			expect(source).toEqual([1, 2]);
+			expect(Object.isFrozen(result)).toBe(false);
+		});
+	});
+
 	describe("appended item value handling", () => {
 		test("should append null without skipping it", () => {
 			const result = cloneAppend([1, 2], null as unknown as number);

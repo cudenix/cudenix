@@ -104,6 +104,12 @@ describe("parseQuery", () => {
 			expect(result.b).toBe("𝕊");
 			expect(result.c).toBe("😀");
 		});
+
+		test("should keep additional '=' characters as part of the value", () => {
+			const result = parseQuery("/a?b=v1=v2");
+
+			expect(result.b).toBe("v1=v2");
+		});
 	});
 
 	describe("JSON-shaped values", () => {

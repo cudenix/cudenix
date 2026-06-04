@@ -156,6 +156,24 @@ describe("ConditionallyOptional", () => {
 		});
 	});
 
+	describe("special key kinds", () => {
+		test("should mark a `symbol`-keyed property optional when its value admits the marker", () => {
+			const sym = Symbol("k");
+
+			interface A {
+				a: number;
+				[sym]: string | undefined;
+			}
+
+			expectTypeOf<
+				ConditionallyOptional<A, undefined>
+			>().branded.toEqualTypeOf<{
+				a: number;
+				[sym]?: string | undefined;
+			}>();
+		});
+	});
+
 	describe("edge cases", () => {
 		test("should leave an empty object as-is", () => {
 			type A = NonNullable<unknown>;

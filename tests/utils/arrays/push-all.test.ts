@@ -56,12 +56,6 @@ describe("pushAll", () => {
 
 			expect(source).toEqual(snapshot);
 		});
-
-		test("should leave target and source as distinct references after the call", () => {
-			pushAll(target, source);
-
-			expect(target).not.toBe(source);
-		});
 	});
 
 	describe("element preservation", () => {
@@ -133,6 +127,18 @@ describe("pushAll", () => {
 
 			expect(target[baseLength]).toBe(4);
 			expect(target[baseLength + source.length - 1]).toBe(6);
+		});
+
+		test("should append a large source in order without an argument-count limit", () => {
+			const target = [0];
+			const source = Array.from({ length: 100 }, (_, i) => i + 1);
+
+			pushAll(target, source);
+
+			expect(target).toHaveLength(101);
+			expect(target[0]).toBe(0);
+			expect(target[1]).toBe(1);
+			expect(target[100]).toBe(100);
 		});
 	});
 

@@ -106,6 +106,17 @@ describe("parseParams", () => {
 
 			expect(result.p1).toBe("v1/v2");
 		});
+
+		test("should reassemble a percent-encoded surrogate pair when decoding", () => {
+			const result = parseParams(
+				exec("()/a/([^/]+)", "/a/%F0%9F%98%80"),
+				["p1"],
+				1,
+				[],
+			);
+
+			expect(result.p1).toBe("😀");
+		});
 	});
 
 	describe("rest parameters", () => {

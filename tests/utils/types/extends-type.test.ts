@@ -195,6 +195,14 @@ describe("ExtendsType", () => {
 			expectTypeOf<ExtendsType<any, never>>().toEqualTypeOf<false>();
 		});
 
+		test("should resolve to true for a concrete type vs `any` due to bidirectional any-compatibility", () => {
+			expectTypeOf<ExtendsType<string, any>>().toEqualTypeOf<true>();
+		});
+
+		test("should resolve to false for `never` vs `any`", () => {
+			expectTypeOf<ExtendsType<never, any>>().toEqualTypeOf<false>();
+		});
+
 		test("should resolve to true for `void` vs `void`", () => {
 			expectTypeOf<ExtendsType<void, void>>().toEqualTypeOf<true>();
 		});

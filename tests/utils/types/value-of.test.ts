@@ -226,5 +226,17 @@ describe("ValueOf", () => {
 
 			expectTypeOf<ValueOf<A>>().toEqualTypeOf<string | number>();
 		});
+
+		test("should collapse a union of objects to the values of only their shared keys", () => {
+			type A = { a: string; b: number } | { a: boolean; c: string };
+
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<string | boolean>();
+		});
+
+		test("should resolve to `never` for a union of objects with no shared keys", () => {
+			type A = { a: string } | { b: number };
+
+			expectTypeOf<ValueOf<A>>().toBeNever();
+		});
 	});
 });

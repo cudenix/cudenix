@@ -6,14 +6,14 @@ describe("ConditionallyOmit", () => {
 	describe("with marker `never`", () => {
 		test("should drop a single `never` key and keep the rest", () => {
 			interface A {
-				a: number;
+				a: string;
 				b: never;
-				c: string;
+				c: number;
 			}
 
 			expectTypeOf<ConditionallyOmit<A, never>>().toEqualTypeOf<{
-				c: string;
-				a: number;
+				a: string;
+				c: number;
 			}>();
 		});
 

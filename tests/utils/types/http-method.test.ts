@@ -86,7 +86,7 @@ describe("HttpMethod", () => {
 		});
 	});
 
-	describe("non-assignable types", () => {
+	describe("rejected assignments", () => {
 		test("should reject `number` as a subtype", () => {
 			expectTypeOf<1>().not.toExtend<HttpMethod>();
 		});

@@ -42,6 +42,28 @@ describe("GeneratorSSE", () => {
 
 			expectTypeOf<A["data"]>().toEqualTypeOf<Ok<{ a: true }, 1>>();
 		});
+
+		test("should type `data` as the parametrized `Fail` payload", () => {
+			type A = GeneratorSSE<Fail<{ a: "v1" }, 1>>;
+
+			expectTypeOf<A["data"]>().toEqualTypeOf<Fail<{ a: "v1" }, 1>>();
+		});
+	});
+
+	describe("rejected inputs", () => {
+		test("should reject a `data` payload that is not a `Reply`", () => {
+			// @ts-expect-error - `string` does not satisfy `AnyFail | AnyOk`
+			type _A = GeneratorSSE<string>;
+		});
+	});
+
+	describe("`data` covariance", () => {
+		test("should accept an `Ok` subtype through `data` covariance", () => {
+			type A = GeneratorSSE<Ok<{ a: true }, 1>>;
+			type B = GeneratorSSE<AnyOk>;
+
+			expectTypeOf<A>().toExtend<B>();
+		});
 	});
 
 	describe("`event` channel parameter", () => {
@@ -160,11 +182,15 @@ describe("GeneratorSSE", () => {
 			expectTypeOf<A>().toExtend<AnyGeneratorSSE>();
 		});
 
-		test("should accept an `Ok` subtype through `data` covariance", () => {
-			type A = GeneratorSSE<Ok<{ a: true }, 1>>;
-			type B = GeneratorSSE<AnyOk>;
-
-			expectTypeOf<A>().toExtend<B>();
+		test("should widen `data` and `event` to `any` while leaving `id` and `retry` narrow", () => {
+			expectTypeOf<AnyGeneratorSSE["data"]>().toBeAny();
+			expectTypeOf<AnyGeneratorSSE["event"]>().toBeAny();
+			expectTypeOf<AnyGeneratorSSE["id"]>().toEqualTypeOf<
+				string | undefined
+			>();
+			expectTypeOf<AnyGeneratorSSE["retry"]>().toEqualTypeOf<
+				number | undefined
+			>();
 		});
 
 		test("should be usable as an array element type", () => {

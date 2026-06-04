@@ -81,6 +81,12 @@ describe("MaybePromise", () => {
 				(string | number) | Promise<string | number>
 			>();
 		});
+
+		test("should wrap the union as a whole, not distribute over its members", () => {
+			expectTypeOf<MaybePromise<string | number>>().not.toEqualTypeOf<
+				MaybePromise<string> | MaybePromise<number>
+			>();
+		});
 	});
 
 	describe("nullable wrapped types", () => {
