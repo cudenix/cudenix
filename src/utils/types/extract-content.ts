@@ -18,6 +18,7 @@
  * type A = ExtractContent<{ a: "v1" }>; // { a: "v1" }
  * type B = ExtractContent<() => { a: "v1" }>; // { a: "v1" }
  * type C = ExtractContent<() => Promise<{ a: "v1" }>>; // { a: "v1" }
+ *
  * type D = ExtractContent<{ a: "v1" } | (() => { b: "v2" })>;
  * // { a: "v1" } | { b: "v2" }
  * ```
