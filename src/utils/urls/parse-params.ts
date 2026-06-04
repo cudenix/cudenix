@@ -8,7 +8,7 @@ import { Empty } from "@/utils/objects/empty";
 /**
  * Read named path parameters from a successful route `RegExpExecArray` into a
  * dictionary keyed by parameter name. Use it on the request hot path to expand
- * the captures of a compiled route pattern (see `pathToRegexp`) without
+ * the captures of a compiled route pattern (see {@link pathToRegexp}) without
  * rebuilding the name/value mapping by hand.
  *
  * - Captures are read in `paramKeys` order starting at `matchOffset + 1`, the
@@ -26,7 +26,7 @@ import { Empty } from "@/utils/objects/empty";
  * @param match - Successful `RegExpExecArray` from the route regex, or
  *   `undefined` when the route did not match.
  * @param paramKeys - Parameter names in declaration order, as produced by
- *   `pathToRegexp`.
+ *   {@link pathToRegexp}.
  * @param matchOffset - Index of the pattern's leading empty group; the first
  *   parameter capture sits at `matchOffset + 1`.
  * @param restKeys - Subset of `paramKeys` that are rest parameters and should
