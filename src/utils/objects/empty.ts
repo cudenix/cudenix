@@ -30,10 +30,10 @@ export const Empty = function Empty() {} as unknown as new () => Record<
 Empty.prototype = Object.create(null);
 
 /**
- * Shared frozen empty dictionary, ready to use as a read-only fallback for
- * optional options objects. Skips the per-call `{}` allocation; mutation
- * attempts throw a `TypeError` in strict mode. Built on {@link Empty}, so
- * prototype-free destructuring is safe.
+ * Reuse a single frozen empty dictionary as a read-only fallback for optional
+ * options objects. Skips the per-call `{}` allocation; mutation attempts throw
+ * a `TypeError` in strict mode. Built on {@link Empty}, so prototype-free
+ * destructuring is safe.
  *
  * @example
  * ```typescript
