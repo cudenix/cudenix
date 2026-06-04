@@ -21,8 +21,10 @@ type OmitKeys<T extends object, U> = {
  *
  * Wider supertypes and narrower subtypes of `U` survive — only an exact
  * structural twin is dropped. `any` is the exception: an `any` marker drops
- * every key, and an `any`-valued key drops under any marker. Optional and
- * `readonly` modifiers carry through on retained keys.
+ * every key, and an `any`-valued key drops under any marker except `never`
+ * (since `any` is not assignable to `never`, an `any`-valued key survives a
+ * `never` marker). Optional and `readonly` modifiers carry through on retained
+ * keys.
  *
  * @typeParam T - Source object whose keys are filtered.
  * @typeParam U - Marker type whose mutually-assignable keys are removed.
