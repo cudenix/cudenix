@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
-import type { Error } from "@/core/reply";
+import type { Fail } from "@/core/reply";
 import "@/core/global";
 import type {
 	AnyValidator,
@@ -273,7 +273,7 @@ describe("TransformValidatorError", () => {
 
 			expectTypeOf<
 				TransformValidatorError<{ body: A; query: B }>
-			>().toEqualTypeOf<{ 422: Error<{ body?: A; query?: B }, 422> }>();
+			>().toEqualTypeOf<{ 422: Fail<{ body?: A; query?: B }, 422> }>();
 		});
 
 		test("should key the envelope solely by the numeric literal `422`", () => {

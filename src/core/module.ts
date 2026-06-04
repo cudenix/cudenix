@@ -10,17 +10,7 @@ import type {
 	AnyMiddlewareFn,
 	MiddlewareFn,
 } from "@/core/middleware";
-import type {
-	AnyError,
-	AnySuccess,
-	FilterError,
-	FilterSuccess,
-	IgnoreError,
-	MergeErrors,
-	MergeSuccesses,
-	TransformError,
-	TransformSuccess,
-} from "@/core/reply";
+import type { AnyFail, AnyOk, MergeReplies } from "@/core/reply";
 import type {
 	AnyRoute,
 	AnyRouteFn,
@@ -187,18 +177,27 @@ export interface Module<
 	>;
 	middleware<
 		const MiddlewareReturn extends MaybePromise<
-			AnyError | AnySuccess | void
+			AnyFail | AnyOk | void
 		> = undefined,
 	>(
 		handler: MiddlewareFn<MiddlewareReturn, Stores, Validators["outputs"]>,
 	): Module<
-		MergeErrors<Errors, TransformError<FilterError<MiddlewareReturn>>>,
+		MergeReplies<
+			Errors,
+			Record<
+				Extract<MiddlewareReturn, AnyFail>["status"],
+				Extract<MiddlewareReturn, AnyFail>
+			>
+		>,
 		Prefix,
 		Routes,
 		Stores,
-		MergeSuccesses<
+		MergeReplies<
 			Successes,
-			TransformSuccess<FilterSuccess<MiddlewareReturn>>
+			Record<
+				Extract<MiddlewareReturn, AnyOk>["status"],
+				Extract<MiddlewareReturn, AnyOk>
+			>
 		>,
 		Validators
 	>;
@@ -219,7 +218,7 @@ export interface Module<
 			ModuleValidators
 		>,
 	): Module<
-		MergeErrors<Errors, ModuleErrors>,
+		MergeReplies<Errors, ModuleErrors>,
 		MergePaths<Prefix, ModulePrefix>,
 		Routes &
 			(Prefix extends "/"
@@ -228,7 +227,7 @@ export interface Module<
 					? PathToObject<Rest, ModuleRoutes>
 					: ModuleRoutes),
 		Stores & ModuleStores,
-		MergeSuccesses<Successes, ModuleSuccesses>,
+		MergeReplies<Successes, ModuleSuccesses>,
 		{
 			inputs: MergeInferValidatorRequest<
 				Validators["inputs"],
@@ -245,7 +244,7 @@ export interface Module<
 		const RouteMethod extends HttpMethod,
 		const RoutePath extends `/${string}`,
 		const RouteReturn extends
-			| MaybePromise<AnyError | AnySuccess>
+			| MaybePromise<AnyFail | AnyOk>
 			| RouteFnReturnGenerator,
 		const RouteValidatorRequest extends
 			Partial<ValidatorRequest> = NonNullable<unknown>,
@@ -287,7 +286,7 @@ export interface Module<
 							| ValueOf<
 									AllPropertiesAreUnknown<RouteValidatorRequest> extends true
 										? Errors
-										: MergeErrors<
+										: MergeReplies<
 												Errors,
 												TransformValidatorError<
 													DeepInferValidatorError<RouteValidatorRequest>
@@ -303,13 +302,19 @@ export interface Module<
 			: never
 		: never;
 	routes: Routes;
-	store<const StoreReturn extends Record<PropertyKey, unknown> | AnyError>(
+	store<const StoreReturn extends Record<PropertyKey, unknown> | AnyFail>(
 		handler: StoreFn<StoreReturn, Stores, Validators["outputs"]>,
 	): Module<
-		MergeErrors<Errors, TransformError<FilterError<StoreReturn>>>,
+		MergeReplies<
+			Errors,
+			Record<
+				Extract<StoreReturn, AnyFail>["status"],
+				Extract<StoreReturn, AnyFail>
+			>
+		>,
 		Prefix,
 		Routes,
-		Stores & IgnoreError<StoreReturn>,
+		Stores & Exclude<StoreReturn, AnyFail>,
 		Successes,
 		Validators
 	>;
@@ -317,7 +322,7 @@ export interface Module<
 	validator<const _ValidatorRequest extends Partial<ValidatorRequest>>(
 		options: ValidatorOptions<_ValidatorRequest>,
 	): Module<
-		MergeErrors<
+		MergeReplies<
 			Errors,
 			TransformValidatorError<DeepInferValidatorError<_ValidatorRequest>>
 		>,
@@ -535,8 +540,8 @@ Module.prototype.mount = function (this: AnyModule, module: AnyModule) {
 
 /**
  * Push a `"ROUTE"` link onto the chain, normalizing the handler before it is
- * stored. A function handler is kept as-is; a static {@link AnyError}/
- * {@link AnySuccess} envelope is wrapped in a function that returns it, so the
+ * stored. A function handler is kept as-is; a static {@link AnyFail}/
+ * {@link AnyOk} envelope is wrapped in a function that returns it, so the
  * runtime always invokes a callable. The `sse` flag records whether a function
  * handler is a generator (driving SSE framing), `static` records that the
  * handler arrived as a value, and an optional `validator` is compiled to a
@@ -571,7 +576,7 @@ Module.prototype.route = function (
 	this.chain.push({
 		handler: isFn
 			? (handler as AnyRouteFn)
-			: () => handler as AnyError | AnySuccess,
+			: () => handler as AnyFail | AnyOk,
 		jit,
 		method,
 		path,

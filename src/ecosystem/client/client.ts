@@ -1,5 +1,5 @@
 import type { AnyModule } from "@/core/module";
-import type { AnyError, AnySuccess } from "@/core/reply";
+import type { AnyFail, AnyOk } from "@/core/reply";
 import type { SSE } from "@/ecosystem/client/sse";
 import { Empty, FrozenEmpty } from "@/utils/objects/empty";
 import type { ConditionallyOptional } from "@/utils/types/conditionally-optional";
@@ -23,7 +23,7 @@ type ParseResponse<Response> = Response extends
 	| Generator<infer Yield>
 	| AsyncGenerator<infer Yield>
 	? SSE<Yield extends AnyGeneratorSSE ? Yield : never>
-	: Response extends AnyError | AnySuccess
+	: Response extends AnyFail | AnyOk
 		? Response["content"]
 		: Response;
 

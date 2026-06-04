@@ -1,4 +1,4 @@
-import type { AnyError, AnySuccess } from "@/core/reply";
+import type { AnyFail, AnyOk } from "@/core/reply";
 
 /**
  * @module
@@ -12,7 +12,7 @@ import type { AnyError, AnySuccess } from "@/core/reply";
  *
  * Fields:
  *
- * - `data` — payload, restricted to {@link AnyError} or {@link AnySuccess} so
+ * - `data` — payload, restricted to {@link AnyFail} or {@link AnyOk} so
  *   the success/error discriminant survives the stream.
  * - `event` — channel name listeners receive on. Defaults to `"message"`.
  * - `id` — replayed in `Last-Event-ID` on reconnect; use it to mark resumable
@@ -25,15 +25,15 @@ import type { AnyError, AnySuccess } from "@/core/reply";
  * @typeParam Event - Literal name of the event channel. Defaults to `"message"`.
  * @example
  * ```typescript
- * type A = GeneratorSSE<AnySuccess>;
- * // { data: AnySuccess; event?: "message"; id?: string; retry?: number }
+ * type A = GeneratorSSE<AnyOk>;
+ * // { data: AnyOk; event?: "message"; id?: string; retry?: number }
  *
- * type B = GeneratorSSE<AnyError, "v1">;
- * // { data: AnyError; event?: "v1"; id?: string; retry?: number }
+ * type B = GeneratorSSE<AnyFail, "v1">;
+ * // { data: AnyFail; event?: "v1"; id?: string; retry?: number }
  * ```
  */
 export interface GeneratorSSE<
-	Data extends AnyError | AnySuccess,
+	Data extends AnyFail | AnyOk,
 	Event extends string = "message",
 > {
 	data: Data;

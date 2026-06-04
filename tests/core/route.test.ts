@@ -2,7 +2,7 @@ import { describe, expectTypeOf, test } from "bun:test";
 
 import type { DeveloperContext } from "@/core/context";
 import "@/core/global";
-import type { AnyError, AnySuccess } from "@/core/reply";
+import type { AnyFail, AnyOk } from "@/core/reply";
 import type {
 	AnyRoute,
 	AnyRouteFn,
@@ -153,18 +153,18 @@ describe("RouteFnReturnGeneratorEnvelope", () => {
 	describe("structural shape", () => {
 		test("should resolve to the union of error and success envelopes", () => {
 			expectTypeOf<RouteFnReturnGeneratorEnvelope>().toEqualTypeOf<
-				AnyError | AnySuccess
+				AnyFail | AnyOk
 			>();
 		});
 	});
 
 	describe("subtype relations", () => {
 		test("should accept a success envelope as a member", () => {
-			expectTypeOf<AnySuccess>().toExtend<RouteFnReturnGeneratorEnvelope>();
+			expectTypeOf<AnyOk>().toExtend<RouteFnReturnGeneratorEnvelope>();
 		});
 
 		test("should accept an error envelope as a member", () => {
-			expectTypeOf<AnyError>().toExtend<RouteFnReturnGeneratorEnvelope>();
+			expectTypeOf<AnyFail>().toExtend<RouteFnReturnGeneratorEnvelope>();
 		});
 	});
 });
@@ -179,7 +179,7 @@ describe("RouteFnReturnGeneratorFrame", () => {
 
 		test("should type the `data` payload as the envelope union", () => {
 			expectTypeOf<RouteFnReturnGeneratorFrame["data"]>().toEqualTypeOf<
-				AnyError | AnySuccess
+				AnyFail | AnyOk
 			>();
 		});
 
@@ -193,7 +193,7 @@ describe("RouteFnReturnGeneratorFrame", () => {
 	describe("subtype relations", () => {
 		test("should accept a frame literal carrying a success payload", () => {
 			expectTypeOf<{
-				data: AnySuccess;
+				data: AnyOk;
 			}>().toExtend<RouteFnReturnGeneratorFrame>();
 		});
 	});
@@ -282,7 +282,7 @@ describe("RouteFn", () => {
 			expectTypeOf<
 				RouteFn<
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
@@ -292,7 +292,7 @@ describe("RouteFn", () => {
 						NonNullable<unknown>,
 						NonNullable<unknown>
 					>,
-				) => MaybePromise<AnySuccess>
+				) => MaybePromise<AnyOk>
 			>();
 		});
 
@@ -301,7 +301,7 @@ describe("RouteFn", () => {
 				Parameters<
 					RouteFn<
 						"/a",
-						MaybePromise<AnySuccess>,
+						MaybePromise<AnyOk>,
 						NonNullable<unknown>,
 						NonNullable<unknown>
 					>
@@ -316,12 +316,12 @@ describe("RouteFn", () => {
 				ReturnType<
 					RouteFn<
 						"/a",
-						MaybePromise<AnySuccess>,
+						MaybePromise<AnyOk>,
 						NonNullable<unknown>,
 						NonNullable<unknown>
 					>
 				>
-			>().toEqualTypeOf<MaybePromise<AnySuccess>>();
+			>().toEqualTypeOf<MaybePromise<AnyOk>>();
 		});
 
 		test("should thread an error envelope through to the return type", () => {
@@ -329,12 +329,12 @@ describe("RouteFn", () => {
 				ReturnType<
 					RouteFn<
 						"/a",
-						AnyError,
+						AnyFail,
 						NonNullable<unknown>,
 						NonNullable<unknown>
 					>
 				>
-			>().toEqualTypeOf<AnyError>();
+			>().toEqualTypeOf<AnyFail>();
 		});
 
 		test("should thread a streaming generator through to the return type", () => {
@@ -355,7 +355,7 @@ describe("RouteFn", () => {
 		test("should type `context.store` as the Stores parameter", () => {
 			expectTypeOf<
 				Parameters<
-					RouteFn<"/a", AnyError, { a: string }, NonNullable<unknown>>
+					RouteFn<"/a", AnyFail, { a: string }, NonNullable<unknown>>
 				>[0]["store"]
 			>().toEqualTypeOf<{ a: string }>();
 		});
@@ -365,7 +365,7 @@ describe("RouteFn", () => {
 				Parameters<
 					RouteFn<
 						"/a",
-						AnyError,
+						AnyFail,
 						NonNullable<unknown>,
 						NonNullable<unknown>
 					>
@@ -380,7 +380,7 @@ describe("RouteFn", () => {
 				Parameters<
 					RouteFn<
 						"/a",
-						AnyError,
+						AnyFail,
 						NonNullable<unknown>,
 						NonNullable<unknown>
 					>
@@ -393,7 +393,7 @@ describe("RouteFn", () => {
 				Parameters<
 					RouteFn<
 						"/a",
-						AnyError,
+						AnyFail,
 						NonNullable<unknown>,
 						{ body: { a: string } }
 					>
@@ -406,7 +406,7 @@ describe("RouteFn", () => {
 				Parameters<
 					RouteFn<
 						"/a/:p1",
-						AnyError,
+						AnyFail,
 						NonNullable<unknown>,
 						NonNullable<unknown>
 					>
@@ -419,7 +419,7 @@ describe("RouteFn", () => {
 				Parameters<
 					RouteFn<
 						"/a/:p1",
-						AnyError,
+						AnyFail,
 						NonNullable<unknown>,
 						{ body: { a: string } }
 					>
@@ -435,10 +435,10 @@ describe("RouteFn", () => {
 
 	describe("subtype relations", () => {
 		test("should accept a zero-argument handler returning the envelope", () => {
-			expectTypeOf<() => AnySuccess>().toExtend<
+			expectTypeOf<() => AnyOk>().toExtend<
 				RouteFn<
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
@@ -449,14 +449,14 @@ describe("RouteFn", () => {
 			expectTypeOf<
 				RouteFn<
 					"/a",
-					AnyError,
+					AnyFail,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
 			>().toExtend<
 				RouteFn<
 					"/a",
-					AnyError | AnySuccess,
+					AnyFail | AnyOk,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
@@ -476,7 +476,7 @@ describe("RouteFn", () => {
 			>().not.toExtend<
 				RouteFn<
 					"/a",
-					AnyError,
+					AnyFail,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
@@ -491,11 +491,11 @@ describe("RouteFn", () => {
 						NonNullable<unknown>
 					>,
 					extra: string,
-				) => AnyError
+				) => AnyFail
 			>().not.toExtend<
 				RouteFn<
 					"/a",
-					AnyError,
+					AnyFail,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
@@ -521,7 +521,7 @@ describe("RouteFn", () => {
 			expectTypeOf<
 				RouteFn<
 					"/a",
-					AnyError,
+					AnyFail,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
@@ -532,7 +532,7 @@ describe("RouteFn", () => {
 			expectTypeOf<
 				RouteFn<
 					"/a",
-					AnyError,
+					AnyFail,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>[]
@@ -549,7 +549,7 @@ describe("Route", () => {
 					Route<
 						"GET",
 						"/a",
-						MaybePromise<AnySuccess>,
+						MaybePromise<AnyOk>,
 						NonNullable<unknown>,
 						ValidatorOptions<{ body: { a: string } }>,
 						NonNullable<unknown>
@@ -567,7 +567,7 @@ describe("Route", () => {
 				Route<
 					"GET",
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					ValidatorOptions<{ body: { a: string } }>,
 					NonNullable<unknown>
@@ -580,7 +580,7 @@ describe("Route", () => {
 				Route<
 					"GET",
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					ValidatorOptions<{ body: { a: string } }>,
 					NonNullable<unknown>
@@ -593,7 +593,7 @@ describe("Route", () => {
 				Route<
 					"GET",
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					ValidatorOptions<{ body: { a: string } }>,
 					NonNullable<unknown>
@@ -606,7 +606,7 @@ describe("Route", () => {
 				Route<
 					"GET",
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					ValidatorOptions<{ body: { a: string } }>,
 					NonNullable<unknown>
@@ -619,7 +619,7 @@ describe("Route", () => {
 				Route<
 					"GET",
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					ValidatorOptions<{ body: { a: string } }>,
 					NonNullable<unknown>
@@ -632,7 +632,7 @@ describe("Route", () => {
 				Route<
 					"GET",
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					ValidatorOptions<{ body: { a: string } }>,
 					NonNullable<unknown>
@@ -645,7 +645,7 @@ describe("Route", () => {
 				Route<
 					"GET",
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					ValidatorOptions<{ body: { a: string } }>,
 					NonNullable<unknown>
@@ -661,7 +661,7 @@ describe("Route", () => {
 					Route<
 						"GET",
 						"/a",
-						MaybePromise<AnySuccess>,
+						MaybePromise<AnyOk>,
 						NonNullable<unknown>,
 						ValidatorOptions<{ body: { a: string } }>,
 						NonNullable<unknown>
@@ -676,7 +676,7 @@ describe("Route", () => {
 					Route<
 						"GET",
 						"/a",
-						MaybePromise<AnySuccess>,
+						MaybePromise<AnyOk>,
 						NonNullable<unknown>,
 						ValidatorOptions<{ body: { a: string } }>,
 						NonNullable<unknown>
@@ -689,7 +689,7 @@ describe("Route", () => {
 	describe("subtype relations", () => {
 		test("should accept a matching literal descriptor as a subtype", () => {
 			expectTypeOf<{
-				handler: () => AnySuccess;
+				handler: () => AnyOk;
 				method: "GET";
 				path: "/a";
 				sse: false;
@@ -699,7 +699,7 @@ describe("Route", () => {
 				Route<
 					"GET",
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					ValidatorOptions<{ body: { a: string } }>,
 					NonNullable<unknown>
@@ -711,7 +711,7 @@ describe("Route", () => {
 	describe("rejection cases", () => {
 		test('should reject a descriptor whose `type` is not `"ROUTE"`', () => {
 			expectTypeOf<{
-				handler: () => AnySuccess;
+				handler: () => AnyOk;
 				method: "GET";
 				path: "/a";
 				sse: false;
@@ -721,7 +721,7 @@ describe("Route", () => {
 				Route<
 					"GET",
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					ValidatorOptions<{ body: { a: string } }>,
 					NonNullable<unknown>
@@ -740,7 +740,7 @@ describe("Route", () => {
 				Route<
 					"GET",
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					ValidatorOptions<{ body: { a: string } }>,
 					NonNullable<unknown>
@@ -796,7 +796,7 @@ describe("Route", () => {
 				Route<
 					"GET",
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					ValidatorOptions<{ body: { a: string } }>,
 					NonNullable<unknown>
@@ -809,7 +809,7 @@ describe("Route", () => {
 				Route<
 					"GET",
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					ValidatorOptions<{ body: { a: string } }>,
 					NonNullable<unknown>
@@ -825,18 +825,18 @@ describe("RouteHandler", () => {
 			expectTypeOf<
 				RouteHandler<
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
 			>().toEqualTypeOf<
 				| RouteFn<
 						"/a",
-						MaybePromise<AnySuccess>,
+						MaybePromise<AnyOk>,
 						NonNullable<unknown>,
 						NonNullable<unknown>
 				  >
-				| AnySuccess
+				| AnyOk
 			>();
 		});
 	});
@@ -846,14 +846,14 @@ describe("RouteHandler", () => {
 			expectTypeOf<
 				RouteFn<
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
 			>().toExtend<
 				RouteHandler<
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
@@ -861,10 +861,10 @@ describe("RouteHandler", () => {
 		});
 
 		test("should accept a success envelope as the static form", () => {
-			expectTypeOf<AnySuccess>().toExtend<
+			expectTypeOf<AnyOk>().toExtend<
 				RouteHandler<
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
@@ -872,10 +872,10 @@ describe("RouteHandler", () => {
 		});
 
 		test("should accept an error envelope as the static form", () => {
-			expectTypeOf<AnyError>().toExtend<
+			expectTypeOf<AnyFail>().toExtend<
 				RouteHandler<
 					"/a",
-					MaybePromise<AnyError>,
+					MaybePromise<AnyFail>,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
@@ -888,7 +888,7 @@ describe("RouteHandler", () => {
 			expectTypeOf<string>().not.toExtend<
 				RouteHandler<
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
@@ -907,7 +907,7 @@ describe("RouteHandler", () => {
 			expectTypeOf<
 				RouteHandler<
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>
@@ -919,7 +919,7 @@ describe("RouteHandler", () => {
 				(
 					handler: RouteHandler<
 						"/a",
-						MaybePromise<AnySuccess>,
+						MaybePromise<AnyOk>,
 						NonNullable<unknown>,
 						NonNullable<unknown>
 					>,
@@ -931,7 +931,7 @@ describe("RouteHandler", () => {
 			expectTypeOf<
 				RouteHandler<
 					"/a",
-					MaybePromise<AnySuccess>,
+					MaybePromise<AnyOk>,
 					NonNullable<unknown>,
 					NonNullable<unknown>
 				>[]

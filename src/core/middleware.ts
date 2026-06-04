@@ -1,5 +1,5 @@
 import type { DeveloperContext } from "@/core/context";
-import type { AnyError, AnySuccess } from "@/core/reply";
+import type { AnyFail, AnyOk } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
@@ -13,7 +13,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  * carrying the stores and validator outputs visible at this point in the
  * chain, plus a `next` continuation that advances the chain when invoked.
  *
- * Return one of three shapes: an {@link AnyError} or {@link AnySuccess}
+ * Return one of three shapes: a {@link AnyFail} or {@link AnyOk}
  * becomes the response — overriding whatever downstream produced — while
  * `void` defers the outcome to the rest of the chain. Skip
  * the `next` call to halt the chain and keep control entirely. Sync and async
@@ -29,7 +29,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  *   await next();
  * };
  *
- * const b: MiddlewareFn<MaybePromise<AnyError | void>, {}, {}> = (
+ * const b: MiddlewareFn<MaybePromise<AnyFail | void>, {}, {}> = (
  *   context,
  *   next,
  * ) => {
@@ -42,7 +42,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  * ```
  */
 export type MiddlewareFn<
-	Return extends MaybePromise<AnyError | AnySuccess | void>,
+	Return extends MaybePromise<AnyFail | AnyOk | void>,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > = (
@@ -83,7 +83,7 @@ export type AnyMiddlewareFn = MiddlewareFn<any, any, any>;
  * ```
  */
 export interface Middleware<
-	Return extends MaybePromise<AnyError | AnySuccess | void>,
+	Return extends MaybePromise<AnyFail | AnyOk | void>,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > {

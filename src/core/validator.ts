@@ -1,4 +1,4 @@
-import type { Error } from "@/core/reply";
+import type { Fail } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
@@ -16,7 +16,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  *
  * `content` on success is the parsed value written back onto
  * `context.request[type]`. On failure it is the issue (or issues) folded
- * into the `422` {@link Error} envelope emitted by the validator step.
+ * into the `422` {@link Fail} envelope emitted by the validator step.
  * The function may resolve synchronously or asynchronously — the runtime
  * awaits both paths uniformly through {@link MaybePromise}.
  *
@@ -46,7 +46,7 @@ export type ValidatorPlugin = (
 /**
  * Map each request slot in `T` to the issue type its schema produces, via the
  * ambient `Cudenix.InferValidatorError`. Used to type the per-slot error map
- * carried by the `422` {@link Error} envelope a validator emits on failure.
+ * carried by the `422` {@link Fail} envelope a validator emits on failure.
  *
  * Slots without a schema fall through as their declared value type. The
  * mapping is shallow — only top-level slot keys are walked.
@@ -104,7 +104,7 @@ export type DeepInferValidatorOutput<T extends object> = {
 };
 
 /**
- * Wrap a per-slot error map into the `422`-keyed {@link Error} envelope the
+ * Wrap a per-slot error map into the `422`-keyed {@link Fail} envelope the
  * validator step emits on failure. Used by the module compiler to fold the
  * validator's contribution into the surrounding error dictionary.
  *
@@ -119,11 +119,11 @@ export type DeepInferValidatorOutput<T extends object> = {
  * @example
  * ```typescript
  * type A = TransformValidatorError<{ body: BodyIssues; query: QueryIssues }>;
- * // { 422: Error<{ body?: BodyIssues; query?: QueryIssues }, 422> }
+ * // { 422: Fail<{ body?: BodyIssues; query?: QueryIssues }, 422> }
  * ```
  */
 export interface TransformValidatorError<T extends object> {
-	422: Error<Partial<T>, 422>;
+	422: Fail<Partial<T>, 422>;
 }
 
 /**

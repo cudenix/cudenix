@@ -1,5 +1,5 @@
 import type { DeveloperContext } from "@/core/context";
-import type { AnyError, AnySuccess } from "@/core/reply";
+import type { AnyFail, AnyOk } from "@/core/reply";
 import type {
 	AnyValidator,
 	DeepInferValidatorOutput,
@@ -93,7 +93,7 @@ export type ParseRoute<
 
 /**
  * Union of the two envelope shapes a streaming route can emit — either an
- * {@link AnyError} or an {@link AnySuccess}. Used as the payload of each
+ * {@link AnyFail} or an {@link AnyOk}. Used as the payload of each
  * {@link RouteFnReturnGeneratorFrame} and as the final return of a
  * {@link RouteFnReturnGenerator}.
  *
@@ -102,7 +102,7 @@ export type ParseRoute<
  * const a: RouteFnReturnGeneratorEnvelope = ok({ a: "v1" });
  * ```
  */
-export type RouteFnReturnGeneratorEnvelope = AnyError | AnySuccess;
+export type RouteFnReturnGeneratorEnvelope = AnyFail | AnyOk;
 
 /**
  * Single frame yielded by a streaming route — a {@link GeneratorSSE} whose
@@ -178,7 +178,7 @@ export type ValidatorsWithParams<
 /**
  * Function signature of a route handler. Receives a fully-typed
  * {@link DeveloperContext} — augmented with any URL parameters parsed from
- * `Path` — and returns either a sync or async `AnyError | AnySuccess`
+ * `Path` — and returns either a sync or async `AnyFail | AnyOk`
  * envelope, or a {@link RouteFnReturnGenerator} for streaming.
  *
  * @typeParam Path - Route pattern. Drives the inferred `params` slot.
@@ -190,7 +190,7 @@ export type ValidatorsWithParams<
  * ```typescript
  * const fn: RouteFn<
  *   "/a/:p1",
- *   MaybePromise<AnySuccess>,
+ *   MaybePromise<AnyOk>,
  *   NonNullable<unknown>,
  *   NonNullable<unknown>
  * > = (context) => ok({ a: context.request.params.p1 });
@@ -198,7 +198,7 @@ export type ValidatorsWithParams<
  */
 export type RouteFn<
 	Path extends `/${string}`,
-	Return extends MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
+	Return extends MaybePromise<AnyFail | AnyOk> | RouteFnReturnGenerator,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > = (
@@ -263,7 +263,7 @@ export type AnyRouteFn = RouteFn<any, any, any, any>;
 export interface Route<
 	Method extends HttpMethod,
 	Path extends `/${string}`,
-	Return extends MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
+	Return extends MaybePromise<AnyFail | AnyOk> | RouteFnReturnGenerator,
 	Stores extends Record<PropertyKey, unknown>,
 	RouteValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
 	Validators extends Record<PropertyKey, unknown>,
@@ -300,7 +300,7 @@ export type AnyRoute = Route<any, any, any, any, any, any>;
 
 /**
  * Value accepted by `module.route` for the handler argument — either a
- * {@link RouteFn} or the already-built {@link AnyError}/{@link AnySuccess}
+ * {@link RouteFn} or the already-built {@link AnyFail}/{@link AnyOk}
  * envelope it would return. The runtime normalizes the static form by
  * wrapping it in a function before storing the route on the chain.
  *
@@ -312,7 +312,7 @@ export type AnyRoute = Route<any, any, any, any, any, any>;
  * ```typescript
  * const fn: RouteHandler<
  *   "/a/:p1",
- *   MaybePromise<AnySuccess>,
+ *   MaybePromise<AnyOk>,
  *   NonNullable<unknown>,
  *   NonNullable<unknown>
  * > = (context) => ok({ a: context.request.params.p1 });
@@ -322,12 +322,12 @@ export type AnyRoute = Route<any, any, any, any, any, any>;
  */
 export type RouteHandler<
 	Path extends `/${string}`,
-	Return extends MaybePromise<AnyError | AnySuccess> | RouteFnReturnGenerator,
+	Return extends MaybePromise<AnyFail | AnyOk> | RouteFnReturnGenerator,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > =
 	| RouteFn<Path, Return, Stores, Validators>
-	| Extract<Awaited<Return>, AnyError | AnySuccess>;
+	| Extract<Awaited<Return>, AnyFail | AnyOk>;
 
 /**
  * Wildcard alias matching any {@link RouteHandler} regardless of generics.

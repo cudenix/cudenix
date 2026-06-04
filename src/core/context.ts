@@ -1,5 +1,5 @@
 import type { Cudenix, Endpoint } from "@/core/cudenix";
-import type { AnyError, AnySuccess } from "@/core/reply";
+import type { AnyFail, AnyOk } from "@/core/reply";
 import { Empty } from "@/utils/objects/empty";
 
 /**
@@ -63,7 +63,7 @@ export type AnyDeveloperContext = DeveloperContext<any, any>;
  *
  * Fields:
  *
- * - `content` — the {@link AnyError}, {@link AnySuccess}, or `ReadableStream`
+ * - `content` — the {@link AnyFail}, {@link AnyOk}, or `ReadableStream`
  *   that becomes the response body; absent until something produces one.
  * - `cookies` — `Set-Cookie` values keyed by cookie name.
  * - `headers` — response headers keyed by header name.
@@ -78,7 +78,7 @@ export type AnyDeveloperContext = DeveloperContext<any, any>;
  * ```
  */
 export interface ContextResponse {
-	content?: AnyError | AnySuccess | ReadableStream;
+	content?: AnyFail | AnyOk | ReadableStream;
 	cookies: Record<string, string>;
 	headers: Record<string, string>;
 }

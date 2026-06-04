@@ -1,5 +1,5 @@
 import type { DeveloperContext } from "@/core/context";
-import type { AnyError } from "@/core/reply";
+import type { AnyFail } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
@@ -12,7 +12,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  * Callable shape of a `.store()` step. Receives a {@link DeveloperContext}
  * carrying the stores accumulated by earlier links and the parsed validator
  * outputs, and returns either a record merged into `context.store` or an
- * {@link AnyError} that halts the chain and becomes the response.
+ * {@link AnyFail} that halts the chain and becomes the response.
  *
  * Sync and async functions are both accepted; async returns are awaited
  * before the next link runs.
@@ -24,7 +24,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  * ```typescript
  * const a: StoreFn<{ a: string }, {}, {}> = () => ({ a: "v1" });
  *
- * const b: StoreFn<{ a: string } | AnyError, {}, {}> = (context) => {
+ * const b: StoreFn<{ a: string } | AnyFail, {}, {}> = (context) => {
  *   const v1 = context.request.raw.headers.get("a");
  *
  *   return v1 ? { a: v1 } : fail("v1", { status: 401 });
@@ -32,7 +32,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  * ```
  */
 export type StoreFn<
-	Return extends MaybePromise<Record<PropertyKey, unknown> | AnyError>,
+	Return extends MaybePromise<Record<PropertyKey, unknown> | AnyFail>,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > = (context: DeveloperContext<Stores, Validators>) => Return;
@@ -68,7 +68,7 @@ export type AnyStoreFn = StoreFn<any, any, any>;
  * ```
  */
 export interface Store<
-	Return extends Record<PropertyKey, unknown> | AnyError,
+	Return extends Record<PropertyKey, unknown> | AnyFail,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > {

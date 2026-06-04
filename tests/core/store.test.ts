@@ -1,7 +1,7 @@
 import { describe, expectTypeOf, test } from "bun:test";
 
 import type { DeveloperContext } from "@/core/context";
-import type { AnyError } from "@/core/reply";
+import type { AnyFail } from "@/core/reply";
 import type { AnyStore, AnyStoreFn, Store, StoreFn } from "@/core/store";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 import type { RequiredKeys } from "@/utils/types/required-keys";
@@ -46,32 +46,32 @@ describe("StoreFn", () => {
 
 		test("should thread an error envelope through to the return type", () => {
 			expectTypeOf<
-				ReturnType<StoreFn<AnyError, { a: string }, { b: number }>>
-			>().toEqualTypeOf<AnyError>();
+				ReturnType<StoreFn<AnyFail, { a: string }, { b: number }>>
+			>().toEqualTypeOf<AnyFail>();
 		});
 
 		test("should thread a record-or-error union through to the return type", () => {
 			expectTypeOf<
 				ReturnType<
 					StoreFn<
-						{ c: boolean } | AnyError,
+						{ c: boolean } | AnyFail,
 						{ a: string },
 						{ b: number }
 					>
 				>
-			>().toEqualTypeOf<{ c: boolean } | AnyError>();
+			>().toEqualTypeOf<{ c: boolean } | AnyFail>();
 		});
 
 		test("should thread a promise-wrapped union through to the return type", () => {
 			expectTypeOf<
 				ReturnType<
 					StoreFn<
-						MaybePromise<{ c: boolean } | AnyError>,
+						MaybePromise<{ c: boolean } | AnyFail>,
 						{ a: string },
 						{ b: number }
 					>
 				>
-			>().toEqualTypeOf<MaybePromise<{ c: boolean } | AnyError>>();
+			>().toEqualTypeOf<MaybePromise<{ c: boolean } | AnyFail>>();
 		});
 	});
 
@@ -126,15 +126,15 @@ describe("StoreFn", () => {
 			expectTypeOf<
 				(
 					context: DeveloperContext<{ a: string }, { b: number }>,
-				) => AnyError
-			>().toExtend<StoreFn<AnyError, { a: string }, { b: number }>>();
+				) => AnyFail
+			>().toExtend<StoreFn<AnyFail, { a: string }, { b: number }>>();
 		});
 
 		test("should accept a narrower return through return covariance", () => {
 			expectTypeOf<
 				StoreFn<{ c: boolean }, { a: string }, { b: number }>
 			>().toExtend<
-				StoreFn<{ c: boolean } | AnyError, { a: string }, { b: number }>
+				StoreFn<{ c: boolean } | AnyFail, { a: string }, { b: number }>
 			>();
 		});
 	});
@@ -163,7 +163,7 @@ describe("StoreFn", () => {
 
 		test("should reject an error return where a record is expected", () => {
 			expectTypeOf<
-				StoreFn<AnyError, { a: string }, { b: number }>
+				StoreFn<AnyFail, { a: string }, { b: number }>
 			>().not.toExtend<
 				StoreFn<{ c: boolean }, { a: string }, { b: number }>
 			>();
@@ -201,7 +201,7 @@ describe("StoreFn", () => {
 
 		test("should accept an error-returning store function", () => {
 			expectTypeOf<
-				StoreFn<AnyError, { a: string }, { b: number }>
+				StoreFn<AnyFail, { a: string }, { b: number }>
 			>().toExtend<AnyStoreFn>();
 		});
 
