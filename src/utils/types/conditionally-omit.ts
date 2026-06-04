@@ -16,7 +16,7 @@ type OmitKeys<T extends object, U> = {
 
 /**
  * Remove every key from `T` whose value type is mutually assignable with `U`.
- * Useful for stripping sentinel slots (typed as `never`, `unknown`, or a
+ * Use it to strip sentinel slots (typed as `never`, `unknown`, or a
  * marker) out of a builder-generated object before exposing it.
  *
  * Wider supertypes and narrower subtypes of `U` survive — only an exact
