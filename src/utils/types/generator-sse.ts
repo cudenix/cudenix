@@ -19,8 +19,6 @@ import type { AnyFail, AnyOk } from "@/core/reply";
  *   positions.
  * - `retry` — advised reconnect delay in milliseconds.
  *
- * All fields except `data` are optional.
- *
  * @typeParam Data - Payload type carried by the frame.
  * @typeParam Event - Literal name of the event channel. Defaults to `"message"`.
  * @example
@@ -49,8 +47,8 @@ export interface GeneratorSSE<
  *
  * @example
  * ```typescript
- * type A = AnyGeneratorSSE[];
- * // array of frames with any payload and any event name
+ * type A = AnyGeneratorSSE;
+ * // { data: any; event?: any; id?: string; retry?: number }
  * ```
  */
 export type AnyGeneratorSSE = GeneratorSSE<any, any>;
