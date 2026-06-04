@@ -210,7 +210,7 @@ describe("ok", () => {
 
 	describe("content value handling", () => {
 		test("should store a primitive payload", () => {
-			expect(ok(42).content).toBe(42);
+			expect(ok(1).content).toBe(1);
 		});
 
 		test("should store an array payload", () => {
@@ -329,7 +329,7 @@ describe("fail", () => {
 
 	describe("content value handling", () => {
 		test("should store a primitive payload", () => {
-			expect(fail(42).content).toBe(42);
+			expect(fail(1).content).toBe(1);
 		});
 
 		test("should store an array payload", () => {

@@ -95,9 +95,9 @@ describe("ExtractContent", () => {
 		});
 
 		test("should resolve to the literal return type when the factory yields a literal", () => {
-			type A = () => 42;
+			type A = () => 1;
 
-			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<42>();
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<1>();
 		});
 
 		test("should resolve to `null` for a null-returning factory", () => {

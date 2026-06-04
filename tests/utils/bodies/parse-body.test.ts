@@ -47,9 +47,9 @@ describe("parseBody", () => {
 		});
 
 		test("should parse a primitive number body", async () => {
-			const result = await parseBody(request("42", "application/json"));
+			const result = await parseBody(request("1", "application/json"));
 
-			expect(result).toBe(42);
+			expect(result).toBe(1);
 		});
 
 		test("should parse a primitive null body", async () => {
