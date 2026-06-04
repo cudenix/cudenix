@@ -19,16 +19,16 @@ import type { HttpMethod } from "@/utils/types/http-method";
  * serves them as zero-allocation static responses.
  */
 
-const REDUNDANT_SLASHES = /\/{2,}/g;
-
 /**
  * Recursion state `flatten` threads down the module tree — the
  * middleware/store/validator {@link Chain} inherited from enclosing modules and
- * the path prefix built up from their merged prefixes.
+ * the path prefix built up from their merged prefixes. `path` starts empty at
+ * the root so concatenating a child's `/`-prefixed segment never doubles the
+ * separator.
  */
 interface FlattenInherited {
 	chain: Chain;
-	path: `/${string}`;
+	path: string;
 }
 
 /**
@@ -68,12 +68,12 @@ const flatten = (
 
 		if (link.type === "GROUP") {
 			const module = new Module({
-				prefix: `${inherited.path}${path === "/" ? "" : path}${link.prefix === "/" ? "" : link.prefix}`,
+				prefix: `${inherited.path}${path === "/" ? "" : path}${link.prefix === "/" ? "" : link.prefix}` as `/${string}`,
 			});
 
 			module.chain = merged.slice();
 
-			flatten(endpoints, link.handler(module), { chain: [], path: "/" });
+			flatten(endpoints, link.handler(module), { chain: [], path: "" });
 
 			continue;
 		}
@@ -142,17 +142,18 @@ const flatten = (
  * serving requests.
  *
  * Populates `app.methods` with one per-method table — its endpoints folded
- * under a single merged matching regexp. Each endpoint's compiled path first
- * has the redundant slashes left by prefix concatenation collapsed to one, so
- * it forms a valid Bun route key. Every endpoint static enough for Bun's own
- * router — no optional (`?`) or rest (`...`) segment — is also registered on
- * `app.routes`, tagged `router: "bun"`, so Bun matches it ahead of the regexp
- * fallback. A route whose handler is a static value rather than
- * a function and whose chain carries no middleware, store, or validator is
- * registered as a pre-built `Response` — which Bun serves as a zero-allocation
- * static response — instead of a per-request dispatch handler; every other
- * endpoint is registered as the dispatch handler. Mutates `app` in place;
- * `app.jit` seeds the per-route JIT default when a route does not override it.
+ * under a single merged matching regexp. Every endpoint static enough for
+ * Bun's own router — no optional (`?`) or rest (`...`) segment — is also
+ * registered on `app.routes`, tagged `router: "bun"`, so Bun matches it ahead
+ * of the regexp fallback. A route whose handler is a static value rather than a
+ * function, whose chain carries no middleware, store, or validator, and whose
+ * envelope content is not a `Response`, `ReadableStream`, or async iterable (so
+ * the body is fully buffered, not streamed) is registered as a pre-built
+ * `Response` — which Bun serves as a zero-allocation static response — instead
+ * of a per-request dispatch handler; every other endpoint, including one whose
+ * value would stream, is registered as the dispatch handler. Mutates `app` in
+ * place; `app.jit` seeds the per-route JIT default when a route does not
+ * override it.
  *
  * @param app - App whose `memory.module` chain is compiled. Its `methods` and
  *   `routes` are populated in place.
@@ -176,10 +177,7 @@ export const compile = (app: Cudenix) => {
 	const jit = app.jit;
 	const routes = app.routes;
 
-	flatten(endpoints, app.memory.module as AnyModule, {
-		chain: [],
-		path: "/",
-	});
+	flatten(endpoints, app.memory.module as AnyModule, { chain: [], path: "" });
 
 	for (const method in endpoints) {
 		const methodEndpoints = endpoints[method];
@@ -199,11 +197,6 @@ export const compile = (app: Cudenix) => {
 			if (!methodEndpoint) {
 				continue;
 			}
-
-			methodEndpoint.path = methodEndpoint.path.replace(
-				REDUNDANT_SLASHES,
-				"/",
-			);
 
 			const { restKeys, paramKeys, pattern } = pathToRegexp(
 				methodEndpoint.path,
