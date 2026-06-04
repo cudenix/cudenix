@@ -112,6 +112,31 @@ describe("parseQuery", () => {
 		});
 	});
 
+	describe("malformed percent-escapes", () => {
+		test("should keep a bare '%' in a value verbatim instead of throwing", () => {
+			const result = parseQuery("/a?b=100%&c=v2");
+
+			expect(result.b).toBe("100%");
+			expect(result.c).toBe("v2");
+		});
+
+		test("should keep a non-hex '%' escape in a value verbatim", () => {
+			const result = parseQuery("/a?b=%zz");
+
+			expect(result.b).toBe("%zz");
+		});
+
+		test("should keep a malformed '%' escape in a key verbatim", () => {
+			const result = parseQuery("/a?b%=v1");
+
+			expect(result["b%"]).toBe("v1");
+		});
+
+		test("should not throw on a truncated multibyte escape", () => {
+			expect(() => parseQuery("/a?b=%E0%A4%A")).not.toThrow();
+		});
+	});
+
 	describe("JSON-shaped values", () => {
 		test("should parse a value wrapped in '{...}' as an object", () => {
 			const result = parseQuery('/a?b={"c":1}');

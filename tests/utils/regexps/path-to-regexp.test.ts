@@ -461,5 +461,25 @@ describe("pathToRegexp", () => {
 			expect(match?.[2]).toBe("v1");
 			expect(match?.[3]).toBe("v2");
 		});
+
+		test("should support an optional named param before a later literal segment", () => {
+			const { paramKeys, regex } = compile("/a/:p1?/b");
+
+			expect(paramKeys).toEqual(["p1"]);
+			expect(regex.test("/a/v1/b")).toBe(true);
+			expect(regex.test("/a/b")).toBe(true);
+			expect("/a/v1/b".match(regex)?.[2]).toBe("v1");
+			expect("/a/b".match(regex)?.[2]).toBeUndefined();
+		});
+
+		test("should support an optional rest param before a later literal segment", () => {
+			const { paramKeys, regex, restKeys } = compile("/...r1?/a");
+
+			expect(paramKeys).toEqual(["r1"]);
+			expect(restKeys).toEqual(["r1"]);
+			expect(regex.test("/a")).toBe(true);
+			expect("/v1/v2/a".match(regex)?.[2]).toBe("v1/v2");
+			expect("/a".match(regex)?.[2]).toBeUndefined();
+		});
 	});
 });

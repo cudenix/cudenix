@@ -117,6 +117,28 @@ describe("parseParams", () => {
 
 			expect(result.p1).toBe("😀");
 		});
+
+		test("should keep a value with a malformed '%' escape verbatim instead of throwing", () => {
+			const result = parseParams(
+				exec("()/a/([^/]+)", "/a/100%"),
+				["p1"],
+				1,
+				[],
+			);
+
+			expect(result.p1).toBe("100%");
+		});
+
+		test("should keep a value with a non-hex '%' escape verbatim", () => {
+			const result = parseParams(
+				exec("()/a/([^/]+)", "/a/%zz"),
+				["p1"],
+				1,
+				[],
+			);
+
+			expect(result.p1).toBe("%zz");
+		});
 	});
 
 	describe("rest parameters", () => {
@@ -168,6 +190,22 @@ describe("parseParams", () => {
 
 			expect(result.p1).toBe("v1");
 			expect(result.r1).toEqual(["b", "c"]);
+		});
+
+		test("should yield a single empty segment for an empty rest capture", () => {
+			const result = parseParams(exec("()/a/(.*)", "/a/"), ["r1"], 1, [
+				"r1",
+			]);
+
+			expect(result.r1).toEqual([""]);
+		});
+
+		test("should keep a trailing empty segment from a trailing slash", () => {
+			const result = parseParams(exec("()/a/(.+)", "/a/b/"), ["r1"], 1, [
+				"r1",
+			]);
+
+			expect(result.r1).toEqual(["b", ""]);
 		});
 	});
 

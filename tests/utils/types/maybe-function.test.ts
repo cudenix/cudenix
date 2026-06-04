@@ -154,4 +154,18 @@ describe("MaybeFunction", () => {
 			expectTypeOf<{ a: number }>().not.toExtend<MaybeFunction<number>>();
 		});
 	});
+
+	describe("parameter-arity boundary", () => {
+		test("should accept a factory with an optional parameter since it is callable with no arguments", () => {
+			expectTypeOf<(arg?: string) => number>().toExtend<
+				MaybeFunction<number>
+			>();
+		});
+
+		test("should accept a factory with only rest parameters since it is callable with no arguments", () => {
+			expectTypeOf<(...args: string[]) => number>().toExtend<
+				MaybeFunction<number>
+			>();
+		});
+	});
 });

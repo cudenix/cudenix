@@ -244,4 +244,18 @@ describe("AllPropertiesAreUnknown", () => {
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 	});
+
+	describe("disjoint-keyed union shapes", () => {
+		test("should resolve to true for a union of object types with disjoint keys", () => {
+			type A = { a: string } | { b: number };
+
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
+		});
+
+		test("should resolve to false for a union of object types that share a key", () => {
+			type A = { a: string } | { a: number };
+
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
+		});
+	});
 });

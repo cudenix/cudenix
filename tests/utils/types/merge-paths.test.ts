@@ -73,6 +73,20 @@ describe("MergePaths", () => {
 				expectTypeOf<MergePaths<"/a/", "/">>().toEqualTypeOf<"/a">();
 			});
 		});
+
+		describe("combined with dynamic segments", () => {
+			test("should strip a trailing slash while preserving a param segment", () => {
+				expectTypeOf<
+					MergePaths<"/a/", "/b/:p1/">
+				>().toEqualTypeOf<"/a/b/:p1">();
+			});
+
+			test("should strip a trailing slash while preserving a rest segment", () => {
+				expectTypeOf<
+					MergePaths<"/a", "/...r1/">
+				>().toEqualTypeOf<"/a/...r1">();
+			});
+		});
 	});
 
 	describe("structural relations", () => {

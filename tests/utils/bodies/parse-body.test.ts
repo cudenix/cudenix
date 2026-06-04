@@ -68,6 +68,12 @@ describe("parseBody", () => {
 
 			expect(result).toEqual({ a: "v1" });
 		});
+
+		test("should reject when the json body is malformed", () => {
+			expect(
+				parseBody(request("{bad", "application/json")),
+			).rejects.toThrow();
+		});
 	});
 
 	describe("octet-stream bodies", () => {
@@ -267,6 +273,39 @@ describe("parseBody", () => {
 					"application/x-www-form-urlencoded",
 				),
 			)) as Record<string, unknown>;
+
+			expect(Object.hasOwn(result, "constructor")).toBe(true);
+			expect(Reflect.get(result, "constructor")).toBe("v1");
+			expect(result.a).toBe("v2");
+		});
+
+		test("should store a multipart `__proto__` field as a real own key without polluting the prototype", async () => {
+			const formData = new FormData();
+
+			formData.append("__proto__", "v1");
+			formData.append("a", "v2");
+
+			const result = (await parseBody(request(formData))) as Record<
+				string,
+				unknown
+			>;
+
+			expect(Object.hasOwn(result, "__proto__")).toBe(true);
+			expect(result.__proto__).toBe("v1");
+			expect(result.a).toBe("v2");
+			expect(({} as Record<string, unknown>).__proto__).not.toBe("v1");
+		});
+
+		test("should store a multipart `constructor` field as a real own key without invoking inheritance", async () => {
+			const formData = new FormData();
+
+			formData.append("constructor", "v1");
+			formData.append("a", "v2");
+
+			const result = (await parseBody(request(formData))) as Record<
+				string,
+				unknown
+			>;
 
 			expect(Object.hasOwn(result, "constructor")).toBe(true);
 			expect(Reflect.get(result, "constructor")).toBe("v1");

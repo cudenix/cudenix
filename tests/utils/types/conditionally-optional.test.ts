@@ -261,4 +261,18 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ a?: string; b?: number }>();
 		});
 	});
+
+	describe("array and tuple inputs", () => {
+		test("should collapse a tuple input to `never` because its indices are not relaxed", () => {
+			expectTypeOf<
+				ConditionallyOptional<[string, number | undefined], undefined>
+			>().toBeNever();
+		});
+
+		test("should collapse an array input to `never`", () => {
+			expectTypeOf<
+				ConditionallyOptional<(number | undefined)[], undefined>
+			>().toBeNever();
+		});
+	});
 });

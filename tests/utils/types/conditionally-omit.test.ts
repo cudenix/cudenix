@@ -177,6 +177,18 @@ describe("ConditionallyOmit", () => {
 				b: number;
 			}>();
 		});
+
+		test("should keep an `any`-valued key under a `never` marker since `any` is not assignable to `never`", () => {
+			interface A {
+				a: any;
+				b: number;
+			}
+
+			expectTypeOf<ConditionallyOmit<A, never>>().toEqualTypeOf<{
+				a: any;
+				b: number;
+			}>();
+		});
 	});
 
 	describe("structural mutual-assignability match", () => {
