@@ -161,10 +161,22 @@ describe("ExtractContent", () => {
 
 			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<number>();
 		});
+
+		test("should resolve to `any` for a factory returning `any`", () => {
+			type A = () => any;
+
+			expectTypeOf<ExtractContent<A>>().toBeAny();
+		});
+
+		test("should resolve to `unknown` for a factory returning `unknown`", () => {
+			type A = () => unknown;
+
+			expectTypeOf<ExtractContent<A>>().toBeUnknown();
+		});
 	});
 
 	describe("mixed sync and async return shapes", () => {
-		test("should preserve a union of awaited values when the factory may return sync or async", () => {
+		test("should collapse a sync-or-async return to a single awaited type", () => {
 			type A = () => string | Promise<string>;
 
 			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<string>();

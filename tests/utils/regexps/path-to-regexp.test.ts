@@ -195,6 +195,16 @@ describe("pathToRegexp", () => {
 				expect(compiled.regex.test("/a/0#v1")).toBe(false);
 				expect(compiled.regex.test("/a/v1/v2")).toBe(false);
 			});
+
+			test("should build the documented params object via Object.fromEntries", () => {
+				const match = "/a/v1".match(compiled.regex);
+
+				const params = Object.fromEntries(
+					compiled.paramKeys.map((key, i) => [key, match?.[i + 2]]),
+				);
+
+				expect(params).toEqual({ p1: "v1" });
+			});
 		});
 
 		test("should capture multiple named params in order", () => {

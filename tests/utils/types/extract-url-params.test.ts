@@ -31,6 +31,12 @@ describe("ExtractUrlParams", () => {
 				NonNullable<unknown>
 			>();
 		});
+
+		test("should resolve to an empty record for a multi-segment literal path", () => {
+			expectTypeOf<ExtractUrlParams<"/a/b/c">>().branded.toEqualTypeOf<
+				NonNullable<unknown>
+			>();
+		});
 	});
 
 	describe(":name required parameter", () => {
@@ -175,6 +181,15 @@ describe("ExtractUrlParams", () => {
 				r1: string[];
 			}>();
 		});
+
+		test("should accumulate an optional param and a rest separated by literals", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/a/:p1?/b/...r1">
+			>().branded.toEqualTypeOf<{
+				p1: string | undefined;
+				r1: string[];
+			}>();
+		});
 	});
 
 	describe("empty parameter names", () => {
@@ -200,6 +215,14 @@ describe("ExtractUrlParams", () => {
 			expectTypeOf<ExtractUrlParams<"/...?">>().branded.toEqualTypeOf<{
 				"": string[] | undefined;
 			}>();
+		});
+	});
+
+	describe("input constraint", () => {
+		test("should resolve to an empty record for the widened `string` type", () => {
+			expectTypeOf<ExtractUrlParams<string>>().branded.toEqualTypeOf<
+				NonNullable<unknown>
+			>();
 		});
 	});
 });

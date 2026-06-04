@@ -236,6 +236,16 @@ describe("Empty", () => {
 				writable: true,
 			});
 		});
+
+		test("should store __proto__ as an own data key without reassigning the prototype", () => {
+			const before = Object.getPrototypeOf(instance);
+
+			instance.__proto__ = "v1";
+
+			expect(instance.__proto__).toBe("v1");
+			expect(Object.hasOwn(instance, "__proto__")).toBe(true);
+			expect(Object.getPrototypeOf(instance)).toBe(before);
+		});
 	});
 
 	describe("freezing and sealing instances", () => {

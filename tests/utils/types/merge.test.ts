@@ -63,6 +63,22 @@ describe("Merge", () => {
 				b: number;
 			}>();
 		});
+
+		test("should preserve the first operand's `readonly` and `?` modifiers on a disjoint key", () => {
+			interface A {
+				readonly a: string;
+				b?: number;
+			}
+			interface B {
+				c: string;
+			}
+
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				readonly a: string;
+				b?: number;
+				c: string;
+			}>();
+		});
 	});
 
 	describe("with overlapping keys", () => {
@@ -132,6 +148,23 @@ describe("Merge", () => {
 				c: readonly string[];
 				a: 1;
 				d: number;
+			}>();
+		});
+
+		test("should match the documented example of overriding a shared key and carrying a disjoint one", () => {
+			interface A {
+				a: string;
+				b: number;
+			}
+			interface B {
+				b: boolean;
+				c: string;
+			}
+
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				a: string;
+				b: boolean;
+				c: string;
 			}>();
 		});
 	});

@@ -16,6 +16,12 @@ describe("GeneratorSSE", () => {
 		test("should accept a frame whose `data` is an `AnyFail`", () => {
 			expectTypeOf<{ data: AnyFail }>().toExtend<GeneratorSSE<AnyFail>>();
 		});
+
+		test("should reject a frame that omits `data`", () => {
+			expectTypeOf<{ event: "tick" }>().not.toExtend<
+				GeneratorSSE<AnyOk, "tick">
+			>();
+		});
 	});
 
 	describe("`data` payload typing", () => {
@@ -44,6 +50,12 @@ describe("GeneratorSSE", () => {
 			type B = GeneratorSSE<AnyOk, "message">;
 
 			expectTypeOf<A>().toEqualTypeOf<B>();
+		});
+
+		test('should type `event` as `"message" | undefined` by default', () => {
+			type A = GeneratorSSE<AnyOk>;
+
+			expectTypeOf<A["event"]>().toEqualTypeOf<"message" | undefined>();
 		});
 
 		describe("with channel literal 'tick'", () => {
@@ -128,7 +140,7 @@ describe("GeneratorSSE", () => {
 
 	describe("AnyGeneratorSSE", () => {
 		test("should keep `data` required even on the relaxed alias", () => {
-			expectTypeOf<AnyGeneratorSSE>().toHaveProperty("data");
+			expectTypeOf<{ event: "v1" }>().not.toExtend<AnyGeneratorSSE>();
 		});
 
 		test("should accept a frame whose `data` is `AnyFail`", () => {
@@ -153,6 +165,12 @@ describe("GeneratorSSE", () => {
 			type B = GeneratorSSE<AnyOk>;
 
 			expectTypeOf<A>().toExtend<B>();
+		});
+
+		test("should be usable as an array element type", () => {
+			expectTypeOf<GeneratorSSE<Ok<{ a: true }, 1>, "tick">[]>().toExtend<
+				AnyGeneratorSSE[]
+			>();
 		});
 	});
 });

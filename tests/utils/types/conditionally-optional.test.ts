@@ -220,5 +220,27 @@ describe("ConditionallyOptional", () => {
 				ConditionallyOptional<A, never>
 			>().branded.toEqualTypeOf<{ a: string; b: number; c: boolean }>();
 		});
+
+		test("should relax a key whose value is `any` because `undefined` assigns to it", () => {
+			interface A {
+				a: any;
+				b: number;
+			}
+
+			expectTypeOf<
+				ConditionallyOptional<A, undefined>
+			>().branded.toEqualTypeOf<{ b: number; a?: any }>();
+		});
+
+		test("should mark every key optional when the marker is `any`", () => {
+			interface A {
+				a: string;
+				b: number;
+			}
+
+			expectTypeOf<
+				ConditionallyOptional<A, any>
+			>().branded.toEqualTypeOf<{ a?: string; b?: number }>();
+		});
 	});
 });

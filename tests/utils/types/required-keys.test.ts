@@ -141,6 +141,16 @@ describe("RequiredKeys", () => {
 
 			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<"b">();
 		});
+
+		test("should keep only the plainly-required key when one uses `?` and another uses `| undefined`", () => {
+			interface A {
+				a: string;
+				b?: string;
+				c: number | undefined;
+			}
+
+			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<"a">();
+		});
 	});
 
 	describe("readonly modifier", () => {
@@ -193,6 +203,17 @@ describe("RequiredKeys", () => {
 
 			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<"a" | Sym>();
 		});
+
+		test("should exclude an optional `symbol`-keyed property", () => {
+			const sym = Symbol("key");
+
+			interface A {
+				a: number;
+				[sym]?: string;
+			}
+
+			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<"a">();
+		});
 	});
 
 	describe("index signatures", () => {
@@ -238,6 +259,19 @@ describe("RequiredKeys", () => {
 			type A = NonNullable<unknown>;
 
 			expectTypeOf<RequiredKeys<A>>().toBeNever();
+		});
+
+		test("should intersect required keys across a union input rather than distribute", () => {
+			interface A {
+				a: string;
+				b?: number;
+			}
+			interface B {
+				a: string;
+				c: boolean;
+			}
+
+			expectTypeOf<RequiredKeys<A | B>>().toEqualTypeOf<"a">();
 		});
 	});
 });

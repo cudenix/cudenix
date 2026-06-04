@@ -84,8 +84,14 @@ describe("MaybeFunction", () => {
 			expectTypeOf<string>().toExtend<MaybeFunction<number | string>>();
 		});
 
-		test("should accept a union-returning factory when the wrapped type is a union", () => {
+		test("should accept a factory returning a single member of the wrapped union", () => {
 			expectTypeOf<() => number>().toExtend<
+				MaybeFunction<number | string>
+			>();
+		});
+
+		test("should accept a factory returning the full wrapped union", () => {
+			expectTypeOf<() => number | string>().toExtend<
 				MaybeFunction<number | string>
 			>();
 		});

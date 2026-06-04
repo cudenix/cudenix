@@ -102,5 +102,9 @@ describe("HttpMethod", () => {
 		test("should reject `undefined` as a subtype", () => {
 			expectTypeOf<undefined>().not.toExtend<HttpMethod>();
 		});
+
+		test("should reject a union mixing a valid verb with a non-string member", () => {
+			expectTypeOf<"GET" | 1>().not.toExtend<HttpMethod>();
+		});
 	});
 });

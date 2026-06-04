@@ -162,6 +162,12 @@ describe("ValueOf", () => {
 			expectTypeOf<ValueOf<A>>().toEqualTypeOf<number>();
 		});
 
+		test('should resolve to the union value type for `Record<string, "v1" | "v2">`', () => {
+			type A = Record<string, "v1" | "v2">;
+
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<"v1" | "v2">();
+		});
+
 		test("should resolve to the value type for `Record<number, V>`", () => {
 			type A = Record<number, boolean>;
 

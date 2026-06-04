@@ -95,6 +95,12 @@ describe("cloneAppend", () => {
 			expect(result).toHaveLength(2);
 			expect(result[1]).toEqual([2, 3]);
 		});
+
+		test("should append an array item as a single element without flattening", () => {
+			const result = cloneAppend<unknown>(["a"], ["b", "c"]);
+
+			expect(result).toEqual(["a", ["b", "c"]]);
+		});
 	});
 
 	describe("multi-element source", () => {

@@ -25,6 +25,10 @@ describe("MergePaths", () => {
 				MergePaths<"/a", "/...r1">
 			>().toEqualTypeOf<"/a/...r1">();
 		});
+
+		test("should preserve a wildcard marker in the joined string", () => {
+			expectTypeOf<MergePaths<"/a", "/*">>().toEqualTypeOf<"/a/*">();
+		});
 	});
 
 	describe("root-path handling", () => {

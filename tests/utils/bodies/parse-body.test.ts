@@ -88,6 +88,17 @@ describe("parseBody", () => {
 
 			expect(Array.from(bytes)).toEqual([1, 2, 3]);
 		});
+
+		test("should match when a parameter trails the octet-stream content type", async () => {
+			const result = await parseBody(
+				request(
+					new Uint8Array([1, 2, 3]),
+					"application/octet-stream; charset=binary",
+				),
+			);
+
+			expect(result).toBeInstanceOf(ArrayBuffer);
+		});
 	});
 
 	describe("urlencoded form bodies", () => {

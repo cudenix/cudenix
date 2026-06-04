@@ -138,6 +138,14 @@ describe("AllPropertiesAreUnknown", () => {
 
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
+
+		test("should resolve to false when an optional property carries a concrete value type", () => {
+			interface A {
+				a?: string;
+			}
+
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
+		});
 	});
 
 	describe("empty and synthetic shapes", () => {

@@ -296,6 +296,13 @@ describe("parseQuery", () => {
 			expect(Reflect.get(result, "constructor")).toBe("v1");
 			expect(result.b).toBe("v2");
 		});
+
+		test("should not pollute the prototype when a JSON value carries a `__proto__` key", () => {
+			const result = parseQuery('/a?b={"__proto__":{"polluted":1}}');
+
+			expect(Object.hasOwn(result, "b")).toBe(true);
+			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+		});
 	});
 
 	describe("return shape", () => {

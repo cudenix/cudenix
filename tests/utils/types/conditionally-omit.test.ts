@@ -236,6 +236,18 @@ describe("ConditionallyOmit", () => {
 				b: string;
 			}>();
 		});
+
+		test("should not drop an `unknown`-valued key under a narrow marker", () => {
+			interface A {
+				a: unknown;
+				b: number;
+			}
+
+			expectTypeOf<ConditionallyOmit<A, string>>().toEqualTypeOf<{
+				a: unknown;
+				b: number;
+			}>();
+		});
 	});
 
 	describe("preservation of retained keys and modifiers", () => {
@@ -272,6 +284,21 @@ describe("ConditionallyOmit", () => {
 
 			expectTypeOf<ConditionallyOmit<A, never>>().toEqualTypeOf<{
 				readonly b: string;
+			}>();
+		});
+	});
+
+	describe("special key kinds", () => {
+		test("should drop a `symbol`-keyed property whose value matches the marker", () => {
+			const sym = Symbol("k");
+
+			interface A {
+				a: number;
+				[sym]: string;
+			}
+
+			expectTypeOf<ConditionallyOmit<A, string>>().toEqualTypeOf<{
+				a: number;
 			}>();
 		});
 	});

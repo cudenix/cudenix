@@ -76,6 +76,12 @@ describe("parseCookies", () => {
 			expect(result.a).toBe("a%20b%3Dc");
 		});
 
+		test("should decode to the original value via decodeURIComponent at the call site", () => {
+			const result = parseCookies("a=a%20b");
+
+			expect(decodeURIComponent(result.a!)).toBe("a b");
+		});
+
 		test("should preserve whitespace inside values", () => {
 			const result = parseCookies("a=v1 v2; b=v3");
 
