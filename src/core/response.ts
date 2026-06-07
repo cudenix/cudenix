@@ -25,7 +25,7 @@ export const response = (content: ContextResponse["content"]) => {
 
 	switch (inner.constructor?.name) {
 		case "Response":
-			return inner as Response;
+			return (inner as Response).clone();
 
 		case "Array":
 		case "Object":
