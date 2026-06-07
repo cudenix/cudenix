@@ -146,14 +146,16 @@ const flatten = (
  * Bun's own router — no optional (`?`) or rest (`...`) segment — is also
  * registered on `app.routes`, tagged `router: "bun"`, so Bun matches it ahead
  * of the regexp fallback. A route whose handler is a static value rather than a
- * function, whose chain carries no middleware, store, or validator, and whose
- * envelope content is not a `Response`, `ReadableStream`, or async iterable (so
- * the body is fully buffered, not streamed) is registered as a pre-built
- * `Response` — which Bun serves as a zero-allocation static response — instead
- * of a per-request dispatch handler; every other endpoint, including one whose
- * value would stream, is registered as the dispatch handler. Mutates `app` in
- * place; `app.jit` seeds the per-route JIT default when a route does not
- * override it.
+ * function and whose chain carries no middleware, store, or validator is
+ * registered as a pre-built `Response` — which Bun serves as a zero-allocation
+ * static response — instead of a per-request dispatch handler. The static
+ * handler form only type-checks for buffered-literal content: a `Response`,
+ * `ReadableStream`, async-iterable, or function payload is rejected by
+ * `RouteHandler` at compile time and must use the function form, so the
+ * pre-built value is always a fully-buffered body and no runtime inspection is
+ * needed; every other endpoint is registered as the dispatch handler. Mutates
+ * `app` in place; `app.jit` seeds the per-route JIT default when a route does
+ * not override it.
  *
  * @param app - App whose `memory.module` chain is compiled. Its `methods` and
  *   `routes` are populated in place.
