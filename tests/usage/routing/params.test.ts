@@ -9,10 +9,10 @@ describe("usage: routing › params", () => {
 	describe("a single required parameter", () => {
 		test("should match a path with the parameter segment present", async () => {
 			const app = buildApp(
-				new Module().route("GET", "/users/:id", () => ok("hit")),
+				new Module().route("GET", "/a/:p1", () => ok("hit")),
 			);
 
-			const result = await app.fetch(req("/users/42"));
+			const result = await app.fetch(req("/a/v1"));
 
 			expect(result.status).toBe(200);
 			expect(await result.text()).toBe("hit");
@@ -20,22 +20,32 @@ describe("usage: routing › params", () => {
 
 		test("should 404 when the parameter segment is missing", async () => {
 			const app = buildApp(
-				new Module().route("GET", "/users/:id", () => ok("hit")),
+				new Module().route("GET", "/a/:p1", () => ok("hit")),
 			);
 
-			const result = await app.fetch(req("/users"));
+			const result = await app.fetch(req("/a"));
 
 			expect(result.status).toBe(404);
 		});
 
 		test("should 404 when an extra trailing segment is present", async () => {
 			const app = buildApp(
-				new Module().route("GET", "/users/:id", () => ok("hit")),
+				new Module().route("GET", "/a/:p1", () => ok("hit")),
 			);
 
-			const result = await app.fetch(req("/users/42/extra"));
+			const result = await app.fetch(req("/a/v1/v2"));
 
 			expect(result.status).toBe(404);
+		});
+
+		test("should capture a segment that contains a dot", async () => {
+			const app = buildApp(
+				new Module().route("GET", "/a/:p1", () => ok("hit")),
+			);
+
+			const result = await app.fetch(req("/a/v1.v2"));
+
+			expect(result.status).toBe(200);
 		});
 	});
 
@@ -58,18 +68,18 @@ describe("usage: routing › params", () => {
 			// through validators. This pins that behaviour during the migration;
 			// update it once URL params are wired onto the request.
 			const app = buildApp(
-				new Module().route("GET", "/users/:id", (context) =>
+				new Module().route("GET", "/a/:p1", (context) =>
 					ok({
-						id:
-							(context.request as { params?: { id?: string } })
-								.params?.id ?? null,
+						p1:
+							(context.request as { params?: { p1?: string } })
+								.params?.p1 ?? null,
 					}),
 				),
 			);
 
-			const result = await app.fetch(req("/users/42"));
+			const result = await app.fetch(req("/a/v1"));
 
-			expect(await result.json()).toEqual({ id: null });
+			expect(await result.json()).toEqual({ p1: null });
 		});
 	});
 });

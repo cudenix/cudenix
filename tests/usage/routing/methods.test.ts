@@ -29,4 +29,18 @@ describe("usage: routing › methods", () => {
 
 		expect(result.status).toBe(404);
 	});
+
+	test("should 404 a path that exists only under a different method", async () => {
+		// The other method's table exists, but its matcher is built only from
+		// its own routes, so the path is still a miss — no 405.
+		const app = buildApp(
+			new Module()
+				.route("GET", "/a", () => ok("get"))
+				.route("POST", "/b", () => ok("post")),
+		);
+
+		const result = await app.fetch(req("/a", { method: "POST" }));
+
+		expect(result.status).toBe(404);
+	});
 });

@@ -31,7 +31,7 @@ describe("usage: routing › optional params", () => {
 			new Module().route("GET", "/a/:p1?", () => ok("hit")),
 		);
 
-		const result = await app.fetch(req("/a/v1/extra"));
+		const result = await app.fetch(req("/a/v1/v2"));
 
 		expect(result.status).toBe(404);
 	});
