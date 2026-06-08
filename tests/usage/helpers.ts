@@ -1,20 +1,61 @@
-import { Cudenix } from "@/core/cudenix";
+import { Cudenix, type Plugin } from "@/core/cudenix";
 
 /**
- * Build and compile an app around a root module, ready for `.fetch()`. Compile
- * is one-shot, so call this once per test rather than reusing an app.
+ * A live Cudenix app under test: its `Bun.Server` plus a `fetch` already bound
+ * to the server's address. Implements `Disposable`, so a `using` binding stops
+ * the server when the test block exits — including on failure.
  */
-export const buildApp = (module: ConstructorParameters<typeof Cudenix>[0]) => {
+export interface ServedApp extends Disposable {
+	app: Cudenix;
+	fetch(path: `/${string}`, init?: RequestInit): Promise<Response>;
+	port: number;
+	url(path: `/${string}`): string;
+}
+
+/**
+ * Boot a real Bun server around a root module and return a handle whose
+ * `fetch` targets it, so a test drives the app end-to-end through Bun's own
+ * router — both the static route table and the regexp fallback — exactly as a
+ * deployed app is reached, rather than the in-process `app.fetch()` shortcut
+ * that only ever consults the regexp table.
+ *
+ * Listens on an ephemeral port (`port: 0`); compile is one-shot, so build one
+ * server per test. Bind it with `using` to stop the server automatically.
+ *
+ * @param module - Root module compiled into the app's routes.
+ * @param plugins - Optional setup hooks registered before `.listen()`.
+ * @returns A {@link ServedApp} handle bound to the running server.
+ * @example
+ * ```typescript
+ * using server = serveApp(new Module().route("GET", "/a", () => ok("v1")));
+ *
+ * const result = await server.fetch("/a");
+ *
+ * result.status; // 200
+ * ```
+ */
+export const serveApp = (
+	module: ConstructorParameters<typeof Cudenix>[0],
+	plugins?: Plugin[],
+): ServedApp => {
 	const app = new Cudenix(module);
 
-	app.compile();
+	if (plugins) {
+		app.plugins(plugins);
+	}
 
-	return app;
+	app.listen({ port: 0 });
+
+	const port = app.server!.port!;
+
+	return {
+		app,
+		fetch: (path, init) =>
+			fetch(`http://localhost:${port}${path}`, init),
+		port,
+		url: (path) => `http://localhost:${port}${path}`,
+		[Symbol.dispose]() {
+			app.server?.stop(true);
+		},
+	};
 };
-
-/**
- * Build a `Request` with the absolute URL `.fetch()` requires (the per-method
- * matcher only matches `http(s)://host/...`).
- */
-export const req = (path: `/${string}`, init?: RequestInit) =>
-	new Request(`http://localhost${path}`, init);
