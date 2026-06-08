@@ -97,6 +97,7 @@ const flatten = (
 			});
 
 			pushAll(chain, compiled.chain);
+			pushAll(merged, compiled.chain);
 
 			if (compiled.path !== "/") {
 				path = `${path === "/" ? "" : path}${compiled.path}`;
