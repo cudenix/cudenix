@@ -50,8 +50,7 @@ export const serveApp = (
 
 	return {
 		app,
-		fetch: (path, init) =>
-			fetch(`http://localhost:${port}${path}`, init),
+		fetch: (path, init) => fetch(`http://localhost:${port}${path}`, init),
 		port,
 		url: (path) => `http://localhost:${port}${path}`,
 		[Symbol.dispose]() {
