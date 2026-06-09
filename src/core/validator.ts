@@ -1,5 +1,6 @@
 import type { Fail } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
+import type { StandardSchemaV1 } from "@/utils/types/standard-schema";
 
 /**
  * @module
@@ -44,9 +45,61 @@ export type ValidatorPlugin = (
 ) => MaybePromise<{ content: unknown; success: boolean }>;
 
 /**
- * Map each request slot in `T` to the issue type its schema produces, via the
- * ambient `Cudenix.InferValidatorError`. Used to type the per-slot error map
- * carried by the `422` {@link Fail} envelope a validator emits on failure.
+ * Infer the issue type a Standard Schema reports on failure. Schemas that
+ * surface a precise issue type through the optional `~types.issue` slot
+ * resolve to it; the rest fall back to the spec's generic
+ * {@link StandardSchemaV1.Issue} list. Non-schema types pass through
+ * unchanged.
+ *
+ * @typeParam Type - Schema (or plain value type) declared for a request slot.
+ * @example
+ * ```typescript
+ * type A = InferValidatorError<SomeSchema>;
+ * // SomeSchemaIssues
+ * ```
+ */
+type InferValidatorError<Type> = Type extends StandardSchemaV1
+	? Type extends { "~types"?: { issue: infer Issue } }
+		? Issue
+		: StandardSchemaV1.Issue[]
+	: Type;
+
+/**
+ * Infer the input type a Standard Schema accepts — the pre-validation
+ * payload — via {@link StandardSchemaV1.InferInput}. Non-schema types pass
+ * through unchanged.
+ *
+ * @typeParam Type - Schema (or plain value type) declared for a request slot.
+ * @example
+ * ```typescript
+ * type A = InferValidatorInput<SomeSchema>;
+ * // SomeSchemaInput
+ * ```
+ */
+type InferValidatorInput<Type> = Type extends StandardSchemaV1
+	? StandardSchemaV1.InferInput<Type>
+	: Type;
+
+/**
+ * Infer the output type a Standard Schema produces — the parsed,
+ * post-validation value — via {@link StandardSchemaV1.InferOutput}.
+ * Non-schema types pass through unchanged.
+ *
+ * @typeParam Type - Schema (or plain value type) declared for a request slot.
+ * @example
+ * ```typescript
+ * type A = InferValidatorOutput<SomeSchema>;
+ * // SomeSchemaOutput
+ * ```
+ */
+type InferValidatorOutput<Type> = Type extends StandardSchemaV1
+	? StandardSchemaV1.InferOutput<Type>
+	: Type;
+
+/**
+ * Map each request slot in `T` to the issue type its Standard Schema
+ * produces. Used to type the per-slot error map carried by the `422`
+ * {@link Fail} envelope a validator emits on failure.
  *
  * Slots without a schema fall through as their declared value type. The
  * mapping is shallow — only top-level slot keys are walked.
@@ -59,15 +112,14 @@ export type ValidatorPlugin = (
  * ```
  */
 export type DeepInferValidatorError<T extends object> = {
-	[K in keyof T]: Cudenix.InferValidatorError<T[K]>;
+	[K in keyof T]: InferValidatorError<T[K]>;
 };
 
 /**
- * Map each request slot in `T` to the input type its schema accepts, via the
- * ambient `Cudenix.InferValidatorInput`. Drives the `request` shape recorded
- * in the client-facing route tree — the pre-validation payload a caller must
- * send, in contrast to the parsed value handlers receive via
- * {@link DeepInferValidatorOutput}.
+ * Map each request slot in `T` to the input type its Standard Schema
+ * accepts. Drives the `request` shape recorded in the client-facing route
+ * tree — the pre-validation payload a caller must send, in contrast to the
+ * parsed value handlers receive via {@link DeepInferValidatorOutput}.
  *
  * Slots without a schema fall through as their declared value type. The
  * mapping is shallow — only top-level slot keys are walked.
@@ -80,14 +132,13 @@ export type DeepInferValidatorError<T extends object> = {
  * ```
  */
 export type DeepInferValidatorInput<T extends object> = {
-	[K in keyof T]: Cudenix.InferValidatorInput<T[K]>;
+	[K in keyof T]: InferValidatorInput<T[K]>;
 };
 
 /**
- * Map each request slot in `T` to the output type its schema produces, via
- * the ambient `Cudenix.InferValidatorOutput`. Drives the type of the
- * validated value written back into `context.request` and consumed by later
- * middlewares, stores, and routes.
+ * Map each request slot in `T` to the output type its Standard Schema
+ * produces. Drives the type of the validated value written back into
+ * `context.request` and consumed by later middlewares, stores, and routes.
  *
  * Slots without a schema fall through as their declared value type. The
  * mapping is shallow — only top-level slot keys are walked.
@@ -100,7 +151,7 @@ export type DeepInferValidatorInput<T extends object> = {
  * ```
  */
 export type DeepInferValidatorOutput<T extends object> = {
-	[K in keyof T]: Cudenix.InferValidatorOutput<T[K]>;
+	[K in keyof T]: InferValidatorOutput<T[K]>;
 };
 
 /**
@@ -110,7 +161,7 @@ export type DeepInferValidatorOutput<T extends object> = {
  *
  * The content is the per-slot map itself, keyed by request slot (`body`,
  * `query`, …), each slot holding its inferred issues (Standard Schema's
- * `Issue[]` via `Cudenix.InferValidatorError`). Keys are optional: a single
+ * `Issue[]` by default). Keys are optional: a single
  * registration aggregates every failing slot, but a slot that validates
  * cleanly is absent from the payload.
  *
