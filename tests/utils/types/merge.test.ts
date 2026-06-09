@@ -1,4 +1,4 @@
-import { describe, expectTypeOf, test } from "bun:test";
+import { describe, expectTypeOf, it } from "bun:test";
 
 import type { Merge } from "@/utils/types/merge";
 
@@ -6,11 +6,11 @@ describe("Merge", () => {
 	describe("with empty operands", () => {
 		type Empty = NonNullable<unknown>;
 
-		test("should resolve to an empty object when both operands are empty", () => {
+		it("should resolve to an empty object when both operands are empty", () => {
 			expectTypeOf<Merge<Empty, Empty>>().branded.toEqualTypeOf<Empty>();
 		});
 
-		test("should be a no-op when the second operand is empty", () => {
+		it("should be a no-op when the second operand is empty", () => {
 			interface A {
 				a: 1;
 				b: 2;
@@ -22,7 +22,7 @@ describe("Merge", () => {
 			}>();
 		});
 
-		test("should resolve to the second operand when the first is empty", () => {
+		it("should resolve to the second operand when the first is empty", () => {
 			interface B {
 				a: 1;
 				b: 2;
@@ -36,7 +36,7 @@ describe("Merge", () => {
 	});
 
 	describe("with disjoint keys", () => {
-		test("should preserve keys present only in the first operand", () => {
+		it("should preserve keys present only in the first operand", () => {
 			interface A {
 				a: number;
 			}
@@ -50,7 +50,7 @@ describe("Merge", () => {
 			}>();
 		});
 
-		test("should include keys present only in the second operand", () => {
+		it("should include keys present only in the second operand", () => {
 			interface A {
 				a: string;
 			}
@@ -64,7 +64,7 @@ describe("Merge", () => {
 			}>();
 		});
 
-		test("should preserve the first operand's `readonly` and `?` modifiers on a disjoint key", () => {
+		it("should preserve the first operand's `readonly` and `?` modifiers on a disjoint key", () => {
 			interface A {
 				readonly a: string;
 				b?: number;
@@ -82,7 +82,7 @@ describe("Merge", () => {
 	});
 
 	describe("with overlapping keys", () => {
-		test("should let the second operand override a key declared in the first", () => {
+		it("should let the second operand override a key declared in the first", () => {
 			interface A {
 				a: string[];
 			}
@@ -95,7 +95,7 @@ describe("Merge", () => {
 			}>();
 		});
 
-		test("should let the second operand replace the value type entirely", () => {
+		it("should let the second operand replace the value type entirely", () => {
 			interface A {
 				a: string;
 			}
@@ -106,7 +106,7 @@ describe("Merge", () => {
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a: number }>();
 		});
 
-		test("should let the second operand narrow a wide value type", () => {
+		it("should let the second operand narrow a wide value type", () => {
 			interface A {
 				a: string;
 			}
@@ -119,7 +119,7 @@ describe("Merge", () => {
 			}>();
 		});
 
-		test("should let the second operand broaden a narrow value type", () => {
+		it("should let the second operand broaden a narrow value type", () => {
 			interface A {
 				a: "v1";
 			}
@@ -132,7 +132,7 @@ describe("Merge", () => {
 	});
 
 	describe("with overlapping and disjoint keys combined", () => {
-		test("should mix overridden, first-only and second-only keys correctly", () => {
+		it("should mix overridden, first-only and second-only keys correctly", () => {
 			interface A {
 				a: 1;
 				b: string;
@@ -151,7 +151,7 @@ describe("Merge", () => {
 			}>();
 		});
 
-		test("should match the documented example of overriding a shared key and carrying a disjoint one", () => {
+		it("should match the documented example of overriding a shared key and carrying a disjoint one", () => {
 			interface A {
 				a: string;
 				b: number;
@@ -170,7 +170,7 @@ describe("Merge", () => {
 	});
 
 	describe("optional modifier", () => {
-		test("should respect the second operand's optional modifier on a shared key", () => {
+		it("should respect the second operand's optional modifier on a shared key", () => {
 			interface A {
 				a: string;
 			}
@@ -181,7 +181,7 @@ describe("Merge", () => {
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a?: string }>();
 		});
 
-		test("should let the second operand tighten an optional key to required", () => {
+		it("should let the second operand tighten an optional key to required", () => {
 			interface A {
 				a?: string;
 			}
@@ -194,7 +194,7 @@ describe("Merge", () => {
 	});
 
 	describe("readonly modifier", () => {
-		test("should let the second operand introduce `readonly` on a shared key", () => {
+		it("should let the second operand introduce `readonly` on a shared key", () => {
 			interface A {
 				a: string;
 			}
@@ -207,7 +207,7 @@ describe("Merge", () => {
 			}>();
 		});
 
-		test("should let the second operand strip `readonly` from a shared key", () => {
+		it("should let the second operand strip `readonly` from a shared key", () => {
 			interface A {
 				readonly a: string;
 			}
@@ -220,7 +220,7 @@ describe("Merge", () => {
 	});
 
 	describe("nested object values", () => {
-		test("should replace a nested object entirely instead of deep-merging", () => {
+		it("should replace a nested object entirely instead of deep-merging", () => {
 			interface A {
 				a: { a: string; b: string };
 			}
@@ -235,7 +235,7 @@ describe("Merge", () => {
 	});
 
 	describe("non-string keys", () => {
-		test("should override a numeric-literal key while keeping unrelated ones", () => {
+		it("should override a numeric-literal key while keeping unrelated ones", () => {
 			interface A {
 				0: string;
 				1: number;
@@ -250,7 +250,7 @@ describe("Merge", () => {
 			}>();
 		});
 
-		test("should let the second operand override a `symbol`-keyed property", () => {
+		it("should let the second operand override a `symbol`-keyed property", () => {
 			const sym = Symbol("k");
 			type Sym = typeof sym;
 
@@ -268,7 +268,7 @@ describe("Merge", () => {
 	});
 
 	describe("index signatures", () => {
-		test("should let the second operand's index signature override the first's", () => {
+		it("should let the second operand's index signature override the first's", () => {
 			interface A {
 				[k: string]: number;
 			}
@@ -281,7 +281,7 @@ describe("Merge", () => {
 			}>();
 		});
 
-		test("should let an index signature in the second operand absorb concrete keys from the first", () => {
+		it("should let an index signature in the second operand absorb concrete keys from the first", () => {
 			interface A {
 				id: string;
 			}
@@ -296,7 +296,7 @@ describe("Merge", () => {
 	});
 
 	describe("idempotence", () => {
-		test("should resolve to the same shape when an object is merged with itself", () => {
+		it("should resolve to the same shape when an object is merged with itself", () => {
 			interface A {
 				a: string;
 				b: number;
@@ -307,7 +307,7 @@ describe("Merge", () => {
 	});
 
 	describe("method-syntax properties", () => {
-		test("should let the second operand override a method-syntax property", () => {
+		it("should let the second operand override a method-syntax property", () => {
 			interface A {
 				a(value: string): number;
 			}
@@ -322,12 +322,12 @@ describe("Merge", () => {
 	});
 
 	describe("rejected inputs", () => {
-		test("should reject a primitive base operand", () => {
+		it("should reject a primitive base operand", () => {
 			// @ts-expect-error - string does not satisfy `T extends object`
 			type _A = Merge<string, { a: 1 }>;
 		});
 
-		test("should reject a primitive overrides operand", () => {
+		it("should reject a primitive overrides operand", () => {
 			// @ts-expect-error - number does not satisfy `U extends object`
 			type _A = Merge<{ a: 1 }, number>;
 		});

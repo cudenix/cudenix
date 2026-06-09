@@ -1,4 +1,4 @@
-import { describe, expectTypeOf, test } from "bun:test";
+import { describe, expectTypeOf, it } from "bun:test";
 
 import type { AnyFail, AnyOk, Fail, Ok } from "@/core/reply";
 import type {
@@ -9,15 +9,15 @@ import type { RequiredKeys } from "@/utils/types/required-keys";
 
 describe("GeneratorSSE", () => {
 	describe("minimal frame", () => {
-		test("should accept a frame whose `data` is an `AnyOk`", () => {
+		it("should accept a frame whose `data` is an `AnyOk`", () => {
 			expectTypeOf<{ data: AnyOk }>().toExtend<GeneratorSSE<AnyOk>>();
 		});
 
-		test("should accept a frame whose `data` is an `AnyFail`", () => {
+		it("should accept a frame whose `data` is an `AnyFail`", () => {
 			expectTypeOf<{ data: AnyFail }>().toExtend<GeneratorSSE<AnyFail>>();
 		});
 
-		test("should reject a frame that omits `data`", () => {
+		it("should reject a frame that omits `data`", () => {
 			expectTypeOf<{ event: "tick" }>().not.toExtend<
 				GeneratorSSE<AnyOk, "tick">
 			>();
@@ -25,25 +25,25 @@ describe("GeneratorSSE", () => {
 	});
 
 	describe("`data` payload typing", () => {
-		test("should accept a frame parametrized with a concrete `Ok` envelope", () => {
+		it("should accept a frame parametrized with a concrete `Ok` envelope", () => {
 			expectTypeOf<{ data: Ok<{ a: true }, 1> }>().toExtend<
 				GeneratorSSE<Ok<{ a: true }, 1>>
 			>();
 		});
 
-		test("should accept a frame parametrized with a concrete `Fail` envelope", () => {
+		it("should accept a frame parametrized with a concrete `Fail` envelope", () => {
 			expectTypeOf<{ data: Fail<{ a: "v1" }, 1> }>().toExtend<
 				GeneratorSSE<Fail<{ a: "v1" }, 1>>
 			>();
 		});
 
-		test("should type `data` as the parametrized payload", () => {
+		it("should type `data` as the parametrized payload", () => {
 			type A = GeneratorSSE<Ok<{ a: true }, 1>>;
 
 			expectTypeOf<A["data"]>().toEqualTypeOf<Ok<{ a: true }, 1>>();
 		});
 
-		test("should type `data` as the parametrized `Fail` payload", () => {
+		it("should type `data` as the parametrized `Fail` payload", () => {
 			type A = GeneratorSSE<Fail<{ a: "v1" }, 1>>;
 
 			expectTypeOf<A["data"]>().toEqualTypeOf<Fail<{ a: "v1" }, 1>>();
@@ -51,14 +51,14 @@ describe("GeneratorSSE", () => {
 	});
 
 	describe("rejected inputs", () => {
-		test("should reject a `data` payload that is not a `Reply`", () => {
+		it("should reject a `data` payload that is not a `Reply`", () => {
 			// @ts-expect-error - `string` does not satisfy `AnyFail | AnyOk`
 			type _A = GeneratorSSE<string>;
 		});
 	});
 
 	describe("`data` covariance", () => {
-		test("should accept an `Ok` subtype through `data` covariance", () => {
+		it("should accept an `Ok` subtype through `data` covariance", () => {
 			type A = GeneratorSSE<Ok<{ a: true }, 1>>;
 			type B = GeneratorSSE<AnyOk>;
 
@@ -83,15 +83,15 @@ describe("GeneratorSSE", () => {
 		describe("with channel literal 'tick'", () => {
 			type A = GeneratorSSE<AnyOk, "tick">;
 
-			test("should narrow `event` to the channel literal plus `undefined`", () => {
+			it("should narrow `event` to the channel literal plus `undefined`", () => {
 				expectTypeOf<A["event"]>().toEqualTypeOf<"tick" | undefined>();
 			});
 
-			test("should accept a frame whose `event` matches the channel literal", () => {
+			it("should accept a frame whose `event` matches the channel literal", () => {
 				expectTypeOf<{ data: AnyOk; event: "tick" }>().toExtend<A>();
 			});
 
-			test("should reject an `event` value outside the channel literal", () => {
+			it("should reject an `event` value outside the channel literal", () => {
 				expectTypeOf<{ data: AnyOk; event: "v1" }>().not.toExtend<A>();
 			});
 		});
@@ -99,16 +99,16 @@ describe("GeneratorSSE", () => {
 		describe("with channel union 'a' | 'b'", () => {
 			type A = GeneratorSSE<AnyOk, "a" | "b">;
 
-			test("should accept the 'a' member as `event`", () => {
+			it("should accept the 'a' member as `event`", () => {
 				expectTypeOf<{ data: AnyOk; event: "a" }>().toExtend<A>();
 			});
 
-			test("should accept the 'b' member as `event`", () => {
+			it("should accept the 'b' member as `event`", () => {
 				expectTypeOf<{ data: AnyOk; event: "b" }>().toExtend<A>();
 			});
 		});
 
-		test("should accept any string when the channel is widened to `string`", () => {
+		it("should accept any string when the channel is widened to `string`", () => {
 			type A = GeneratorSSE<AnyOk, string>;
 
 			expectTypeOf<{ data: AnyOk; event: "v1" }>().toExtend<A>();
@@ -118,11 +118,11 @@ describe("GeneratorSSE", () => {
 	describe("`id` optional field", () => {
 		type A = GeneratorSSE<AnyOk>;
 
-		test("should not require `id` to be present", () => {
+		it("should not require `id` to be present", () => {
 			expectTypeOf<{ data: AnyOk }>().toExtend<A>();
 		});
 
-		test("should type `id` as `string | undefined`", () => {
+		it("should type `id` as `string | undefined`", () => {
 			expectTypeOf<A["id"]>().toEqualTypeOf<string | undefined>();
 		});
 	});
@@ -130,17 +130,17 @@ describe("GeneratorSSE", () => {
 	describe("`retry` optional field", () => {
 		type A = GeneratorSSE<AnyOk>;
 
-		test("should not require `retry` to be present", () => {
+		it("should not require `retry` to be present", () => {
 			expectTypeOf<{ data: AnyOk }>().toExtend<A>();
 		});
 
-		test("should type `retry` as `number | undefined`", () => {
+		it("should type `retry` as `number | undefined`", () => {
 			expectTypeOf<A["retry"]>().toEqualTypeOf<number | undefined>();
 		});
 	});
 
 	describe("required keys contract", () => {
-		test("should mark only `data` as required on the parametrized form", () => {
+		it("should mark only `data` as required on the parametrized form", () => {
 			type A = GeneratorSSE<AnyOk, "tick">;
 
 			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<"data">();
@@ -148,7 +148,7 @@ describe("GeneratorSSE", () => {
 	});
 
 	describe("complete frame with every optional field", () => {
-		test("should accept a frame populating every optional field", () => {
+		it("should accept a frame populating every optional field", () => {
 			type A = GeneratorSSE<AnyOk, "tick">;
 
 			expectTypeOf<{
@@ -161,28 +161,28 @@ describe("GeneratorSSE", () => {
 	});
 
 	describe("AnyGeneratorSSE", () => {
-		test("should keep `data` required even on the relaxed alias", () => {
+		it("should keep `data` required even on the relaxed alias", () => {
 			expectTypeOf<{ event: "v1" }>().not.toExtend<AnyGeneratorSSE>();
 		});
 
-		test("should accept a frame whose `data` is `AnyFail`", () => {
+		it("should accept a frame whose `data` is `AnyFail`", () => {
 			expectTypeOf<{ data: AnyFail }>().toExtend<AnyGeneratorSSE>();
 		});
 
-		test("should accept any string for the `event` channel", () => {
+		it("should accept any string for the `event` channel", () => {
 			expectTypeOf<{
 				data: AnyOk;
 				event: "v1";
 			}>().toExtend<AnyGeneratorSSE>();
 		});
 
-		test("should accept any concrete `GeneratorSSE<X, Y>` as a subtype", () => {
+		it("should accept any concrete `GeneratorSSE<X, Y>` as a subtype", () => {
 			type A = GeneratorSSE<Ok<{ a: true }, 1>, "tick">;
 
 			expectTypeOf<A>().toExtend<AnyGeneratorSSE>();
 		});
 
-		test("should widen `data` and `event` to `any` while leaving `id` and `retry` narrow", () => {
+		it("should widen `data` and `event` to `any` while leaving `id` and `retry` narrow", () => {
 			expectTypeOf<AnyGeneratorSSE["data"]>().toBeAny();
 			expectTypeOf<AnyGeneratorSSE["event"]>().toBeAny();
 			expectTypeOf<AnyGeneratorSSE["id"]>().toEqualTypeOf<
@@ -193,7 +193,7 @@ describe("GeneratorSSE", () => {
 			>();
 		});
 
-		test("should be usable as an array element type", () => {
+		it("should be usable as an array element type", () => {
 			expectTypeOf<GeneratorSSE<Ok<{ a: true }, 1>, "tick">[]>().toExtend<
 				AnyGeneratorSSE[]
 			>();

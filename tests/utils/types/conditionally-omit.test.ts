@@ -1,10 +1,10 @@
-import { describe, expectTypeOf, test } from "bun:test";
+import { describe, expectTypeOf, it } from "bun:test";
 
 import type { ConditionallyOmit } from "@/utils/types/conditionally-omit";
 
 describe("ConditionallyOmit", () => {
 	describe("with marker `never`", () => {
-		test("should drop a single `never` key and keep the rest", () => {
+		it("should drop a single `never` key and keep the rest", () => {
 			interface A {
 				a: string;
 				b: never;
@@ -17,7 +17,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should drop every `never` key when multiple are present", () => {
+		it("should drop every `never` key when multiple are present", () => {
 			interface A {
 				a: never;
 				b: never;
@@ -31,7 +31,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should leave the object unchanged when no keys are `never`", () => {
+		it("should leave the object unchanged when no keys are `never`", () => {
 			interface A {
 				a: string;
 				b: number;
@@ -45,7 +45,7 @@ describe("ConditionallyOmit", () => {
 	});
 
 	describe("with marker `unknown`", () => {
-		test("should drop a single `unknown` key", () => {
+		it("should drop a single `unknown` key", () => {
 			interface A {
 				a: unknown;
 				b: string;
@@ -56,7 +56,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should drop every `unknown` key when multiple are present", () => {
+		it("should drop every `unknown` key when multiple are present", () => {
 			interface A {
 				a: unknown;
 				b: unknown;
@@ -68,7 +68,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should leave the object unchanged when no keys are `unknown`", () => {
+		it("should leave the object unchanged when no keys are `unknown`", () => {
 			interface A {
 				a: string;
 				b: number;
@@ -82,7 +82,7 @@ describe("ConditionallyOmit", () => {
 	});
 
 	describe("with marker `null`", () => {
-		test("should drop a `null`-valued key", () => {
+		it("should drop a `null`-valued key", () => {
 			interface A {
 				a: null;
 				b: string;
@@ -93,7 +93,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should drop every `null`-valued key when multiple are present", () => {
+		it("should drop every `null`-valued key when multiple are present", () => {
 			interface A {
 				a: null;
 				b: null;
@@ -105,7 +105,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should leave the object unchanged when no keys are `null`", () => {
+		it("should leave the object unchanged when no keys are `null`", () => {
 			interface A {
 				a: string;
 				b: number;
@@ -119,7 +119,7 @@ describe("ConditionallyOmit", () => {
 	});
 
 	describe("with marker `undefined`", () => {
-		test("should drop an `undefined`-valued key", () => {
+		it("should drop an `undefined`-valued key", () => {
 			interface A {
 				a: undefined;
 				b: string;
@@ -130,7 +130,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should drop every `undefined`-valued key when multiple are present", () => {
+		it("should drop every `undefined`-valued key when multiple are present", () => {
 			interface A {
 				a: undefined;
 				b: undefined;
@@ -142,7 +142,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should leave the object unchanged when no keys are `undefined`", () => {
+		it("should leave the object unchanged when no keys are `undefined`", () => {
 			interface A {
 				a: string;
 				b: number;
@@ -156,7 +156,7 @@ describe("ConditionallyOmit", () => {
 	});
 
 	describe("`any` collapses mutual assignability", () => {
-		test("should drop every key when the marker is `any`", () => {
+		it("should drop every key when the marker is `any`", () => {
 			interface A {
 				a: string;
 				b: number;
@@ -167,7 +167,7 @@ describe("ConditionallyOmit", () => {
 			>();
 		});
 
-		test("should drop an `any`-valued key even under a narrow marker", () => {
+		it("should drop an `any`-valued key even under a narrow marker", () => {
 			interface A {
 				a: any;
 				b: number;
@@ -178,7 +178,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should keep an `any`-valued key under a `never` marker since `any` is not assignable to `never`", () => {
+		it("should keep an `any`-valued key under a `never` marker since `any` is not assignable to `never`", () => {
 			interface A {
 				a: any;
 				b: number;
@@ -192,7 +192,7 @@ describe("ConditionallyOmit", () => {
 	});
 
 	describe("structural mutual-assignability match", () => {
-		test("should only drop keys whose value is mutually assignable with the marker", () => {
+		it("should only drop keys whose value is mutually assignable with the marker", () => {
 			interface A {
 				a: string;
 				b: "v1";
@@ -205,7 +205,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should not drop a key whose value is a wider supertype of the marker", () => {
+		it("should not drop a key whose value is a wider supertype of the marker", () => {
 			interface A {
 				a: "v1";
 				b: string;
@@ -216,7 +216,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should not drop a key whose value is a strict subtype of the marker", () => {
+		it("should not drop a key whose value is a strict subtype of the marker", () => {
 			interface A {
 				a: string;
 				b: "v1";
@@ -227,7 +227,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should drop only the union-valued key whose union matches the marker exactly", () => {
+		it("should drop only the union-valued key whose union matches the marker exactly", () => {
 			interface A {
 				a: "v1" | "v2";
 				b: "v1";
@@ -238,7 +238,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should drop a key whose object value is structurally identical to the object marker", () => {
+		it("should drop a key whose object value is structurally identical to the object marker", () => {
 			interface A {
 				a: { a: number };
 				b: string;
@@ -249,7 +249,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should not drop an `unknown`-valued key under a narrow marker", () => {
+		it("should not drop an `unknown`-valued key under a narrow marker", () => {
 			interface A {
 				a: unknown;
 				b: number;
@@ -263,7 +263,7 @@ describe("ConditionallyOmit", () => {
 	});
 
 	describe("preservation of retained keys and modifiers", () => {
-		test("should keep all keys when the marker matches none of them", () => {
+		it("should keep all keys when the marker matches none of them", () => {
 			interface A {
 				a: string;
 				b: number;
@@ -277,7 +277,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should preserve the optional modifier on retained keys", () => {
+		it("should preserve the optional modifier on retained keys", () => {
 			interface A {
 				a: never;
 				b?: string;
@@ -288,7 +288,7 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
-		test("should preserve the `readonly` modifier on retained keys", () => {
+		it("should preserve the `readonly` modifier on retained keys", () => {
 			interface A {
 				a: never;
 				readonly b: string;
@@ -301,7 +301,7 @@ describe("ConditionallyOmit", () => {
 	});
 
 	describe("special key kinds", () => {
-		test("should drop a `symbol`-keyed property whose value matches the marker", () => {
+		it("should drop a `symbol`-keyed property whose value matches the marker", () => {
 			const sym = Symbol("k");
 
 			interface A {
@@ -316,7 +316,7 @@ describe("ConditionallyOmit", () => {
 	});
 
 	describe("index signatures", () => {
-		test("should drop every key from a record whose value matches the marker", () => {
+		it("should drop every key from a record whose value matches the marker", () => {
 			type A = Record<string, string>;
 
 			expectTypeOf<ConditionallyOmit<A, string>>().toEqualTypeOf<
@@ -324,7 +324,7 @@ describe("ConditionallyOmit", () => {
 			>();
 		});
 
-		test("should drop every key from a record whose value is unknown when the marker is unknown", () => {
+		it("should drop every key from a record whose value is unknown when the marker is unknown", () => {
 			type A = Record<string, unknown>;
 
 			expectTypeOf<ConditionallyOmit<A, unknown>>().toEqualTypeOf<
@@ -332,7 +332,7 @@ describe("ConditionallyOmit", () => {
 			>();
 		});
 
-		test("should leave a record untouched when the marker does not match the value type", () => {
+		it("should leave a record untouched when the marker does not match the value type", () => {
 			type A = Record<string, number>;
 
 			expectTypeOf<ConditionallyOmit<A, string>>().toEqualTypeOf<A>();
@@ -340,7 +340,7 @@ describe("ConditionallyOmit", () => {
 	});
 
 	describe("edge shapes", () => {
-		test("should be a no-op on an empty object", () => {
+		it("should be a no-op on an empty object", () => {
 			type A = NonNullable<unknown>;
 
 			expectTypeOf<ConditionallyOmit<A, never>>().toEqualTypeOf<
@@ -348,7 +348,7 @@ describe("ConditionallyOmit", () => {
 			>();
 		});
 
-		test("should produce an empty object when every key matches the marker", () => {
+		it("should produce an empty object when every key matches the marker", () => {
 			interface A {
 				a: never;
 				b: never;
@@ -359,7 +359,7 @@ describe("ConditionallyOmit", () => {
 			>();
 		});
 
-		test("should leave an optional `never` key untouched because indexed access widens it to `undefined`", () => {
+		it("should leave an optional `never` key untouched because indexed access widens it to `undefined`", () => {
 			interface A {
 				a: string;
 				b?: never;

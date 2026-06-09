@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, it } from "bun:test";
 
 import { Empty } from "@/utils/objects/empty";
 import { parseParams } from "@/utils/urls/parse-params";
@@ -27,11 +27,11 @@ describe("parseParams", () => {
 				);
 			});
 
-			test("should capture the parameter value", () => {
+			it("should capture the parameter value", () => {
 				expect(result.p1).toBe("v1");
 			});
 
-			test("should expose only the parsed parameter key", () => {
+			it("should expose only the parsed parameter key", () => {
 				expect(Object.keys(result)).toEqual(["p1"]);
 			});
 		});
@@ -48,22 +48,22 @@ describe("parseParams", () => {
 				);
 			});
 
-			test("should capture the first parameter value", () => {
+			it("should capture the first parameter value", () => {
 				expect(result.p1).toBe("v1");
 			});
 
-			test("should capture the second parameter value", () => {
+			it("should capture the second parameter value", () => {
 				expect(result.p2).toBe("v2");
 			});
 
-			test("should preserve declaration order of the parameter names", () => {
+			it("should preserve declaration order of the parameter names", () => {
 				expect(Object.keys(result)).toEqual(["p1", "p2"]);
 			});
 		});
 	});
 
 	describe("value decoding", () => {
-		test("should decode '%xx' escapes in a value", () => {
+		it("should decode '%xx' escapes in a value", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)", "/a/v1%20v2"),
 				["p1"],
@@ -74,7 +74,7 @@ describe("parseParams", () => {
 			expect(result.p1).toBe("v1 v2");
 		});
 
-		test("should take a value with no '%' verbatim, leaving '+' untouched", () => {
+		it("should take a value with no '%' verbatim, leaving '+' untouched", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)", "/a/v1+v2"),
 				["p1"],
@@ -85,7 +85,7 @@ describe("parseParams", () => {
 			expect(result.p1).toBe("v1+v2");
 		});
 
-		test("should preserve non-ASCII characters", () => {
+		it("should preserve non-ASCII characters", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)", "/a/☕"),
 				["p1"],
@@ -96,7 +96,7 @@ describe("parseParams", () => {
 			expect(result.p1).toBe("☕");
 		});
 
-		test("should decode a percent-encoded slash inside a normal parameter", () => {
+		it("should decode a percent-encoded slash inside a normal parameter", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)", "/a/v1%2Fv2"),
 				["p1"],
@@ -107,7 +107,7 @@ describe("parseParams", () => {
 			expect(result.p1).toBe("v1/v2");
 		});
 
-		test("should reassemble a percent-encoded surrogate pair when decoding", () => {
+		it("should reassemble a percent-encoded surrogate pair when decoding", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)", "/a/%F0%9F%98%80"),
 				["p1"],
@@ -118,7 +118,7 @@ describe("parseParams", () => {
 			expect(result.p1).toBe("😀");
 		});
 
-		test("should keep a value with a malformed '%' escape verbatim instead of throwing", () => {
+		it("should keep a value with a malformed '%' escape verbatim instead of throwing", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)", "/a/100%"),
 				["p1"],
@@ -129,7 +129,7 @@ describe("parseParams", () => {
 			expect(result.p1).toBe("100%");
 		});
 
-		test("should keep a value with a non-hex '%' escape verbatim", () => {
+		it("should keep a value with a non-hex '%' escape verbatim", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)", "/a/%zz"),
 				["p1"],
@@ -142,7 +142,7 @@ describe("parseParams", () => {
 	});
 
 	describe("rest parameters", () => {
-		test("should split a multi-segment rest value on '/'", () => {
+		it("should split a multi-segment rest value on '/'", () => {
 			const result = parseParams(exec("()/a/(.+)", "/a/b/c"), ["r1"], 1, [
 				"r1",
 			]);
@@ -150,7 +150,7 @@ describe("parseParams", () => {
 			expect(result.r1).toEqual(["b", "c"]);
 		});
 
-		test("should wrap a single-segment rest value in an array", () => {
+		it("should wrap a single-segment rest value in an array", () => {
 			const result = parseParams(exec("()/a/(.+)", "/a/b"), ["r1"], 1, [
 				"r1",
 			]);
@@ -158,7 +158,7 @@ describe("parseParams", () => {
 			expect(result.r1).toEqual(["b"]);
 		});
 
-		test("should decode a rest value before splitting it", () => {
+		it("should decode a rest value before splitting it", () => {
 			const result = parseParams(
 				exec("()/a/(.+)", "/a/b%20c/d"),
 				["r1"],
@@ -169,7 +169,7 @@ describe("parseParams", () => {
 			expect(result.r1).toEqual(["b c", "d"]);
 		});
 
-		test("should treat a decoded '%2F' as a split point", () => {
+		it("should treat a decoded '%2F' as a split point", () => {
 			const result = parseParams(
 				exec("()/a/(.+)", "/a/b%2Fc"),
 				["r1"],
@@ -180,7 +180,7 @@ describe("parseParams", () => {
 			expect(result.r1).toEqual(["b", "c"]);
 		});
 
-		test("should keep a normal parameter alongside a rest parameter", () => {
+		it("should keep a normal parameter alongside a rest parameter", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)/(.+)", "/a/v1/b/c"),
 				["p1", "r1"],
@@ -192,7 +192,7 @@ describe("parseParams", () => {
 			expect(result.r1).toEqual(["b", "c"]);
 		});
 
-		test("should yield a single empty segment for an empty rest capture", () => {
+		it("should yield a single empty segment for an empty rest capture", () => {
 			const result = parseParams(exec("()/a/(.*)", "/a/"), ["r1"], 1, [
 				"r1",
 			]);
@@ -200,7 +200,7 @@ describe("parseParams", () => {
 			expect(result.r1).toEqual([""]);
 		});
 
-		test("should keep a trailing empty segment from a trailing slash", () => {
+		it("should keep a trailing empty segment from a trailing slash", () => {
 			const result = parseParams(exec("()/a/(.+)", "/a/b/"), ["r1"], 1, [
 				"r1",
 			]);
@@ -210,7 +210,7 @@ describe("parseParams", () => {
 	});
 
 	describe("matchOffset handling", () => {
-		test("should read captures starting after the leading empty group", () => {
+		it("should read captures starting after the leading empty group", () => {
 			const result = parseParams(
 				exec("()()/a/([^/]+)", "/a/v1"),
 				["p1"],
@@ -221,7 +221,7 @@ describe("parseParams", () => {
 			expect(result.p1).toBe("v1");
 		});
 
-		test("should read each parameter at its offset-relative slot", () => {
+		it("should read each parameter at its offset-relative slot", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)/b/([^/]+)", "/a/v1/b/v2"),
 				["p1", "p2"],
@@ -234,7 +234,7 @@ describe("parseParams", () => {
 	});
 
 	describe("unmatched optional captures", () => {
-		test("should skip a parameter whose capture is undefined", () => {
+		it("should skip a parameter whose capture is undefined", () => {
 			const result = parseParams(
 				exec("()/a(?:/([^/]+))?", "/a"),
 				["p1"],
@@ -246,7 +246,7 @@ describe("parseParams", () => {
 			expect(Object.keys(result)).toHaveLength(0);
 		});
 
-		test("should keep matched parameters when a later one is undefined", () => {
+		it("should keep matched parameters when a later one is undefined", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)(?:/([^/]+))?", "/a/v1"),
 				["p1", "p2"],
@@ -258,7 +258,7 @@ describe("parseParams", () => {
 			expect("p2" in result).toBe(false);
 		});
 
-		test("should skip a rest parameter whose capture is undefined", () => {
+		it("should skip a rest parameter whose capture is undefined", () => {
 			const result = parseParams(
 				exec("()/a(?:/(.+))?", "/a"),
 				["r1"],
@@ -272,7 +272,7 @@ describe("parseParams", () => {
 	});
 
 	describe("dangerous key names", () => {
-		test("should store `__proto__` as a real own key without polluting the prototype", () => {
+		it("should store `__proto__` as a real own key without polluting the prototype", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)", "/a/v1"),
 				["__proto__"],
@@ -285,7 +285,7 @@ describe("parseParams", () => {
 			expect(({} as Record<string, unknown>).__proto__).not.toBe("v1");
 		});
 
-		test("should store `constructor` as a real own key without invoking inheritance", () => {
+		it("should store `constructor` as a real own key without invoking inheritance", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)", "/a/v1"),
 				["constructor"],
@@ -299,14 +299,14 @@ describe("parseParams", () => {
 	});
 
 	describe("empty / nothing to read", () => {
-		test("should return an empty dictionary when there is no match", () => {
+		it("should return an empty dictionary when there is no match", () => {
 			const result = parseParams(undefined, ["p1"], 1, []);
 
 			expect(result).toBeInstanceOf(Empty);
 			expect(Object.keys(result)).toHaveLength(0);
 		});
 
-		test("should return an empty dictionary when there are no parameter keys", () => {
+		it("should return an empty dictionary when there are no parameter keys", () => {
 			const result = parseParams(exec("()/a", "/a"), [], 1, []);
 
 			expect(Object.keys(result)).toHaveLength(0);
@@ -326,11 +326,11 @@ describe("parseParams", () => {
 				);
 			});
 
-			test("should return a dictionary inheriting from Empty", () => {
+			it("should return a dictionary inheriting from Empty", () => {
 				expect(result).toBeInstanceOf(Empty);
 			});
 
-			test("should have a null prototype root (no Object.prototype methods)", () => {
+			it("should have a null prototype root (no Object.prototype methods)", () => {
 				expect(
 					Object.getPrototypeOf(Object.getPrototypeOf(result)),
 				).toBeNull();
@@ -339,7 +339,7 @@ describe("parseParams", () => {
 			});
 		});
 
-		test("should return a fresh dictionary on each call", () => {
+		it("should return a fresh dictionary on each call", () => {
 			const a = parseParams(exec("()/a/([^/]+)", "/a/v1"), ["p1"], 1, []);
 			const b = parseParams(exec("()/a/([^/]+)", "/a/v1"), ["p1"], 1, []);
 

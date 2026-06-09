@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, it } from "bun:test";
 
 import { Empty } from "@/utils/objects/empty";
 import { parseQuery } from "@/utils/urls/parse-query";
@@ -12,11 +12,11 @@ describe("parseQuery", () => {
 				result = parseQuery("/a?b=v1");
 			});
 
-			test("should capture the parameter value", () => {
+			it("should capture the parameter value", () => {
 				expect(result.b).toBe("v1");
 			});
 
-			test("should expose only the parsed parameter key", () => {
+			it("should expose only the parsed parameter key", () => {
 				expect(Object.keys(result)).toEqual(["b"]);
 			});
 		});
@@ -28,26 +28,26 @@ describe("parseQuery", () => {
 				result = parseQuery("/a?b=v1&c=v2");
 			});
 
-			test("should capture the first parameter value", () => {
+			it("should capture the first parameter value", () => {
 				expect(result.b).toBe("v1");
 			});
 
-			test("should capture the second parameter value", () => {
+			it("should capture the second parameter value", () => {
 				expect(result.c).toBe("v2");
 			});
 
-			test("should preserve insertion order of the parameter names", () => {
+			it("should preserve insertion order of the parameter names", () => {
 				expect(Object.keys(result)).toEqual(["b", "c"]);
 			});
 		});
 
-		test("should support many parameters in a single query string", () => {
+		it("should support many parameters in a single query string", () => {
 			const result = parseQuery("/a?b=1&c=2&d=3&e=4&f=5");
 
 			expect(result).toEqual({ b: "1", c: "2", d: "3", e: "4", f: "5" });
 		});
 
-		test("should read the query from a full absolute URL", () => {
+		it("should read the query from a full absolute URL", () => {
 			const result = parseQuery("https://host/a?b=v1&c=v2");
 
 			expect(result).toEqual({ b: "v1", c: "v2" });
@@ -55,57 +55,57 @@ describe("parseQuery", () => {
 	});
 
 	describe("key and value decoding", () => {
-		test("should turn '+' into a space inside a key", () => {
+		it("should turn '+' into a space inside a key", () => {
 			const result = parseQuery("/a?b+c=v1");
 
 			expect(result["b c"]).toBe("v1");
 		});
 
-		test("should turn '+' into a space inside a value", () => {
+		it("should turn '+' into a space inside a value", () => {
 			const result = parseQuery("/a?b=v1+v2");
 
 			expect(result.b).toBe("v1 v2");
 		});
 
-		test("should decode '%xx' escapes inside a key", () => {
+		it("should decode '%xx' escapes inside a key", () => {
 			const result = parseQuery("/a?b%20c=v1");
 
 			expect(result["b c"]).toBe("v1");
 		});
 
-		test("should decode '%xx' escapes inside a value", () => {
+		it("should decode '%xx' escapes inside a value", () => {
 			const result = parseQuery("/a?b=v1%20v2");
 
 			expect(result.b).toBe("v1 v2");
 		});
 
-		test("should apply both '+' and '%xx' decoding to the same key", () => {
+		it("should apply both '+' and '%xx' decoding to the same key", () => {
 			const result = parseQuery("/a?b+c%21=v1");
 
 			expect(result["b c!"]).toBe("v1");
 		});
 
-		test("should apply both '+' and '%xx' decoding to the same value", () => {
+		it("should apply both '+' and '%xx' decoding to the same value", () => {
 			const result = parseQuery("/a?b=v1+v2%21");
 
 			expect(result.b).toBe("v1 v2!");
 		});
 
-		test("should preserve non-ASCII characters in keys and values", () => {
+		it("should preserve non-ASCII characters in keys and values", () => {
 			const result = parseQuery("/a?café=☕&b=v1");
 
 			expect(result.café).toBe("☕");
 			expect(result.b).toBe("v1");
 		});
 
-		test("should preserve surrogate-pair characters (codepoints outside the BMP)", () => {
+		it("should preserve surrogate-pair characters (codepoints outside the BMP)", () => {
 			const result = parseQuery("/a?b=𝕊&c=😀");
 
 			expect(result.b).toBe("𝕊");
 			expect(result.c).toBe("😀");
 		});
 
-		test("should keep additional '=' characters as part of the value", () => {
+		it("should keep additional '=' characters as part of the value", () => {
 			const result = parseQuery("/a?b=v1=v2");
 
 			expect(result.b).toBe("v1=v2");
@@ -113,68 +113,68 @@ describe("parseQuery", () => {
 	});
 
 	describe("malformed percent-escapes", () => {
-		test("should keep a bare '%' in a value verbatim instead of throwing", () => {
+		it("should keep a bare '%' in a value verbatim instead of throwing", () => {
 			const result = parseQuery("/a?b=100%&c=v2");
 
 			expect(result.b).toBe("100%");
 			expect(result.c).toBe("v2");
 		});
 
-		test("should keep a non-hex '%' escape in a value verbatim", () => {
+		it("should keep a non-hex '%' escape in a value verbatim", () => {
 			const result = parseQuery("/a?b=%zz");
 
 			expect(result.b).toBe("%zz");
 		});
 
-		test("should keep a malformed '%' escape in a key verbatim", () => {
+		it("should keep a malformed '%' escape in a key verbatim", () => {
 			const result = parseQuery("/a?b%=v1");
 
 			expect(result["b%"]).toBe("v1");
 		});
 
-		test("should not throw on a truncated multibyte escape", () => {
+		it("should not throw on a truncated multibyte escape", () => {
 			expect(() => parseQuery("/a?b=%E0%A4%A")).not.toThrow();
 		});
 	});
 
 	describe("JSON-shaped values", () => {
-		test("should parse a value wrapped in '{...}' as an object", () => {
+		it("should parse a value wrapped in '{...}' as an object", () => {
 			const result = parseQuery('/a?b={"c":1}');
 
 			expect(result.b).toEqual({ c: 1 });
 		});
 
-		test("should parse a value wrapped in '[...]' as an array", () => {
+		it("should parse a value wrapped in '[...]' as an array", () => {
 			const result = parseQuery("/a?b=[1,2,3]");
 
 			expect(result.b).toEqual([1, 2, 3]);
 		});
 
-		test("should parse a percent-encoded JSON object", () => {
+		it("should parse a percent-encoded JSON object", () => {
 			const result = parseQuery("/a?b=%7B%22c%22%3A1%7D");
 
 			expect(result.b).toEqual({ c: 1 });
 		});
 
-		test("should fall back to the raw string when JSON parsing fails", () => {
+		it("should fall back to the raw string when JSON parsing fails", () => {
 			const result = parseQuery("/a?b={bad}");
 
 			expect(result.b).toBe("{bad}");
 		});
 
-		test("should not parse a value that opens but never closes a brace", () => {
+		it("should not parse a value that opens but never closes a brace", () => {
 			const result = parseQuery("/a?b={c");
 
 			expect(result.b).toBe("{c");
 		});
 
-		test("should not parse a value that opens but never closes a bracket", () => {
+		it("should not parse a value that opens but never closes a bracket", () => {
 			const result = parseQuery("/a?b=[1");
 
 			expect(result.b).toBe("[1");
 		});
 
-		test("should not parse a value whose brackets are mismatched", () => {
+		it("should not parse a value whose brackets are mismatched", () => {
 			const result = parseQuery("/a?b={1]");
 
 			expect(result.b).toBe("{1]");
@@ -182,20 +182,20 @@ describe("parseQuery", () => {
 	});
 
 	describe("keys without a value", () => {
-		test("should map a bare key with no '=' to an empty string", () => {
+		it("should map a bare key with no '=' to an empty string", () => {
 			const result = parseQuery("/a?b");
 
 			expect(result.b).toBe("");
 		});
 
-		test("should map a key written as 'b=' to an empty string", () => {
+		it("should map a key written as 'b=' to an empty string", () => {
 			const result = parseQuery("/a?b=&c=v1");
 
 			expect(result.b).toBe("");
 			expect(result.c).toBe("v1");
 		});
 
-		test("should handle a bare key followed by another pair", () => {
+		it("should handle a bare key followed by another pair", () => {
 			const result = parseQuery("/a?b&c=v1");
 
 			expect(result).toEqual({ b: "", c: "v1" });
@@ -203,21 +203,21 @@ describe("parseQuery", () => {
 	});
 
 	describe("fragment handling", () => {
-		test("should stop parsing at a '#' fragment after a value", () => {
+		it("should stop parsing at a '#' fragment after a value", () => {
 			const result = parseQuery("/a?b=v1#section");
 
 			expect(result.b).toBe("v1");
 			expect("section" in result).toBe(false);
 		});
 
-		test("should stop parsing at a '#' fragment that ends a key", () => {
+		it("should stop parsing at a '#' fragment that ends a key", () => {
 			const result = parseQuery("/a?b#section");
 
 			expect(result.b).toBe("");
 			expect(Object.keys(result)).toEqual(["b"]);
 		});
 
-		test("should ignore parameters that live in the fragment", () => {
+		it("should ignore parameters that live in the fragment", () => {
 			const result = parseQuery("/a?b=v1#c=v2");
 
 			expect(result).toEqual({ b: "v1" });
@@ -225,31 +225,31 @@ describe("parseQuery", () => {
 	});
 
 	describe("repeated keys", () => {
-		test("should collapse two occurrences into an array in first-seen order", () => {
+		it("should collapse two occurrences into an array in first-seen order", () => {
 			const result = parseQuery("/a?b=v1&b=v2");
 
 			expect(result.b).toEqual(["v1", "v2"]);
 		});
 
-		test("should append further occurrences onto the existing array", () => {
+		it("should append further occurrences onto the existing array", () => {
 			const result = parseQuery("/a?b=v1&b=v2&b=v3");
 
 			expect(result.b).toEqual(["v1", "v2", "v3"]);
 		});
 
-		test("should wrap a JSON array value as a single element when the key repeats", () => {
+		it("should wrap a JSON array value as a single element when the key repeats", () => {
 			const result = parseQuery("/a?b=[1,2]&b=v3");
 
 			expect(result.b).toEqual([[1, 2], "v3"]);
 		});
 
-		test("should wrap a JSON object value as a single element when the key repeats", () => {
+		it("should wrap a JSON object value as a single element when the key repeats", () => {
 			const result = parseQuery('/a?b={"c":1}&b=v3');
 
 			expect(result.b).toEqual([{ c: 1 }, "v3"]);
 		});
 
-		test("should keep repeated JSON array values as distinct elements", () => {
+		it("should keep repeated JSON array values as distinct elements", () => {
 			const result = parseQuery("/a?b=[1,2]&b=[3,4]");
 
 			expect(result.b).toEqual([
@@ -260,21 +260,21 @@ describe("parseQuery", () => {
 	});
 
 	describe("entries skipped or dropped", () => {
-		test("should drop a leading entry with an empty key ('=v1')", () => {
+		it("should drop a leading entry with an empty key ('=v1')", () => {
 			const result = parseQuery("/a?=v1&b=v2");
 
 			expect(result).toEqual({ b: "v2" });
 			expect(result[""]).toBeUndefined();
 		});
 
-		test("should drop an empty-key entry between two valid pairs", () => {
+		it("should drop an empty-key entry between two valid pairs", () => {
 			const result = parseQuery("/a?b=1&=v1&c=2");
 
 			expect(result).toEqual({ b: "1", c: "2" });
 			expect(result[""]).toBeUndefined();
 		});
 
-		test("should ignore a leading '&' separator", () => {
+		it("should ignore a leading '&' separator", () => {
 			const result = parseQuery("/a?&b=v1");
 
 			expect(result).toEqual({ b: "v1" });
@@ -282,36 +282,36 @@ describe("parseQuery", () => {
 	});
 
 	describe("empty or no usable parameters", () => {
-		test("should return an empty dictionary when the URL has no '?'", () => {
+		it("should return an empty dictionary when the URL has no '?'", () => {
 			const result = parseQuery("/a");
 
 			expect(result).toBeInstanceOf(Empty);
 			expect(Object.keys(result)).toHaveLength(0);
 		});
 
-		test("should return an empty dictionary for an empty string", () => {
+		it("should return an empty dictionary for an empty string", () => {
 			expect(Object.keys(parseQuery(""))).toHaveLength(0);
 		});
 
-		test("should return an empty dictionary for a lone '?'", () => {
+		it("should return an empty dictionary for a lone '?'", () => {
 			expect(Object.keys(parseQuery("/a?"))).toHaveLength(0);
 		});
 
-		test("should return an empty dictionary when only an empty-key pair is present", () => {
+		it("should return an empty dictionary when only an empty-key pair is present", () => {
 			expect(Object.keys(parseQuery("/a?=v1"))).toHaveLength(0);
 		});
 
-		test("should return an empty dictionary for a lone '&' separator", () => {
+		it("should return an empty dictionary for a lone '&' separator", () => {
 			expect(Object.keys(parseQuery("/a?&"))).toHaveLength(0);
 		});
 
-		test("should return an empty dictionary when the query is only a fragment", () => {
+		it("should return an empty dictionary when the query is only a fragment", () => {
 			expect(Object.keys(parseQuery("/a?#section"))).toHaveLength(0);
 		});
 	});
 
 	describe("dangerous key names", () => {
-		test("should store `__proto__` as a real own key without polluting the prototype", () => {
+		it("should store `__proto__` as a real own key without polluting the prototype", () => {
 			const result = parseQuery("/a?__proto__=v1&b=v2");
 
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
@@ -320,7 +320,7 @@ describe("parseQuery", () => {
 			expect(({} as Record<string, unknown>).__proto__).not.toBe("v1");
 		});
 
-		test("should store `constructor` as a real own key without invoking inheritance", () => {
+		it("should store `constructor` as a real own key without invoking inheritance", () => {
 			const result = parseQuery("/a?constructor=v1&b=v2");
 
 			expect(Object.hasOwn(result, "constructor")).toBe(true);
@@ -328,7 +328,7 @@ describe("parseQuery", () => {
 			expect(result.b).toBe("v2");
 		});
 
-		test("should not pollute the prototype when a JSON value carries a `__proto__` key", () => {
+		it("should not pollute the prototype when a JSON value carries a `__proto__` key", () => {
 			const result = parseQuery('/a?b={"__proto__":{"polluted":1}}');
 
 			expect(Object.hasOwn(result, "b")).toBe(true);
@@ -344,11 +344,11 @@ describe("parseQuery", () => {
 				result = parseQuery("/a?b=v1");
 			});
 
-			test("should return a dictionary inheriting from Empty", () => {
+			it("should return a dictionary inheriting from Empty", () => {
 				expect(result).toBeInstanceOf(Empty);
 			});
 
-			test("should have a null prototype root (no Object.prototype methods)", () => {
+			it("should have a null prototype root (no Object.prototype methods)", () => {
 				expect(
 					Object.getPrototypeOf(Object.getPrototypeOf(result)),
 				).toBeNull();
@@ -357,14 +357,14 @@ describe("parseQuery", () => {
 			});
 		});
 
-		test("should return a fresh dictionary on each call", () => {
+		it("should return a fresh dictionary on each call", () => {
 			const a = parseQuery("/a?b=v1");
 			const b = parseQuery("/a?b=v1");
 
 			expect(a).not.toBe(b);
 		});
 
-		test("should preserve insertion order regardless of name ordering", () => {
+		it("should preserve insertion order regardless of name ordering", () => {
 			const result = parseQuery("/a?z=1&a=2&m=3");
 
 			expect(Object.keys(result)).toEqual(["z", "a", "m"]);

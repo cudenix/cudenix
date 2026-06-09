@@ -1,10 +1,10 @@
-import { describe, expectTypeOf, test } from "bun:test";
+import { describe, expectTypeOf, it } from "bun:test";
 
 import type { ConditionallyOptional } from "@/utils/types/conditionally-optional";
 
 describe("ConditionallyOptional", () => {
 	describe("`undefined` marker on a single key", () => {
-		test("should mark a key whose value includes `undefined` as optional", () => {
+		it("should mark a key whose value includes `undefined` as optional", () => {
 			interface A {
 				a: string;
 				b: string | undefined;
@@ -15,7 +15,7 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ a: string; b?: string | undefined }>();
 		});
 
-		test("should leave a key with no `undefined` in its value untouched", () => {
+		it("should leave a key with no `undefined` in its value untouched", () => {
 			interface A {
 				a: string;
 			}
@@ -25,7 +25,7 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ a: string }>();
 		});
 
-		test("should retain the original union as the optional value type", () => {
+		it("should retain the original union as the optional value type", () => {
 			interface A {
 				a: number | undefined;
 			}
@@ -37,7 +37,7 @@ describe("ConditionallyOptional", () => {
 	});
 
 	describe("`undefined` marker on multiple keys", () => {
-		test("should mark only the keys whose value admits `undefined` as optional", () => {
+		it("should mark only the keys whose value admits `undefined` as optional", () => {
 			interface A {
 				a: string | undefined;
 				b: number | undefined;
@@ -53,7 +53,7 @@ describe("ConditionallyOptional", () => {
 			}>();
 		});
 
-		test("should mark every key as optional when every value admits the marker", () => {
+		it("should mark every key as optional when every value admits the marker", () => {
 			interface A {
 				a: string | undefined;
 				b: number | undefined;
@@ -67,7 +67,7 @@ describe("ConditionallyOptional", () => {
 			}>();
 		});
 
-		test("should preserve a required key's exact literal type when another is relaxed", () => {
+		it("should preserve a required key's exact literal type when another is relaxed", () => {
 			interface A {
 				a: undefined;
 				b: "v1";
@@ -80,7 +80,7 @@ describe("ConditionallyOptional", () => {
 	});
 
 	describe("non-`undefined` markers", () => {
-		test("should mark `null`-bearing keys optional when the marker is `null`", () => {
+		it("should mark `null`-bearing keys optional when the marker is `null`", () => {
 			interface A {
 				a: string | null;
 				b: number;
@@ -91,7 +91,7 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ a?: string | null; b: number }>();
 		});
 
-		test("should mark a literal-bearing key optional when the marker matches the literal", () => {
+		it("should mark a literal-bearing key optional when the marker matches the literal", () => {
 			interface A {
 				a: boolean;
 				b: "v1" | "v2";
@@ -102,7 +102,7 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ b?: "v1" | "v2"; a: boolean }>();
 		});
 
-		test("should distribute a union marker across each key's assignability check", () => {
+		it("should distribute a union marker across each key's assignability check", () => {
 			interface A {
 				a: string | null;
 				b: boolean;
@@ -120,7 +120,7 @@ describe("ConditionallyOptional", () => {
 	});
 
 	describe("preservation of source key modifiers", () => {
-		test("should keep an already-optional source key optional when its value admits the marker", () => {
+		it("should keep an already-optional source key optional when its value admits the marker", () => {
 			interface A {
 				a?: string;
 				b: number;
@@ -131,7 +131,7 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ b: number; a?: string | undefined }>();
 		});
 
-		test("should preserve the `readonly` modifier on a key promoted to optional", () => {
+		it("should preserve the `readonly` modifier on a key promoted to optional", () => {
 			interface A {
 				readonly a: string | undefined;
 				b: number | undefined;
@@ -147,7 +147,7 @@ describe("ConditionallyOptional", () => {
 	});
 
 	describe("index signatures", () => {
-		test("should leave a record untouched when its value type does not admit the marker", () => {
+		it("should leave a record untouched when its value type does not admit the marker", () => {
 			type A = Record<string, number>;
 
 			expectTypeOf<
@@ -157,7 +157,7 @@ describe("ConditionallyOptional", () => {
 	});
 
 	describe("special key kinds", () => {
-		test("should mark a `symbol`-keyed property optional when its value admits the marker", () => {
+		it("should mark a `symbol`-keyed property optional when its value admits the marker", () => {
 			const sym = Symbol("k");
 
 			interface A {
@@ -175,7 +175,7 @@ describe("ConditionallyOptional", () => {
 	});
 
 	describe("edge cases", () => {
-		test("should leave an empty object as-is", () => {
+		it("should leave an empty object as-is", () => {
 			type A = NonNullable<unknown>;
 
 			expectTypeOf<
@@ -183,7 +183,7 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<NonNullable<unknown>>();
 		});
 
-		test("should leave an object with no matching keys completely unchanged", () => {
+		it("should leave an object with no matching keys completely unchanged", () => {
 			interface A {
 				a: string;
 				b: number;
@@ -194,7 +194,7 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ a: string; b: number }>();
 		});
 
-		test("should not relax a key whose value is a strict subtype of the marker", () => {
+		it("should not relax a key whose value is a strict subtype of the marker", () => {
 			interface A {
 				a: "v1";
 				b: string;
@@ -205,7 +205,7 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ a: "v1"; b?: string }>();
 		});
 
-		test("should relax a key whose value is `unknown` because any marker assigns to it", () => {
+		it("should relax a key whose value is `unknown` because any marker assigns to it", () => {
 			interface A {
 				a: unknown;
 				b: number;
@@ -216,7 +216,7 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ b: number; a?: unknown }>();
 		});
 
-		test("should leave a `never`-valued key untouched when the marker is not `never`", () => {
+		it("should leave a `never`-valued key untouched when the marker is not `never`", () => {
 			interface A {
 				a: never;
 				b: string | undefined;
@@ -227,7 +227,7 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ a: never; b?: string | undefined }>();
 		});
 
-		test("should leave the type unchanged when the marker is `never` because the check distributes over `never`", () => {
+		it("should leave the type unchanged when the marker is `never` because the check distributes over `never`", () => {
 			interface A {
 				a: string;
 				b: number;
@@ -239,7 +239,7 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ a: string; b: number; c: boolean }>();
 		});
 
-		test("should relax a key whose value is `any` because `undefined` assigns to it", () => {
+		it("should relax a key whose value is `any` because `undefined` assigns to it", () => {
 			interface A {
 				a: any;
 				b: number;
@@ -250,7 +250,7 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ b: number; a?: any }>();
 		});
 
-		test("should mark every key optional when the marker is `any`", () => {
+		it("should mark every key optional when the marker is `any`", () => {
 			interface A {
 				a: string;
 				b: number;
@@ -263,13 +263,13 @@ describe("ConditionallyOptional", () => {
 	});
 
 	describe("array and tuple inputs", () => {
-		test("should collapse a tuple input to `never` because its indices are not relaxed", () => {
+		it("should collapse a tuple input to `never` because its indices are not relaxed", () => {
 			expectTypeOf<
 				ConditionallyOptional<[string, number | undefined], undefined>
 			>().toBeNever();
 		});
 
-		test("should collapse an array input to `never`", () => {
+		it("should collapse an array input to `never`", () => {
 			expectTypeOf<
 				ConditionallyOptional<(number | undefined)[], undefined>
 			>().toBeNever();

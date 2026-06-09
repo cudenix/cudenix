@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 
 import { pushAll } from "@/utils/arrays/push-all";
 
 describe("pushAll", () => {
 	describe("happy path", () => {
-		test("should append all elements of source to target in order", () => {
+		it("should append all elements of source to target in order", () => {
 			const target = [1, 2];
 
 			pushAll(target, [3, 4, 5]);
@@ -12,7 +12,7 @@ describe("pushAll", () => {
 			expect(target).toEqual([1, 2, 3, 4, 5]);
 		});
 
-		test("should append a single element to a non-empty target", () => {
+		it("should append a single element to a non-empty target", () => {
 			const target = [1, 2];
 
 			pushAll(target, [3]);
@@ -22,7 +22,7 @@ describe("pushAll", () => {
 	});
 
 	describe("return value contract", () => {
-		test("should return undefined (void contract)", () => {
+		it("should return undefined (void contract)", () => {
 			const target: number[] = [];
 
 			const result = pushAll(target, [1, 2]);
@@ -40,7 +40,7 @@ describe("pushAll", () => {
 			source = [3, 4, 5];
 		});
 
-		test("should mutate the target in place (same reference)", () => {
+		it("should mutate the target in place (same reference)", () => {
 			const before = target;
 
 			pushAll(target, source);
@@ -49,7 +49,7 @@ describe("pushAll", () => {
 			expect(target).toEqual([1, 2, 3, 4, 5]);
 		});
 
-		test("should not mutate the source array", () => {
+		it("should not mutate the source array", () => {
 			const snapshot = [...source];
 
 			pushAll(target, source);
@@ -59,7 +59,7 @@ describe("pushAll", () => {
 	});
 
 	describe("element preservation", () => {
-		test("should preserve duplicates from source", () => {
+		it("should preserve duplicates from source", () => {
 			const target = ["a"];
 
 			pushAll(target, ["b", "b", "c"]);
@@ -67,7 +67,7 @@ describe("pushAll", () => {
 			expect(target).toEqual(["a", "b", "b", "c"]);
 		});
 
-		test("should preserve element identity for objects appended from source", () => {
+		it("should preserve element identity for objects appended from source", () => {
 			const a = { a: 1 };
 			const b = { a: 2 };
 			const target: object[] = [];
@@ -78,7 +78,7 @@ describe("pushAll", () => {
 			expect(target[1]).toBe(b);
 		});
 
-		test("should preserve identity of pre-existing target elements", () => {
+		it("should preserve identity of pre-existing target elements", () => {
 			const x = { a: "v1" };
 			const y = { a: "v2" };
 			const z = { a: "v3" };
@@ -91,7 +91,7 @@ describe("pushAll", () => {
 			expect(target[2]).toBe(z);
 		});
 
-		test("should support mixing element types under a union generic", () => {
+		it("should support mixing element types under a union generic", () => {
 			const target: (number | string)[] = [1];
 
 			pushAll<number | string>(target, ["v1", 3]);
@@ -99,7 +99,7 @@ describe("pushAll", () => {
 			expect(target).toEqual([1, "v1", 3]);
 		});
 
-		test("should append null and undefined values without coercion", () => {
+		it("should append null and undefined values without coercion", () => {
 			const target: (number | null | undefined)[] = [0];
 
 			pushAll(target, [null, undefined, 1]);
@@ -109,7 +109,7 @@ describe("pushAll", () => {
 	});
 
 	describe("length and positioning", () => {
-		test("should set the final length to base + source length", () => {
+		it("should set the final length to base + source length", () => {
 			const target = [1, 2, 3];
 			const source = [4, 5, 6, 7];
 
@@ -118,7 +118,7 @@ describe("pushAll", () => {
 			expect(target).toHaveLength(7);
 		});
 
-		test("should write the first appended element exactly at target[baseLength]", () => {
+		it("should write the first appended element exactly at target[baseLength]", () => {
 			const target = [1, 2, 3];
 			const baseLength = target.length;
 			const source = [4, 5, 6];
@@ -129,7 +129,7 @@ describe("pushAll", () => {
 			expect(target[baseLength + source.length - 1]).toBe(6);
 		});
 
-		test("should append a large source in order without an argument-count limit", () => {
+		it("should append a large source in order without an argument-count limit", () => {
 			const target = [0];
 			const source = Array.from({ length: 100 }, (_, i) => i + 1);
 
@@ -143,7 +143,7 @@ describe("pushAll", () => {
 	});
 
 	describe("empty-array edge cases", () => {
-		test("should be a no-op when source is empty", () => {
+		it("should be a no-op when source is empty", () => {
 			const target = [1, 2, 3];
 			const snapshot = [...target];
 
@@ -152,7 +152,7 @@ describe("pushAll", () => {
 			expect(target).toEqual(snapshot);
 		});
 
-		test("should become a copy of source when target is empty", () => {
+		it("should become a copy of source when target is empty", () => {
 			const target: number[] = [];
 
 			pushAll(target, [1, 2, 3]);
@@ -160,7 +160,7 @@ describe("pushAll", () => {
 			expect(target).toEqual([1, 2, 3]);
 		});
 
-		test("should be a no-op when both target and source are empty", () => {
+		it("should be a no-op when both target and source are empty", () => {
 			const target: number[] = [];
 
 			pushAll(target, []);
@@ -171,7 +171,7 @@ describe("pushAll", () => {
 	});
 
 	describe("sparse source", () => {
-		test("should materialize holes in source as undefined entries (no hole carry-over)", () => {
+		it("should materialize holes in source as undefined entries (no hole carry-over)", () => {
 			const target: (number | undefined)[] = [0];
 			const source = new Array<number | undefined>(3);
 
@@ -191,7 +191,7 @@ describe("pushAll", () => {
 	});
 
 	describe("aliasing (target === source)", () => {
-		test("should snapshot base length before writing to avoid infinite growth", () => {
+		it("should snapshot base length before writing to avoid infinite growth", () => {
 			const arr = [1, 2, 3];
 
 			pushAll(arr, arr);

@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 
 import { merge } from "@/utils/objects/merge";
 
 describe("merge", () => {
 	describe("key copying", () => {
-		test("should copy all own enumerable string keys from source", () => {
+		it("should copy all own enumerable string keys from source", () => {
 			const target: Record<string, unknown> = {};
 
 			merge(target, { a: 1, b: "v2", c: true });
@@ -12,7 +12,7 @@ describe("merge", () => {
 			expect(target).toEqual({ a: 1, b: "v2", c: true });
 		});
 
-		test("should overwrite matching keys in target with values from source", () => {
+		it("should overwrite matching keys in target with values from source", () => {
 			const target: Record<string, unknown> = { a: 1, b: 2 };
 
 			merge(target, { b: 3, c: 4 });
@@ -20,7 +20,7 @@ describe("merge", () => {
 			expect(target).toEqual({ a: 1, b: 3, c: 4 });
 		});
 
-		test("should preserve target keys that have no counterpart in source", () => {
+		it("should preserve target keys that have no counterpart in source", () => {
 			const target: Record<string, unknown> = { a: 1, b: 2 };
 
 			merge(target, { b: 3 });
@@ -30,7 +30,7 @@ describe("merge", () => {
 	});
 
 	describe("mutation contract", () => {
-		test("should return undefined (in-place mutation, no new container)", () => {
+		it("should return undefined (in-place mutation, no new container)", () => {
 			const target = { a: 1 };
 
 			const result = merge(target, { b: 2 });
@@ -38,7 +38,7 @@ describe("merge", () => {
 			expect(result).toBeUndefined();
 		});
 
-		test("should mutate target in place keeping the same reference", () => {
+		it("should mutate target in place keeping the same reference", () => {
 			const target: Record<string, unknown> = { a: 1 };
 			const before = target;
 
@@ -48,7 +48,7 @@ describe("merge", () => {
 			expect(target).toEqual({ a: 1, b: 2 });
 		});
 
-		test("should not mutate the source object", () => {
+		it("should not mutate the source object", () => {
 			const source = { a: 1, b: 2 };
 			const snapshot = { ...source };
 
@@ -57,7 +57,7 @@ describe("merge", () => {
 			expect(source).toEqual(snapshot);
 		});
 
-		test("should leave values unchanged on self-merge (target === source)", () => {
+		it("should leave values unchanged on self-merge (target === source)", () => {
 			const obj: Record<string, unknown> = { a: 1, b: 2 };
 
 			merge(obj, obj);
@@ -67,7 +67,7 @@ describe("merge", () => {
 	});
 
 	describe("value semantics", () => {
-		test("should preserve value identity (reference values are not cloned)", () => {
+		it("should preserve value identity (reference values are not cloned)", () => {
 			const inner = { a: true };
 			const target: Record<string, unknown> = {};
 
@@ -76,7 +76,7 @@ describe("merge", () => {
 			expect(target.a).toBe(inner);
 		});
 
-		test("should treat undefined source values as explicit assignments", () => {
+		it("should treat undefined source values as explicit assignments", () => {
 			const target: Record<string, unknown> = { a: 1 };
 
 			merge(target, { a: undefined });
@@ -85,7 +85,7 @@ describe("merge", () => {
 			expect(target.a).toBeUndefined();
 		});
 
-		test("should treat null source values as explicit assignments", () => {
+		it("should treat null source values as explicit assignments", () => {
 			const target: Record<string, unknown> = { a: 1 };
 
 			merge(target, { a: null });
@@ -95,7 +95,7 @@ describe("merge", () => {
 	});
 
 	describe("key ordering", () => {
-		test("should preserve target's key order when overwriting existing keys", () => {
+		it("should preserve target's key order when overwriting existing keys", () => {
 			const target: Record<string, unknown> = { a: 1, b: 2, c: 3 };
 
 			merge(target, { b: 4 });
@@ -103,7 +103,7 @@ describe("merge", () => {
 			expect(Object.keys(target)).toEqual(["a", "b", "c"]);
 		});
 
-		test("should append source-only keys after target's existing keys", () => {
+		it("should append source-only keys after target's existing keys", () => {
 			const target: Record<string, unknown> = { a: 1 };
 
 			merge(target, { b: 2, c: 3 });
@@ -113,7 +113,7 @@ describe("merge", () => {
 	});
 
 	describe("empty inputs", () => {
-		test("should leave target unchanged when source has no keys", () => {
+		it("should leave target unchanged when source has no keys", () => {
 			const target = { a: 1, b: 2 };
 
 			merge(target, {});
@@ -121,7 +121,7 @@ describe("merge", () => {
 			expect(target).toEqual({ a: 1, b: 2 });
 		});
 
-		test("should be a no-op when both target and source are empty", () => {
+		it("should be a no-op when both target and source are empty", () => {
 			const target: Record<string, unknown> = {};
 
 			merge(target, {});
@@ -138,7 +138,7 @@ describe("merge", () => {
 			target = {};
 		});
 
-		test("should walk the prototype chain of source via for..in", () => {
+		it("should walk the prototype chain of source via for..in", () => {
 			const proto = { a: "v1" };
 			const source = Object.create(proto);
 
@@ -150,7 +150,7 @@ describe("merge", () => {
 			expect(target.a).toBe("v1");
 		});
 
-		test("should walk multi-level prototype chains", () => {
+		it("should walk multi-level prototype chains", () => {
 			const grand = { a: "v1" };
 			const parent = Object.create(grand);
 
@@ -165,7 +165,7 @@ describe("merge", () => {
 			expect(target).toEqual({ a: "v1", b: "v2", c: "v3" });
 		});
 
-		test("should still copy own keys when source has a null prototype", () => {
+		it("should still copy own keys when source has a null prototype", () => {
 			const source = Object.create(null);
 
 			source.a = 1;
@@ -176,7 +176,7 @@ describe("merge", () => {
 			expect(target).toEqual({ a: 1, b: 2 });
 		});
 
-		test("should copy enumerable instance fields of a class source but skip its prototype methods", () => {
+		it("should copy enumerable instance fields of a class source but skip its prototype methods", () => {
 			class A {
 				a = "v1";
 
@@ -199,7 +199,7 @@ describe("merge", () => {
 			target = {};
 		});
 
-		test("should not copy symbol-keyed properties (for..in does not visit them)", () => {
+		it("should not copy symbol-keyed properties (for..in does not visit them)", () => {
 			const sym = Symbol();
 			const source: Record<PropertyKey, unknown> = { a: 1 };
 
@@ -212,7 +212,7 @@ describe("merge", () => {
 			expect(Object.getOwnPropertySymbols(target)).toHaveLength(0);
 		});
 
-		test("should skip non-enumerable properties (for..in only visits enumerable)", () => {
+		it("should skip non-enumerable properties (for..in only visits enumerable)", () => {
 			const source: Record<string, unknown> = {};
 
 			Object.defineProperty(source, "a", {
@@ -230,7 +230,7 @@ describe("merge", () => {
 	});
 
 	describe("accessors and descriptors", () => {
-		test("should invoke source getters at copy time and store the resolved value", () => {
+		it("should invoke source getters at copy time and store the resolved value", () => {
 			let reads = 0;
 
 			const source: Record<string, unknown> = {};
@@ -255,7 +255,7 @@ describe("merge", () => {
 			).toBeUndefined();
 		});
 
-		test("should invoke target's own setter when the key is overwritten", () => {
+		it("should invoke target's own setter when the key is overwritten", () => {
 			let captured: unknown;
 
 			const target: Record<string, unknown> = {};
@@ -279,7 +279,7 @@ describe("merge", () => {
 	});
 
 	describe("unusual sources", () => {
-		test("should copy enumerable character indices from a string source", () => {
+		it("should copy enumerable character indices from a string source", () => {
 			const target: Record<PropertyKey, unknown> = {};
 
 			merge(target, "ab" as unknown as Record<PropertyKey, unknown>);
@@ -287,7 +287,7 @@ describe("merge", () => {
 			expect(target).toEqual({ 0: "a", 1: "b" });
 		});
 
-		test("should copy enumerable index keys from an array source and skip its non-enumerable length", () => {
+		it("should copy enumerable index keys from an array source and skip its non-enumerable length", () => {
 			const target: Record<PropertyKey, unknown> = {};
 
 			merge(target, [1, 2, 3] as unknown as Record<PropertyKey, unknown>);
@@ -296,7 +296,7 @@ describe("merge", () => {
 			expect("length" in target).toBe(false);
 		});
 
-		test("should do nothing for primitive sources without enumerable keys", () => {
+		it("should do nothing for primitive sources without enumerable keys", () => {
 			const target = { a: 1 };
 
 			merge(target, 2 as unknown as Record<PropertyKey, unknown>);
@@ -313,13 +313,13 @@ describe("merge", () => {
 			target = { a: 1 };
 		});
 
-		test("should do nothing when source is null", () => {
+		it("should do nothing when source is null", () => {
 			merge(target, null as unknown as Record<PropertyKey, unknown>);
 
 			expect(target).toEqual({ a: 1 });
 		});
 
-		test("should do nothing when source is undefined", () => {
+		it("should do nothing when source is undefined", () => {
 			merge(target, undefined as unknown as Record<PropertyKey, unknown>);
 
 			expect(target).toEqual({ a: 1 });
@@ -327,13 +327,13 @@ describe("merge", () => {
 	});
 
 	describe("errors", () => {
-		test("should throw TypeError when target is frozen and source adds a new key", () => {
+		it("should throw TypeError when target is frozen and source adds a new key", () => {
 			const target = Object.freeze({ a: 1 }) as Record<string, unknown>;
 
 			expect(() => merge(target, { b: 2 })).toThrow(TypeError);
 		});
 
-		test("should throw when target is null and source has enumerable keys", () => {
+		it("should throw when target is null and source has enumerable keys", () => {
 			expect(() =>
 				merge(null as unknown as Record<PropertyKey, unknown>, {
 					a: 1,
@@ -341,7 +341,7 @@ describe("merge", () => {
 			).toThrow(TypeError);
 		});
 
-		test("should throw when target is undefined and source has enumerable keys", () => {
+		it("should throw when target is undefined and source has enumerable keys", () => {
 			expect(() =>
 				merge(undefined as unknown as Record<PropertyKey, unknown>, {
 					a: 1,
@@ -351,7 +351,7 @@ describe("merge", () => {
 	});
 
 	describe("cyclic sources", () => {
-		test("should copy a self-referential entry without infinite recursion", () => {
+		it("should copy a self-referential entry without infinite recursion", () => {
 			interface A {
 				a: string;
 				b?: A;
@@ -371,7 +371,7 @@ describe("merge", () => {
 	});
 
 	describe("prototype pollution surface", () => {
-		test("should reassign target's prototype when source carries an own __proto__ key", () => {
+		it("should reassign target's prototype when source carries an own __proto__ key", () => {
 			const target: Record<string, unknown> = {};
 			const malicious = JSON.parse('{"__proto__":{"a":"v1"}}') as Record<
 				string,

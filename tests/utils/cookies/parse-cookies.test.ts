@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, it } from "bun:test";
 
 import { parseCookies } from "@/utils/cookies/parse-cookies";
 import { Empty } from "@/utils/objects/empty";
@@ -12,11 +12,11 @@ describe("parseCookies", () => {
 				result = parseCookies("a=v1");
 			});
 
-			test("should capture the cookie value", () => {
+			it("should capture the cookie value", () => {
 				expect(result.a).toBe("v1");
 			});
 
-			test("should expose only the parsed cookie key", () => {
+			it("should expose only the parsed cookie key", () => {
 				expect(Object.keys(result)).toEqual(["a"]);
 			});
 		});
@@ -28,20 +28,20 @@ describe("parseCookies", () => {
 				result = parseCookies("a=v1; b=v2");
 			});
 
-			test("should capture the first cookie value", () => {
+			it("should capture the first cookie value", () => {
 				expect(result.a).toBe("v1");
 			});
 
-			test("should capture the second cookie value", () => {
+			it("should capture the second cookie value", () => {
 				expect(result.b).toBe("v2");
 			});
 
-			test("should preserve insertion order of the cookie names", () => {
+			it("should preserve insertion order of the cookie names", () => {
 				expect(Object.keys(result)).toEqual(["a", "b"]);
 			});
 		});
 
-		test("should support many cookies in a single header", () => {
+		it("should support many cookies in a single header", () => {
 			const result = parseCookies("a=1; b=2; c=3; d=4; e=5");
 
 			expect(result).toEqual({ a: "1", b: "2", c: "3", d: "4", e: "5" });
@@ -49,54 +49,54 @@ describe("parseCookies", () => {
 	});
 
 	describe("value handling", () => {
-		test("should keep additional '=' characters as part of the value", () => {
+		it("should keep additional '=' characters as part of the value", () => {
 			const result = parseCookies("a=v1=v2=v3; b=1");
 
 			expect(result.a).toBe("v1=v2=v3");
 			expect(result.b).toBe("1");
 		});
 
-		test("should preserve an empty value written as 'name='", () => {
+		it("should preserve an empty value written as 'name='", () => {
 			const result = parseCookies("a=; b=v1");
 
 			expect(result.a).toBe("");
 			expect(result.b).toBe("v1");
 		});
 
-		test("should preserve an empty value at the end of the header", () => {
+		it("should preserve an empty value at the end of the header", () => {
 			const result = parseCookies("a=v1; b=");
 
 			expect(result.a).toBe("v1");
 			expect(result.b).toBe("");
 		});
 
-		test("should not URL-decode values (raw, undecoded)", () => {
+		it("should not URL-decode values (raw, undecoded)", () => {
 			const result = parseCookies("a=a%20b%3Dc");
 
 			expect(result.a).toBe("a%20b%3Dc");
 		});
 
-		test("should decode to the original value via decodeURIComponent at the call site", () => {
+		it("should decode to the original value via decodeURIComponent at the call site", () => {
 			const result = parseCookies("a=a%20b");
 
 			expect(decodeURIComponent(result.a!)).toBe("a b");
 		});
 
-		test("should preserve whitespace inside values", () => {
+		it("should preserve whitespace inside values", () => {
 			const result = parseCookies("a=v1 v2; b=v3");
 
 			expect(result.a).toBe("v1 v2");
 			expect(result.b).toBe("v3");
 		});
 
-		test("should preserve non-ASCII characters in names and values", () => {
+		it("should preserve non-ASCII characters in names and values", () => {
 			const result = parseCookies("café=☕; a=v1");
 
 			expect(result.café).toBe("☕");
 			expect(result.a).toBe("v1");
 		});
 
-		test("should preserve surrogate-pair characters (codepoints outside the BMP)", () => {
+		it("should preserve surrogate-pair characters (codepoints outside the BMP)", () => {
 			const result = parseCookies("a=𝕊; b=😀");
 
 			expect(result.a).toBe("𝕊");
@@ -105,14 +105,14 @@ describe("parseCookies", () => {
 	});
 
 	describe("separator handling", () => {
-		test("should treat only '; ' (semicolon + space) as a separator", () => {
+		it("should treat only '; ' (semicolon + space) as a separator", () => {
 			const result = parseCookies("a=1;b=2");
 
 			expect(result.a).toBe("1;b=2");
 			expect("b" in result).toBe(false);
 		});
 
-		test("should not split on a bare ';' inside an entry", () => {
+		it("should not split on a bare ';' inside an entry", () => {
 			const result = parseCookies("a=1; b=2;3; c=4");
 
 			expect(result.a).toBe("1");
@@ -120,21 +120,21 @@ describe("parseCookies", () => {
 			expect(result.c).toBe("4");
 		});
 
-		test("should handle a leading '; ' delimiter (empty first chunk)", () => {
+		it("should handle a leading '; ' delimiter (empty first chunk)", () => {
 			const result = parseCookies("; a=v1");
 
 			expect(result.a).toBe("v1");
 			expect(Object.keys(result)).toEqual(["a"]);
 		});
 
-		test("should handle a trailing '; ' delimiter (empty last chunk)", () => {
+		it("should handle a trailing '; ' delimiter (empty last chunk)", () => {
 			const result = parseCookies("a=v1; ");
 
 			expect(result.a).toBe("v1");
 			expect(Object.keys(result)).toEqual(["a"]);
 		});
 
-		test("should not introduce phantom keys with consecutive '; ' separators", () => {
+		it("should not introduce phantom keys with consecutive '; ' separators", () => {
 			const result = parseCookies("a=1; ; b=2");
 
 			expect(result).toEqual({ a: "1", b: "2" });
@@ -142,14 +142,14 @@ describe("parseCookies", () => {
 	});
 
 	describe("duplicate names", () => {
-		test("should keep the last value when a name appears multiple times", () => {
+		it("should keep the last value when a name appears multiple times", () => {
 			const result = parseCookies("a=1; a=2; a=3");
 
 			expect(result.a).toBe("3");
 			expect(Object.keys(result)).toEqual(["a"]);
 		});
 
-		test("should keep the last value when an empty value follows a non-empty one", () => {
+		it("should keep the last value when an empty value follows a non-empty one", () => {
 			const result = parseCookies("a=1; a=");
 
 			expect(result.a).toBe("");
@@ -157,7 +157,7 @@ describe("parseCookies", () => {
 	});
 
 	describe("entries skipped or dropped", () => {
-		test("should skip a leading entry without '=' (flag-style)", () => {
+		it("should skip a leading entry without '=' (flag-style)", () => {
 			const result = parseCookies("flag; a=v1");
 
 			expect(result.a).toBe("v1");
@@ -165,7 +165,7 @@ describe("parseCookies", () => {
 			expect(Object.keys(result)).toEqual(["a"]);
 		});
 
-		test("should skip a trailing entry without '='", () => {
+		it("should skip a trailing entry without '='", () => {
 			const result = parseCookies("a=v1; flag");
 
 			expect(result.a).toBe("v1");
@@ -173,7 +173,7 @@ describe("parseCookies", () => {
 			expect(Object.keys(result)).toEqual(["a"]);
 		});
 
-		test("should drop entries with an empty name ('=value')", () => {
+		it("should drop entries with an empty name ('=value')", () => {
 			const result = parseCookies("=v1; a=v2");
 
 			expect(result.a).toBe("v2");
@@ -181,7 +181,7 @@ describe("parseCookies", () => {
 			expect(Object.keys(result)).toEqual(["a"]);
 		});
 
-		test("should drop a single '=' entry with no name or value", () => {
+		it("should drop a single '=' entry with no name or value", () => {
 			const result = parseCookies("=; a=v1");
 
 			expect(result.a).toBe("v1");
@@ -189,14 +189,14 @@ describe("parseCookies", () => {
 			expect(Object.keys(result)).toEqual(["a"]);
 		});
 
-		test("should drop an empty-name entry in a non-leading position", () => {
+		it("should drop an empty-name entry in a non-leading position", () => {
 			const result = parseCookies("a=1; =v1; b=2");
 
 			expect(result).toEqual({ a: "1", b: "2" });
 			expect(result[""]).toBeUndefined();
 		});
 
-		test("should drop a bare '=' entry surrounded by valid pairs", () => {
+		it("should drop a bare '=' entry surrounded by valid pairs", () => {
 			const result = parseCookies("a=1; =; b=2");
 
 			expect(result).toEqual({ a: "1", b: "2" });
@@ -205,33 +205,33 @@ describe("parseCookies", () => {
 	});
 
 	describe("empty / no-pair headers", () => {
-		test("should return an empty dictionary for an empty header", () => {
+		it("should return an empty dictionary for an empty header", () => {
 			const result = parseCookies("");
 
 			expect(Object.keys(result)).toHaveLength(0);
 			expect(Reflect.ownKeys(result)).toHaveLength(0);
 		});
 
-		test("should return an Empty-shaped dictionary when the header has no pairs", () => {
+		it("should return an Empty-shaped dictionary when the header has no pairs", () => {
 			const result = parseCookies("flag");
 
 			expect(result).toBeInstanceOf(Empty);
 			expect(Object.keys(result)).toHaveLength(0);
 		});
 
-		test("should return an empty dictionary for a bare '=' (empty name, no other pairs)", () => {
+		it("should return an empty dictionary for a bare '=' (empty name, no other pairs)", () => {
 			const result = parseCookies("=");
 
 			expect(Object.keys(result)).toHaveLength(0);
 		});
 
-		test("should return an empty dictionary for a bare '; ' separator", () => {
+		it("should return an empty dictionary for a bare '; ' separator", () => {
 			const result = parseCookies("; ");
 
 			expect(Object.keys(result)).toHaveLength(0);
 		});
 
-		test("should return an empty dictionary for a whitespace-only header", () => {
+		it("should return an empty dictionary for a whitespace-only header", () => {
 			const result = parseCookies("   ");
 
 			expect(Object.keys(result)).toHaveLength(0);
@@ -239,7 +239,7 @@ describe("parseCookies", () => {
 	});
 
 	describe("dangerous key names", () => {
-		test("should store `__proto__` as a real own key without polluting the prototype", () => {
+		it("should store `__proto__` as a real own key without polluting the prototype", () => {
 			const result = parseCookies("__proto__=v1; a=v2");
 
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
@@ -248,7 +248,7 @@ describe("parseCookies", () => {
 			expect(({} as Record<string, unknown>).__proto__).not.toBe("v1");
 		});
 
-		test("should store `constructor` as a real own key without invoking inheritance", () => {
+		it("should store `constructor` as a real own key without invoking inheritance", () => {
 			const result = parseCookies("constructor=v1; a=v2");
 
 			expect(Object.hasOwn(result, "constructor")).toBe(true);
@@ -265,11 +265,11 @@ describe("parseCookies", () => {
 				result = parseCookies("a=v1");
 			});
 
-			test("should return a dictionary inheriting from Empty", () => {
+			it("should return a dictionary inheriting from Empty", () => {
 				expect(result).toBeInstanceOf(Empty);
 			});
 
-			test("should have a null prototype root (no Object.prototype methods)", () => {
+			it("should have a null prototype root (no Object.prototype methods)", () => {
 				expect(
 					Object.getPrototypeOf(Object.getPrototypeOf(result)),
 				).toBeNull();
@@ -278,14 +278,14 @@ describe("parseCookies", () => {
 			});
 		});
 
-		test("should return a fresh dictionary on each call", () => {
+		it("should return a fresh dictionary on each call", () => {
 			const a = parseCookies("a=v1");
 			const b = parseCookies("a=v1");
 
 			expect(a).not.toBe(b);
 		});
 
-		test("should preserve insertion order regardless of name ordering", () => {
+		it("should preserve insertion order regardless of name ordering", () => {
 			const result = parseCookies("z=1; a=2; m=3");
 
 			expect(Object.keys(result)).toEqual(["z", "a", "m"]);

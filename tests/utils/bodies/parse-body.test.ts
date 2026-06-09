@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, it } from "bun:test";
 
 import { parseBody } from "@/utils/bodies/parse-body";
 import { Empty } from "@/utils/objects/empty";
@@ -29,16 +29,16 @@ describe("parseBody", () => {
 				);
 			});
 
-			test("should parse the body into the matching object", () => {
+			it("should parse the body into the matching object", () => {
 				expect(result).toEqual({ a: "v1", b: "v2" });
 			});
 
-			test("should return a parsed value rather than the raw string", () => {
+			it("should return a parsed value rather than the raw string", () => {
 				expect(typeof result).toBe("object");
 			});
 		});
 
-		test("should parse an array body", async () => {
+		it("should parse an array body", async () => {
 			const result = await parseBody(
 				request(JSON.stringify(["v1", "v2"]), "application/json"),
 			);
@@ -46,19 +46,19 @@ describe("parseBody", () => {
 			expect(result).toEqual(["v1", "v2"]);
 		});
 
-		test("should parse a primitive number body", async () => {
+		it("should parse a primitive number body", async () => {
 			const result = await parseBody(request("1", "application/json"));
 
 			expect(result).toBe(1);
 		});
 
-		test("should parse a primitive null body", async () => {
+		it("should parse a primitive null body", async () => {
 			const result = await parseBody(request("null", "application/json"));
 
 			expect(result).toBeNull();
 		});
 
-		test("should match when a charset parameter trails the content type", async () => {
+		it("should match when a charset parameter trails the content type", async () => {
 			const result = await parseBody(
 				request(
 					JSON.stringify({ a: "v1" }),
@@ -69,7 +69,7 @@ describe("parseBody", () => {
 			expect(result).toEqual({ a: "v1" });
 		});
 
-		test("should reject when the json body is malformed", () => {
+		it("should reject when the json body is malformed", () => {
 			expect(
 				parseBody(request("{bad", "application/json")),
 			).rejects.toThrow();
@@ -85,17 +85,17 @@ describe("parseBody", () => {
 			);
 		});
 
-		test("should return an ArrayBuffer", () => {
+		it("should return an ArrayBuffer", () => {
 			expect(result).toBeInstanceOf(ArrayBuffer);
 		});
 
-		test("should preserve the body bytes", () => {
+		it("should preserve the body bytes", () => {
 			const bytes = new Uint8Array(result as ArrayBuffer);
 
 			expect(Array.from(bytes)).toEqual([1, 2, 3]);
 		});
 
-		test("should match when a parameter trails the octet-stream content type", async () => {
+		it("should match when a parameter trails the octet-stream content type", async () => {
 			const result = await parseBody(
 				request(
 					new Uint8Array([1, 2, 3]),
@@ -117,16 +117,16 @@ describe("parseBody", () => {
 				)) as Record<string, unknown>;
 			});
 
-			test("should capture the first field value", () => {
+			it("should capture the first field value", () => {
 				expect(result.a).toBe("v1");
 			});
 
-			test("should capture the second field value", () => {
+			it("should capture the second field value", () => {
 				expect(result.b).toBe("v2");
 			});
 		});
 
-		test("should collapse a repeated field into an array in first-seen order", async () => {
+		it("should collapse a repeated field into an array in first-seen order", async () => {
 			const result = (await parseBody(
 				request("a=v1&a=v2&a=v3", "application/x-www-form-urlencoded"),
 			)) as Record<string, unknown>;
@@ -134,7 +134,7 @@ describe("parseBody", () => {
 			expect(result.a).toEqual(["v1", "v2", "v3"]);
 		});
 
-		test("should decode percent escapes and '+' in field values", async () => {
+		it("should decode percent escapes and '+' in field values", async () => {
 			const result = (await parseBody(
 				request("a=v1%20v2&b=c+d", "application/x-www-form-urlencoded"),
 			)) as Record<string, unknown>;
@@ -143,7 +143,7 @@ describe("parseBody", () => {
 			expect(result.b).toBe("c d");
 		});
 
-		test("should match the content type set by URLSearchParams", async () => {
+		it("should match the content type set by URLSearchParams", async () => {
 			const result = (await parseBody(
 				request(new URLSearchParams("a=v1")),
 			)) as Record<string, unknown>;
@@ -171,17 +171,17 @@ describe("parseBody", () => {
 				>;
 			});
 
-			test("should capture a text field as a string", () => {
+			it("should capture a text field as a string", () => {
 				expect(result.a).toBe("v1");
 			});
 
-			test("should keep a file field as a File", () => {
+			it("should keep a file field as a File", () => {
 				expect(result.b).toBeInstanceOf(File);
 				expect((result.b as File).name).toBe("b.txt");
 			});
 		});
 
-		test("should collapse a repeated field into an array in first-seen order", async () => {
+		it("should collapse a repeated field into an array in first-seen order", async () => {
 			const formData = new FormData();
 
 			formData.append("a", "v1");
@@ -198,19 +198,19 @@ describe("parseBody", () => {
 	});
 
 	describe("text and fallback bodies", () => {
-		test("should read the body as text when there is no content type", async () => {
+		it("should read the body as text when there is no content type", async () => {
 			const result = await parseBody(request("v1"));
 
 			expect(result).toBe("v1");
 		});
 
-		test("should read the body as text for an unknown content type", async () => {
+		it("should read the body as text for an unknown content type", async () => {
 			const result = await parseBody(request("v1", "text/plain"));
 
 			expect(result).toBe("v1");
 		});
 
-		test("should read the body as text for an unhandled 'application/*' type", async () => {
+		it("should read the body as text for an unhandled 'application/*' type", async () => {
 			const result = await parseBody(
 				request("<a>v1</a>", "application/xml"),
 			);
@@ -218,7 +218,7 @@ describe("parseBody", () => {
 			expect(result).toBe("<a>v1</a>");
 		});
 
-		test("should read the body as text for a 'multipart/*' type that is not form-data", async () => {
+		it("should read the body as text for a 'multipart/*' type that is not form-data", async () => {
 			const result = await parseBody(request("v1", "multipart/mixed"));
 
 			expect(result).toBe("v1");
@@ -226,7 +226,7 @@ describe("parseBody", () => {
 	});
 
 	describe("content-type matching precision", () => {
-		test("should not treat a longer look-alike type as json", async () => {
+		it("should not treat a longer look-alike type as json", async () => {
 			const result = await parseBody(
 				request(JSON.stringify({ a: "v1" }), "application/json5"),
 			);
@@ -234,7 +234,7 @@ describe("parseBody", () => {
 			expect(result).toBe(JSON.stringify({ a: "v1" }));
 		});
 
-		test("should match case-sensitively, falling back to text for upper-case", async () => {
+		it("should match case-sensitively, falling back to text for upper-case", async () => {
 			const result = await parseBody(
 				request(JSON.stringify({ a: "v1" }), "APPLICATION/JSON"),
 			);
@@ -242,7 +242,7 @@ describe("parseBody", () => {
 			expect(result).toBe(JSON.stringify({ a: "v1" }));
 		});
 
-		test("should match an exact 'application/x-www-form-urlencoded' with no parameters", async () => {
+		it("should match an exact 'application/x-www-form-urlencoded' with no parameters", async () => {
 			const result = (await parseBody(
 				request("a=v1", "application/x-www-form-urlencoded"),
 			)) as Record<string, unknown>;
@@ -252,7 +252,7 @@ describe("parseBody", () => {
 	});
 
 	describe("dangerous field names", () => {
-		test("should store `__proto__` as a real own key without polluting the prototype", async () => {
+		it("should store `__proto__` as a real own key without polluting the prototype", async () => {
 			const result = (await parseBody(
 				request(
 					"__proto__=v1&a=v2",
@@ -266,7 +266,7 @@ describe("parseBody", () => {
 			expect(({} as Record<string, unknown>).__proto__).not.toBe("v1");
 		});
 
-		test("should store `constructor` as a real own key without invoking inheritance", async () => {
+		it("should store `constructor` as a real own key without invoking inheritance", async () => {
 			const result = (await parseBody(
 				request(
 					"constructor=v1&a=v2",
@@ -279,7 +279,7 @@ describe("parseBody", () => {
 			expect(result.a).toBe("v2");
 		});
 
-		test("should store a multipart `__proto__` field as a real own key without polluting the prototype", async () => {
+		it("should store a multipart `__proto__` field as a real own key without polluting the prototype", async () => {
 			const formData = new FormData();
 
 			formData.append("__proto__", "v1");
@@ -296,7 +296,7 @@ describe("parseBody", () => {
 			expect(({} as Record<string, unknown>).__proto__).not.toBe("v1");
 		});
 
-		test("should store a multipart `constructor` field as a real own key without invoking inheritance", async () => {
+		it("should store a multipart `constructor` field as a real own key without invoking inheritance", async () => {
 			const formData = new FormData();
 
 			formData.append("constructor", "v1");
@@ -323,11 +323,11 @@ describe("parseBody", () => {
 				)) as object;
 			});
 
-			test("should return a dictionary inheriting from Empty", () => {
+			it("should return a dictionary inheriting from Empty", () => {
 				expect(result).toBeInstanceOf(Empty);
 			});
 
-			test("should have a null prototype root (no Object.prototype methods)", () => {
+			it("should have a null prototype root (no Object.prototype methods)", () => {
 				expect(
 					Object.getPrototypeOf(Object.getPrototypeOf(result)),
 				).toBeNull();
@@ -336,7 +336,7 @@ describe("parseBody", () => {
 			});
 		});
 
-		test("should return a fresh dictionary on each call", async () => {
+		it("should return a fresh dictionary on each call", async () => {
 			const a = await parseBody(
 				request("a=v1", "application/x-www-form-urlencoded"),
 			);
