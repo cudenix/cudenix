@@ -4,13 +4,13 @@ import type { StandardSchemaV1 } from "@/utils/types/standard-schema";
 
 describe("StandardSchemaV1", () => {
 	describe("structural shape", () => {
-		test('should expose the "~standard" property', () => {
+		it('should expose the "~standard" property', () => {
 			expectTypeOf<StandardSchemaV1<string>>().toHaveProperty(
 				"~standard",
 			);
 		});
 
-		test('should resolve "~standard" to `Props`', () => {
+		it('should resolve "~standard" to `Props`', () => {
 			expectTypeOf<
 				StandardSchemaV1<string, number>["~standard"]
 			>().toEqualTypeOf<StandardSchemaV1.Props<string, number>>();
