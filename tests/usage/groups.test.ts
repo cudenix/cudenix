@@ -124,6 +124,69 @@ describe("usage: groups", () => {
 			expect(await composed.text()).toBe("v1");
 			expect(childOnly.status).toBe(404);
 		});
+
+		it("should nest a group declared after a prefixed mount under the mounted prefix", async () => {
+			using server = serveApp(
+				new Module()
+					.mount(
+						new Module({ prefix: "/v1" }).route("GET", "/a", () =>
+							ok("v1"),
+						),
+					)
+					.group(
+						(module) => module.route("GET", "/b", () => ok("v2")),
+						{ prefix: "/v2" },
+					),
+			);
+
+			const mounted = await server.fetch("/v1/a");
+			const nested = await server.fetch("/v1/v2/b");
+			const bare = await server.fetch("/v2/b");
+
+			expect(await mounted.text()).toBe("v1");
+			expect(nested.status).toBe(200);
+			expect(await nested.text()).toBe("v2");
+			expect(bare.status).toBe(404);
+		});
+
+		it("should apply a mounted module's middleware to a group declared after the mount", async () => {
+			using server = serveApp(
+				new Module()
+					.mount(
+						new Module().middleware(() =>
+							fail("blocked", { status: 403 }),
+						),
+					)
+					.group(
+						(module) => module.route("GET", "/a", () => ok("v1")),
+						{ prefix: "/v1" },
+					),
+			);
+
+			const result = await server.fetch("/v1/a");
+
+			expect(result.status).toBe(403);
+			expect(await result.text()).toBe("blocked");
+		});
+
+		it("should expose a mounted module's store to a group declared after the mount", async () => {
+			using server = serveApp(
+				new Module()
+					.mount(new Module().store(() => ({ a: "v1" })))
+					.group(
+						(module) =>
+							module.route("GET", "/a", (context) =>
+								ok(context.store.a),
+							),
+						{ prefix: "/v1" },
+					),
+			);
+
+			const result = await server.fetch("/v1/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v1");
+		});
 	});
 
 	describe("nesting", () => {
@@ -145,6 +208,29 @@ describe("usage: groups", () => {
 			expect(composed.status).toBe(200);
 			expect(await composed.text()).toBe("v1");
 			expect(innerOnly.status).toBe(404);
+		});
+
+		it("should compose prefixes across a group, a mounted module, and a nested group", async () => {
+			using server = serveApp(
+				new Module().group(
+					(outer) =>
+						outer.mount(
+							new Module({ prefix: "/v2" }).group(
+								(inner) =>
+									inner.route("GET", "/a", () => ok("v1")),
+								{ prefix: "/v3" },
+							),
+						),
+					{ prefix: "/v1" },
+				),
+			);
+
+			const composed = await server.fetch("/v1/v2/v3/a");
+			const partial = await server.fetch("/v2/v3/a");
+
+			expect(composed.status).toBe(200);
+			expect(await composed.text()).toBe("v1");
+			expect(partial.status).toBe(404);
 		});
 
 		it("should apply an outer group middleware to inner group routes", async () => {
@@ -212,6 +298,26 @@ describe("usage: groups", () => {
 
 			const first = await server.fetch("/v1/a");
 			const second = await server.fetch("/v2/a");
+
+			expect(await first.text()).toBe("v1");
+			expect(await second.text()).toBe("v2");
+		});
+
+		it("should merge routes from sibling groups sharing a prefix", async () => {
+			using server = serveApp(
+				new Module()
+					.group(
+						(module) => module.route("GET", "/a", () => ok("v1")),
+						{ prefix: "/v1" },
+					)
+					.group(
+						(module) => module.route("GET", "/b", () => ok("v2")),
+						{ prefix: "/v1" },
+					),
+			);
+
+			const first = await server.fetch("/v1/a");
+			const second = await server.fetch("/v1/b");
 
 			expect(await first.text()).toBe("v1");
 			expect(await second.text()).toBe("v2");
@@ -405,6 +511,22 @@ describe("usage: groups", () => {
 			expect(sibling.status).toBe(200);
 			expect(await sibling.text()).toBe("v1");
 			expect(empty.status).toBe(404);
+		});
+
+		it("should serve a static-value route inside a group at the composed path", async () => {
+			using server = serveApp(
+				new Module().group(
+					(module) => module.route("GET", "/a", ok("v1")),
+					{ prefix: "/v1" },
+				),
+			);
+
+			const prefixed = await server.fetch("/v1/a");
+			const bare = await server.fetch("/a");
+
+			expect(prefixed.status).toBe(200);
+			expect(await prefixed.text()).toBe("v1");
+			expect(bare.status).toBe(404);
 		});
 	});
 });
