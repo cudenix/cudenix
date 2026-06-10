@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, expectTypeOf, it } from "bun:test";
 
 import { Module } from "@/core/module";
 import { ok } from "@/core/reply";
@@ -470,11 +470,18 @@ describe("usage: routing", () => {
 		});
 
 		it("should pick the first-registered among duplicate static routes", async () => {
-			using server = serveApp(
-				new Module()
-					.route("GET", "/a", () => ok("first"))
-					.route("GET", "/a", () => ok("second")),
-			);
+			const module = new Module()
+				.route("GET", "/a", () => ok("first"))
+				.route("GET", "/a", () => ok("second"));
+
+			expectTypeOf<
+				Extract<
+					(typeof module)["routes"]["a"]["get"]["response"],
+					{ success: true }
+				>["content"]
+			>().toEqualTypeOf<"first">();
+
+			using server = serveApp(module);
 
 			const served = await server.fetch("/a");
 			const fallback = await server.app.fetch(
