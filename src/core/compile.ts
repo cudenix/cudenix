@@ -146,7 +146,10 @@ const flatten = (
  * under a single merged matching regexp. Every endpoint static enough for
  * Bun's own router — no optional (`?`) or rest (`...`) segment — is also
  * registered on `app.routes`, tagged `router: "bun"`, so Bun matches it ahead
- * of the regexp fallback. A route whose handler is a static value rather than a
+ * of the regexp fallback. When two endpoints collide on the same path and
+ * method, only the first registered one lands in the table, keeping Bun's
+ * router consistent with the regexp table's first-match precedence. A route
+ * whose handler is a static value rather than a
  * function and whose chain carries no middleware, store, or validator is
  * registered as a pre-built `Response` — which Bun serves as a zero-allocation
  * static response — instead of a per-request dispatch handler. The static
@@ -219,31 +222,40 @@ export const compile = (app: Cudenix) => {
 				methodEndpoint.path.indexOf("?") === -1 &&
 				methodEndpoint.path.indexOf("...") === -1
 			) {
-				if (!(methodEndpoint.path in routes)) {
-					routes[methodEndpoint.path] =
-						new Empty() as (typeof routes)[string];
+				let pathRoutes = routes[methodEndpoint.path];
+
+				if (!pathRoutes) {
+					pathRoutes = new Empty() as (typeof routes)[string];
+
+					routes[methodEndpoint.path] = pathRoutes;
 				}
 
-				routes[methodEndpoint.path]![method] =
-					methodEndpoint.route.static &&
-					methodEndpoint.chain.length === 0
-						? response(
-								(
-									methodEndpoint.route.handler as () =>
-										| AnyFail
-										| AnyOk
-								)(),
-							)
-						: (request: Request) =>
-								dispatch(
-									methodEndpoint,
-									request,
-									new Context(app, methodEndpoint, request),
-									methodEndpoint.chain,
-									0,
-								);
+				if (!(method in pathRoutes)) {
+					pathRoutes[method] =
+						methodEndpoint.route.static &&
+						methodEndpoint.chain.length === 0
+							? response(
+									(
+										methodEndpoint.route.handler as () =>
+											| AnyFail
+											| AnyOk
+									)(),
+								)
+							: (request: Request) =>
+									dispatch(
+										methodEndpoint,
+										request,
+										new Context(
+											app,
+											methodEndpoint,
+											request,
+										),
+										methodEndpoint.chain,
+										0,
+									);
 
-				methodEndpoint.router = "bun";
+					methodEndpoint.router = "bun";
+				}
 			}
 		}
 
