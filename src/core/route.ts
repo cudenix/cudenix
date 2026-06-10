@@ -11,6 +11,7 @@ import type { ExtractUrlParams } from "@/utils/types/extract-url-params";
 import type { GeneratorSSE } from "@/utils/types/generator-sse";
 import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
+import type { Merge } from "@/utils/types/merge";
 
 /**
  * @module
@@ -152,7 +153,9 @@ export type RouteFnReturnGenerator =
  * Augment a validator map with a `params` slot inferred from `Path` when the
  * pattern declares any URL parameters; otherwise pass the map through
  * unchanged. Lets a route handler's typed context surface `:name`/`...name`
- * segments without a redundant manual `params` validator.
+ * segments without a redundant manual `params` validator. A `params` slot
+ * already declared by a validator wins wholesale, mirroring the runtime,
+ * where the validator's output replaces the slot.
  *
  * @typeParam Path - Route pattern parsed by {@link ExtractUrlParams}.
  * @typeParam Validators - Existing per-slot validator map.
@@ -163,6 +166,9 @@ export type RouteFnReturnGenerator =
  *
  * type B = ValidatorsWithParams<"/a/b", { body: { a: string } }>;
  * // { body: { a: string } }
+ *
+ * type C = ValidatorsWithParams<"/a/:p1", { params: { p1: number } }>;
+ * // { params: { p1: number } }
  * ```
  */
 export type ValidatorsWithParams<
@@ -172,7 +178,7 @@ export type ValidatorsWithParams<
 	ExtractUrlParams<Path> extends infer Params
 		? [NonNullable<unknown>] extends [Params]
 			? Validators
-			: Validators & { params: Params }
+			: Merge<{ params: Params }, Validators>
 		: never;
 
 /**
