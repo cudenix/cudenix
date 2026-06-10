@@ -13,6 +13,24 @@ export interface ServedApp extends Disposable {
 }
 
 /**
+ * Options accepted by {@link serveApp}. `listen` carries extra `Bun.serve`
+ * options forwarded to `.listen()` — `port` is always overridden to `0` — and
+ * `plugins` lists setup hooks registered before the server boots.
+ *
+ * @example
+ * ```typescript
+ * const a: ServeAppOptions = {
+ *   listen: { error: () => new Response(undefined, { status: 500 }) },
+ *   plugins: [somePlugin()],
+ * };
+ * ```
+ */
+export interface ServeAppOptions {
+	listen?: Parameters<Cudenix["listen"]>[0];
+	plugins?: Plugin[];
+}
+
+/**
  * Boot a real Bun server around a root module and return a handle whose
  * `fetch` targets it, so a test drives the app end-to-end through Bun's own
  * router — both the static route table and the regexp fallback — exactly as a
@@ -23,9 +41,8 @@ export interface ServedApp extends Disposable {
  * server per test. Bind it with `using` to stop the server automatically.
  *
  * @param module - Root module compiled into the app's routes.
- * @param plugins - Optional setup hooks registered before `.listen()`.
- * @param options - Extra `Bun.serve` options forwarded to `.listen()`; `port`
- *   is always overridden to `0`.
+ * @param options - Optional plugins and `Bun.serve` overrides; see
+ *   {@link ServeAppOptions}.
  * @returns A {@link ServedApp} handle bound to the running server.
  * @example
  * ```typescript
@@ -38,16 +55,15 @@ export interface ServedApp extends Disposable {
  */
 export const serveApp = (
 	module: ConstructorParameters<typeof Cudenix>[0],
-	plugins?: Plugin[],
-	options?: Parameters<Cudenix["listen"]>[0],
+	options?: ServeAppOptions,
 ): ServedApp => {
 	const app = new Cudenix(module);
 
-	if (plugins) {
-		app.plugins(plugins);
+	if (options?.plugins) {
+		app.plugins(options.plugins);
 	}
 
-	app.listen({ ...options, port: 0 });
+	app.listen({ ...options?.listen, port: 0 });
 
 	const port = app.server!.port!;
 
