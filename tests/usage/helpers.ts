@@ -24,6 +24,8 @@ export interface ServedApp extends Disposable {
  *
  * @param module - Root module compiled into the app's routes.
  * @param plugins - Optional setup hooks registered before `.listen()`.
+ * @param options - Extra `Bun.serve` options forwarded to `.listen()`; `port`
+ *   is always overridden to `0`.
  * @returns A {@link ServedApp} handle bound to the running server.
  * @example
  * ```typescript
@@ -37,6 +39,7 @@ export interface ServedApp extends Disposable {
 export const serveApp = (
 	module: ConstructorParameters<typeof Cudenix>[0],
 	plugins?: Plugin[],
+	options?: Parameters<Cudenix["listen"]>[0],
 ): ServedApp => {
 	const app = new Cudenix(module);
 
@@ -44,7 +47,7 @@ export const serveApp = (
 		app.plugins(plugins);
 	}
 
-	app.listen({ port: 0 });
+	app.listen({ ...options, port: 0 });
 
 	const port = app.server!.port!;
 
