@@ -93,6 +93,58 @@ export type ParseRoute<
 >;
 
 /**
+ * Distinguish a route descriptor leaf from a path-segment branch. Only leaves
+ * carry string-valued `method`/`path` fields; branch nodes map segment names
+ * to further records.
+ */
+export type IsRouteLeaf<T> = T extends { method: string; path: string }
+	? true
+	: false;
+
+/**
+ * Deeply merge two route trees, resolving each shared key by what the runtime
+ * router actually serves. Unlike `T & U`, a duplicate route does not intersect
+ * the two descriptors into an impossible merged response.
+ *
+ * - Shared key, both leaves — duplicate registration of the same method and
+ *   path: the first tree's descriptor wins, mirroring the runtime, which only
+ *   ever serves the first registration.
+ * - Shared key, both branches: merged recursively.
+ * - Shared key, leaf on one side and branch on the other (a segment named
+ *   like a method): intersected, since both the descriptor and the deeper
+ *   routes are served.
+ * - Exclusive keys pass through unchanged.
+ *
+ * @typeParam T - Route tree accumulated so far. Wins on duplicate leaves.
+ * @typeParam U - Route tree contributed by the new registration.
+ * @example
+ * ```typescript
+ * type A = MergeRoutes<
+ *   { a: { get: { method: "GET"; path: "/a"; request: unknown; response: { 200: "v1" } } } },
+ *   { a: { get: { method: "GET"; path: "/a"; request: unknown; response: { 200: "v2" } } } }
+ * >;
+ * // { a: { get: { method: "GET"; path: "/a"; request: unknown; response: { 200: "v1" } } } }
+ * ```
+ */
+export type MergeRoutes<T extends object, U extends object> = {
+	[K in keyof T | keyof U]: K extends keyof T
+		? K extends keyof U
+			? [IsRouteLeaf<T[K]>, IsRouteLeaf<U[K]>] extends [true, true]
+				? T[K]
+				: [IsRouteLeaf<T[K]>, IsRouteLeaf<U[K]>] extends [false, false]
+					? T[K] extends object
+						? U[K] extends object
+							? MergeRoutes<T[K], U[K]>
+							: T[K] & U[K]
+						: T[K] & U[K]
+					: T[K] & U[K]
+			: T[K]
+		: K extends keyof U
+			? U[K]
+			: never;
+};
+
+/**
  * Union of the two envelope shapes a streaming route can emit — either an
  * {@link AnyFail} or an {@link AnyOk}. Used as the payload of each
  * {@link RouteFnReturnGeneratorFrame} and as the final return of a
