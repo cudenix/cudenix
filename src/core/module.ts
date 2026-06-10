@@ -40,6 +40,7 @@ import type { AllPropertiesAreUnknown } from "@/utils/types/all-properties-are-u
 import type { ExtractUrlParams } from "@/utils/types/extract-url-params";
 import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
+import type { Merge } from "@/utils/types/merge";
 import type { MergePaths } from "@/utils/types/merge-paths";
 import type { RequiredKeys } from "@/utils/types/required-keys";
 import type { ValueOf } from "@/utils/types/value-of";
@@ -114,8 +115,9 @@ export interface ModuleValidatorsConstraint {
  * - `route` — bind a handler to a method and path; the merged path drives the
  *   route tree entry, and the optional per-route validator refines the typed
  *   request.
- * - `store` — register a {@link StoreFn}; its non-error return widens `Stores`
- *   while any error it can return folds into `Errors`.
+ * - `store` — register a {@link StoreFn}; its non-error return shallow-merges
+ *   into `Stores` — an overlapping key is replaced wholesale, mirroring the
+ *   runtime merge — while any error it can return folds into `Errors`.
  * - `validator` — register a {@link ValidatorOptions} schema map; its inferred
  *   inputs/outputs thread into `Validators` and its issues into `Errors`.
  *
@@ -226,7 +228,7 @@ export interface Module<
 				: Prefix extends `/${infer Rest}`
 					? PathToObject<Rest, ModuleRoutes>
 					: ModuleRoutes),
-		Stores & ModuleStores,
+		Merge<Stores, ModuleStores>,
 		MergeReplies<Successes, ModuleSuccesses>,
 		{
 			inputs: MergeInferValidatorRequest<
@@ -318,7 +320,7 @@ export interface Module<
 		>,
 		Prefix,
 		Routes,
-		Stores & Exclude<Awaited<StoreReturn>, AnyFail>,
+		Merge<Stores, Exclude<Awaited<StoreReturn>, AnyFail>>,
 		Successes,
 		Validators
 	>;
