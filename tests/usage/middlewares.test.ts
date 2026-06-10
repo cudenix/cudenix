@@ -45,20 +45,29 @@ describe("usage: middlewares", () => {
 		});
 
 		it("should resolve an asynchronous middleware before continuing the chain", async () => {
+			const events: string[] = [];
+
 			using server = serveApp(
 				new Module()
 					.middleware(async (_, next) => {
 						await Promise.resolve();
 
+						events.push("middleware:resumed");
+
 						await next();
 					})
-					.route("GET", "/a", () => ok("v1")),
+					.route("GET", "/a", () => {
+						events.push("handler");
+
+						return ok("v1");
+					}),
 			);
 
 			const result = await server.fetch("/a");
 
 			expect(result.status).toBe(200);
 			expect(await result.text()).toBe("v1");
+			expect(events).toEqual(["middleware:resumed", "handler"]);
 		});
 	});
 
@@ -99,6 +108,73 @@ describe("usage: middlewares", () => {
 				"second:after",
 				"first:after",
 			]);
+		});
+
+		it("should wrap a group's middleware with a parent middleware declared before the group", async () => {
+			const events: string[] = [];
+
+			using server = serveApp(
+				new Module()
+					.middleware(async (_, next) => {
+						events.push("parent:before");
+
+						await next();
+
+						events.push("parent:after");
+					})
+					.group(
+						(module) =>
+							module
+								.middleware(async (_, next) => {
+									events.push("group:before");
+
+									await next();
+
+									events.push("group:after");
+								})
+								.route("GET", "/a", () => {
+									events.push("handler");
+
+									return ok("v1");
+								}),
+						{ prefix: "/v1" },
+					),
+			);
+
+			const result = await server.fetch("/v1/a");
+
+			expect(result.status).toBe(200);
+			expect(events).toEqual([
+				"parent:before",
+				"group:before",
+				"handler",
+				"group:after",
+				"parent:after",
+			]);
+		});
+
+		it("should run the downstream chain once per next call", async () => {
+			let runs = 0;
+
+			using server = serveApp(
+				new Module()
+					.middleware(async (_, next) => {
+						await next();
+
+						await next();
+					})
+					.route("GET", "/a", () => {
+						runs++;
+
+						return ok(`v${runs}`);
+					}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v2");
+			expect(runs).toBe(2);
 		});
 	});
 
@@ -164,6 +240,79 @@ describe("usage: middlewares", () => {
 			expect(await result.text()).toBe("");
 			expect(events).toEqual(["middleware"]);
 		});
+
+		it("should short-circuit with a fail resolved by an asynchronous middleware", async () => {
+			let ran = false;
+
+			using server = serveApp(
+				new Module()
+					.middleware(async () => {
+						await Promise.resolve();
+
+						return fail("denied", { status: 401 });
+					})
+					.route("GET", "/a", () => {
+						ran = true;
+
+						return ok("v1");
+					}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(401);
+			expect(await result.text()).toBe("denied");
+			expect(ran).toBe(false);
+		});
+
+		it("should run the outer middleware's post-next code when an inner middleware short-circuits", async () => {
+			const events: string[] = [];
+
+			using server = serveApp(
+				new Module()
+					.middleware(async (_, next) => {
+						events.push("outer:before");
+
+						await next();
+
+						events.push("outer:after");
+					})
+					.middleware(() => fail("blocked", { status: 403 }))
+					.route("GET", "/a", () => {
+						events.push("handler");
+
+						return ok("v1");
+					}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(403);
+			expect(await result.text()).toBe("blocked");
+			expect(events).toEqual(["outer:before", "outer:after"]);
+		});
+
+		it("should respond with content assigned directly to the response when halting", async () => {
+			let ran = false;
+
+			using server = serveApp(
+				new Module()
+					.middleware((context) => {
+						context.response.content = ok("direct");
+					})
+					.route("GET", "/a", () => {
+						ran = true;
+
+						return ok("v1");
+					}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("direct");
+			expect(ran).toBe(false);
+		});
 	});
 
 	describe("overriding", () => {
@@ -203,6 +352,88 @@ describe("usage: middlewares", () => {
 
 			expect(result.status).toBe(200);
 			expect(await result.text()).toBe("recovered");
+		});
+
+		it("should let the outermost middleware apply the final override after next", async () => {
+			using server = serveApp(
+				new Module()
+					.middleware(async (_, next) => {
+						await next();
+
+						return ok("outer");
+					})
+					.middleware(async (_, next) => {
+						await next();
+
+						return ok("middle");
+					})
+					.route("GET", "/a", () => ok("inner")),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("outer");
+		});
+	});
+
+	describe("thrown errors", () => {
+		it("should surface a throw before next to the server's error handler and skip the handler", async () => {
+			let caught: unknown;
+			let ran = false;
+
+			using server = serveApp(
+				new Module()
+					.middleware(() => {
+						throw new Error("v1");
+					})
+					.route("GET", "/a", () => {
+						ran = true;
+
+						return ok("v2");
+					}),
+				undefined,
+				{
+					error(error) {
+						caught = error;
+
+						return new Response(undefined, { status: 500 });
+					},
+				},
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(500);
+			expect((caught as Error).message).toBe("v1");
+			expect(ran).toBe(false);
+		});
+
+		it("should surface a throw after next to the server's error handler despite a downstream reply", async () => {
+			let caught: unknown;
+
+			using server = serveApp(
+				new Module()
+					.middleware(async (_, next) => {
+						await next();
+
+						throw new Error("v1");
+					})
+					.route("GET", "/a", () => ok("v2")),
+				undefined,
+				{
+					error(error) {
+						caught = error;
+
+						return new Response(undefined, { status: 500 });
+					},
+				},
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(500);
+			expect((caught as Error).message).toBe("v1");
 		});
 	});
 
@@ -387,6 +618,25 @@ describe("usage: middlewares", () => {
 			expect(await before.text()).toBe("v1");
 			expect(after.status).toBe(403);
 		});
+
+		it("should not run the middleware when no route matches", async () => {
+			let ran = false;
+
+			using server = serveApp(
+				new Module()
+					.middleware((_, next) => {
+						ran = true;
+
+						return next();
+					})
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			const result = await server.fetch("/b");
+
+			expect(result.status).toBe(404);
+			expect(ran).toBe(false);
+		});
 	});
 
 	describe("per-request", () => {
@@ -410,7 +660,7 @@ describe("usage: middlewares", () => {
 		});
 	});
 
-	describe("response headers", () => {
+	describe("response metadata", () => {
 		it("should not apply response headers set by a middleware yet (migration gap)", async () => {
 			using server = serveApp(
 				new Module()
@@ -426,6 +676,23 @@ describe("usage: middlewares", () => {
 
 			expect(result.status).toBe(200);
 			expect(result.headers.get("x-a")).toBeNull();
+		});
+
+		it("should not apply response cookies set by a middleware yet (migration gap)", async () => {
+			using server = serveApp(
+				new Module()
+					.middleware((context, next) => {
+						context.response.cookies.a = "v1";
+
+						return next();
+					})
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(result.headers.get("set-cookie")).toBeNull();
 		});
 	});
 });
