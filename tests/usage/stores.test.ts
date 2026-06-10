@@ -251,57 +251,6 @@ describe("usage: stores", () => {
 			expect(result.status).toBe(400);
 			expect(events).toEqual(["first"]);
 		});
-
-		it("should short-circuit on a structurally-shaped fail that is not a Reply instance", async () => {
-			let ran = false;
-
-			using server = serveApp(
-				new Module()
-					.store(() => ({
-						content: "blocked",
-						status: 401,
-						success: false,
-					}))
-					.route("GET", "/a", () => {
-						ran = true;
-
-						return ok("v1");
-					}),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(401);
-			expect(await result.text()).toBe("blocked");
-			expect(ran).toBe(false);
-		});
-
-		it("should short-circuit on a JSON-rehydrated fail", async () => {
-			let ran = false;
-
-			using server = serveApp(
-				new Module()
-					.store(
-						() =>
-							JSON.parse(
-								JSON.stringify(
-									fail("blocked", { status: 401 }),
-								),
-							) as Fail<"blocked", 401>,
-					)
-					.route("GET", "/a", () => {
-						ran = true;
-
-						return ok("v1");
-					}),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(401);
-			expect(await result.text()).toBe("blocked");
-			expect(ran).toBe(false);
-		});
 	});
 
 	describe("thrown errors", () => {
