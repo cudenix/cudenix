@@ -68,7 +68,7 @@ export type AnyStoreFn = StoreFn<any, any, any>;
  * ```
  */
 export interface Store<
-	Return extends Record<PropertyKey, unknown> | AnyFail,
+	Return extends MaybePromise<Record<PropertyKey, unknown> | AnyFail>,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > {

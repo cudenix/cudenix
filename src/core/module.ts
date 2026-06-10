@@ -302,19 +302,23 @@ export interface Module<
 			: never
 		: never;
 	routes: Routes;
-	store<const StoreReturn extends Record<PropertyKey, unknown> | AnyFail>(
+	store<
+		const StoreReturn extends MaybePromise<
+			Record<PropertyKey, unknown> | AnyFail
+		>,
+	>(
 		handler: StoreFn<StoreReturn, Stores, Validators["outputs"]>,
 	): Module<
 		MergeReplies<
 			Errors,
 			Record<
-				Extract<StoreReturn, AnyFail>["status"],
-				Extract<StoreReturn, AnyFail>
+				Extract<Awaited<StoreReturn>, AnyFail>["status"],
+				Extract<Awaited<StoreReturn>, AnyFail>
 			>
 		>,
 		Prefix,
 		Routes,
-		Stores & Exclude<StoreReturn, AnyFail>,
+		Stores & Exclude<Awaited<StoreReturn>, AnyFail>,
 		Successes,
 		Validators
 	>;
