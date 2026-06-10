@@ -392,12 +392,13 @@ describe("usage: middlewares", () => {
 
 						return ok("v2");
 					}),
-				undefined,
 				{
-					error(error) {
-						caught = error;
+					listen: {
+						error(error) {
+							caught = error;
 
-						return new Response(undefined, { status: 500 });
+							return new Response(undefined, { status: 500 });
+						},
 					},
 				},
 			);
@@ -420,12 +421,13 @@ describe("usage: middlewares", () => {
 						throw new Error("v1");
 					})
 					.route("GET", "/a", () => ok("v2")),
-				undefined,
 				{
-					error(error) {
-						caught = error;
+					listen: {
+						error(error) {
+							caught = error;
 
-						return new Response(undefined, { status: 500 });
+							return new Response(undefined, { status: 500 });
+						},
 					},
 				},
 			);
