@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, expectTypeOf, it } from "bun:test";
 
 import { Module } from "@/core/module";
 import { fail, ok } from "@/core/reply";
@@ -73,8 +73,8 @@ describe("usage: stores", () => {
 		it("should let a later store overwrite an earlier key", async () => {
 			using server = serveApp(
 				new Module()
-					.store((): { a: string } => ({ a: "v1" }))
-					.store((): { a: string } => ({ a: "v2" }))
+					.store(() => ({ a: "v1" }))
+					.store(() => ({ a: "v2" }))
 					.route("GET", "/a", (context) => ok(context.store.a)),
 			);
 
@@ -82,6 +82,28 @@ describe("usage: stores", () => {
 
 			expect(result.status).toBe(200);
 			expect(await result.text()).toBe("v2");
+		});
+
+		it("should replace a nested object wholesale instead of deep-merging it", async () => {
+			using server = serveApp(
+				new Module()
+					.store((): { a: { b: string; c: string } } => ({
+						a: { b: "v1", c: "v2" },
+					}))
+					.store((): { a: { b: string } } => ({ a: { b: "v3" } }))
+					.route("GET", "/a", (context) => {
+						expectTypeOf(context.store.a).branded.toEqualTypeOf<{
+							b: string;
+						}>();
+
+						return ok(context.store.a);
+					}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.json()).toEqual({ b: "v3" });
 		});
 
 		it("should expose earlier store values to a later store", async () => {
@@ -196,6 +218,74 @@ describe("usage: stores", () => {
 
 			expect(result.status).toBe(400);
 			expect(events).toEqual(["first"]);
+		});
+	});
+
+	describe("thrown errors", () => {
+		it("should surface a store throw to the server's error handler and skip the handler", async () => {
+			let caught: unknown;
+			let ran = false;
+
+			using server = serveApp(
+				new Module()
+					.store(() => {
+						throw new Error("v1");
+					})
+					.route("GET", "/a", () => {
+						ran = true;
+
+						return ok("v2");
+					}),
+				{
+					listen: {
+						error(error) {
+							caught = error;
+
+							return new Response(undefined, { status: 500 });
+						},
+					},
+				},
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(500);
+			expect((caught as Error).message).toBe("v1");
+			expect(ran).toBe(false);
+		});
+
+		it("should surface an asynchronous store rejection to the server's error handler", async () => {
+			let caught: unknown;
+			let ran = false;
+
+			using server = serveApp(
+				new Module()
+					.store(async () => {
+						await Promise.resolve();
+
+						throw new Error("v1");
+					})
+					.route("GET", "/a", () => {
+						ran = true;
+
+						return ok("v2");
+					}),
+				{
+					listen: {
+						error(error) {
+							caught = error;
+
+							return new Response(undefined, { status: 500 });
+						},
+					},
+				},
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(500);
+			expect((caught as Error).message).toBe("v1");
+			expect(ran).toBe(false);
 		});
 	});
 
@@ -360,6 +450,25 @@ describe("usage: stores", () => {
 			expect(await before.text()).toBe("v1");
 			expect(await after.text()).toBe("v2");
 			expect(events).toEqual(["store"]);
+		});
+
+		it("should not run for an unmatched path", async () => {
+			let runs = 0;
+
+			using server = serveApp(
+				new Module()
+					.store(() => {
+						runs++;
+
+						return { a: "v1" };
+					})
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			const miss = await server.fetch("/b");
+
+			expect(miss.status).toBe(404);
+			expect(runs).toBe(0);
 		});
 	});
 
