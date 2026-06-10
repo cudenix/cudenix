@@ -35,18 +35,14 @@ describe("usage: stores", () => {
 			expect(await result.text()).toBe("v1:v2");
 		});
 
-		it("should await an asynchronous store despite the type-level rejection (migration gap)", async () => {
+		it("should await an asynchronous store", async () => {
 			using server = serveApp(
 				new Module()
-					.store(
-						// `.store` rejects async handlers at the type level, but
-						// the runtime awaits whatever the handler returns.
-						(async () => {
-							await Promise.resolve();
+					.store(async () => {
+						await Promise.resolve();
 
-							return { a: "v1" };
-						}) as unknown as () => { a: string },
-					)
+						return { a: "v1" };
+					})
 					.route("GET", "/a", (context) => ok(context.store.a)),
 			);
 
@@ -140,6 +136,30 @@ describe("usage: stores", () => {
 			using server = serveApp(
 				new Module()
 					.store(() => fail("blocked"))
+					.route("GET", "/a", () => {
+						ran = true;
+
+						return ok("v1");
+					}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(400);
+			expect(await result.text()).toBe("blocked");
+			expect(ran).toBe(false);
+		});
+
+		it("should respond with a fail resolved by an asynchronous store", async () => {
+			let ran = false;
+
+			using server = serveApp(
+				new Module()
+					.store(async () => {
+						await Promise.resolve();
+
+						return fail("blocked");
+					})
 					.route("GET", "/a", () => {
 						ran = true;
 
