@@ -39,6 +39,23 @@ describe("usage: mounts", () => {
 			expect(bare.status).toBe(404);
 		});
 
+		it("should compose the parent and mounted module prefixes", async () => {
+			using server = serveApp(
+				new Module({ prefix: "/v1" }).mount(
+					new Module({ prefix: "/v2" }).route("GET", "/a", () =>
+						ok("v1"),
+					),
+				),
+			);
+
+			const composed = await server.fetch("/v1/v2/a");
+			const childOnly = await server.fetch("/v2/a");
+
+			expect(composed.status).toBe(200);
+			expect(await composed.text()).toBe("v1");
+			expect(childOnly.status).toBe(404);
+		});
+
 		it("should treat a root mounted prefix the same as no prefix", async () => {
 			using server = serveApp(
 				new Module()
@@ -170,6 +187,26 @@ describe("usage: mounts", () => {
 			expect(bare.status).toBe(404);
 		});
 
+		it("should nest sibling routes declared after a prefixed mount under that prefix", async () => {
+			using server = serveApp(
+				new Module()
+					.mount(
+						new Module({ prefix: "/v1" }).route("GET", "/a", () =>
+							ok("v1"),
+						),
+					)
+					.route("GET", "/b", () => ok("v2")),
+			);
+
+			const mounted = await server.fetch("/v1/a");
+			const nested = await server.fetch("/v1/b");
+			const bare = await server.fetch("/b");
+
+			expect(await mounted.text()).toBe("v1");
+			expect(await nested.text()).toBe("v2");
+			expect(bare.status).toBe(404);
+		});
+
 		it("should nest later siblings under the prefix of a mounted module with no routes", async () => {
 			using server = serveApp(
 				new Module()
@@ -295,6 +332,26 @@ describe("usage: mounts", () => {
 			expect(after.status).toBe(403);
 		});
 
+		it("should apply a mounted module's middleware to sibling routes declared after the mount", async () => {
+			using server = serveApp(
+				new Module()
+					.route("GET", "/a", () => ok("v1"))
+					.mount(
+						new Module().middleware(() =>
+							fail("blocked", { status: 403 }),
+						),
+					)
+					.route("GET", "/b", () => ok("v2")),
+			);
+
+			const before = await server.fetch("/a");
+			const after = await server.fetch("/b");
+
+			expect(before.status).toBe(200);
+			expect(await before.text()).toBe("v1");
+			expect(after.status).toBe(403);
+		});
+
 		it("should apply one mounted module's middleware to a sibling mount declared after it", async () => {
 			using server = serveApp(
 				new Module()
@@ -327,6 +384,26 @@ describe("usage: mounts", () => {
 
 			expect(result.status).toBe(200);
 			expect(await result.text()).toBe("v1");
+		});
+
+		it("should apply a parent store declared before the mount to mounted routes", async () => {
+			const events: string[] = [];
+
+			using server = serveApp(
+				new Module()
+					.store(() => {
+						events.push("store");
+
+						return { a: "v1" };
+					})
+					.mount(new Module().route("GET", "/a", () => ok("v2"))),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v2");
+			expect(events).toEqual(["store"]);
 		});
 
 		it("should merge a parent store with a mounted module's store on a route declared after the mount", async () => {
@@ -366,7 +443,9 @@ describe("usage: mounts", () => {
 			expect(await result.text()).toBe("v2");
 		});
 
-		it("should not expose a mounted module's store to a route declared before the mount", async () => {
+		it("should expose a mounted module's store only to routes declared after the mount", async () => {
+			const events: string[] = [];
+
 			using server = serveApp(
 				new Module()
 					.route("GET", "/a", (context) => {
@@ -376,7 +455,13 @@ describe("usage: mounts", () => {
 
 						return ok("a" in context.store ? "present" : "absent");
 					})
-					.mount(new Module().store(() => ({ a: "v1" })))
+					.mount(
+						new Module().store(() => {
+							events.push("store");
+
+							return { a: "v1" };
+						}),
+					)
 					.route("GET", "/b", (context) => ok(context.store.a)),
 			);
 
@@ -386,6 +471,7 @@ describe("usage: mounts", () => {
 			expect(await before.text()).toBe("absent");
 			expect(after.status).toBe(200);
 			expect(await after.text()).toBe("v1");
+			expect(events).toEqual(["store"]);
 		});
 	});
 

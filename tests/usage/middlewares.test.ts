@@ -110,49 +110,6 @@ describe("usage: middlewares", () => {
 			]);
 		});
 
-		it("should wrap a group's middleware with a parent middleware declared before the group", async () => {
-			const events: string[] = [];
-
-			using server = serveApp(
-				new Module()
-					.middleware(async (_, next) => {
-						events.push("parent:before");
-
-						await next();
-
-						events.push("parent:after");
-					})
-					.group(
-						(module) =>
-							module
-								.middleware(async (_, next) => {
-									events.push("group:before");
-
-									await next();
-
-									events.push("group:after");
-								})
-								.route("GET", "/a", () => {
-									events.push("handler");
-
-									return ok("v1");
-								}),
-						{ prefix: "/v1" },
-					),
-			);
-
-			const result = await server.fetch("/v1/a");
-
-			expect(result.status).toBe(200);
-			expect(events).toEqual([
-				"parent:before",
-				"group:before",
-				"handler",
-				"group:after",
-				"parent:after",
-			]);
-		});
-
 		it("should run the downstream chain once per next call", async () => {
 			let runs = 0;
 
@@ -540,76 +497,6 @@ describe("usage: middlewares", () => {
 				new Module()
 					.route("GET", "/a", () => ok("v1"))
 					.middleware(() => fail("blocked", { status: 403 }))
-					.route("GET", "/b", () => ok("v2")),
-			);
-
-			const before = await server.fetch("/a");
-			const after = await server.fetch("/b");
-
-			expect(before.status).toBe(200);
-			expect(await before.text()).toBe("v1");
-			expect(after.status).toBe(403);
-		});
-
-		it("should keep a group middleware scoped to the group", async () => {
-			using server = serveApp(
-				new Module()
-					.group(
-						(module) =>
-							module
-								.middleware(() =>
-									fail("blocked", { status: 403 }),
-								)
-								.route("GET", "/a", () => ok("v1")),
-						{ prefix: "/v1" },
-					)
-					.route("GET", "/b", () => ok("v2")),
-			);
-
-			const grouped = await server.fetch("/v1/a");
-			const sibling = await server.fetch("/b");
-
-			expect(grouped.status).toBe(403);
-			expect(sibling.status).toBe(200);
-			expect(await sibling.text()).toBe("v2");
-		});
-
-		it("should apply a parent middleware declared before the group to grouped routes", async () => {
-			using server = serveApp(
-				new Module()
-					.middleware(() => fail("blocked", { status: 403 }))
-					.group(
-						(module) => module.route("GET", "/a", () => ok("v1")),
-						{ prefix: "/v1" },
-					),
-			);
-
-			const result = await server.fetch("/v1/a");
-
-			expect(result.status).toBe(403);
-		});
-
-		it("should apply a parent middleware declared before the mount to mounted routes", async () => {
-			using server = serveApp(
-				new Module()
-					.middleware(() => fail("blocked", { status: 403 }))
-					.mount(new Module().route("GET", "/a", () => ok("v1"))),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(403);
-		});
-
-		it("should apply a mounted module's middleware to sibling routes declared after the mount", async () => {
-			using server = serveApp(
-				new Module()
-					.route("GET", "/a", () => ok("v1"))
-					.mount(
-						new Module().middleware(() =>
-							fail("blocked", { status: 403 }),
-						),
-					)
 					.route("GET", "/b", () => ok("v2")),
 			);
 

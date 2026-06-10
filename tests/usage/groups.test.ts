@@ -34,6 +34,22 @@ describe("usage: groups", () => {
 			expect(await result.text()).toBe("v1");
 		});
 
+		it("should serve group routes under the group prefix", async () => {
+			using server = serveApp(
+				new Module().group(
+					(module) => module.route("GET", "/a", () => ok("v1")),
+					{ prefix: "/v1" },
+				),
+			);
+
+			const prefixed = await server.fetch("/v1/a");
+			const bare = await server.fetch("/a");
+
+			expect(prefixed.status).toBe(200);
+			expect(await prefixed.text()).toBe("v1");
+			expect(bare.status).toBe(404);
+		});
+
 		it("should serve routes under a multi-segment group prefix", async () => {
 			using server = serveApp(
 				new Module().group(
@@ -80,6 +96,20 @@ describe("usage: groups", () => {
 			expect(hit.status).toBe(200);
 			expect(await hit.text()).toBe("v1");
 			expect(miss.status).toBe(404);
+		});
+
+		it("should compose the module prefix with the group prefix", async () => {
+			using server = serveApp(
+				new Module({ prefix: "/v1" }).group(
+					(module) => module.route("GET", "/a", () => ok("v1")),
+					{ prefix: "/v2" },
+				),
+			);
+
+			const result = await server.fetch("/v1/v2/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v1");
 		});
 	});
 
@@ -349,6 +379,29 @@ describe("usage: groups", () => {
 			expect(await allowed.text()).toBe("v2");
 		});
 
+		it("should keep a group middleware scoped to the group", async () => {
+			using server = serveApp(
+				new Module()
+					.group(
+						(module) =>
+							module
+								.middleware(() =>
+									fail("blocked", { status: 403 }),
+								)
+								.route("GET", "/a", () => ok("v1")),
+						{ prefix: "/v1" },
+					)
+					.route("GET", "/b", () => ok("v2")),
+			);
+
+			const grouped = await server.fetch("/v1/a");
+			const sibling = await server.fetch("/b");
+
+			expect(grouped.status).toBe(403);
+			expect(sibling.status).toBe(200);
+			expect(await sibling.text()).toBe("v2");
+		});
+
 		it("should not nest sibling routes declared after a prefixed group under its prefix", async () => {
 			using server = serveApp(
 				new Module()
@@ -425,6 +478,49 @@ describe("usage: groups", () => {
 			expect(grouped.status).toBe(403);
 		});
 
+		it("should wrap a group's middleware with a parent middleware declared before the group", async () => {
+			const events: string[] = [];
+
+			using server = serveApp(
+				new Module()
+					.middleware(async (_, next) => {
+						events.push("parent:before");
+
+						await next();
+
+						events.push("parent:after");
+					})
+					.group(
+						(module) =>
+							module
+								.middleware(async (_, next) => {
+									events.push("group:before");
+
+									await next();
+
+									events.push("group:after");
+								})
+								.route("GET", "/a", () => {
+									events.push("handler");
+
+									return ok("v1");
+								}),
+						{ prefix: "/v1" },
+					),
+			);
+
+			const result = await server.fetch("/v1/a");
+
+			expect(result.status).toBe(200);
+			expect(events).toEqual([
+				"parent:before",
+				"group:before",
+				"handler",
+				"group:after",
+				"parent:after",
+			]);
+		});
+
 		it("should not apply a parent middleware declared after the group to grouped routes", async () => {
 			using server = serveApp(
 				new Module()
@@ -472,6 +568,35 @@ describe("usage: groups", () => {
 
 			expect(result.status).toBe(200);
 			expect(await result.text()).toBe("v1:v2");
+		});
+
+		it("should keep a group store scoped to the group", async () => {
+			const events: string[] = [];
+
+			using server = serveApp(
+				new Module()
+					.group(
+						(module) =>
+							module
+								.store(() => {
+									events.push("store");
+
+									return { a: "v1" };
+								})
+								.route("GET", "/a", (context) =>
+									ok(context.store.a),
+								),
+						{ prefix: "/v1" },
+					)
+					.route("GET", "/b", () => ok("v2")),
+			);
+
+			const grouped = await server.fetch("/v1/a");
+			const sibling = await server.fetch("/b");
+
+			expect(await grouped.text()).toBe("v1");
+			expect(await sibling.text()).toBe("v2");
+			expect(events).toEqual(["store"]);
 		});
 	});
 
