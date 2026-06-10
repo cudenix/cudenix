@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "bun:test";
 
 import { Module } from "@/core/module";
-import { fail, ok } from "@/core/reply";
+import { type Fail, fail, ok } from "@/core/reply";
 
 import { serveApp } from "./helpers";
 
@@ -119,6 +119,38 @@ describe("usage: stores", () => {
 			expect(result.status).toBe(200);
 			expect(await result.text()).toBe("v1:v2");
 		});
+
+		it("should merge a store value whose `success` key is false but lacks the reply shape", async () => {
+			using server = serveApp(
+				new Module()
+					.store(() => ({ a: "v1", success: false }))
+					.route("GET", "/a", (context) =>
+						ok(`${context.store.success}:${context.store.a}`),
+					),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("false:v1");
+		});
+
+		it("should merge an ok-shaped store return instead of short-circuiting", async () => {
+			using server = serveApp(
+				new Module()
+					.store(() => ({
+						content: "v1",
+						status: 200,
+						success: true,
+					}))
+					.route("GET", "/a", (context) => ok(context.store.content)),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v1");
+		});
 	});
 
 	describe("ordering", () => {
@@ -218,6 +250,57 @@ describe("usage: stores", () => {
 
 			expect(result.status).toBe(400);
 			expect(events).toEqual(["first"]);
+		});
+
+		it("should short-circuit on a structurally-shaped fail that is not a Reply instance", async () => {
+			let ran = false;
+
+			using server = serveApp(
+				new Module()
+					.store(() => ({
+						content: "blocked",
+						status: 401,
+						success: false,
+					}))
+					.route("GET", "/a", () => {
+						ran = true;
+
+						return ok("v1");
+					}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(401);
+			expect(await result.text()).toBe("blocked");
+			expect(ran).toBe(false);
+		});
+
+		it("should short-circuit on a JSON-rehydrated fail", async () => {
+			let ran = false;
+
+			using server = serveApp(
+				new Module()
+					.store(
+						() =>
+							JSON.parse(
+								JSON.stringify(
+									fail("blocked", { status: 401 }),
+								),
+							) as Fail<"blocked", 401>,
+					)
+					.route("GET", "/a", () => {
+						ran = true;
+
+						return ok("v1");
+					}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(401);
+			expect(await result.text()).toBe("blocked");
+			expect(ran).toBe(false);
 		});
 	});
 
