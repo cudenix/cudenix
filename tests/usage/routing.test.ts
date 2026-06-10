@@ -468,6 +468,22 @@ describe("usage: routing", () => {
 			expect(await rest.text()).toBe("rest");
 			expect(await optional.text()).toBe("optional");
 		});
+
+		it("should pick the first-registered among duplicate static routes", async () => {
+			using server = serveApp(
+				new Module()
+					.route("GET", "/a", () => ok("first"))
+					.route("GET", "/a", () => ok("second")),
+			);
+
+			const served = await server.fetch("/a");
+			const fallback = await server.app.fetch(
+				new Request(server.url("/a")),
+			);
+
+			expect(await served.text()).toBe("first");
+			expect(await fallback.text()).toBe("first");
+		});
 	});
 
 	describe("prefixes", () => {
