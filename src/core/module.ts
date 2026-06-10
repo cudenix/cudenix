@@ -16,6 +16,7 @@ import type {
 	AnyRouteFn,
 	AnyRouteHandler,
 	AnyRouteOptions,
+	MergeRoutes,
 	ParseRoute,
 	PathToObject,
 	RouteFnReturnGenerator,
@@ -113,11 +114,14 @@ export interface ModuleValidatorsConstraint {
  * - `mount` — graft another module in, merging its errors, routes (nested
  *   under this prefix), stores, successes, and validator maps.
  * - `route` — bind a handler to a method and path; the merged path drives the
- *   route tree entry, and the optional per-route validator refines the typed
- *   request.
+ *   route tree entry — a duplicate method and path keeps the first
+ *   registration, mirroring the runtime router — and the optional per-route
+ *   validator refines the typed request.
  * - `store` — register a {@link StoreFn}; its non-error return shallow-merges
- *   into `Stores` — an overlapping key is replaced wholesale, mirroring the
- *   runtime merge — while any error it can return folds into `Errors`.
+ *   into `Stores` per {@link Merge} — a key certainly present replaces the
+ *   previous declaration, an optional key unions with it, union returns merge
+ *   per branch, and symbol keys are dropped, mirroring the runtime merge —
+ *   while any error it can return folds into `Errors`.
  * - `validator` — register a {@link ValidatorOptions} schema map; its inferred
  *   inputs/outputs thread into `Validators` and its issues into `Errors`.
  *
@@ -172,7 +176,7 @@ export interface Module<
 	): Module<
 		Errors,
 		Prefix,
-		Routes & GroupReturn["routes"],
+		MergeRoutes<Routes, GroupReturn["routes"]>,
 		Stores,
 		Successes,
 		Validators
@@ -222,12 +226,14 @@ export interface Module<
 	): Module<
 		MergeReplies<Errors, ModuleErrors>,
 		MergePaths<Prefix, ModulePrefix>,
-		Routes &
-			(Prefix extends "/"
+		MergeRoutes<
+			Routes,
+			Prefix extends "/"
 				? ModuleRoutes
 				: Prefix extends `/${infer Rest}`
 					? PathToObject<Rest, ModuleRoutes>
-					: ModuleRoutes),
+					: ModuleRoutes
+		>,
 		Merge<Stores, ModuleStores>,
 		MergeReplies<Successes, ModuleSuccesses>,
 		{
@@ -269,7 +275,8 @@ export interface Module<
 			? Module<
 					Errors,
 					Prefix,
-					Routes &
+					MergeRoutes<
+						Routes,
 						ParseRoute<
 							RouteMethod,
 							MergedPath,
@@ -296,7 +303,8 @@ export interface Module<
 											>
 							  >
 							| ValueOf<Successes>
-						>,
+						>
+					>,
 					Stores,
 					Successes,
 					Validators
