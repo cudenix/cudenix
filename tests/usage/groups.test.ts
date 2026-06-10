@@ -155,6 +155,29 @@ describe("usage: groups", () => {
 			expect(childOnly.status).toBe(404);
 		});
 
+		it("should compose prefixes across a group, a mounted module, and a nested group", async () => {
+			using server = serveApp(
+				new Module().group(
+					(outer) =>
+						outer.mount(
+							new Module({ prefix: "/v2" }).group(
+								(inner) =>
+									inner.route("GET", "/a", () => ok("v1")),
+								{ prefix: "/v3" },
+							),
+						),
+					{ prefix: "/v1" },
+				),
+			);
+
+			const composed = await server.fetch("/v1/v2/v3/a");
+			const partial = await server.fetch("/v2/v3/a");
+
+			expect(composed.status).toBe(200);
+			expect(await composed.text()).toBe("v1");
+			expect(partial.status).toBe(404);
+		});
+
 		it("should nest a group declared after a prefixed mount under the mounted prefix", async () => {
 			using server = serveApp(
 				new Module()
@@ -238,29 +261,6 @@ describe("usage: groups", () => {
 			expect(composed.status).toBe(200);
 			expect(await composed.text()).toBe("v1");
 			expect(innerOnly.status).toBe(404);
-		});
-
-		it("should compose prefixes across a group, a mounted module, and a nested group", async () => {
-			using server = serveApp(
-				new Module().group(
-					(outer) =>
-						outer.mount(
-							new Module({ prefix: "/v2" }).group(
-								(inner) =>
-									inner.route("GET", "/a", () => ok("v1")),
-								{ prefix: "/v3" },
-							),
-						),
-					{ prefix: "/v1" },
-				),
-			);
-
-			const composed = await server.fetch("/v1/v2/v3/a");
-			const partial = await server.fetch("/v2/v3/a");
-
-			expect(composed.status).toBe(200);
-			expect(await composed.text()).toBe("v1");
-			expect(partial.status).toBe(404);
 		});
 
 		it("should apply an outer group middleware to inner group routes", async () => {
