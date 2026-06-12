@@ -5,7 +5,7 @@
 
 const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
-const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
+const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
 
 /**
  * Compile a route pattern into a regex source string plus the parameter
@@ -16,15 +16,31 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)";
  *
  * - `:name` — required named parameter (one path segment).
  * - `:name?` — optional named parameter.
- * - `...name` — rest parameter capturing one or more remaining segments.
+ * - `...name` — rest parameter capturing one or more segments (literal
+ *   segments may still follow it).
  * - `...name?` — optional rest parameter.
- * - `*` — wildcard, matches one or more segments without capturing.
+ * - `*` — wildcard, matches a `/` followed by zero or more segments without
+ *   capturing, mirroring the `/*` semantics of Bun's router (so `/a/*`
+ *   accepts `/a/` but not `/a`).
  * - Anything else — matched as a literal (escaped via `RegExp.escape`).
  *
- * The compiled pattern always opens with an empty `()` capture group, so the
- * `n`-th `paramKeys` entry aligns with `match[n + 2]`. The leading group
- * lets several compiled patterns be concatenated without breaking the offset
- * math.
+ * A trailing `?` marks any segment optional, not just named ones — `/a?`
+ * compiles to an optional literal `a`. A literal `?` cannot be expressed,
+ * which costs nothing for URL matching: in a request target a `?` always
+ * starts the query string, never a path character.
+ *
+ * A pattern whose every segment is optional also matches the root path `/`
+ * (the bare slash a real request URL always carries), so `/:p1?` answers
+ * both `/` and `/v1`.
+ *
+ * The compiled pattern always opens with an empty `()` capture group — a
+ * participation sentinel. When several compiled patterns are joined as `|`
+ * alternatives inside one merged regexp, the sentinel of the alternative
+ * that fired is the only one defined (`""`), telling the router which route
+ * matched; each pattern then contributes exactly `1 + paramKeys.length`
+ * groups, so per-route offsets stay computable. For a standalone pattern the
+ * sentinel sits at `match[1]` and the `n`-th `paramKeys` entry aligns with
+ * `match[n + 2]`.
  *
  * @param path - Route pattern to compile. Use `"/"` to represent the root
  *   path.
@@ -57,7 +73,8 @@ export const pathToRegexp = (path: string) => {
 	const paramKeys: string[] = [];
 	const restKeys: string[] = [];
 
-	let pattern = "()";
+	let allOptional = true;
+	let segments = "";
 	let i = 0;
 
 	while (i < length) {
@@ -103,12 +120,19 @@ export const pathToRegexp = (path: string) => {
 
 		if (isOptional) {
 			segment = `(?:${segment})?`;
+		} else {
+			allOptional = false;
 		}
 
-		pattern += segment;
+		segments += segment;
 
 		i = segEnd;
 	}
 
-	return { paramKeys, pattern, restKeys };
+	return {
+		paramKeys,
+		pattern:
+			allOptional && segments ? `()(?:${segments}|\\/)` : `()${segments}`,
+		restKeys,
+	};
 };
