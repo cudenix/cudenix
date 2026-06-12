@@ -43,6 +43,14 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/")).toBe(false);
 			expect(regex.test("/a")).toBe(false);
 		});
+
+		it("should compile a slashes-only path '//' like the empty path, not the root", () => {
+			const { paramKeys, pattern, restKeys } = pathToRegexp("//");
+
+			expect(paramKeys).toEqual([]);
+			expect(pattern).toBe("()");
+			expect(restKeys).toEqual([]);
+		});
 	});
 
 	describe("literal segments", () => {
