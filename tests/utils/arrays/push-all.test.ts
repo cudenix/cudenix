@@ -129,16 +129,23 @@ describe("pushAll", () => {
 			expect(target[baseLength + source.length - 1]).toBe(6);
 		});
 
-		it("should append a large source in order without an argument-count limit", () => {
+		it("should append a source large enough to overflow a variadic spread", () => {
+			const length = 1_000_000;
 			const target = [0];
-			const source = Array.from({ length: 100 }, (_, i) => i + 1);
+			const source = Array.from({ length }, (_, i) => i + 1);
+
+			expect(() => {
+				const probe: number[] = [];
+
+				probe.push(...source);
+			}).toThrow(RangeError);
 
 			pushAll(target, source);
 
-			expect(target).toHaveLength(101);
+			expect(target).toHaveLength(length + 1);
 			expect(target[0]).toBe(0);
 			expect(target[1]).toBe(1);
-			expect(target[100]).toBe(100);
+			expect(target[length]).toBe(length);
 		});
 	});
 
@@ -191,7 +198,7 @@ describe("pushAll", () => {
 	});
 
 	describe("aliasing (target === source)", () => {
-		it("should snapshot base length before writing to avoid infinite growth", () => {
+		it("should snapshot the source length before writing to avoid infinite growth", () => {
 			const arr = [1, 2, 3];
 
 			pushAll(arr, arr);

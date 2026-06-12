@@ -108,6 +108,18 @@ describe("MergePaths", () => {
 					MergePaths<"/a" | "/b", "/c" | "/d">
 				>().toEqualTypeOf<"/a/c" | "/a/d" | "/b/c" | "/b/d">();
 			});
+
+			it("should distribute over a path union containing the root", () => {
+				expectTypeOf<MergePaths<"/a", "/b" | "/">>().toEqualTypeOf<
+					"/a/b" | "/a"
+				>();
+			});
+
+			it("should distribute over a prefix union containing the root", () => {
+				expectTypeOf<MergePaths<"/" | "/a", "/b">>().toEqualTypeOf<
+					"/b" | "/a/b"
+				>();
+			});
 		});
 
 		describe("input constraint", () => {

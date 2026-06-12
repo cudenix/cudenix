@@ -32,10 +32,6 @@ describe("parseBody", () => {
 			it("should parse the body into the matching object", () => {
 				expect(result).toEqual({ a: "v1", b: "v2" });
 			});
-
-			it("should return a parsed value rather than the raw string", () => {
-				expect(typeof result).toBe("object");
-			});
 		});
 
 		it("should parse an array body", async () => {
@@ -69,10 +65,18 @@ describe("parseBody", () => {
 			expect(result).toEqual({ a: "v1" });
 		});
 
-		it("should reject when the json body is malformed", () => {
-			expect(
+		it("should reject when the json body is malformed", async () => {
+			await expect(
 				parseBody(request("{bad", "application/json")),
 			).rejects.toThrow();
+		});
+
+		it("should match a bare trailing semicolon with no parameter", async () => {
+			const result = await parseBody(
+				request(JSON.stringify({ a: "v1" }), "application/json;"),
+			);
+
+			expect(result).toEqual({ a: "v1" });
 		});
 	});
 
@@ -195,6 +199,32 @@ describe("parseBody", () => {
 
 			expect(result.a).toEqual(["v1", "v2", "v3"]);
 		});
+
+		it("should collapse a repeated file field into an array of Files", async () => {
+			const formData = new FormData();
+
+			formData.append("a", new File(["v1"], "a.txt"));
+			formData.append("a", new File(["v2"], "b.txt"));
+
+			const result = (await parseBody(request(formData))) as Record<
+				string,
+				unknown
+			>;
+
+			const files = result.a as File[];
+
+			expect(files).toHaveLength(2);
+			expect(files[0]).toBeInstanceOf(File);
+			expect(files[1]).toBeInstanceOf(File);
+			expect(files[0]?.name).toBe("a.txt");
+			expect(files[1]?.name).toBe("b.txt");
+		});
+
+		it("should reject for 'multipart/form-data' without a boundary parameter", async () => {
+			await expect(
+				parseBody(request("v1", "multipart/form-data")),
+			).rejects.toThrow();
+		});
 	});
 
 	describe("text and fallback bodies", () => {
@@ -248,6 +278,38 @@ describe("parseBody", () => {
 			)) as Record<string, unknown>;
 
 			expect(result.a).toBe("v1");
+		});
+
+		it("should not treat a longer look-alike type as a urlencoded form", async () => {
+			const result = await parseBody(
+				request("a=v1", "application/x-www-form-urlencodedx"),
+			);
+
+			expect(result).toBe("a=v1");
+		});
+
+		it("should not treat a longer look-alike type as a multipart form", async () => {
+			const result = await parseBody(
+				request("v1", "multipart/form-datax"),
+			);
+
+			expect(result).toBe("v1");
+		});
+
+		it("should fall back to text when whitespace precedes the parameter semicolon", async () => {
+			const result = await parseBody(
+				request(
+					JSON.stringify({ a: "v1" }),
+					"application/json ; charset=utf-8",
+				),
+			);
+
+			expect(result).toBe(JSON.stringify({ a: "v1" }));
+		});
+
+		it("should fall back to text for a content type shorter than every match window", async () => {
+			expect(await parseBody(request("v1", "a"))).toBe("v1");
+			expect(await parseBody(request("v1", "m"))).toBe("v1");
 		});
 	});
 

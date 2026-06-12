@@ -110,6 +110,30 @@ describe("parseQuery", () => {
 
 			expect(result.b).toBe("v1=v2");
 		});
+
+		it("should decode '%2B' to a literal '+' in a value (decode runs after '+' replacement)", () => {
+			const result = parseQuery("/a?b=1%2B2");
+
+			expect(result.b).toBe("1+2");
+		});
+
+		it("should decode '%2B' to a literal '+' in a key", () => {
+			const result = parseQuery("/a?a%2Bb=v1");
+
+			expect(result["a+b"]).toBe("v1");
+		});
+
+		it("should keep a '?' after the first one as literal data in a value", () => {
+			const result = parseQuery("/a?b=v?1");
+
+			expect(result.b).toBe("v?1");
+		});
+
+		it("should keep a '?' after the first one as literal data in a key", () => {
+			const result = parseQuery("/a?b?c=v1");
+
+			expect(result["b?c"]).toBe("v1");
+		});
 	});
 
 	describe("malformed percent-escapes", () => {
@@ -132,8 +156,22 @@ describe("parseQuery", () => {
 			expect(result["b%"]).toBe("v1");
 		});
 
-		it("should not throw on a truncated multibyte escape", () => {
-			expect(() => parseQuery("/a?b=%E0%A4%A")).not.toThrow();
+		it("should keep a truncated multibyte escape verbatim instead of throwing", () => {
+			const result = parseQuery("/a?b=%E0%A4%A");
+
+			expect(result.b).toBe("%E0%A4%A");
+		});
+
+		it("should keep the plus-replaced value when a '%' escape is malformed", () => {
+			const result = parseQuery("/a?b=a+100%");
+
+			expect(result.b).toBe("a 100%");
+		});
+
+		it("should keep the plus-replaced key when a '%' escape is malformed", () => {
+			const result = parseQuery("/a?a+100%=v1");
+
+			expect(result["a 100%"]).toBe("v1");
 		});
 	});
 
@@ -179,6 +217,23 @@ describe("parseQuery", () => {
 
 			expect(result.b).toBe("{1]");
 		});
+
+		it("should parse an empty JSON object value", () => {
+			const result = parseQuery("/a?b={}");
+
+			expect(result.b).toEqual({});
+		});
+
+		it("should parse an empty JSON array value", () => {
+			const result = parseQuery("/a?b=[]");
+
+			expect(result.b).toEqual([]);
+		});
+
+		it("should keep a lone '{' or '[' as a string", () => {
+			expect(parseQuery("/a?b={").b).toBe("{");
+			expect(parseQuery("/a?b=[").b).toBe("[");
+		});
 	});
 
 	describe("keys without a value", () => {
@@ -200,6 +255,18 @@ describe("parseQuery", () => {
 
 			expect(result).toEqual({ b: "", c: "v1" });
 		});
+
+		it("should collapse a bare repeat of an assigned key into an array with an empty string", () => {
+			const result = parseQuery("/a?b=v1&b");
+
+			expect(result.b).toEqual(["v1", ""]);
+		});
+
+		it("should ignore a trailing '&' separator", () => {
+			const result = parseQuery("/a?b=v1&");
+
+			expect(result).toEqual({ b: "v1" });
+		});
 	});
 
 	describe("fragment handling", () => {
@@ -219,6 +286,12 @@ describe("parseQuery", () => {
 
 		it("should ignore parameters that live in the fragment", () => {
 			const result = parseQuery("/a?b=v1#c=v2");
+
+			expect(result).toEqual({ b: "v1" });
+		});
+
+		it("should not recognize a '#' before the first '?' as a fragment", () => {
+			const result = parseQuery("/a#f?b=v1");
 
 			expect(result).toEqual({ b: "v1" });
 		});

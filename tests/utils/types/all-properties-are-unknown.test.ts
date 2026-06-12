@@ -4,28 +4,10 @@ import type { AllPropertiesAreUnknown } from "@/utils/types/all-properties-are-u
 
 describe("AllPropertiesAreUnknown", () => {
 	describe("homogeneous unknown shapes", () => {
-		it("should resolve to true for a canonical two-key unknown shape", () => {
-			interface A {
-				a: unknown;
-				b: unknown;
-			}
-
-			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
-		});
-
-		it("should resolve to true for a single-key unknown shape", () => {
-			interface A {
-				a: unknown;
-			}
-
-			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
-		});
-
 		it("should resolve to true when every property is unknown", () => {
 			interface A {
 				a: unknown;
 				b: unknown;
-				c: unknown;
 			}
 
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();

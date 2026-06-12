@@ -314,6 +314,18 @@ describe("usage: routing", () => {
 			expect(extra.status).toBe(404);
 		});
 
+		it("should answer the root path when the only segment is an optional param", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/:p1?", () => ok("v1")),
+			);
+
+			const root = await server.fetch("/");
+			const withSegment = await server.fetch("/1");
+
+			expect(root.status).toBe(200);
+			expect(withSegment.status).toBe(200);
+		});
+
 		it("should not expose URL params on the context yet (migration gap)", async () => {
 			using server = serveApp(
 				new Module().route("GET", "/a/:p1", (context) =>
@@ -418,6 +430,20 @@ describe("usage: routing", () => {
 			const result = await server.fetch("/a/");
 
 			expect(result.status).toBe(200);
+		});
+
+		it("should answer the trailing-slash bare prefix identically through Bun's table and the regexp fallback", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a/*", () => ok("v1")),
+			);
+
+			const served = await server.fetch("/a/");
+			const fallback = await server.app.fetch(
+				new Request(server.url("/a/")),
+			);
+
+			expect(served.status).toBe(200);
+			expect(fallback.status).toBe(200);
 		});
 	});
 

@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 
 import { Empty } from "@/utils/objects/empty";
+import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import { parseParams } from "@/utils/urls/parse-params";
 
 const exec = (pattern: string, url: string) => {
@@ -180,6 +181,28 @@ describe("parseParams", () => {
 			expect(result.r1).toEqual(["b", "c"]);
 		});
 
+		it("should keep a double-encoded '/' inside one segment after a single decode", () => {
+			const result = parseParams(
+				exec("()/a/(.+)", "/a/b%252Fc"),
+				["r1"],
+				1,
+				["r1"],
+			);
+
+			expect(result.r1).toEqual(["b%2Fc"]);
+		});
+
+		it("should keep a rest value with a malformed '%' escape verbatim and still split it", () => {
+			const result = parseParams(
+				exec("()/a/(.+)", "/a/100%/b"),
+				["r1"],
+				1,
+				["r1"],
+			);
+
+			expect(result.r1).toEqual(["100%", "b"]);
+		});
+
 		it("should keep a normal parameter alongside a rest parameter", () => {
 			const result = parseParams(
 				exec("()/a/([^/]+)/(.+)", "/a/v1/b/c"),
@@ -344,6 +367,43 @@ describe("parseParams", () => {
 			const b = parseParams(exec("()/a/([^/]+)", "/a/v1"), ["p1"], 1, []);
 
 			expect(a).not.toBe(b);
+		});
+	});
+
+	describe("integration with pathToRegexp", () => {
+		it("should read params from a standalone compiled pattern at matchOffset 1", () => {
+			const { paramKeys, pattern, restKeys } =
+				pathToRegexp("/a/:p1/b/...r1");
+			const match = exec(pattern, "/a/v1/b/v2/v3");
+
+			expect(parseParams(match, paramKeys, 1, restKeys)).toEqual({
+				p1: "v1",
+				r1: ["v2", "v3"],
+			});
+		});
+
+		it("should read params from a merged alternation using the per-route match offset", () => {
+			const first = pathToRegexp("/x");
+			const second = pathToRegexp("/a/:p1/b/:p2");
+			const regexp = new RegExp(
+				`^(https?:\\/\\/)[^\\s\\/]+(${first.pattern}|${second.pattern})(?![^?#])`,
+			);
+
+			const firstOffset = 3;
+			const secondOffset = firstOffset + 1 + first.paramKeys.length;
+
+			const match = regexp.exec("http://a.b/a/v1/b/v2") ?? undefined;
+
+			expect(match?.[firstOffset]).toBeUndefined();
+			expect(match?.[secondOffset]).toBe("");
+			expect(
+				parseParams(
+					match,
+					second.paramKeys,
+					secondOffset,
+					second.restKeys,
+				),
+			).toEqual({ p1: "v1", p2: "v2" });
 		});
 	});
 });

@@ -99,6 +99,11 @@ describe("MaybePromise", () => {
 				MaybePromise<string | undefined>
 			>();
 		});
+
+		it("should not add `null` or `undefined` implicitly", () => {
+			expectTypeOf<null>().not.toExtend<MaybePromise<string>>();
+			expectTypeOf<undefined>().not.toExtend<MaybePromise<string>>();
+		});
 	});
 
 	describe("`void` specialization", () => {

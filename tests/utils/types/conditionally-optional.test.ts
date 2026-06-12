@@ -154,6 +154,14 @@ describe("ConditionallyOptional", () => {
 				ConditionallyOptional<A, undefined>
 			>().branded.toEqualTypeOf<A>();
 		});
+
+		it("should relax an index signature whose value type admits the marker", () => {
+			type A = Record<string, number | undefined>;
+
+			expectTypeOf<
+				ConditionallyOptional<A, undefined>
+			>().branded.toEqualTypeOf<Partial<A>>();
+		});
 	});
 
 	describe("special key kinds", () => {

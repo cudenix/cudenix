@@ -123,6 +123,18 @@ describe("ExtractContent", () => {
 
 			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<() => number>();
 		});
+
+		it("should resolve to `any` for a factory returning `any`", () => {
+			type A = () => any;
+
+			expectTypeOf<ExtractContent<A>>().toBeAny();
+		});
+
+		it("should resolve to `unknown` for a factory returning `unknown`", () => {
+			type A = () => unknown;
+
+			expectTypeOf<ExtractContent<A>>().toBeUnknown();
+		});
 	});
 
 	describe("asynchronous factory", () => {
@@ -130,12 +142,6 @@ describe("ExtractContent", () => {
 			type A = () => Promise<{ a: 1 }>;
 
 			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<{ a: 1 }>();
-		});
-
-		it("should unwrap a promise from a synchronous function that returns a promise", () => {
-			type A = () => Promise<string>;
-
-			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<string>();
 		});
 
 		it("should unwrap a `PromiseLike` returned from a factory", () => {
@@ -160,18 +166,6 @@ describe("ExtractContent", () => {
 			type A = () => Promise<Promise<Promise<number>>>;
 
 			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<number>();
-		});
-
-		it("should resolve to `any` for a factory returning `any`", () => {
-			type A = () => any;
-
-			expectTypeOf<ExtractContent<A>>().toBeAny();
-		});
-
-		it("should resolve to `unknown` for a factory returning `unknown`", () => {
-			type A = () => unknown;
-
-			expectTypeOf<ExtractContent<A>>().toBeUnknown();
 		});
 	});
 

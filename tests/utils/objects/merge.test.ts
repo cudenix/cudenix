@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 
+import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 
 describe("merge", () => {
@@ -383,6 +384,21 @@ describe("merge", () => {
 			expect(Object.getPrototypeOf(target)).toEqual({ a: "v1" });
 			expect((target as Record<string, unknown>).a).toBe("v1");
 			expect(({} as Record<string, unknown>).a).toBeUndefined();
+		});
+
+		it("should store __proto__ as a regular own key on an Empty target", () => {
+			const target = new Empty();
+			const malicious = JSON.parse('{"__proto__":{"a":"v1"}}') as Record<
+				string,
+				unknown
+			>;
+
+			merge(target, malicious);
+
+			expect(Object.hasOwn(target, "__proto__")).toBe(true);
+			expect(target.__proto__).toEqual({ a: "v1" });
+			expect(Object.getPrototypeOf(target)).toBe(Empty.prototype);
+			expect(target.a).toBeUndefined();
 		});
 	});
 });

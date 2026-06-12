@@ -28,6 +28,12 @@ describe("Empty", () => {
 		it("should mark instances as instanceof Empty", () => {
 			expect(new Empty()).toBeInstanceOf(Empty);
 		});
+
+		it("should silently return undefined when invoked without new", () => {
+			const result = (Empty as unknown as () => unknown)();
+
+			expect(result).toBeUndefined();
+		});
 	});
 
 	describe("constructor metadata", () => {
@@ -381,14 +387,14 @@ describe("FrozenEmpty", () => {
 			expect(() => {
 				// @ts-expect-error - should not allow adding properties
 				FrozenEmpty.x = 1;
-			}).toThrow();
+			}).toThrow(TypeError);
 		});
 
 		it("should reject symbol-keyed assignment in strict mode", () => {
 			expect(() => {
 				// @ts-expect-error - should not allow adding properties
 				FrozenEmpty[Symbol("k")] = 1;
-			}).toThrow();
+			}).toThrow(TypeError);
 		});
 
 		it("should reject defining new properties via Object.defineProperty", () => {

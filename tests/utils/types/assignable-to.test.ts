@@ -288,6 +288,10 @@ describe("AssignableTo", () => {
 			expectTypeOf<AssignableTo<any, string>>().toEqualTypeOf<true>();
 		});
 
+		it("should resolve to true for a concrete type flowing into `any`", () => {
+			expectTypeOf<AssignableTo<string, any>>().toEqualTypeOf<true>();
+		});
+
 		it("should resolve to true for `any` flowing into `unknown`", () => {
 			expectTypeOf<AssignableTo<any, unknown>>().toEqualTypeOf<true>();
 		});
@@ -318,7 +322,7 @@ describe("AssignableTo", () => {
 			expectTypeOf<AssignableTo<string, never>>().toEqualTypeOf<false>();
 		});
 
-		it("should resolve to false when `any` flows into `never` because tuple wrapping suppresses any-distribution", () => {
+		it("should resolve to false when `any` flows into `never` because tuple wrapping suppresses the both-branches union", () => {
 			expectTypeOf<AssignableTo<any, never>>().toEqualTypeOf<false>();
 		});
 

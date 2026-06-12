@@ -198,6 +198,14 @@ describe("ExtractUrlParams", () => {
 		});
 	});
 
+	describe("wildcard segments", () => {
+		it("should contribute no entry for a non-capturing '*' wildcard", () => {
+			expectTypeOf<ExtractUrlParams<"/a/*">>().branded.toEqualTypeOf<
+				NonNullable<unknown>
+			>();
+		});
+	});
+
 	describe("union distribution", () => {
 		it("should distribute over a union of route literals", () => {
 			expectTypeOf<

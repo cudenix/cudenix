@@ -139,6 +139,20 @@ describe("parseCookies", () => {
 
 			expect(result).toEqual({ a: "1", b: "2" });
 		});
+
+		it("should keep a trailing bare ';' as part of the last value", () => {
+			const result = parseCookies("a=v1;");
+
+			expect(result.a).toBe("v1;");
+		});
+
+		it("should leak the extra space into the name when the separator is doubled", () => {
+			const result = parseCookies("a=1;  b=2");
+
+			expect(result.a).toBe("1");
+			expect(result[" b"]).toBe("2");
+			expect("b" in result).toBe(false);
+		});
 	});
 
 	describe("duplicate names", () => {

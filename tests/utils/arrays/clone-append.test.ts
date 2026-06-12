@@ -95,12 +95,6 @@ describe("cloneAppend", () => {
 			expect(result).toHaveLength(2);
 			expect(result[1]).toEqual([2, 3]);
 		});
-
-		it("should append an array item as a single element without flattening", () => {
-			const result = cloneAppend<unknown>(["a"], ["b", "c"]);
-
-			expect(result).toEqual(["a", ["b", "c"]]);
-		});
 	});
 
 	describe("multi-element source", () => {
@@ -176,6 +170,20 @@ describe("cloneAppend", () => {
 
 			expect(result).toHaveLength(3);
 			expect(result[2]).toEqual([3, 4]);
+		});
+
+		it("should not invoke the iterator protocol on the source array", () => {
+			const source = [1, 2];
+
+			Object.defineProperty(source, Symbol.iterator, {
+				value: () => {
+					throw new Error("iterator invoked");
+				},
+			});
+
+			const result = cloneAppend(source, 3);
+
+			expect(result).toEqual([1, 2, 3]);
 		});
 	});
 

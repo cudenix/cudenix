@@ -167,6 +167,17 @@ describe("ConditionallyOmit", () => {
 			>();
 		});
 
+		it("should keep a `never`-valued key under an `any` marker since `any` is not assignable to `never`", () => {
+			interface A {
+				a: never;
+				b: string;
+			}
+
+			expectTypeOf<ConditionallyOmit<A, any>>().toEqualTypeOf<{
+				a: never;
+			}>();
+		});
+
 		it("should drop an `any`-valued key even under a narrow marker", () => {
 			interface A {
 				a: any;
@@ -174,6 +185,17 @@ describe("ConditionallyOmit", () => {
 			}
 
 			expectTypeOf<ConditionallyOmit<A, string>>().toEqualTypeOf<{
+				b: number;
+			}>();
+		});
+
+		it("should drop an `any`-valued key under an `unknown` marker", () => {
+			interface A {
+				a: any;
+				b: number;
+			}
+
+			expectTypeOf<ConditionallyOmit<A, unknown>>().toEqualTypeOf<{
 				b: number;
 			}>();
 		});
@@ -368,6 +390,17 @@ describe("ConditionallyOmit", () => {
 			expectTypeOf<ConditionallyOmit<A, never>>().toEqualTypeOf<{
 				a: string;
 				b?: never;
+			}>();
+		});
+
+		it("should drop an optional key whose widened value type matches the marker", () => {
+			interface A {
+				a?: undefined;
+				b: string;
+			}
+
+			expectTypeOf<ConditionallyOmit<A, undefined>>().toEqualTypeOf<{
+				b: string;
 			}>();
 		});
 	});

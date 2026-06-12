@@ -217,24 +217,23 @@ describe("ExtendsType", () => {
 	});
 
 	describe("symmetry", () => {
-		it("should yield the same result regardless of argument order for unrelated primitives", () => {
-			expectTypeOf<ExtendsType<string, number>>().toEqualTypeOf<
-				ExtendsType<number, string>
-			>();
+		it("should resolve to false in both argument orders for unrelated primitives", () => {
+			expectTypeOf<ExtendsType<string, number>>().toEqualTypeOf<false>();
+			expectTypeOf<ExtendsType<number, string>>().toEqualTypeOf<false>();
 		});
 
-		it("should yield the same result regardless of argument order for one-way subtype pairs", () => {
-			expectTypeOf<ExtendsType<"a", string>>().toEqualTypeOf<
-				ExtendsType<string, "a">
-			>();
+		it("should resolve to false in both argument orders for one-way subtype pairs", () => {
+			expectTypeOf<ExtendsType<"a", string>>().toEqualTypeOf<false>();
+			expectTypeOf<ExtendsType<string, "a">>().toEqualTypeOf<false>();
 		});
 
-		it("should yield the same result regardless of argument order for one-way width-subtype object shapes", () => {
+		it("should resolve to false in both argument orders for one-way width-subtype object shapes", () => {
 			expectTypeOf<
 				ExtendsType<{ a: string }, { a: string; b: number }>
-			>().toEqualTypeOf<
+			>().toEqualTypeOf<false>();
+			expectTypeOf<
 				ExtendsType<{ a: string; b: number }, { a: string }>
-			>();
+			>().toEqualTypeOf<false>();
 		});
 	});
 

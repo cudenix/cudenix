@@ -84,6 +84,10 @@ describe("HttpMethod", () => {
 		it("should not be exactly equal to `string` (the brand preserves literals)", () => {
 			expectTypeOf<HttpMethod>().not.toEqualTypeOf<string>();
 		});
+
+		it("should keep the named literals extractable from the union", () => {
+			expectTypeOf<Extract<HttpMethod, "GET">>().toEqualTypeOf<"GET">();
+		});
 	});
 
 	describe("rejected assignments", () => {

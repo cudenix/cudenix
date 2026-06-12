@@ -243,6 +243,14 @@ describe("RequiredKeys", () => {
 				RequiredKeys<B>
 			>();
 		});
+
+		it("should keep a required tuple index and drop an optional one", () => {
+			type A = [string, number];
+			type B = [string, number?];
+
+			expectTypeOf<Extract<RequiredKeys<A>, "1">>().toEqualTypeOf<"1">();
+			expectTypeOf<Extract<RequiredKeys<B>, "1">>().toBeNever();
+		});
 	});
 
 	describe("degenerate inputs", () => {

@@ -179,10 +179,40 @@ describe("isGenerator", () => {
 			expect(isGenerator(regular.bind(null))).toBe(false);
 		});
 
+		it("should return true for a bound sync generator function", () => {
+			function* gen() {
+				yield 1;
+			}
+
+			expect(isGenerator(gen.bind(null))).toBe(true);
+		});
+
+		it("should return true for a bound async generator function", () => {
+			async function* gen() {
+				yield 1;
+			}
+
+			expect(isGenerator(gen.bind(null))).toBe(true);
+		});
+
 		it("should return false for a Proxy wrapping a regular function", () => {
 			const dynamic = asFn(new Proxy(() => 1, {}));
 
 			expect(isGenerator(dynamic)).toBe(false);
+		});
+
+		it("should return true for a Proxy wrapping a generator function", () => {
+			const dynamic = asFn(
+				new Proxy(function* () {
+					yield 1;
+				}, {}),
+			);
+
+			expect(isGenerator(dynamic)).toBe(true);
+		});
+
+		it("should return false for Function.prototype", () => {
+			expect(isGenerator(asFn(Function.prototype))).toBe(false);
 		});
 
 		it("should return false for a function whose prototype was overridden to null", () => {

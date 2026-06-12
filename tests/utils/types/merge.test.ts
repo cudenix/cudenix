@@ -157,9 +157,9 @@ describe("Merge", () => {
 			}
 
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				a: 1;
 				b: string;
 				c: readonly string[];
-				a: 1;
 				d: number;
 			}>();
 		});
@@ -242,6 +242,28 @@ describe("Merge", () => {
 			expectTypeOf<
 				Merge<A, B | NonNullable<unknown>>
 			>().branded.toEqualTypeOf<{ a: number } | { a: string }>();
+		});
+
+		it("should distribute pairwise when both operands are unions", () => {
+			interface A1 {
+				a: 1;
+			}
+			interface A2 {
+				b: 2;
+			}
+			interface B1 {
+				c: 3;
+			}
+			interface B2 {
+				d: 4;
+			}
+
+			expectTypeOf<Merge<A1 | A2, B1 | B2>>().branded.toEqualTypeOf<
+				| { a: 1; c: 3 }
+				| { a: 1; d: 4 }
+				| { b: 2; c: 3 }
+				| { b: 2; d: 4 }
+			>();
 		});
 	});
 
@@ -438,6 +460,31 @@ describe("Merge", () => {
 			}
 
 			expectTypeOf<Merge<A, B>["other"]>().toEqualTypeOf<number>();
+		});
+
+		it("should replace a key reached only through the first operand's index signature", () => {
+			interface A {
+				[k: string]: number;
+			}
+			interface B {
+				id: string;
+			}
+
+			expectTypeOf<Merge<A, B>["id"]>().toEqualTypeOf<string>();
+			expectTypeOf<Merge<A, B>["other"]>().toEqualTypeOf<number>();
+		});
+
+		it("should union the declarations when the overlapping key is optional on both sides", () => {
+			interface A {
+				a?: string;
+			}
+			interface B {
+				a?: number;
+			}
+
+			expectTypeOf<Merge<A, B>["a"]>().toEqualTypeOf<
+				string | number | undefined
+			>();
 		});
 	});
 

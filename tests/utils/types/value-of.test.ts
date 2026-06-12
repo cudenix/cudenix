@@ -72,6 +72,15 @@ describe("ValueOf", () => {
 				string | number | string[]
 			>();
 		});
+
+		it("should deduplicate keys sharing the same value type", () => {
+			interface A {
+				a: "v1";
+				b: "v1";
+			}
+
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<"v1">();
+		});
 	});
 
 	describe("modifiers", () => {
