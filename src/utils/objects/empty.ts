@@ -11,6 +11,8 @@
  *
  * Must be invoked with `new`. Use `Object.hasOwn(instance, key)` or
  * `key in instance` for membership checks since prototype methods are absent.
+ * Every instance shares the single mutable `Empty.prototype` — a key written
+ * onto it leaks into all instances, so never assign to the prototype.
  *
  * @returns A fresh empty dictionary typed as `Record<PropertyKey, unknown>`.
  * @example

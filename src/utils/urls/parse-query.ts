@@ -15,10 +15,12 @@ const Q_VAL_PCT = 8;
  * Use it on the request hot path to read query parameters without allocating a
  * `URL` / `URLSearchParams` pair.
  *
- * - Everything up to and including the first `"?"` is skipped; a `"#"` fragment
- *   ends parsing.
+ * - Everything up to and including the first `"?"` is skipped; a `"#"` after it
+ *   ends parsing. A `"#"` before the first `"?"` is not recognized as a
+ *   fragment — pass server-side request targets, which never carry one.
  * - `"+"` becomes a space and `%xx` escapes are decoded in both keys and
- *   values; a malformed `%xx` escape is kept verbatim instead of throwing.
+ *   values; when a `%xx` escape is malformed, decoding is skipped and the
+ *   plus-replaced string is kept instead of throwing.
  * - A value wrapped in `{...}` or `[...]` is run through `JSON.parse`; invalid
  *   JSON falls back to the raw string.
  * - A repeated key collapses into an array in first-seen order.

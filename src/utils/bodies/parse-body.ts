@@ -19,7 +19,9 @@ import { Empty } from "@/utils/objects/empty";
  *   keeps its `File` value.
  * - Any other content type maps to text (a string).
  * - A trailing parameter (e.g. `application/json; charset=utf-8`) still matches;
- *   a longer look-alike (e.g. `application/json5`) does not.
+ *   a longer look-alike (e.g. `application/json5`) does not. The `;` must
+ *   follow the media type immediately — whitespace before it (allowed by
+ *   RFC 9110) falls back to text.
  * - Matching is case-sensitive — only lowercase media types are recognized, so
  *   `APPLICATION/JSON` falls back to text.
  * - The form dictionary is prototype-free (built on {@link Empty}), so field

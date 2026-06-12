@@ -11,8 +11,8 @@ import { Empty } from "@/utils/objects/empty";
 /**
  * Developer-facing view of {@link Context} handed to middlewares, stores,
  * validators, and route handlers. Strips the fields the runtime keeps for
- * itself — `endpoint`, `match`, and the reserved `parseRequest*` keys — so
- * user code sees only `memory`, `request`, `response`, `server`, and `store`.
+ * itself — `endpoint` and `match` — so user code sees only `memory`,
+ * `request`, `response`, `server`, and `store`.
  *
  * Reach for it as the `context` parameter type of a {@link StoreFn},
  * {@link MiddlewareFn}, or route handler; the omitted keys are never meant to
@@ -31,16 +31,7 @@ import { Empty } from "@/utils/objects/empty";
 export type DeveloperContext<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
-> = Omit<
-	Context<Stores, Validators>,
-	| "endpoint"
-	| "match"
-	| "parseRequestBody"
-	| "parseRequestCookies"
-	| "parseRequestHeaders"
-	| "parseRequestParams"
-	| "parseRequestQuery"
->;
+> = Omit<Context<Stores, Validators>, "endpoint" | "match">;
 
 /**
  * Wildcard alias matching any {@link DeveloperContext} regardless of its

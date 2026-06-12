@@ -106,7 +106,7 @@ export interface Endpoint {
  * ```typescript
  * const a: MethodData = {
  *   endpoints: [],
- *   regexp: /^(https?:\/\/)[^\s\/]+(\/a)(?![^?#])/,
+ *   regexp: /^(https?:\/\/)[^\s\/]+(()\/a)(?![^?#])/,
  * };
  * ```
  */

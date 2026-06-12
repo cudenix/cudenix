@@ -19,7 +19,9 @@ import { Empty } from "@/utils/objects/empty";
  *   malformed escape is kept verbatim instead of throwing.
  * - A rest parameter (its name is listed in `restKeys`) is decoded and then
  *   split on `"/"` into an array of segments; every other parameter stays a
- *   string.
+ *   string. Because the split runs on the decoded value, an encoded `%2F`
+ *   also splits — only double encoding (`%252F`) keeps a slash inside one
+ *   segment.
  * - Returns an empty dictionary when there is no match or no parameter keys.
  * - Result is prototype-free (built on {@link Empty}), so names like
  *   `__proto__` are safe to read.

@@ -19,7 +19,9 @@
  * `Path` must be a string literal (or `as const`) for the parser to walk it
  * segment by segment — the widened `string` type yields the empty record.
  * Bare `:` and `...` produce an entry under the empty key `""`, matching the
- * runtime matcher's unnamed-capture behavior.
+ * runtime matcher's unnamed-capture behavior. The non-capturing `*` wildcard
+ * contributes no entry. A union of path literals distributes, yielding a
+ * union of dictionaries.
  *
  * @typeParam Path - Route pattern to parse. Must be a string literal.
  * @typeParam Accumulated - Internal accumulator. Do not pass explicitly.

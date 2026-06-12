@@ -1,6 +1,6 @@
 /**
  * @module
- * Strict bidirectional type-level equality probe.
+ * Bidirectional type-level mutual-assignability probe.
  */
 
 /**

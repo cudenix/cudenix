@@ -19,12 +19,12 @@ type OmitKeys<T extends object, U> = {
  * Use it to strip sentinel slots (typed as `never`, `unknown`, or a
  * marker) out of a builder-generated object before exposing it.
  *
- * Wider supertypes and narrower subtypes of `U` survive — only an exact
- * structural twin is dropped. `any` is the exception: an `any` marker drops
- * every key, and an `any`-valued key drops under any marker except `never`
- * (since `any` is not assignable to `never`, an `any`-valued key survives a
- * `never` marker). Optional and `readonly` modifiers carry through on retained
- * keys.
+ * Wider supertypes and narrower subtypes of `U` survive — only a mutually
+ * assignable value type is dropped. `any` is the exception on either side,
+ * with one asymmetry: an `any` marker drops every key except `never`-valued
+ * ones, and an `any`-valued key drops under any marker except `never` (both
+ * because `any` is not assignable to `never`). Optional and `readonly`
+ * modifiers carry through on retained keys.
  *
  * @typeParam T - Source object whose keys are filtered.
  * @typeParam U - Marker type whose mutually-assignable keys are removed.

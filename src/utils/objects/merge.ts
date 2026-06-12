@@ -14,6 +14,13 @@
  * (including those inherited through its prototype chain) is copied; symbol
  * keys and non-enumerable properties are skipped.
  *
+ * Keys land via plain assignment, so a setter inherited by `object1` runs
+ * instead of defining an own key. In particular, an own `__proto__` key on
+ * `object2` (e.g. out of `JSON.parse`) is not copied onto a plain-object
+ * target — it triggers the inherited accessor and swaps the target's
+ * prototype instead. Merge untrusted sources into a prototype-free `Empty`
+ * target, where `__proto__` lands as a regular own key.
+ *
  * @param object1 - Target object that receives the keys. Mutated in place.
  * @param object2 - Source object whose entries are copied into `object1`.
  * @example

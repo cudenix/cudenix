@@ -16,9 +16,11 @@ type RemoveTrailingSlash<Type extends string> = Type extends "/"
 		: Type;
 
 /**
- * Join `Prefix` and `Path` into a single literal type, collapsing the
- * boundary slash so neither a missing nor a duplicated separator can sneak
- * in. Both operands must start with `/`; either may be the root path.
+ * Join `Prefix` and `Path` into a single literal type, normalizing the
+ * boundary: a single trailing `/` is stripped from each operand, so the
+ * child's leading `/` becomes the one separator. Both operands must start
+ * with `/`; either may be the root path. Doubled slashes anywhere else
+ * (`"/a//"`, `"//"`) are kept as written.
  *
  * Parameter, rest, and wildcard segments (`:name`, `...name`, `*`) pass
  * through unchanged. Unions distribute pairwise.

@@ -18,6 +18,10 @@ const ASYNC_GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(
  * are not distinguished — both return `true`. Plain async functions
  * (`async () => {}`) return `false`.
  *
+ * The prototype identity carries through wrappers that preserve it — a
+ * `bind`ed generator or a default `Proxy` around one still returns `true` —
+ * while a generator function from another realm returns `false`.
+ *
  * @param fn - Function to inspect.
  * @returns `true` when `fn` is a sync or async generator function.
  * @example

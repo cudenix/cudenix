@@ -13,6 +13,8 @@
  * - Keys typed as `any` are excluded (because `undefined` is assignable to
  *   `any`).
  * - Empty objects resolve to `never`.
+ * - A union input is not distributed — `keyof` sees only the keys shared by
+ *   every member, so only shared-and-required keys survive.
  *
  * @typeParam T - Object-shaped type whose required keys are extracted.
  * @example

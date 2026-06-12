@@ -11,10 +11,12 @@
  * the optional-key vocabulary so callers can omit the field entirely.
  *
  * The check is "marker fits into value": a field typed as `string` is relaxed
- * by `"v1"`, but a field typed as `"v1"` is not relaxed by `string`.
- * `readonly` is preserved per promoted key. Unmatched keys pass through
- * untouched. Built for record/object shapes — an array or tuple input collapses
- * to `never` rather than relaxing its indices, so pass a plain object.
+ * by `"v1"`, but a field typed as `"v1"` is not relaxed by `string`. A union
+ * marker distributes — a key relaxes when any member fits — and an `any`
+ * marker relaxes every key. `readonly` is preserved per promoted key.
+ * Unmatched keys pass through untouched. Built for record/object shapes — an
+ * array or tuple input collapses to `never` rather than relaxing its indices,
+ * so pass a plain object.
  *
  * @typeParam T - Source object whose keys are inspected.
  * @typeParam U - Marker value; keys whose value type accepts it become
