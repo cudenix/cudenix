@@ -208,6 +208,35 @@ describe("StandardSchemaV1.InferInput", () => {
 		});
 	});
 
+	describe("missing `types` declaration", () => {
+		it("should resolve to `unknown` for a concrete schema that never declares `types`", () => {
+			const a = {
+				"~standard": {
+					validate: (value: unknown) => ({ value }),
+					vendor: "v1",
+					version: 1,
+				},
+			} as const;
+
+			expectTypeOf<StandardSchemaV1.InferInput<typeof a>>().toBeUnknown();
+		});
+
+		it("should resolve to `never` when `types` is declared as `undefined` explicitly", () => {
+			interface A extends StandardSchemaV1 {
+				readonly "~standard": {
+					readonly types?: undefined;
+					readonly validate: (
+						value: unknown,
+					) => StandardSchemaV1.Result<unknown>;
+					readonly vendor: string;
+					readonly version: 1;
+				};
+			}
+
+			expectTypeOf<StandardSchemaV1.InferInput<A>>().toBeNever();
+		});
+	});
+
 	describe("rejected inputs", () => {
 		it("should reject a non-schema type argument", () => {
 			// @ts-expect-error - `string` is not a `StandardSchemaV1`
@@ -245,6 +274,37 @@ describe("StandardSchemaV1.InferOutput", () => {
 			expectTypeOf<
 				StandardSchemaV1.InferOutput<StandardSchemaV1<unknown, A>>
 			>().toEqualTypeOf<A>();
+		});
+	});
+
+	describe("missing `types` declaration", () => {
+		it("should resolve to `unknown` for a concrete schema that never declares `types`", () => {
+			const a = {
+				"~standard": {
+					validate: (value: unknown) => ({ value }),
+					vendor: "v1",
+					version: 1,
+				},
+			} as const;
+
+			expectTypeOf<
+				StandardSchemaV1.InferOutput<typeof a>
+			>().toBeUnknown();
+		});
+
+		it("should resolve to `never` when `types` is declared as `undefined` explicitly", () => {
+			interface A extends StandardSchemaV1 {
+				readonly "~standard": {
+					readonly types?: undefined;
+					readonly validate: (
+						value: unknown,
+					) => StandardSchemaV1.Result<unknown>;
+					readonly vendor: string;
+					readonly version: 1;
+				};
+			}
+
+			expectTypeOf<StandardSchemaV1.InferOutput<A>>().toBeNever();
 		});
 	});
 
