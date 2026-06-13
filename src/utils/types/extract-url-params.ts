@@ -4,9 +4,8 @@
  */
 
 /**
- * Dictionary of the named parameters declared by `Path`. Use it to type a
- * handler's `params` from a route literal: `:name` → `string`, `:name?` →
- * `string | undefined`, `...name` → `string[]`. `Path` must be a string
+ * Dictionary of the named parameters declared by the route literal
+ * `Path`, used to type a handler's `params`. `Path` must be a string
  * literal.
  *
  * @example

@@ -8,13 +8,11 @@ const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
 
 /**
- * Compile a route pattern into a regex source string plus the parameter names
- * to read back from a match. Supports `:name`, optional `:name?`, rest
- * `...name`, and `*` wildcard segments; anything else is matched literally.
- * Pair the result with `new RegExp()` to match URLs.
+ * Compile a route pattern into a regex source plus its parameter names. Pair
+ * the result with `new RegExp()` to match URLs.
  *
- * @returns `paramKeys` (all parameter names in order), `pattern` (the regex
- * source), and `restKeys` (the rest-parameter names).
+ * @returns `pattern` (regex source), `paramKeys` (parameter names in order),
+ * and `restKeys` (the subset that are rest parameters).
  * @example
  * ```typescript
  * const { paramKeys, pattern } = pathToRegexp("/a/:p1");

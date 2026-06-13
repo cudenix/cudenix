@@ -12,7 +12,6 @@ type OmitKeys<T extends object, U> = {
 
 /**
  * Remove every key from `T` whose value type is mutually assignable with `U`.
- * Use it to strip sentinel slots (e.g. `never`-typed) from a generated object.
  *
  * @example
  * ```typescript

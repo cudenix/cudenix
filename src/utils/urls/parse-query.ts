@@ -11,10 +11,8 @@ const Q_VAL_PLUS = 4;
 const Q_VAL_PCT = 8;
 
 /**
- * Parse a URL's query string into a dictionary keyed by parameter name,
- * decoding `+` and `%xx`. Repeated keys collapse into an array; a `{...}` or
- * `[...]` value is parsed as JSON. Returns an empty dictionary when there is
- * no query string.
+ * Parse a URL's query string into a parameter name/value
+ * dictionary; empty when there is no query string.
  *
  * @example
  * ```typescript

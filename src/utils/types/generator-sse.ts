@@ -7,8 +7,7 @@ import type { AnyFail, AnyOk } from "@/core/reply";
 
 /**
  * Shape of one frame yielded by a generator handler targeting
- * `text/event-stream`. `data` is the payload; `event`, `id`, and `retry` are
- * the optional SSE fields.
+ * `text/event-stream`.
  *
  * @example
  * ```typescript

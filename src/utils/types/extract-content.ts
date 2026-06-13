@@ -4,8 +4,7 @@
  */
 
 /**
- * Resolve `T` to the value it produces: a plain value passes through, while a
- * factory collapses to its return type with any promise awaited.
+ * Resolve `T` to the value it produces, awaiting a factory's return.
  *
  * @example
  * ```typescript

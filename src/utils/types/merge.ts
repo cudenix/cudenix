@@ -5,17 +5,15 @@
  */
 
 /**
- * Keys of `U` that are certainly present — declared without `?` and not from
- * an index signature. Only these replace the base declaration wholesale.
+ * Keys of `U` that are certainly present. Only these replace the base
+ * declaration wholesale.
  */
 type ReplacedKeys<U> = {
 	[K in keyof U]-?: NonNullable<unknown> extends Pick<U, K> ? never : K;
 }[keyof U];
 
 /**
- * Overlay `U` onto `T`: keys only in `T` are kept, keys present in both take
- * `U`'s type, and keys only in `U` are added. Mirrors the runtime object
- * merge, and unlike `T & U` a replaced key takes `U`'s type cleanly.
+ * Overlay `U` onto `T`, mirroring the runtime object merge.
  *
  * @example
  * ```typescript

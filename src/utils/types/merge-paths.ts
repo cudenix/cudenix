@@ -14,9 +14,8 @@ type RemoveTrailingSlash<Type extends string> = Type extends "/"
 		: Type;
 
 /**
- * Join `Prefix` and `Path` into one path literal, collapsing the slash on the
- * boundary so there is exactly one separator between them. Both must start
- * with `/`.
+ * Join `Prefix` and `Path` into one path literal with a single boundary
+ * slash. Both must start with `/`.
  *
  * @example
  * ```typescript

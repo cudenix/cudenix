@@ -4,8 +4,8 @@
  */
 
 /**
- * Union of the common HTTP verbs and any other string. The named literals
- * drive editor autocomplete while still accepting custom verbs like `"PURGE"`.
+ * Union of the common HTTP verbs and any other string, allowing custom
+ * verbs like `"PURGE"`.
  *
  * @example
  * ```typescript

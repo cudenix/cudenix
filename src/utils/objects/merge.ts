@@ -4,9 +4,8 @@
  */
 
 /**
- * Copy every enumerable key from `object2` into `object1`, overwriting
- * existing keys. Mutates `object1` in place; nothing is returned. Merge
- * untrusted input into an {@link Empty} target to avoid prototype pollution.
+ * Merge `object2` into `object1` in place, overwriting existing keys. Use
+ * an {@link Empty} target for untrusted input to avoid prototype pollution.
  *
  * @example
  * ```typescript

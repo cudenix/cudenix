@@ -7,13 +7,9 @@ import { Empty } from "@/utils/objects/empty";
 
 /**
  * Read named path parameters from a route match into a dictionary keyed by
- * name, decoding `%xx` escapes. Rest parameters become arrays of segments; all
- * others are strings. Returns an empty dictionary when there is no match.
+ * name. Rest parameters become arrays of segments, all others are strings.
+ * Returns an empty dictionary when there is no match.
  *
- * @param match - Successful `RegExpExecArray` from the route regex.
- * @param paramKeys - Parameter names in order, from {@link pathToRegexp}.
- * @param matchOffset - Index of the pattern's leading empty group.
- * @param restKeys - The subset of `paramKeys` that are rest parameters.
  * @example
  * ```typescript
  * const match = /^()\/a\/([^/]+)$/.exec("/a/v1")!;

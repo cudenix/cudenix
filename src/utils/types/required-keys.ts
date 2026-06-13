@@ -4,8 +4,7 @@
  */
 
 /**
- * Pick the keys of `T` that are required — any key declared with `?`, or whose
- * type already includes `undefined`, is excluded.
+ * Keys of `T` that are required (not optional and not `undefined`).
  *
  * @example
  * ```typescript

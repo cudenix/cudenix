@@ -25,7 +25,7 @@ Empty.prototype = Object.create(null);
 
 /**
  * A shared, frozen empty dictionary — a read-only default for optional options
- * objects, avoiding a per-call `{}` allocation. Built on {@link Empty}.
+ * objects. Built on {@link Empty}.
  *
  * @example
  * ```typescript
