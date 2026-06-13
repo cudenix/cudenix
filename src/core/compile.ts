@@ -230,28 +230,27 @@ export const compile = (app: Cudenix) => {
 				}
 
 				if (!(method in pathRoutes)) {
-					pathRoutes[method] =
+					methodEndpoint.router = "bun";
+
+					if (
 						methodEndpoint.route.static &&
 						methodEndpoint.chain.length === 0
-							? response(
-									methodEndpoint.route.handler(
-										undefined as any,
-									),
-								)
-							: (request: Request) =>
-									dispatch(
-										methodEndpoint,
-										request,
-										new Context(
-											app,
-											methodEndpoint,
-											request,
-										),
-										methodEndpoint.chain,
-										0,
-									);
+					) {
+						pathRoutes[method] = response(
+							methodEndpoint.route.handler(undefined as any),
+						);
 
-					methodEndpoint.router = "bun";
+						continue;
+					}
+
+					pathRoutes[method] = (request: Request) =>
+						dispatch(
+							methodEndpoint,
+							request,
+							new Context(app, methodEndpoint, request),
+							methodEndpoint.chain,
+							0,
+						);
 				}
 			}
 		}
