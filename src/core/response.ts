@@ -29,6 +29,7 @@ export const response = (content: ContextResponse["content"]) => {
 
 		case "Array":
 		case "Object":
+		case undefined:
 			return Response.json(inner, { status: content.status });
 
 		default:
