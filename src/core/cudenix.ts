@@ -163,8 +163,7 @@ export interface CudenixConstructor {
 
 /**
  * Construct a {@link Cudenix} app around a root {@link AnyModule}. Must be
- * called with `new`; the instance starts uncompiled until `.compile()` (or
- * `.listen()`) flattens it. `jit` defaults to `true`.
+ * called with `new`. `jit` defaults to `true`.
  *
  * @example
  * ```typescript
@@ -191,10 +190,8 @@ export const Cudenix = function (
 } as unknown as CudenixConstructor;
 
 /**
- * Compile the app — flatten the root module tree into the {@link MethodData}
- * tables and the Bun `routes` table, then run every registered {@link Plugin}.
- * Call it before the first `.fetch()`; `.listen()` calls it automatically.
- * One-shot.
+ * Compile the app so it can serve requests. Call it before the first
+ * `.fetch()`; `.listen()` calls it automatically.
  *
  * @example
  * ```typescript
@@ -221,9 +218,7 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 };
 
 /**
- * Resolve a request to a `Response` by matching it against the compiled
- * {@link MethodData} and dispatching the winning {@link Endpoint}'s chain.
- * Returns a `404` clone when the method, URL, or endpoint does not match.
+ * Resolve a request to a `Response`. Returns a `404` when no route matches.
  *
  * @example
  * ```typescript
@@ -279,7 +274,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 /**
  * Compile the app and start serving it through `Bun.serve`, defaulting to
  * `development: false` and `reusePort: true` (both overridable). Returns the
- * same app, narrowed to omit `.listen()` so it cannot be started twice.
+ * same app, narrowed to omit `.listen()`.
  *
  * @example
  * ```typescript

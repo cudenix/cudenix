@@ -24,10 +24,8 @@ interface FlattenInherited {
 }
 
 /**
- * Recursively flatten a module subtree into `endpoints`, keyed by HTTP method,
- * emitting an {@link Endpoint} for each route with the chain that leads up to
- * it. Mutates `endpoints` in place and returns the chain and path this subtree
- * folds back into its parent.
+ * Flatten a module subtree into `endpoints`, keyed by HTTP method. Returns
+ * the chain and path this subtree folds back into its parent.
  */
 const flatten = (
 	endpoints: Record<HttpMethod, Endpoint[]>,
@@ -115,11 +113,8 @@ const flatten = (
 };
 
 /**
- * Compile a {@link Cudenix} app's module tree into its runtime routing tables.
- * Flattens the tree into per-method {@link Endpoint}s under a merged matching
- * regexp on `app.methods`, and registers static paths on `app.routes` for
- * Bun's router — pre-built `Response`s for chain-less static routes, dispatch
- * handlers otherwise. Backs `app.compile()` and mutates `app` in place.
+ * Compile a {@link Cudenix} app's module tree into its runtime routing
+ * tables on `app.methods` and `app.routes`. Backs `app.compile()`.
  *
  * @example
  * ```typescript

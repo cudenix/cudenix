@@ -194,9 +194,8 @@ export interface ReplyConstructor {
 }
 
 /**
- * Low-level constructor for a {@link Reply} envelope; must be invoked with
- * `new`. Prefer the {@link ok} / {@link fail} factories, which bind the
- * discriminant and a default status.
+ * Constructor for a {@link Reply} envelope; must be invoked with `new`.
+ * Prefer the {@link ok} / {@link fail} factories.
  *
  * @example
  * ```typescript

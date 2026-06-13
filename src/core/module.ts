@@ -394,8 +394,7 @@ export interface ModuleConstructor {
 
 /**
  * Construct a {@link Module} from optional {@link ModuleOptions}. Must be
- * invoked with `new`; the instance carries an empty `chain`, the resolved
- * `prefix`, and `type: "MODULE"`.
+ * invoked with `new`.
  *
  * @example
  * ```typescript
@@ -416,10 +415,8 @@ export const Module = function (
 } as unknown as ModuleConstructor;
 
 /**
- * Push a `"GROUP"` link onto the chain, deferring the {@link GroupFn} factory
- * and its prefix to the compiler. Links the group adds stay scoped to it while
- * its routes merge into the parent under `prefix`. Returns the module, for
- * chaining.
+ * Add a nested group whose links stay scoped to it while its routes merge
+ * into the parent under `prefix`. Returns the module, for chaining.
  *
  * @example
  * ```typescript
@@ -440,8 +437,7 @@ Module.prototype.group = function (
 };
 
 /**
- * Push a `"MIDDLEWARE"` link onto the chain, pairing the {@link MiddlewareFn}
- * with its discriminator. Returns the module, for chaining.
+ * Add a middleware to the module. Returns the module, for chaining.
  *
  * @example
  * ```typescript
@@ -460,9 +456,9 @@ Module.prototype.middleware = function (
 };
 
 /**
- * Push another module onto the chain as a nested link; its routes nest under
- * this module's prefix and its errors, stores, successes, and validators merge
- * into the parent. Returns the module, for chaining.
+ * Mount another module; its routes nest under this module's prefix and its
+ * errors, stores, successes, and validators merge into the parent. Returns
+ * the module, for chaining.
  *
  * @example
  * ```typescript
@@ -478,10 +474,8 @@ Module.prototype.mount = function (this: AnyModule, module: AnyModule) {
 };
 
 /**
- * Push a `"ROUTE"` link onto the chain, binding a handler to a method and
- * path. A static {@link AnyFail}/{@link AnyOk} envelope is wrapped in a
- * function so the runtime always invokes a callable, and an optional validator
- * is compiled to a descriptor. Returns the module, for chaining.
+ * Add a route binding a handler to a method and path. Returns the module, for
+ * chaining.
  *
  * @example
  * ```typescript
@@ -526,8 +520,7 @@ Module.prototype.route = function (
 };
 
 /**
- * Push a `"STORE"` link onto the chain, pairing the {@link StoreFn} with its
- * discriminator. Returns the module, for chaining.
+ * Add a store to the module. Returns the module, for chaining.
  *
  * @example
  * ```typescript
@@ -541,9 +534,7 @@ Module.prototype.store = function (this: AnyModule, handler: AnyStoreFn) {
 };
 
 /**
- * Push a `"VALIDATOR"` link onto the chain, compiling the
- * {@link ValidatorOptions} into a descriptor. Returns the module, for
- * chaining.
+ * Add a validator to the module. Returns the module, for chaining.
  *
  * @example
  * ```typescript
