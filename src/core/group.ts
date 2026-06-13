@@ -2,21 +2,15 @@ import type { AnyModule } from "@/core/module";
 
 /**
  * @module
- * Group chain link — encapsulate a sub-module so that links added inside the
- * factory (middlewares, stores, validators) only affect routes declared in
- * the group, while everything the parent had set up earlier (including
- * `.mount()` and prior middlewares) still flows in.
+ * Group chain link — scopes a sub-module so links added inside it affect only
+ * its own routes.
  */
 
 /**
- * Options accepted by `module.group`. The `prefix` is concatenated with the
- * parent module's prefix when the inner module is mounted; omit it to keep the
- * inner routes at the parent's root.
+ * Options accepted by `module.group`. The optional `prefix` (must start with
+ * `/`) is concatenated with the parent module's prefix when the inner module
+ * is mounted.
  *
- * Must start with `/` so the type-level path merger can normalize the
- * boundary slash.
- *
- * @typeParam Prefix - Subtree prefix. Must start with `/`.
  * @example
  * ```typescript
  * const a: GroupOptions<"/v1"> = { prefix: "/v1" };
@@ -28,10 +22,8 @@ export interface GroupOptions<Prefix extends `/${string}`> {
 }
 
 /**
- * Wildcard alias matching any {@link GroupOptions} regardless of its prefix
- * parameter. Reach for it where the concrete prefix is erased — for example,
- * the runtime body of `module.group`, which destructures `prefix` without
- * caring about its literal type.
+ * Any {@link GroupOptions} regardless of its prefix generic. Use it where the
+ * concrete prefix is irrelevant.
  *
  * @example
  * ```typescript
@@ -41,14 +33,9 @@ export interface GroupOptions<Prefix extends `/${string}`> {
 export type AnyGroupOptions = GroupOptions<any>;
 
 /**
- * Factory that receives a fresh inner module (already typed with the merged
- * prefix and the parent's accumulated stores, validators, successes, and
- * errors) and returns the configured module to mount. Whatever routes the
- * returned module declares are merged into the parent under the group's
- * prefix.
+ * Factory that receives a fresh inner module and returns the configured module
+ * to mount; its routes are merged into the parent under the group's prefix.
  *
- * @typeParam Module - Inner module handed to the factory.
- * @typeParam Return - Inner module the factory returns after configuration.
  * @example
  * ```typescript
  * const fn: GroupFn<AnyModule, AnyModule> = (module) =>
@@ -60,10 +47,8 @@ export type GroupFn<Module extends AnyModule, Return extends AnyModule> = (
 ) => Return;
 
 /**
- * Wildcard alias matching any {@link GroupFn} regardless of its module or
- * return generics. Reach for it in chain storage and runtime dispatch where
- * the concrete generics are irrelevant — for example, the `handler` parameter
- * of the runtime `module.group`.
+ * Any {@link GroupFn} regardless of its module or return generics. Use it
+ * where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript
@@ -73,20 +58,9 @@ export type GroupFn<Module extends AnyModule, Return extends AnyModule> = (
 export type AnyGroupFn = GroupFn<any, any>;
 
 /**
- * Compiled group descriptor pushed onto the chain by `module.group`. Pairs
- * the user-supplied {@link GroupFn} with a `"GROUP"` discriminator so the
- * chain walker can dispatch on link kind. The compiler walks the parent's
- * chain, instantiates an inner module that inherits the parent's prior links
- * (so prior middlewares and `.mount()` cascades still apply), and hands it to
- * the factory to gather routes. Anything the factory adds stays inside the
- * group — it is not appended to the parent's chain, so siblings declared
- * after the group are not affected.
+ * Compiled {@link GroupFn} descriptor stored on the chain by `module.group`,
+ * tagged `"GROUP"` so the chain walker can dispatch on it.
  *
- * Built by the framework — application code rarely constructs one directly.
- *
- * @typeParam Module - Inner module type passed to the factory.
- * @typeParam Prefix - Subtree prefix mounted under the parent.
- * @typeParam Return - Inner module type the factory returns.
  * @example
  * ```typescript
  * const a: Group<AnyModule, "/v1", AnyModule> = {
@@ -107,9 +81,8 @@ export interface Group<
 }
 
 /**
- * Wildcard alias matching any {@link Group} regardless of its module, prefix,
- * or return generics. Reach for it in chain arrays and runtime helpers that
- * store mixed link kinds side-by-side.
+ * Any {@link Group} regardless of its module, prefix, or return generics. Use
+ * it where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript

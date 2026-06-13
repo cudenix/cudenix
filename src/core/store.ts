@@ -4,22 +4,14 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
  * @module
- * Store step — function shape and chain descriptor for `.store()` links that
- * compute values and merge them into the request-scoped store.
+ * Function shape and chain descriptor for `.store()` links.
  */
 
 /**
- * Callable shape of a `.store()` step. Receives a {@link DeveloperContext}
- * carrying the stores accumulated by earlier links and the parsed validator
- * outputs, and returns either a record merged into `context.store` or an
- * {@link AnyFail} that halts the chain and becomes the response.
+ * Callable shape of a `.store()` step. Receives a {@link DeveloperContext} and
+ * returns either a record merged into `context.store` or an {@link AnyFail}
+ * that halts the chain. May be sync or async.
  *
- * Sync and async functions are both accepted; async returns are awaited
- * before the next link runs.
- *
- * @typeParam Return - Object merged into `context.store`, or an error halting the chain.
- * @typeParam Stores - Shape of `context.store` visible to this step.
- * @typeParam Validators - Shape of the validated request fields on `context.request`.
  * @example
  * ```typescript
  * const a: StoreFn<{ a: string }, {}, {}> = () => ({ a: "v1" });
@@ -38,9 +30,8 @@ export type StoreFn<
 > = (context: DeveloperContext<Stores, Validators>) => Return;
 
 /**
- * Wildcard alias matching any {@link StoreFn} regardless of return,
- * store, or validator generics. Use in container, registry, or boundary
- * types where the concrete generics are irrelevant.
+ * Any {@link StoreFn} regardless of its return, store, or validator generics.
+ * Use it where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript
@@ -50,15 +41,9 @@ export type StoreFn<
 export type AnyStoreFn = StoreFn<any, any, any>;
 
 /**
- * Compiled store descriptor pushed onto the chain by `module.store`. Pairs
- * the user-supplied {@link StoreFn} with a `"STORE"` discriminator so the
- * chain walker can dispatch on link kind.
+ * Compiled {@link StoreFn} descriptor stored on the chain by `module.store`,
+ * tagged `"STORE"` so the chain walker can dispatch on it.
  *
- * Built by the framework — application code rarely constructs one directly.
- *
- * @typeParam Return - Object merged into `context.store`, or an error halting the chain.
- * @typeParam Stores - Shape of `context.store` visible to the inner function.
- * @typeParam Validators - Shape of the validated request fields on `context.request`.
  * @example
  * ```typescript
  * const a: Store<{ a: string }, {}, {}> = {
@@ -77,9 +62,8 @@ export interface Store<
 }
 
 /**
- * Wildcard alias matching any {@link Store} regardless of return,
- * store, or validator generics. Use in container, registry, or boundary
- * types where the concrete generics are irrelevant.
+ * Any {@link Store} regardless of its return, store, or validator generics.
+ * Use it where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript

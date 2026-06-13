@@ -11,19 +11,12 @@ import type { HttpMethod } from "@/utils/types/http-method";
 
 /**
  * @module
- * Compile a Cudenix app's module tree into the runtime routing tables —
- * flatten the nested chain into per-method endpoints, build the matching
- * regular expressions, and register the static fast paths on the Bun router,
- * pre-building a `Response` for value-handler routes with no chain so Bun
- * serves them as zero-allocation static responses.
+ * Compile a Cudenix app's module tree into its runtime routing tables.
  */
 
 /**
- * Recursion state `flatten` threads down the module tree — the
- * middleware/store/validator {@link Chain} inherited from enclosing modules and
- * the path prefix built up from their merged prefixes. `path` starts empty at
- * the root so concatenating a child's `/`-prefixed segment never doubles the
- * separator.
+ * State `flatten` threads down the module tree: the {@link Chain} inherited
+ * from enclosing modules and the path prefix built up from their prefixes.
  */
 interface FlattenInherited {
 	chain: Chain;
@@ -31,22 +24,10 @@ interface FlattenInherited {
 }
 
 /**
- * Recursively flatten a module subtree into `endpoints`, keyed by HTTP method.
- * Walks `module.chain` in order, accumulating middleware/store/validator links
- * and the path prefix as it descends, and for every route link emits an
- * {@link Endpoint} carrying the chain that leads up to it. Mounted sub-modules
- * (`"MODULE"`) are flattened with the chain so far and bubble their own chain
- * and path back up; a group (`"GROUP"`) seeds a fresh inner module with that
- * chain but does not fold the group's own links back, keeping them scoped to
- * the group.
- *
- * Mutates `endpoints` in place; the returned `{ chain, path }` is what a parent
- * `"MODULE"` link folds back into its own accumulation.
- *
- * @param endpoints - Per-method endpoint accumulator, populated in place.
- * @param module - Module whose `chain` is flattened.
- * @param inherited - Chain and path prefix carried down from enclosing modules.
- * @returns The chain and path accumulated from this subtree.
+ * Recursively flatten a module subtree into `endpoints`, keyed by HTTP method,
+ * emitting an {@link Endpoint} for each route with the chain that leads up to
+ * it. Mutates `endpoints` in place and returns the chain and path this subtree
+ * folds back into its parent.
  */
 const flatten = (
 	endpoints: Record<HttpMethod, Endpoint[]>,
@@ -134,34 +115,12 @@ const flatten = (
 };
 
 /**
- * Compile an app's module tree into the runtime routing tables. Flattens the
- * nested {@link Cudenix} module — descending into groups and mounted
- * sub-modules — into a flat list of {@link Endpoint}s per HTTP method, each
- * carrying the cumulative middleware/store/validator chain that leads up to
- * its route. Backs `app.compile()`, so it runs once before the server starts
- * serving requests.
+ * Compile a {@link Cudenix} app's module tree into its runtime routing tables.
+ * Flattens the tree into per-method {@link Endpoint}s under a merged matching
+ * regexp on `app.methods`, and registers static paths on `app.routes` for
+ * Bun's router — pre-built `Response`s for chain-less static routes, dispatch
+ * handlers otherwise. Backs `app.compile()` and mutates `app` in place.
  *
- * Populates `app.methods` with one per-method table — its endpoints folded
- * under a single merged matching regexp. Every endpoint static enough for
- * Bun's own router — no optional (`?`) or rest (`...`) segment — is also
- * registered on `app.routes`, tagged `router: "bun"`, so Bun matches it ahead
- * of the regexp fallback. When two endpoints collide on the same path and
- * method, only the first registered one lands in the table, keeping Bun's
- * router consistent with the regexp table's first-match precedence. A route
- * whose handler is a static value rather than a
- * function and whose chain carries no middleware, store, or validator is
- * registered as a pre-built `Response` — which Bun serves as a zero-allocation
- * static response — instead of a per-request dispatch handler. The static
- * handler form only type-checks for buffered-literal content: a `Response`,
- * `ReadableStream`, async-iterable, or function payload is rejected by
- * `RouteHandler` at compile time and must use the function form, so the
- * pre-built value is always a fully-buffered body and no runtime inspection is
- * needed; every other endpoint is registered as the dispatch handler. Mutates
- * `app` in place; `app.jit` seeds the per-route JIT default when a route does
- * not override it.
- *
- * @param app - App whose `memory.module` chain is compiled. Its `methods` and
- *   `routes` are populated in place.
  * @example
  * ```typescript
  * const a = new Cudenix(

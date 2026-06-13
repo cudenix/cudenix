@@ -4,22 +4,15 @@ import { Empty } from "@/utils/objects/empty";
 
 /**
  * @module
- * Per-request Context — the runtime object threaded through every chain link,
- * plus the developer-facing view that hides the framework's internal plumbing.
+ * Per-request Context threaded through every chain link, plus its
+ * developer-facing view.
  */
 
 /**
  * Developer-facing view of {@link Context} handed to middlewares, stores,
- * validators, and route handlers. Strips the fields the runtime keeps for
- * itself — `endpoint` and `match` — so user code sees only `memory`,
- * `request`, `response`, `server`, and `store`.
+ * validators, and route handlers, with the runtime-only `endpoint` and `match`
+ * fields stripped.
  *
- * Reach for it as the `context` parameter type of a {@link StoreFn},
- * {@link MiddlewareFn}, or route handler; the omitted keys are never meant to
- * be touched from application code.
- *
- * @typeParam Stores - Shape of `context.store` visible at this point.
- * @typeParam Validators - Shape of the validated request fields on `context.request`.
  * @example
  * ```typescript
  * const fn = (context: DeveloperContext<{ a: string }, {}>) => {
@@ -34,10 +27,8 @@ export type DeveloperContext<
 > = Omit<Context<Stores, Validators>, "endpoint" | "match">;
 
 /**
- * Wildcard alias matching any {@link DeveloperContext} regardless of its
- * store or validator generics. Reach for it in plugin and boundary types
- * where the concrete generics are irrelevant — for example, a CORS handler
- * that only touches `context.response.headers`.
+ * Any {@link DeveloperContext} regardless of its store or validator generics.
+ * Use it where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript
@@ -47,17 +38,8 @@ export type DeveloperContext<
 export type AnyDeveloperContext = DeveloperContext<any, any>;
 
 /**
- * Response envelope carried on `context.response`, accumulating what the
- * runtime will serialize once the chain settles. Chain links write into it as
- * they run — stores and middlewares set `content`, plugins layer on headers
- * and cookies — and the final value is read back when the `Response` is built.
- *
- * Fields:
- *
- * - `content` — the {@link AnyFail}, {@link AnyOk}, or `ReadableStream`
- *   that becomes the response body; absent until something produces one.
- * - `cookies` — `Set-Cookie` values keyed by cookie name.
- * - `headers` — response headers keyed by header name.
+ * Response envelope on `context.response` that chain links write into and the
+ * runtime serializes once the chain settles.
  *
  * @example
  * ```typescript
@@ -75,25 +57,10 @@ export interface ContextResponse {
 }
 
 /**
- * Per-request state constructed once per incoming request and threaded
- * through the entire chain. Holds the matched endpoint and the framework's
- * internal bookkeeping alongside the fields application code reads via
- * {@link DeveloperContext} (`memory`, `request`, `response`, `server`,
- * `store`).
+ * Per-request state built once per incoming request and threaded through the
+ * entire chain, holding the matched endpoint and framework bookkeeping
+ * alongside the fields exposed via {@link DeveloperContext}.
  *
- * Fields:
- *
- * - `endpoint` — the {@link Endpoint} this request resolved to.
- * - `match` — the `RegExpExecArray` from path matching, used to read URL
- *   parameters; absent for routes matched without a regular expression.
- * - `memory` — the app's shared {@link Cudenix} `memory` bag.
- * - `request` — the raw `Request` plus the validated request fields.
- * - `response` — the {@link ContextResponse} the chain writes its outcome into.
- * - `server` — the live Bun server backing the app.
- * - `store` — values accumulated by `.store()` links so far.
- *
- * @typeParam Stores - Shape of `context.store` for this request.
- * @typeParam Validators - Shape of the validated request fields on `context.request`.
  * @example
  * ```typescript
  * const fn = (context: Context<{ a: string }, {}>) => {
@@ -116,10 +83,8 @@ export interface Context<
 }
 
 /**
- * Wildcard alias matching any {@link Context} regardless of its store or
- * validator generics. Reach for it where the concrete generics are erased —
- * for example, the chain walker, which dispatches over links without knowing
- * each request's exact store and validator shapes.
+ * Any {@link Context} regardless of its store or validator generics. Use it
+ * where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript
@@ -131,9 +96,8 @@ export interface Context<
 export type AnyContext = Context<any, any>;
 
 /**
- * Constructor signature of {@link Context}, declared separately so the
- * runtime value can be defined with a plain `function` and cast to a
- * constructable type.
+ * Constructor signature of {@link Context}, split out so the runtime value can
+ * be a plain `function` cast to a constructable type.
  *
  * @example
  * ```typescript
@@ -154,21 +118,9 @@ export interface ContextConstructor {
 }
 
 /**
- * Construct a {@link Context} for a single request. Must be invoked with
- * `new`; pulls `memory` and `server` off the app, records the resolved
- * `endpoint` and optional `match`, and seeds `request`, `response`, and
- * `store` ready for the chain to fill in.
+ * Build a {@link Context} for a single request, seeding `request`, `response`,
+ * and `store` ready for the chain to fill in. Must be invoked with `new`.
  *
- * `request`, `response`, and `store` start as prototype-free {@link Empty}
- * dictionaries; the raw `Request` is wired onto `request.raw`, and
- * `response.cookies`/`response.headers` are pre-seeded as empty maps while
- * `response.content` is left unset until a link produces one. `server` is
- * read with a non-null assertion, so the app must already be listening.
- *
- * @param app - The {@link Cudenix} app supplying `memory` and `server`.
- * @param endpoint - The {@link Endpoint} this request resolved to.
- * @param request - The incoming `Request`, stored on `request.raw`.
- * @param match - Optional path-match result used to read URL parameters.
  * @example
  * ```typescript
  * const a = new Context(app, endpoint, request, match);

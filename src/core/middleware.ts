@@ -4,25 +4,15 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
  * @module
- * Middleware step — function shape and chain descriptor for `.middleware()`
- * links that wrap the rest of the chain through a `next` continuation.
+ * Middleware step — function shape and chain descriptor for `.middleware()`.
  */
 
 /**
  * Callable shape of a `.middleware()` step. Receives a {@link DeveloperContext}
- * carrying the stores and validator outputs visible at this point in the
- * chain, plus a `next` continuation that advances the chain when invoked.
+ * and a `next` continuation that advances the chain. Returning {@link AnyFail}
+ * or {@link AnyOk} becomes the response; `void` defers to the rest of the
+ * chain. May be sync or async.
  *
- * Return one of three shapes: a {@link AnyFail} or {@link AnyOk}
- * becomes the response — overriding whatever downstream produced — while
- * `void` defers the outcome to the rest of the chain. Skip
- * the `next` call to halt the chain and keep control entirely. Sync and async
- * functions are both accepted; async returns are awaited before the
- * surrounding step continues.
- *
- * @typeParam Return - Error, success, or void produced by the middleware.
- * @typeParam Stores - Shape of `context.store` visible to this step.
- * @typeParam Validators - Shape of the validated request fields on `context.request`.
  * @example
  * ```typescript
  * const a: MiddlewareFn<MaybePromise<void>, {}, {}> = async (_, next) => {
@@ -51,9 +41,8 @@ export type MiddlewareFn<
 ) => Return;
 
 /**
- * Wildcard alias matching any {@link MiddlewareFn} regardless of
- * return, store, or validator generics. Use in container, registry, or
- * boundary types where the concrete generics are irrelevant.
+ * Any {@link MiddlewareFn} regardless of its return, store, or validator
+ * generics. Use it where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript
@@ -63,15 +52,10 @@ export type MiddlewareFn<
 export type AnyMiddlewareFn = MiddlewareFn<any, any, any>;
 
 /**
- * Compiled middleware descriptor pushed onto the chain by
- * `module.middleware`. Pairs the user-supplied {@link MiddlewareFn} with a
- * `"MIDDLEWARE"` discriminator so the chain walker can dispatch on link kind.
+ * Compiled {@link MiddlewareFn} descriptor stored on the chain by
+ * `module.middleware`, tagged `"MIDDLEWARE"` so the chain walker can dispatch
+ * on it.
  *
- * Built by the framework — application code rarely constructs one directly.
- *
- * @typeParam Return - Error, success, or void produced by the middleware.
- * @typeParam Stores - Shape of `context.store` visible to the inner function.
- * @typeParam Validators - Shape of the validated request fields on `context.request`.
  * @example
  * ```typescript
  * const a: Middleware<MaybePromise<void>, {}, {}> = {
@@ -92,9 +76,8 @@ export interface Middleware<
 }
 
 /**
- * Wildcard alias matching any {@link Middleware} regardless of return,
- * store, or validator generics. Use in container, registry, or boundary
- * types where the concrete generics are irrelevant.
+ * Any {@link Middleware} regardless of its return, store, or validator
+ * generics. Use it where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript

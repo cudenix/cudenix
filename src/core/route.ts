@@ -15,23 +15,15 @@ import type { Merge } from "@/utils/types/merge";
 
 /**
  * @module
- * Route types — handler signatures accepted by `module.route`, the compiled
- * descriptor stored on the chain, and the helpers that lift a route
- * declaration into the client-facing route tree.
+ * Route types — handler signatures, the compiled descriptor, and the helpers
+ * that lift a route declaration into the client-facing route tree.
  */
 
 /**
  * Lift a slash-separated `Path` literal into a nested record whose deepest
- * leaf carries `Value`. Each segment becomes one level of nesting. Used by
- * {@link ParseRoute} to fold a flat route declaration into the recursive
- * shape consumed by the type-side route tree.
+ * leaf carries `Value`. Used by {@link ParseRoute} to build the type-side
+ * route tree.
  *
- * Pass paths already stripped of their leading `/`. Empty segments (`"a//b"`)
- * are not collapsed — they yield a record with an empty-string key in the
- * middle.
- *
- * @typeParam Path - Slash-separated path literal.
- * @typeParam Value - Type placed at the deepest leaf.
  * @example
  * ```typescript
  * type A = PathToObject<"a/b/c", "v1">;
@@ -49,15 +41,9 @@ export type PathToObject<
 
 /**
  * Compose a single route declaration into the nested record the client-facing
- * route tree expects. The root `"/"` is rekeyed to `"index"`, any other path
- * has its leading `/` stripped, and the deepest leaf is keyed by the
- * lower-cased method and carries the method, path, request, and response
- * metadata.
+ * route tree expects, keyed by lower-cased method at the deepest leaf (root
+ * `"/"` becomes `"index"`).
  *
- * @typeParam Method - HTTP verb the route binds to. Lower-cased on the leaf.
- * @typeParam Path - Route pattern starting with `/`.
- * @typeParam Request - Inferred request shape (body, query, params, …).
- * @typeParam Response - Inferred response shape (status-keyed envelope map).
  * @example
  * ```typescript
  * type A = ParseRoute<"GET", "/a/b", { body: "v1" }, { 200: "v2" }>;
@@ -103,20 +89,9 @@ export type IsRouteLeaf<T> = T extends { method: string; path: string }
 
 /**
  * Deeply merge two route trees, resolving each shared key by what the runtime
- * router actually serves. Unlike `T & U`, a duplicate route does not intersect
- * the two descriptors into an impossible merged response.
+ * router actually serves. On a duplicate route the first tree's descriptor
+ * wins, unlike `T & U` which would intersect into an impossible response.
  *
- * - Shared key, both leaves — duplicate registration of the same method and
- *   path: the first tree's descriptor wins, mirroring the runtime, which only
- *   ever serves the first registration.
- * - Shared key, both branches: merged recursively.
- * - Shared key, leaf on one side and branch on the other (a segment named
- *   like a method): intersected, since both the descriptor and the deeper
- *   routes are served.
- * - Exclusive keys pass through unchanged.
- *
- * @typeParam T - Route tree accumulated so far. Wins on duplicate leaves.
- * @typeParam U - Route tree contributed by the new registration.
  * @example
  * ```typescript
  * type A = MergeRoutes<
@@ -145,10 +120,8 @@ export type MergeRoutes<T extends object, U extends object> = {
 };
 
 /**
- * Union of the two envelope shapes a streaming route can emit — either an
- * {@link AnyFail} or an {@link AnyOk}. Used as the payload of each
- * {@link RouteFnReturnGeneratorFrame} and as the final return of a
- * {@link RouteFnReturnGenerator}.
+ * Envelope a streaming route can emit — an {@link AnyFail} or an
+ * {@link AnyOk}.
  *
  * @example
  * ```typescript
@@ -158,9 +131,8 @@ export type MergeRoutes<T extends object, U extends object> = {
 export type RouteFnReturnGeneratorEnvelope = AnyFail | AnyOk;
 
 /**
- * Single frame yielded by a streaming route — a {@link GeneratorSSE} whose
- * payload is restricted to the {@link RouteFnReturnGeneratorEnvelope}
- * discriminant so the success/error tag survives the wire.
+ * Single frame yielded by a streaming route — a {@link GeneratorSSE} carrying
+ * a {@link RouteFnReturnGeneratorEnvelope}.
  *
  * @example
  * ```typescript
@@ -177,9 +149,8 @@ export type RouteFnReturnGeneratorFrame = GeneratorSSE<
 
 /**
  * Sync or async generator returned by a streaming route. Yields a
- * {@link RouteFnReturnGeneratorFrame} per chunk and may optionally `return`
- * a final {@link RouteFnReturnGeneratorEnvelope} that becomes the closing
- * value of the stream.
+ * {@link RouteFnReturnGeneratorFrame} per chunk and may `return` a final
+ * {@link RouteFnReturnGeneratorEnvelope}.
  *
  * @example
  * ```typescript
@@ -203,14 +174,9 @@ export type RouteFnReturnGenerator =
 
 /**
  * Augment a validator map with a `params` slot inferred from `Path` when the
- * pattern declares any URL parameters; otherwise pass the map through
- * unchanged. Lets a route handler's typed context surface `:name`/`...name`
- * segments without a redundant manual `params` validator. A `params` slot
- * already declared by a validator wins wholesale, mirroring the runtime,
- * where the validator's output replaces the slot.
+ * pattern declares URL parameters; otherwise pass the map through unchanged. A
+ * `params` slot already declared by a validator wins.
  *
- * @typeParam Path - Route pattern parsed by {@link ExtractUrlParams}.
- * @typeParam Validators - Existing per-slot validator map.
  * @example
  * ```typescript
  * type A = ValidatorsWithParams<"/a/:p1", { body: { a: string } }>;
@@ -234,16 +200,10 @@ export type ValidatorsWithParams<
 		: never;
 
 /**
- * Function signature of a route handler. Receives a fully-typed
- * {@link DeveloperContext} — augmented with any URL parameters parsed from
- * `Path` — and returns either a sync or async `AnyFail | AnyOk`
+ * Function signature of a route handler. Receives a typed
+ * {@link DeveloperContext} and returns a sync or async `AnyFail | AnyOk`
  * envelope, or a {@link RouteFnReturnGenerator} for streaming.
  *
- * @typeParam Path - Route pattern. Drives the inferred `params` slot.
- * @typeParam Return - Concrete return type the handler produces.
- * @typeParam Stores - Cumulative store shape threaded from `module.store`.
- * @typeParam Validators - Cumulative per-slot request map threaded from
- *   prior validators.
  * @example
  * ```typescript
  * const fn: RouteFn<
@@ -264,9 +224,8 @@ export type RouteFn<
 ) => Return;
 
 /**
- * Wildcard alias matching any {@link RouteFn} regardless of generics. Reach
- * for it on chain or registry types where the concrete method, path, and
- * inputs are irrelevant.
+ * Any {@link RouteFn} regardless of its generics. Use it where the concrete
+ * method, path, and inputs are irrelevant.
  *
  * @example
  * ```typescript
@@ -277,35 +236,10 @@ export type RouteFn<
 export type AnyRouteFn = RouteFn<any, any, any, any>;
 
 /**
- * Compiled route descriptor stored on the chain. Holds the static metadata
- * (`method`, `path`, `type: "ROUTE"`) plus the normalized handler the
- * runtime invokes per request, with flags that tell the dispatcher how to
- * call it.
+ * Compiled route descriptor stored on the chain, tagged `type: "ROUTE"` so the
+ * chain walker can dispatch on it. Holds the route metadata and the normalized
+ * handler the runtime invokes per request.
  *
- * Fields:
- *
- * - `handler` — the always-callable handler. A static envelope handed to
- *   `module.route` is wrapped in a function that returns it before it lands
- *   here.
- * - `jit` — opt-in per-route JIT compilation override. Unset falls back to
- *   the app-level default.
- * - `method` — HTTP verb the route binds to.
- * - `path` — route pattern starting with `/`.
- * - `sse` — `true` when the handler was a `function*`/`async function*`,
- *   so the dispatcher iterates frames into the SSE encoder.
- * - `static` — `true` when the handler was registered as a value, not a
- *   function; pairs with the wrapped `handler` above.
- * - `type` — `"ROUTE"` discriminant the chain walker dispatches on.
- * - `validator` — optional per-route compiled {@link AnyValidator} whose
- *   output threads into the handler's typed `request`.
- *
- * @typeParam Method - HTTP verb the route binds to.
- * @typeParam Path - Route pattern starting with `/`.
- * @typeParam Return - Concrete return type produced by the handler.
- * @typeParam Stores - Cumulative store shape.
- * @typeParam RouteValidatorOptions - Per-route validator options, used to refine
- *   `Validators` for the handler's typed context.
- * @typeParam Validators - Cumulative per-slot request map.
  * @example
  * ```typescript
  * const a: AnyRoute = {
@@ -345,27 +279,21 @@ export interface Route<
 }
 
 /**
- * Wildcard alias matching any {@link Route} regardless of generics. Used in
- * container or chain types where the concrete generics are irrelevant — for
- * example, the union of link kinds walked by the dispatcher.
+ * Any {@link Route} regardless of its generics. Use it where the concrete
+ * generics are irrelevant.
  *
  * @example
  * ```typescript
- * const a: AnyRoute[] = []; // chain slot for any registered route
+ * const a: AnyRoute[] = [];
  * ```
  */
 export type AnyRoute = Route<any, any, any, any, any, any>;
 
 /**
  * Value accepted by `module.route` for the handler argument — either a
- * {@link RouteFn} or the already-built {@link AnyFail}/{@link AnyOk}
- * envelope it would return. The runtime normalizes the static form by
- * wrapping it in a function before storing the route on the chain.
+ * {@link RouteFn} or the already-built {@link AnyFail}/{@link AnyOk} envelope
+ * it would return.
  *
- * @typeParam Path - Route pattern starting with `/`.
- * @typeParam Return - Return type expected from the function form.
- * @typeParam Stores - Cumulative store shape.
- * @typeParam Validators - Cumulative per-slot request map.
  * @example
  * ```typescript
  * const fn: RouteHandler<
@@ -388,9 +316,8 @@ export type RouteHandler<
 	| Extract<Awaited<Return>, AnyFail | AnyOk>;
 
 /**
- * Wildcard alias matching any {@link RouteHandler} regardless of generics.
- * Used by the runtime to accept handler arguments without resolving the
- * caller's concrete generics.
+ * Any {@link RouteHandler} regardless of its generics. Use it where the
+ * concrete generics are irrelevant.
  *
  * @example
  * ```typescript
@@ -400,16 +327,9 @@ export type RouteHandler<
 export type AnyRouteHandler = RouteHandler<any, any, any, any>;
 
 /**
- * Options object accepted as the trailing argument to `module.route`.
+ * Options object accepted as the trailing argument to `module.route` — a
+ * per-route `jit` override and a route-scoped {@link ValidatorOptions}.
  *
- * - `jit` — opt-in JIT compilation override for this single route. Unset
- *   falls back to the app-level default.
- * - `validator` — route-scoped {@link ValidatorOptions} whose request map
- *   refines the handler's typed `request` slot via
- *   {@link MergeInferValidatorRequest}.
- *
- * @typeParam RouteValidatorOptions - Route-scoped validator options, used to
- *   drive the handler's typed context.
  * @example
  * ```typescript
  * const a: RouteOptions<{ request: { body: SomeSchema } }> = {
@@ -426,10 +346,8 @@ export interface RouteOptions<
 }
 
 /**
- * Wildcard alias matching any {@link RouteOptions} regardless of generics.
- * Reach for it where the concrete validator shape is irrelevant — for
- * example, the runtime body of `module.route`, which only reads the option
- * fields it dispatches on.
+ * Any {@link RouteOptions} regardless of its validator generics. Use it where
+ * the concrete validator shape is irrelevant.
  *
  * @example
  * ```typescript

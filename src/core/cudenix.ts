@@ -13,19 +13,15 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
  * @module
- * Central app object — compiles a root {@link AnyModule} into per-method
- * endpoint tables, answers requests through `.fetch()`, and boots a Bun
- * server through `.listen()`. The single entry point an application
- * constructs with `new Cudenix(module)`.
+ * Central app object that compiles a root module into routing tables and
+ * serves requests.
  */
 
 const NOT_FOUND = new Response(undefined, { status: 404 });
 
 /**
- * Flattened run-time link list a single endpoint walks per request — the
- * middlewares, stores, and validators inherited from every enclosing module,
- * with the route's own validator appended last. Built by the compiler from
- * the module tree and stored on each {@link Endpoint}.
+ * Flattened list of middlewares, stores, and validators a single
+ * {@link Endpoint} walks per request, inherited from its enclosing modules.
  *
  * @example
  * ```typescript
@@ -35,26 +31,9 @@ const NOT_FOUND = new Response(undefined, { status: 404 });
 export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
 /**
- * Compiled endpoint descriptor — one fully-resolved route plus everything the
- * dispatcher needs to match a URL against it and run it. Produced by the
- * compiler while flattening the module tree and grouped under its HTTP method
- * in {@link MethodData}.
- *
- * Fields:
- *
- * - `chain` — the {@link Chain} of inherited links walked before the route
- *   handler runs.
- * - `jit` — resolved JIT flag, the route's own override or the app default.
- * - `matchOffset` — index of this endpoint's capture group inside the shared
- *   per-method regexp, so a single match can report which endpoint hit.
- * - `paramKeys` — names of every `:name` and `...name` segment, in order.
- * - `path` — the absolute pattern, prefixes merged in from enclosing modules.
- * - `restKeys` — names of the rest (`...name`) parameters only.
- * - `route` — the compiled {@link AnyRoute} whose handler produces the
- *   response.
- * - `router` — `"bun"` when the path is static enough to register directly on
- *   Bun's route table, `"cudenix"` when it falls back to regexp matching.
- * - `sse` — `true` when the handler streams Server-Sent Events.
+ * Compiled endpoint descriptor — one fully-resolved {@link AnyRoute} plus
+ * everything the dispatcher needs to match a URL against it and run it.
+ * Grouped under its HTTP method in {@link MethodData}.
  *
  * @example
  * ```typescript
@@ -91,17 +70,9 @@ export interface Endpoint {
 }
 
 /**
- * Per-method routing table built by the compiler and read by `.fetch()`. All
- * {@link Endpoint}s sharing one HTTP method are folded into a single combined
- * `regexp`, then the matched capture group is mapped back to the specific
- * endpoint via its `matchOffset`.
- *
- * Fields:
- *
- * - `endpoints` — every endpoint registered under the method, in match order.
- * - `regexp` — the merged pattern matched against the request URL; a hit
- *   means one of the endpoints applies. Literal path characters appear
- *   `RegExp.escape`-escaped, so the leading `a` of `/a` shows up as `\x61`.
+ * Per-method routing table read by `.fetch()`. The {@link Endpoint}s sharing
+ * one HTTP method are folded into a single merged `regexp` matched against the
+ * request URL.
  *
  * @example
  * ```typescript
@@ -117,11 +88,8 @@ export interface MethodData {
 }
 
 /**
- * Setup hook registered through `.plugins()`. Each plugin runs once during
- * `.compile()`, after the module tree is flattened, with `this` bound to the
- * {@link Cudenix} app so it can read or seed `memory`. Reach for it to wire
- * cross-cutting concerns — a validator backend, shared services — into the
- * app before it starts serving.
+ * Setup hook registered through `.plugins()`, run once during `.compile()`
+ * with `this` bound to the {@link Cudenix} app so it can read or seed `memory`.
  *
  * @example
  * ```typescript
@@ -133,9 +101,8 @@ export interface MethodData {
 export type Plugin = (...options: any[]) => void;
 
 /**
- * Options accepted by the {@link Cudenix} constructor. The `jit` flag sets the
- * app-wide default for per-route JIT compilation, applied whenever a route does
- * not set its own override. Defaults to `true` when omitted.
+ * Options accepted by the {@link Cudenix} constructor. `jit` sets the app-wide
+ * default for per-route JIT compilation (defaults to `true`).
  *
  * @example
  * ```typescript
@@ -148,32 +115,8 @@ export interface CudenixOptions {
 
 /**
  * Public shape of a Cudenix application instance — the methods that compile,
- * serve, and extend the app plus the run-time state the dispatcher reads. An
- * application builds one with `new Cudenix(module)`, then either drives it
- * through `.fetch()` directly or hands control to Bun via `.listen()`.
- *
- * Methods:
- *
- * - `compile` — flatten the root module into the `methods` and `routes` tables
- *   and run every registered {@link Plugin}; `.listen()` calls it for you.
- * - `fetch` — resolve a `Request` to a `Response`, matching it against the
- *   compiled tables and dispatching the endpoint's chain.
- * - `listen` — compile, then start serving through `Bun.serve`.
- * - `plugins` — register {@link Plugin} hooks to run during the next
- *   `.compile()`.
- *
- * Fields:
- *
- * - `jit` — app-wide JIT default applied to routes without their own
- *   override.
- * - `memory` — scratch dictionary shared with every {@link Context}; holds the
- *   root module and registered plugins until `.compile()` consumes them, plus
- *   anything plugins stash for handlers to read.
- * - `methods` — per-method {@link MethodData} routing tables produced by
- *   `.compile()`.
- * - `routes` — Bun route table for the statically-matchable endpoints, passed
- *   straight to `Bun.serve`.
- * - `server` — the running `Bun.Server`, present only after `.listen()`.
+ * serve, and extend the app plus the run-time state the dispatcher reads.
+ * Built with `new Cudenix(module)`.
  *
  * @example
  * ```typescript
@@ -202,9 +145,8 @@ export interface Cudenix {
 }
 
 /**
- * Constructor signature of {@link Cudenix}, declared separately so the
- * runtime value can be defined with a plain `function` and cast to a
- * constructable type.
+ * Constructor signature of {@link Cudenix}, split out so the runtime value can
+ * be a plain `function` cast to a constructable type.
  *
  * @example
  * ```typescript
@@ -221,17 +163,9 @@ export interface CudenixConstructor {
 
 /**
  * Construct a {@link Cudenix} app around a root {@link AnyModule}. Must be
- * invoked with `new`; the instance starts uncompiled, with empty `methods`
- * and `routes` tables and the module parked in `memory` until `.compile()`
- * (or `.listen()`) flattens it.
+ * called with `new`; the instance starts uncompiled until `.compile()` (or
+ * `.listen()`) flattens it. `jit` defaults to `true`.
  *
- * `jit` defaults to `true` when `options` is omitted; {@link FrozenEmpty} is
- * the default options object, so the no-argument path skips a fresh `{}`
- * allocation. `memory`, `methods`, and `routes` are prototype-less
- * {@link Empty} dictionaries to keep lookups free of inherited keys.
- *
- * @param module - Root module whose tree is compiled into the app's routes.
- * @param options - Optional behavior switches; see {@link CudenixOptions}.
  * @example
  * ```typescript
  * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
@@ -257,13 +191,10 @@ export const Cudenix = function (
 } as unknown as CudenixConstructor;
 
 /**
- * Compile the app — flatten the root module tree into the per-method
- * {@link MethodData} tables and the Bun `routes` table, then run every
- * registered {@link Plugin} once with `this` bound to the app. Call it before
- * the first `.fetch()`; `.listen()` calls it automatically.
- *
- * The root module and the pending plugin list are dropped from `memory` once
- * consumed, so compiling is a one-shot operation.
+ * Compile the app — flatten the root module tree into the {@link MethodData}
+ * tables and the Bun `routes` table, then run every registered {@link Plugin}.
+ * Call it before the first `.fetch()`; `.listen()` calls it automatically.
+ * One-shot.
  *
  * @example
  * ```typescript
@@ -290,20 +221,10 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 };
 
 /**
- * Resolve a request to a `Response`. Looks up the {@link MethodData} for the
- * request method, matches the URL against its merged regexp, then walks the
- * candidate {@link Endpoint}s to find the one whose capture group fired and
- * dispatches its chain. Inside a live `Bun.serve`, its own `routes` table
- * intercepts the statically-matchable paths before this handler runs, so there
- * it mainly serves the dynamic and fallback matches; called directly, `.fetch()`
- * matches every compiled endpoint — static-enough ones included — through the
- * merged regexp.
+ * Resolve a request to a `Response` by matching it against the compiled
+ * {@link MethodData} and dispatching the winning {@link Endpoint}'s chain.
+ * Returns a `404` clone when the method, URL, or endpoint does not match.
  *
- * Returns a clone of the shared `404` response whenever the method is
- * unknown, the URL matches nothing, or no endpoint claims the match.
- *
- * @param request - Incoming request to route and run.
- * @returns The handler's `Response`, or a `404` clone on any miss.
  * @example
  * ```typescript
  * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
@@ -356,24 +277,10 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 };
 
 /**
- * Compile the app and start serving it through `Bun.serve`. Wires the app's
- * own `.fetch()` and `routes` table into the server, defaulting to
- * `development: false` and `reusePort: true` — both overridable through
- * `options`. Registers a `beforeExit` hook that stops the server once the event
- * loop drains and the process is about to exit on its own; note this does not
- * fire on a signal-driven shutdown (`SIGINT`/`SIGTERM`) or `process.exit()`.
- * Then runs a one-off `Bun.gc()` pass now that startup is done.
+ * Compile the app and start serving it through `Bun.serve`, defaulting to
+ * `development: false` and `reusePort: true` (both overridable). Returns the
+ * same app, narrowed to omit `.listen()` so it cannot be started twice.
  *
- * `fetch` is excluded from `options` because the app supplies its own request
- * handler, and `unix` because `.listen()` always binds a port-based `routes`
- * server, which is incompatible with unix-socket binding. The returned
- * reference is typed to omit `.listen()`, so the type checker blocks starting
- * it twice — at run time the method is still present and a second call throws,
- * since `.compile()` is one-shot.
- *
- * @param options - Extra `Bun.serve` options merged over the defaults, minus
- *   `fetch` and `unix`.
- * @returns The same app, narrowed to omit `.listen()`.
  * @example
  * ```typescript
  * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
@@ -410,13 +317,10 @@ Cudenix.prototype.listen = function (
 };
 
 /**
- * Register one or more {@link Plugin} setup hooks to run during the next
- * `.compile()`. Appends to the pending list — repeated calls accumulate
- * rather than replace — and the hooks fire in registration order once the
- * module tree has been flattened.
+ * Register {@link Plugin} setup hooks to run during the next `.compile()`.
+ * Repeated calls accumulate, and hooks fire in registration order. Returns the
+ * same app, for chaining.
  *
- * @param plugins - Setup hooks appended to the app's pending plugin list.
- * @returns The same app, for chaining.
  * @example
  * ```typescript
  * const a = new Cudenix(new Module());

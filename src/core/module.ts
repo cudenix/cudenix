@@ -48,18 +48,15 @@ import type { ValueOf } from "@/utils/types/value-of";
 
 /**
  * @module
- * Module builder — the fluent chain that gathers groups, middlewares, stores,
- * validators, and routes, threading the accumulated errors, prefix, routes,
- * stores, successes, and validator inputs/outputs through each call so every
- * step sees the cumulative type-level shape it operates on.
+ * Fluent module builder that gathers groups, middlewares, stores, validators,
+ * and routes into a chain the compiler later flattens into endpoints.
  */
 
 /**
- * Ordered list of links a module accumulates. Each entry is one of the chain
- * kinds — a nested {@link AnyGroup}, {@link AnyMiddleware}, mounted
- * {@link AnyModule}, {@link AnyRoute}, {@link AnyStore}, or
- * {@link AnyValidator} — in the exact order the builder methods pushed them.
- * The compiler walks this list to flatten a module into its endpoints.
+ * Ordered list of links a module accumulates — a nested {@link AnyGroup},
+ * {@link AnyMiddleware}, mounted {@link AnyModule}, {@link AnyRoute},
+ * {@link AnyStore}, or {@link AnyValidator} — that the compiler walks to
+ * flatten the module into endpoints.
  *
  * @example
  * ```typescript
@@ -76,11 +73,9 @@ export type ModuleChain = (
 )[];
 
 /**
- * Constraint on the `Validators` generic threaded through {@link Module}. Holds
- * the two per-slot request maps a module accumulates as validators register:
- * `inputs` is the pre-validation shape a caller must send (recorded in the
- * client-facing route tree), and `outputs` is the parsed shape later
- * middlewares, stores, and routes receive on `context.request`.
+ * Constraint on the `Validators` generic threaded through {@link Module}:
+ * `inputs` is the pre-validation shape a caller must send and `outputs` is the
+ * parsed shape later links receive on `context.request`.
  *
  * @example
  * ```typescript
@@ -96,49 +91,11 @@ export interface ModuleValidatorsConstraint {
 }
 
 /**
- * Fluent module builder. Each builder method returns a new `Module` type whose
- * generics fold in that step's contribution — accumulated errors, the prefix,
- * the client-facing route tree, the request-scoped stores, the successes, and
- * the validator inputs/outputs — so every subsequent call is typed against the
- * cumulative shape rather than only the slice it touches. The runtime side
- * pushes a descriptor onto {@link ModuleChain} per call and returns `this` for
- * chaining; the compiler later walks that chain to produce endpoints.
+ * Fluent module builder whose `group`, `middleware`, `mount`, `route`,
+ * `store`, and `validator` methods each push a link onto the chain and return
+ * a refined `Module` type that folds in that step's contribution to the
+ * accumulated errors, prefix, routes, stores, successes, and validators.
  *
- * Builder methods:
- *
- * - `group` — declare an isolated sub-module via {@link GroupFn}; its routes
- *   merge into the parent under the group prefix, but links it adds stay
- *   inside the group.
- * - `middleware` — register a {@link MiddlewareFn}; any error or success it can
- *   return folds into the module's `Errors`/`Successes`.
- * - `mount` — graft another module in, merging its errors, routes (nested
- *   under this prefix), stores, successes, and validator maps.
- * - `route` — bind a handler to a method and path; the merged path drives the
- *   route tree entry — a duplicate method and path keeps the first
- *   registration, mirroring the runtime router — and the optional per-route
- *   validator refines the typed request.
- * - `store` — register a {@link StoreFn}; its non-error return shallow-merges
- *   into `Stores` per {@link Merge} — a key certainly present replaces the
- *   previous declaration, an optional key unions with it, union returns merge
- *   per branch, and symbol keys are dropped, mirroring the runtime merge —
- *   while any error it can return folds into `Errors`.
- * - `validator` — register a {@link ValidatorOptions} schema map; its inferred
- *   inputs/outputs thread into `Validators` and its issues into `Errors`.
- *
- * Fields:
- *
- * - `chain` — the accumulated {@link ModuleChain} of pushed links.
- * - `prefix` — the path every route in this module is mounted under.
- * - `routes` — the client-facing route tree built up by `route`/`mount`.
- * - `type` — the `"MODULE"` discriminant the chain walker dispatches on.
- *
- * @typeParam Errors - Accumulated status-keyed error envelope map.
- * @typeParam Prefix - Path prefix this module is mounted under. Starts with `/`.
- * @typeParam Routes - Client-facing route tree gathered so far.
- * @typeParam Stores - Cumulative `context.store` shape threaded from `store`.
- * @typeParam Successes - Accumulated status-keyed success envelope map.
- * @typeParam Validators - Cumulative validator inputs/outputs; see
- *   {@link ModuleValidatorsConstraint}.
  * @example
  * ```typescript
  * const a = new Module()
@@ -358,11 +315,9 @@ export interface Module<
 }
 
 /**
- * Wildcard alias matching any {@link Module} regardless of its accumulated
- * generics. Reach for it in container, chain, and runtime types where the
- * concrete errors, prefix, routes, stores, successes, and validators are
- * irrelevant — for example the mounted-module slot of {@link ModuleChain} or
- * the `this` type of the runtime builder methods.
+ * Any {@link Module} regardless of its errors, prefix, routes, stores,
+ * successes, or validators generics. Use it where the concrete generics are
+ * irrelevant.
  *
  * @example
  * ```typescript
@@ -372,15 +327,9 @@ export interface Module<
 export type AnyModule = Module<any, any, any, any, any, any>;
 
 /**
- * Options accepted by the {@link Module} constructor. The `prefix` seeds the
- * module's `prefix` field — every route declared on the module is mounted
- * under it, and `mount`/`group` concatenate it with their own prefixes. Omit
- * it to keep the module rooted at `/`.
+ * Options for the {@link Module} constructor. `prefix` (must start with `/`)
+ * is the path every route is mounted under; omit it to stay rooted at `/`.
  *
- * Must start with `/` so the type-level path mergers can normalize the
- * boundary slash.
- *
- * @typeParam Prefix - Path prefix for the module. Must start with `/`.
  * @example
  * ```typescript
  * const a: ModuleOptions<"/v1"> = { prefix: "/v1" };
@@ -392,10 +341,8 @@ export interface ModuleOptions<Prefix extends `/${string}`> {
 }
 
 /**
- * Wildcard alias matching any {@link ModuleOptions} regardless of its prefix
- * parameter. Reach for it where the concrete prefix is erased — for example,
- * the runtime body of the {@link Module} constructor, which destructures
- * `prefix` without caring about its literal type.
+ * Any {@link ModuleOptions} regardless of its prefix generic. Use it where the
+ * concrete prefix is irrelevant.
  *
  * @example
  * ```typescript
@@ -405,11 +352,8 @@ export interface ModuleOptions<Prefix extends `/${string}`> {
 export type AnyModuleOptions = ModuleOptions<any>;
 
 /**
- * Constructor signature of {@link Module}, declared separately so the runtime
- * value can be defined with a plain `function` and cast to a constructable
- * type. Every generic defaults to the empty accumulator, so `new Module()`
- * starts from a clean module rooted at `/` and each builder call refines the
- * type from there.
+ * Constructor signature of {@link Module}, split out so the runtime value can
+ * be a plain `function` cast to a constructable type.
  *
  * @example
  * ```typescript
@@ -449,17 +393,10 @@ export interface ModuleConstructor {
 }
 
 /**
- * Construct a {@link Module} from an optional options object. Must be invoked
- * with `new`; the resulting instance carries an empty `chain`, the resolved
- * `prefix`, and `type: "MODULE"` — the three fields the compiler and chain
- * walker read.
+ * Construct a {@link Module} from optional {@link ModuleOptions}. Must be
+ * invoked with `new`; the instance carries an empty `chain`, the resolved
+ * `prefix`, and `type: "MODULE"`.
  *
- * `prefix` defaults to `""` at runtime when `options` is omitted (the
- * type-level default is `"/"`); {@link FrozenEmpty} is the default options
- * object, so the no-argument path skips a fresh `{}` allocation. The builder
- * methods live on the prototype and are not set here.
- *
- * @param options - Optional construction options; see {@link ModuleOptions}.
  * @example
  * ```typescript
  * const a = new Module({ prefix: "/v1" });
@@ -480,16 +417,10 @@ export const Module = function (
 
 /**
  * Push a `"GROUP"` link onto the chain, deferring the {@link GroupFn} factory
- * and its prefix to the compiler. The factory is invoked later against an
- * inner module that inherits the parent's prior links, so links it adds stay
- * scoped to the group while its routes merge into the parent under `prefix`.
+ * and its prefix to the compiler. Links the group adds stay scoped to it while
+ * its routes merge into the parent under `prefix`. Returns the module, for
+ * chaining.
  *
- * `prefix` defaults to `""` when `options` is omitted; {@link FrozenEmpty} is
- * the default options object.
- *
- * @param handler - Group factory deferred to the compiler.
- * @param options - Optional group options; see {@link GroupOptions}.
- * @returns The module, for chaining.
  * @example
  * ```typescript
  * const a = new Module().group(
@@ -510,12 +441,8 @@ Module.prototype.group = function (
 
 /**
  * Push a `"MIDDLEWARE"` link onto the chain, pairing the {@link MiddlewareFn}
- * with its discriminator so the chain walker can dispatch on link kind. The
- * handler wraps the rest of the chain through its `next` continuation when the
- * compiled endpoint runs.
+ * with its discriminator. Returns the module, for chaining.
  *
- * @param handler - Middleware function appended to the chain.
- * @returns The module, for chaining.
  * @example
  * ```typescript
  * const a = new Module().middleware(async (_, next) => {
@@ -533,12 +460,10 @@ Module.prototype.middleware = function (
 };
 
 /**
- * Push another module onto the chain as a nested link. The compiler walks the
- * mounted module in place, so its routes nest under this module's prefix and
- * its errors, stores, successes, and validator maps merge into the parent.
+ * Push another module onto the chain as a nested link; its routes nest under
+ * this module's prefix and its errors, stores, successes, and validators merge
+ * into the parent. Returns the module, for chaining.
  *
- * @param module - Module to graft into this one's chain.
- * @returns The module, for chaining.
  * @example
  * ```typescript
  * const a = new Module({ prefix: "/v1" }).mount(
@@ -553,22 +478,11 @@ Module.prototype.mount = function (this: AnyModule, module: AnyModule) {
 };
 
 /**
- * Push a `"ROUTE"` link onto the chain, normalizing the handler before it is
- * stored. A function handler is kept as-is; a static {@link AnyFail}/
- * {@link AnyOk} envelope is wrapped in a function that returns it, so the
- * runtime always invokes a callable. The `sse` flag records whether a function
- * handler is a generator (driving SSE framing), `static` records that the
- * handler arrived as a value, and an optional `validator` is compiled to a
- * descriptor with its slot `keys` pre-extracted from `request`.
+ * Push a `"ROUTE"` link onto the chain, binding a handler to a method and
+ * path. A static {@link AnyFail}/{@link AnyOk} envelope is wrapped in a
+ * function so the runtime always invokes a callable, and an optional validator
+ * is compiled to a descriptor. Returns the module, for chaining.
  *
- * `jit` and `validator` default to `undefined` when `options` is omitted;
- * {@link FrozenEmpty} is the default options object.
- *
- * @param method - HTTP verb the route binds to.
- * @param path - Route pattern starting with `/`.
- * @param handler - Route function or a static envelope to return.
- * @param options - Optional route options; see {@link RouteOptions}.
- * @returns The module, for chaining.
  * @example
  * ```typescript
  * const a = new Module().route(
@@ -613,12 +527,8 @@ Module.prototype.route = function (
 
 /**
  * Push a `"STORE"` link onto the chain, pairing the {@link StoreFn} with its
- * discriminator. When the compiled endpoint runs, the handler's record return
- * is merged into `context.store` for later links, while an error return halts
- * the chain and becomes the response.
+ * discriminator. Returns the module, for chaining.
  *
- * @param handler - Store function appended to the chain.
- * @returns The module, for chaining.
  * @example
  * ```typescript
  * const a = new Module().store(() => ({ a: "v1" }));
@@ -632,13 +542,9 @@ Module.prototype.store = function (this: AnyModule, handler: AnyStoreFn) {
 
 /**
  * Push a `"VALIDATOR"` link onto the chain, compiling the
- * {@link ValidatorOptions} into a descriptor. The slot `keys` are pre-extracted
- * from `options.request` so the runtime can iterate the declared slots without
- * rebuilding the array per request, and the schema map is carried through as
- * `request`.
+ * {@link ValidatorOptions} into a descriptor. Returns the module, for
+ * chaining.
  *
- * @param options - Validator options whose `request` map is compiled.
- * @returns The module, for chaining.
  * @example
  * ```typescript
  * const a = new Module().validator({ request: { body: someSchema } });

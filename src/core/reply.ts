@@ -3,27 +3,16 @@ import type { ExtractContent } from "@/utils/types/extract-content";
 
 /**
  * @module
- * Response envelope (`Reply`) shared by the success and error directions, the
- * `ok` / `fail` factories that build it, and the `MergeReplies` helper that
- * merges status-keyed envelope dictionaries.
+ * Response envelope (`Reply`) with its `ok` / `fail` factories and the
+ * `MergeReplies` type helper.
  */
 
 /**
  * Response envelope returned by middlewares, stores, validators, and route
- * handlers. `success` is the discriminant that splits the success direction
- * from the error direction without inspecting the status code; the runtime
- * reads `content` and `status` when serializing the response.
+ * handlers, with `success` as the discriminant between the success and error
+ * directions. Build one with the {@link ok} / {@link fail} factories;
+ * {@link Fail} and {@link Ok} are the directional aliases.
  *
- * Build one with the {@link ok} / {@link fail} factories rather than the raw
- * constructor; {@link Fail} and {@link Ok} are the directional aliases.
- *
- * @typeParam Content - Type of the payload supplied to the factory. At the
- *   type level it flows through {@link ExtractContent}, so a function-typed
- *   `Content` is reported as its awaited return type even though the payload
- *   is stored verbatim at runtime.
- * @typeParam Status - Numeric literal type of the response status code.
- *   Defaults to `200`.
- * @typeParam Ok - Boolean literal discriminant. Defaults to `true`.
  * @example
  * ```typescript
  * const a: Reply<{ a: "v1" }, 200, true> = {
@@ -44,10 +33,8 @@ export interface Reply<
 }
 
 /**
- * Wildcard alias matching any {@link Reply} regardless of content, status, or
- * discriminant. Reach for it in container or registry types where the concrete
- * generics are irrelevant — for example the union threaded through the
- * directional filters or the envelopes walked by the module compiler.
+ * Any {@link Reply} regardless of its content, status, or discriminant
+ * generics. Use it where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript
@@ -59,12 +46,9 @@ export interface Reply<
 export type AnyReply = Reply<any, any, any>;
 
 /**
- * Error direction of a {@link Reply} — fixes the discriminant to `false` and
- * defaults the status to `400`. Returned by handlers to signal a failed
- * response; build one with {@link fail}.
+ * Error direction of a {@link Reply} — discriminant fixed to `false`, status
+ * defaulting to `400`. Build one with {@link fail}.
  *
- * @typeParam Content - Payload type; see {@link Reply}.
- * @typeParam Status - Numeric literal status code. Defaults to `400`.
  * @example
  * ```typescript
  * const a: Fail<{ a: "v1" }, 400> = {
@@ -81,12 +65,9 @@ export type Fail<Content, Status extends number = 400> = Reply<
 >;
 
 /**
- * Success direction of a {@link Reply} — fixes the discriminant to `true` and
- * defaults the status to `200`. Returned by handlers to signal a successful
- * response; build one with {@link ok}.
+ * Success direction of a {@link Reply} — discriminant fixed to `true`, status
+ * defaulting to `200`. Build one with {@link ok}.
  *
- * @typeParam Content - Payload type; see {@link Reply}.
- * @typeParam Status - Numeric literal status code. Defaults to `200`.
  * @example
  * ```typescript
  * const a: Ok<{ a: "v1" }, 200> = {
@@ -103,10 +84,9 @@ export type Ok<Content, Status extends number = 200> = Reply<
 >;
 
 /**
- * Wildcard alias matching any error-direction {@link Reply} (`success: false`)
- * regardless of content or status. Reach for it where the concrete generics
- * are erased — for example the error-tagged returns walked by the module
- * compiler.
+ * Any error-direction {@link Reply} (`success: false`) regardless of its
+ * content or status generics. Use it where the concrete generics are
+ * irrelevant.
  *
  * @example
  * ```typescript
@@ -118,10 +98,9 @@ export type Ok<Content, Status extends number = 200> = Reply<
 export type AnyFail = Reply<any, any, false>;
 
 /**
- * Wildcard alias matching any success-direction {@link Reply} (`success: true`)
- * regardless of content or status. Reach for it where the concrete generics
- * are erased — for example the success-tagged returns walked by the module
- * compiler.
+ * Any success-direction {@link Reply} (`success: true`) regardless of its
+ * content or status generics. Use it where the concrete generics are
+ * irrelevant.
  *
  * @example
  * ```typescript
@@ -133,18 +112,10 @@ export type AnyFail = Reply<any, any, false>;
 export type AnyOk = Reply<any, any, true>;
 
 /**
- * Deeply merge two status-keyed reply dictionaries. Reached for by
- * `module.middleware`, `module.mount`, `module.route`, `module.store`, and
- * `module.validator` to accumulate the error and success shapes contributed by
- * each unit without dropping any branch.
+ * Deeply merge two status-keyed reply dictionaries, unioning the per-property
+ * values where both share a status. Used by the `module.*` operations to
+ * accumulate the error and success shapes each unit contributes.
  *
- * For every status present in only one operand the value is taken verbatim.
- * When both operands carry an entry under the same status the inner
- * per-property values are merged one level deeper: shared keys receive the
- * union of the two value types, exclusive keys pass through unchanged.
- *
- * @typeParam T - Accumulated dictionary so far.
- * @typeParam U - Dictionary contributed by the new unit, merged into `T`.
  * @example
  * ```typescript
  * type A = MergeReplies<
@@ -173,12 +144,9 @@ export type MergeReplies<T extends object, U extends object> = {
 };
 
 /**
- * Options accepted by the {@link ok} / {@link fail} factories. The `Status`
- * parameter threads the literal status code through the type system so the
- * resulting envelope keeps its narrow `status` literal instead of widening to
- * `number`.
+ * Options accepted by the {@link ok} / {@link fail} factories, threading the
+ * literal status code through so the envelope keeps its narrow `status`.
  *
- * @typeParam Status - Numeric literal type of the response status code.
  * @example
  * ```typescript
  * const a: ReplyOptions<401> = { status: 401 };
@@ -191,9 +159,8 @@ export interface ReplyOptions<Status extends number = number> {
 }
 
 /**
- * Wildcard alias matching any {@link ReplyOptions} regardless of the status
- * parameter. Reach for it where the concrete status is erased — for example a
- * helper that destructures `status` without caring about its literal type.
+ * Any {@link ReplyOptions} regardless of its status generic. Use it where the
+ * concrete status is irrelevant.
  *
  * @example
  * ```typescript
@@ -206,10 +173,9 @@ export interface ReplyOptions<Status extends number = number> {
 export type AnyReplyOptions = ReplyOptions<any>;
 
 /**
- * Constructor signature of the low-level {@link Reply} value, declared
- * separately so the runtime value can be defined with a plain `function` and
- * cast to a constructable type. Prefer {@link ok} / {@link fail} over invoking
- * it directly.
+ * Constructor signature of {@link Reply}, split out so the runtime value can be
+ * a plain `function` cast to a constructable type. Prefer {@link ok} /
+ * {@link fail} over invoking it directly.
  *
  * @example
  * ```typescript
@@ -228,15 +194,10 @@ export interface ReplyConstructor {
 }
 
 /**
- * Low-level constructor for a {@link Reply} envelope. Must be invoked with
- * `new`; assigns `content`, `status`, and `success` verbatim — the runtime
- * reads `content` and `status` when serializing the response, while
- * `success` is the discriminant the dispatcher reads to tell the error
- * direction apart. Prefer the {@link ok} / {@link fail} factories, which
- * bind the discriminant and a sensible default status.
+ * Low-level constructor for a {@link Reply} envelope; must be invoked with
+ * `new`. Prefer the {@link ok} / {@link fail} factories, which bind the
+ * discriminant and a default status.
  *
- * @param content - Payload assigned to `this.content` verbatim.
- * @param options - Explicit `status` code and `success` discriminant.
  * @example
  * ```typescript
  * const a = new Reply("v1", { status: 200, success: true });
@@ -266,24 +227,14 @@ type FailFactory = <const Content, const Status extends number = 400>(
 ) => Fail<Content, Status>;
 
 /**
- * Construct a success-direction {@link Reply} ({@link Ok}) from a payload
- * and an optional status code. `status` defaults to `200`; {@link FrozenEmpty}
- * is the default options object, so the no-argument path skips a fresh `{}`
- * allocation. The type-level {@link ExtractContent} unwrapping is not mirrored
- * at runtime — a function-typed `content` is stored as-is.
+ * Build a success {@link Reply} ({@link Ok}) from a payload and an optional
+ * status (defaults to `200`).
  *
- * @param content - Payload assigned to `content` verbatim.
- * @param options - Optional behavior switches; see {@link ReplyOptions}.
  * @example
  * ```typescript
- * const a = ok({ a: "v1" });
+ * const a = ok({ a: "v1" }); // status 200, success true
  *
- * a.status;  // 200
- * a.success; // true
- *
- * const b = ok({ a: 1 }, { status: 201 });
- *
- * b.status; // 201
+ * const b = ok({ a: 1 }, { status: 201 }); // status 201
  * ```
  */
 export const ok = ((
@@ -292,24 +243,14 @@ export const ok = ((
 ) => new Reply(content, { status, success: true })) as unknown as OkFactory;
 
 /**
- * Construct an error-direction {@link Reply} ({@link Fail}) from a payload and
- * an optional status code. `status` defaults to `400`; {@link FrozenEmpty} is
- * the default options object, so the no-argument path skips a fresh `{}`
- * allocation. The type-level {@link ExtractContent} unwrapping is not mirrored
- * at runtime — a function-typed `content` is stored as-is.
+ * Build an error {@link Reply} ({@link Fail}) from a payload and an optional
+ * status (defaults to `400`).
  *
- * @param content - Payload assigned to `content` verbatim.
- * @param options - Optional behavior switches; see {@link ReplyOptions}.
  * @example
  * ```typescript
- * const a = fail({ a: "v1" });
+ * const a = fail({ a: "v1" }); // status 400, success false
  *
- * a.status;  // 400
- * a.success; // false
- *
- * const b = fail({ a: 1 }, { status: 401 });
- *
- * b.status; // 401
+ * const b = fail({ a: 1 }, { status: 401 }); // status 401
  * ```
  */
 export const fail = ((

@@ -4,29 +4,15 @@ import type { StandardSchemaV1 } from "@/utils/types/standard-schema";
 
 /**
  * @module
- * Validator types — the runtime plugin contract used to validate each request
- * slot, the type-level helpers that infer inputs, outputs, and errors from
- * user schemas, and the compiled descriptor stored on the chain.
+ * Validator plugin contract, schema-inference helpers, and the compiled
+ * validator descriptor.
  */
 
 /**
- * Runtime contract every validator adapter (Standard Schema, custom) must
- * satisfy. Registered once on the app and invoked per request slot, it
- * receives the user-supplied schema, the raw incoming value, and the slot
- * key, and returns the validated payload along with a success flag.
+ * Runtime contract every validator adapter must satisfy. Given a schema, the
+ * raw slot value, and the slot key, it returns the validated `content` plus a
+ * `success` flag, sync or async.
  *
- * `content` on success is the parsed value written back onto
- * `context.request[type]`. On failure it is the issue (or issues) folded
- * into the `422` {@link Fail} envelope emitted by the validator step.
- * The function may resolve synchronously or asynchronously — the runtime
- * awaits both paths uniformly through {@link MaybePromise}.
- *
- * @param schema - User-supplied schema for the slot, as registered through
- *   {@link ValidatorOptions}.
- * @param input - Raw value pulled from the request slot before validation.
- * @param type - Slot key being validated; one of the keys of
- *   {@link ValidatorRequest}.
- * @returns A `{ content, success }` pair, possibly wrapped in a promise.
  * @example
  * ```typescript
  * const a: ValidatorPlugin = async (schema, input) => {
@@ -45,13 +31,9 @@ export type ValidatorPlugin = (
 ) => MaybePromise<{ content: unknown; success: boolean }>;
 
 /**
- * Infer the issue type a Standard Schema reports on failure. Schemas that
- * surface a precise issue type through the optional `~types.issue` slot
- * resolve to it; the rest fall back to the spec's generic
- * {@link StandardSchemaV1.Issue} list. Non-schema types pass through
- * unchanged.
+ * Infer the issue type a Standard Schema reports on failure, falling back to
+ * {@link StandardSchemaV1.Issue}`[]`. Non-schema types pass through unchanged.
  *
- * @typeParam Type - Schema (or plain value type) declared for a request slot.
  * @example
  * ```typescript
  * type A = InferValidatorError<SomeSchema>;
@@ -65,11 +47,9 @@ type InferValidatorError<Type> = Type extends StandardSchemaV1
 	: Type;
 
 /**
- * Infer the input type a Standard Schema accepts — the pre-validation
- * payload — via {@link StandardSchemaV1.InferInput}. Non-schema types pass
- * through unchanged.
+ * Infer the input type a Standard Schema accepts via
+ * {@link StandardSchemaV1.InferInput}. Non-schema types pass through unchanged.
  *
- * @typeParam Type - Schema (or plain value type) declared for a request slot.
  * @example
  * ```typescript
  * type A = InferValidatorInput<SomeSchema>;
@@ -81,11 +61,10 @@ type InferValidatorInput<Type> = Type extends StandardSchemaV1
 	: Type;
 
 /**
- * Infer the output type a Standard Schema produces — the parsed,
- * post-validation value — via {@link StandardSchemaV1.InferOutput}.
- * Non-schema types pass through unchanged.
+ * Infer the output type a Standard Schema produces via
+ * {@link StandardSchemaV1.InferOutput}. Non-schema types pass through
+ * unchanged.
  *
- * @typeParam Type - Schema (or plain value type) declared for a request slot.
  * @example
  * ```typescript
  * type A = InferValidatorOutput<SomeSchema>;
@@ -97,14 +76,8 @@ type InferValidatorOutput<Type> = Type extends StandardSchemaV1
 	: Type;
 
 /**
- * Map each request slot in `T` to the issue type its Standard Schema
- * produces. Used to type the per-slot error map carried by the `422`
- * {@link Fail} envelope a validator emits on failure.
+ * Map each request slot in `T` to the issue type its Standard Schema produces.
  *
- * Slots without a schema fall through as their declared value type. The
- * mapping is shallow — only top-level slot keys are walked.
- *
- * @typeParam T - Partial {@link ValidatorRequest} whose slots hold schemas.
  * @example
  * ```typescript
  * type A = DeepInferValidatorError<{ body: SomeSchema; query: SomeSchema }>;
@@ -116,15 +89,10 @@ export type DeepInferValidatorError<T extends object> = {
 };
 
 /**
- * Map each request slot in `T` to the input type its Standard Schema
- * accepts. Drives the `request` shape recorded in the client-facing route
- * tree — the pre-validation payload a caller must send, in contrast to the
- * parsed value handlers receive via {@link DeepInferValidatorOutput}.
+ * Map each request slot in `T` to the input type its Standard Schema accepts —
+ * the pre-validation payload a caller must send, in contrast to
+ * {@link DeepInferValidatorOutput}.
  *
- * Slots without a schema fall through as their declared value type. The
- * mapping is shallow — only top-level slot keys are walked.
- *
- * @typeParam T - Partial {@link ValidatorRequest} whose slots hold schemas.
  * @example
  * ```typescript
  * type A = DeepInferValidatorInput<{ body: SomeSchema }>;
@@ -137,13 +105,8 @@ export type DeepInferValidatorInput<T extends object> = {
 
 /**
  * Map each request slot in `T` to the output type its Standard Schema
- * produces. Drives the type of the validated value written back into
- * `context.request` and consumed by later middlewares, stores, and routes.
+ * produces — the validated value written back into `context.request`.
  *
- * Slots without a schema fall through as their declared value type. The
- * mapping is shallow — only top-level slot keys are walked.
- *
- * @typeParam T - Partial {@link ValidatorRequest} whose slots hold schemas.
  * @example
  * ```typescript
  * type A = DeepInferValidatorOutput<{ body: SomeSchema }>;
@@ -156,17 +119,9 @@ export type DeepInferValidatorOutput<T extends object> = {
 
 /**
  * Wrap a per-slot error map into the `422`-keyed {@link Fail} envelope the
- * validator step emits on failure. Used by the module compiler to fold the
- * validator's contribution into the surrounding error dictionary.
+ * validator step emits on failure. Slots are optional — only failing ones
+ * appear.
  *
- * The content is the per-slot map itself, keyed by request slot (`body`,
- * `query`, …), each slot holding its inferred issues (Standard Schema's
- * `Issue[]` by default). Keys are optional: a single
- * registration aggregates every failing slot, but a slot that validates
- * cleanly is absent from the payload.
- *
- * @typeParam T - Per-slot error map, typically the result of
- *   {@link DeepInferValidatorError}.
  * @example
  * ```typescript
  * type A = TransformValidatorError<{ body: BodyIssues; query: QueryIssues }>;
@@ -178,17 +133,10 @@ export interface TransformValidatorError<T extends object> {
 }
 
 /**
- * Merge two per-slot request maps with right-side precedence. For each slot,
- * if `U` declares a concrete type (not `unknown`) it wins; otherwise `T`'s
- * declaration carries through. Slots that are `unknown` on both sides are
- * dropped so they do not pollute downstream signatures.
+ * Merge two per-slot request maps with right-side precedence: a concrete `U`
+ * slot wins, otherwise `T` carries through. Slots `unknown` on both sides are
+ * dropped.
  *
- * Used by `Module` to thread previously-declared inputs/outputs through new
- * validator and route registrations, so each unit sees the cumulative shape
- * of the request rather than only the slots it touches.
- *
- * @typeParam T - Base per-slot map, usually the parent module's accumulator.
- * @typeParam U - New per-slot map contributed by the current registration.
  * @example
  * ```typescript
  * type A = MergeInferValidatorRequest<
@@ -212,19 +160,10 @@ export type MergeInferValidatorRequest<
 };
 
 /**
- * Shape of the five request slots a validator may operate on. Each generic
- * defaults to `unknown` so a partial declaration can refine only the slots
- * it cares about and leave the rest opaque for later steps to narrow.
+ * Shape of the five request slots a validator may operate on (`body`,
+ * `cookies`, `headers`, `params`, `query`). Each generic defaults to `unknown`
+ * so a partial declaration can refine only the slots it cares about.
  *
- * The same key set drives the runtime: the chain walker iterates the slots a
- * validator declares and writes each parsed value back onto
- * `context.request[slot]`.
- *
- * @typeParam Body - Parsed request body.
- * @typeParam Cookies - Parsed cookie dictionary.
- * @typeParam Headers - Parsed request headers.
- * @typeParam Params - Parsed route parameters.
- * @typeParam Query - Parsed query string.
  * @example
  * ```typescript
  * type A = ValidatorRequest<{ a: string }, unknown, unknown, unknown, { b: number }>;
@@ -246,17 +185,10 @@ export interface ValidatorRequest<
 }
 
 /**
- * Compiled validator descriptor stored on the chain. Produced by
- * `module.validator` (or the per-route `validator` option) from a
- * {@link ValidatorOptions} argument, then consumed by the chain walker
- * at request time.
+ * Compiled {@link ValidatorOptions} descriptor stored on the chain by
+ * `module.validator`, tagged `"VALIDATOR"` so the chain walker can dispatch on
+ * it.
  *
- * `keys` is pre-extracted from `request` so the runtime can iterate slots
- * without rebuilding the array on every request. `type: "VALIDATOR"` is the
- * discriminant the chain walker uses to dispatch on link kind.
- *
- * @typeParam Request - Partial {@link ValidatorRequest} of schemas declared
- *   for this validator.
  * @example
  * ```typescript
  * const a: Validator<{ body: SomeSchema }> = {
@@ -273,9 +205,8 @@ export interface Validator<Request extends Partial<ValidatorRequest>> {
 }
 
 /**
- * Wildcard alias matching any {@link Validator} regardless of its request
- * shape. Reach for it in container or chain types where the concrete schemas
- * are irrelevant — for example, the union of link kinds walked by the chain.
+ * Any {@link Validator} regardless of its request generics. Use it where the
+ * concrete schemas are irrelevant.
  *
  * @example
  * ```typescript
@@ -285,12 +216,9 @@ export interface Validator<Request extends Partial<ValidatorRequest>> {
 export type AnyValidator = Validator<any>;
 
 /**
- * Options accepted by `module.validator` and the per-route `validator`
- * option. Just carries the per-slot schema map; the runtime extracts `keys`
- * and tags `type` when compiling the descriptor.
+ * Options accepted by `module.validator` and the per-route `validator` option,
+ * carrying the per-slot schema map compiled into a {@link Validator}.
  *
- * @typeParam Request - Partial {@link ValidatorRequest} of schemas being
- *   registered.
  * @example
  * ```typescript
  * const a: ValidatorOptions<{ body: SomeSchema }> = {
@@ -303,10 +231,8 @@ export interface ValidatorOptions<Request extends Partial<ValidatorRequest>> {
 }
 
 /**
- * Wildcard alias matching any {@link ValidatorOptions} regardless of its
- * request shape. Used where the concrete schemas are irrelevant — for
- * example, the runtime body of `module.validator`, which only reads
- * `Object.keys(options.request)`.
+ * Any {@link ValidatorOptions} regardless of its request generics. Use it
+ * where the concrete schemas are irrelevant.
  *
  * @example
  * ```typescript
