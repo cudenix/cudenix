@@ -4,26 +4,14 @@
  */
 
 /**
- * Append every element of `source` onto the end of `target`, preserving
- * order. Equivalent to `target.push(...source)` but sidesteps the variadic
- * spread — no per-call argument-count limit, and flat allocation pressure in
- * tight loops.
+ * Append every element of `source` onto the end of `target`, in place.
+ * Equivalent to `target.push(...source)`; nothing is returned.
  *
- * In place — `target` is mutated and nothing is returned. References are
- * shallow-copied. Passing the same array as both `target` and `source`
- * duplicates only the elements that existed before the call.
- *
- * @typeParam T - Element type shared by both arrays.
- * @param target - Array that receives the appended elements. Mutated in
- *   place.
- * @param source - Array whose elements are copied into `target`.
  * @example
  * ```typescript
  * const target = [1, 2];
  *
- * pushAll(target, [3, 4, 5]);
- *
- * target; // [1, 2, 3, 4, 5]
+ * pushAll(target, [3, 4, 5]); // target is now [1, 2, 3, 4, 5]
  * ```
  */
 export const pushAll = <T>(target: T[], source: T[]) => {

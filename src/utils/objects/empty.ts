@@ -4,24 +4,16 @@
  */
 
 /**
- * Allocate a fresh empty dictionary that does not inherit from
- * `Object.prototype`. Use it instead of `{}` for lookup tables — keys like
- * `toString`, `hasOwnProperty`, or `__proto__` resolve to whatever the caller
- * wrote (or `undefined`) instead of leaking inherited methods.
+ * Create a fresh dictionary with no prototype — safe for untrusted keys like
+ * `__proto__` or `toString`. Use it instead of `{}` for lookup tables. Must
+ * be called with `new`.
  *
- * Must be invoked with `new`. Use `Object.hasOwn(instance, key)` or
- * `key in instance` for membership checks since prototype methods are absent.
- * Every instance shares the single mutable `Empty.prototype` — a key written
- * onto it leaks into all instances, so never assign to the prototype.
- *
- * @returns A fresh empty dictionary typed as `Record<PropertyKey, unknown>`.
  * @example
  * ```typescript
- * const a = new Empty();
+ * const dictionary = new Empty();
  *
- * a["b"] = "v1";
- *
- * Object.hasOwn(a, "b"); // true
+ * dictionary["b"] = "v1";
+ * Object.hasOwn(dictionary, "b"); // true
  * ```
  */
 export const Empty = function Empty() {} as unknown as new () => Record<
@@ -32,16 +24,14 @@ export const Empty = function Empty() {} as unknown as new () => Record<
 Empty.prototype = Object.create(null);
 
 /**
- * Reuse a single frozen empty dictionary as a read-only fallback for optional
- * options objects. Skips the per-call `{}` allocation; mutation attempts throw
- * a `TypeError` in strict mode. Built on {@link Empty}, so prototype-free
- * destructuring is safe.
+ * A shared, frozen empty dictionary — a read-only default for optional options
+ * objects, avoiding a per-call `{}` allocation. Built on {@link Empty}.
  *
  * @example
  * ```typescript
  * const fn = ({ a = "v1" }: { a?: string } = FrozenEmpty) => a;
  *
- * fn(); // "v1" — no allocation for the missing argument
+ * fn(); // "v1"
  * ```
  */
 export const FrozenEmpty = Object.freeze(new Empty());

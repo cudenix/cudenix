@@ -4,24 +4,13 @@
  */
 
 /**
- * Pick the keys of `T` that are required at the type level — any key declared
- * with `?`, or whose value type already includes `undefined`, is excluded.
- * Use it to build `Pick`s that drop the optionals, or generate validation
- * rules only for must-provide keys.
+ * Pick the keys of `T` that are required — any key declared with `?`, or whose
+ * type already includes `undefined`, is excluded.
  *
- * - `readonly` does not exclude keys.
- * - Keys typed as `any` are excluded (because `undefined` is assignable to
- *   `any`).
- * - Empty objects resolve to `never`.
- * - A union input is not distributed — `keyof` sees only the keys shared by
- *   every member, so only shared-and-required keys survive.
- *
- * @typeParam T - Object-shaped type whose required keys are extracted.
  * @example
  * ```typescript
  * type A = RequiredKeys<{ a: string; b?: string; c: number | undefined }>; // "a"
- * type B = RequiredKeys<{ readonly a: number; b?: string }>; // "a"
- * type C = RequiredKeys<{ a?: string; b?: number }>; // never
+ * type B = RequiredKeys<{ a?: string; b?: number }>; // never
  * ```
  */
 export type RequiredKeys<T extends object> = {

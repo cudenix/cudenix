@@ -2,47 +2,23 @@ import { Empty } from "@/utils/objects/empty";
 
 /**
  * @module
- * Parse the body of a request into a value chosen by its `Content-Type`.
+ * Parse a request body into a value chosen by its `Content-Type`.
  */
 
 /**
- * Read and parse the body of a `Request`, dispatching on its `Content-Type`
- * header. Use it on the request hot path to materialize the body without
- * branching on the content type by hand at every call site.
+ * Read and parse a `Request` body based on its `Content-Type`: JSON for
+ * `application/json`, an `ArrayBuffer` for `application/octet-stream`, a field
+ * dictionary for form and multipart bodies, and text for anything else.
  *
- * - No `Content-Type` header maps to text (a string).
- * - `application/json` is run through `Request.json` (any JSON value).
- * - `application/octet-stream` is read as an `ArrayBuffer`.
- * - `application/x-www-form-urlencoded` and `multipart/form-data` are read as
- *   form data into a dictionary keyed by field name; a repeated field collapses
- *   into an array in first-seen order, and a `multipart/form-data` file field
- *   keeps its `File` value.
- * - Any other content type maps to text (a string).
- * - A trailing parameter (e.g. `application/json; charset=utf-8`) still matches;
- *   a longer look-alike (e.g. `application/json5`) does not. The `;` must
- *   follow the media type immediately — whitespace before it (allowed by
- *   RFC 9110) falls back to text.
- * - Matching is case-sensitive — only lowercase media types are recognized, so
- *   `APPLICATION/JSON` falls back to text.
- * - The form dictionary is prototype-free (built on {@link Empty}), so field
- *   names like `__proto__` are safe to read.
- *
- * @param request - Request whose body should be consumed and parsed.
- * @returns A promise resolving to the parsed body: a string, a parsed JSON
- *   value, an `ArrayBuffer`, or a form-field dictionary.
  * @example
  * ```typescript
- * const a = new Request("https://a.b/c", {
+ * const request = new Request("https://a.b/c", {
  * 	body: JSON.stringify({ b: "v1" }),
  * 	headers: { "content-type": "application/json" },
  * 	method: "POST",
  * });
  *
- * await parseBody(a); // { b: "v1" }
- *
- * const c = new Request("https://a.b/c", { body: "v1", method: "POST" });
- *
- * await parseBody(c); // "v1"
+ * await parseBody(request); // { b: "v1" }
  * ```
  */
 export const parseBody = async (request: Request) => {

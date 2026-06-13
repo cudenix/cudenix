@@ -11,35 +11,16 @@ const Q_VAL_PLUS = 4;
 const Q_VAL_PCT = 8;
 
 /**
- * Parse the query string of a URL into a dictionary keyed by parameter name.
- * Use it on the request hot path to read query parameters without allocating a
- * `URL` / `URLSearchParams` pair.
+ * Parse a URL's query string into a dictionary keyed by parameter name,
+ * decoding `+` and `%xx`. Repeated keys collapse into an array; a `{...}` or
+ * `[...]` value is parsed as JSON. Returns an empty dictionary when there is
+ * no query string.
  *
- * - Everything up to and including the first `"?"` is skipped; a `"#"` after it
- *   ends parsing. A `"#"` before the first `"?"` is not recognized as a
- *   fragment — pass server-side request targets, which never carry one.
- * - `"+"` becomes a space and `%xx` escapes are decoded in both keys and
- *   values; when a `%xx` escape is malformed, decoding is skipped and the
- *   plus-replaced string is kept instead of throwing.
- * - A value wrapped in `{...}` or `[...]` is run through `JSON.parse`; invalid
- *   JSON falls back to the raw string.
- * - A repeated key collapses into an array in first-seen order.
- * - A key with no `"="` maps to an empty string; entries with an empty key are
- *   skipped.
- * - Always returns a dictionary (never `undefined`); it is empty when the URL
- *   has no `"?"` or yields no usable parameters.
- * - Result is prototype-free (built on {@link Empty}), so names like `__proto__`
- *   are safe to read.
- *
- * @param url - Full URL (or path with query) to read the query string from.
- * @returns Dictionary mapping each parameter name to its parsed value; empty
- *   when there is nothing to parse.
  * @example
  * ```typescript
  * parseQuery("/a?b=v1&c=v2"); // { b: "v1", c: "v2" }
  * parseQuery("/a?b=v1&b=v2"); // { b: ["v1", "v2"] }
  * parseQuery('/a?b={"c":1}'); // { b: { c: 1 } }
- * parseQuery("/a"); // {}
  * ```
  */
 export const parseQuery = (url: string) => {

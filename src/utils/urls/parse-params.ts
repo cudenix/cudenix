@@ -6,45 +6,19 @@ import { Empty } from "@/utils/objects/empty";
  */
 
 /**
- * Read named path parameters from a successful route `RegExpExecArray` into a
- * dictionary keyed by parameter name. Use it on the request hot path to expand
- * the captures of a compiled route pattern (see {@link pathToRegexp}) without
- * rebuilding the name/value mapping by hand.
+ * Read named path parameters from a route match into a dictionary keyed by
+ * name, decoding `%xx` escapes. Rest parameters become arrays of segments; all
+ * others are strings. Returns an empty dictionary when there is no match.
  *
- * - Captures are read in `paramKeys` order starting at `matchOffset + 1`, the
- *   slot after the pattern's leading empty group.
- * - A capture that came back `undefined` (an unmatched optional segment) is
- *   skipped, so its name is absent from the result.
- * - `%xx` escapes are decoded; a value with no `"%"` is taken verbatim, and a
- *   malformed escape is kept verbatim instead of throwing.
- * - A rest parameter (its name is listed in `restKeys`) is decoded and then
- *   split on `"/"` into an array of segments; every other parameter stays a
- *   string. Because the split runs on the decoded value, an encoded `%2F`
- *   also splits — only double encoding (`%252F`) keeps a slash inside one
- *   segment.
- * - Returns an empty dictionary when there is no match or no parameter keys.
- * - Result is prototype-free (built on {@link Empty}), so names like
- *   `__proto__` are safe to read.
- *
- * @param match - Successful `RegExpExecArray` from the route regex, or
- *   `undefined` when the route did not match.
- * @param paramKeys - Parameter names in declaration order, as produced by
- *   {@link pathToRegexp}.
- * @param matchOffset - Index of the pattern's leading empty group; the first
- *   parameter capture sits at `matchOffset + 1`.
- * @param restKeys - Subset of `paramKeys` that are rest parameters and should
- *   be split into segment arrays.
- * @returns Dictionary mapping each parameter name to its decoded value; empty
- *   when there is nothing to read.
+ * @param match - Successful `RegExpExecArray` from the route regex.
+ * @param paramKeys - Parameter names in order, from {@link pathToRegexp}.
+ * @param matchOffset - Index of the pattern's leading empty group.
+ * @param restKeys - The subset of `paramKeys` that are rest parameters.
  * @example
  * ```typescript
- * const a = /^()\/a\/([^/]+)$/.exec("/a/v1")!;
+ * const match = /^()\/a\/([^/]+)$/.exec("/a/v1")!;
  *
- * parseParams(a, ["p1"], 1, []); // { p1: "v1" }
- *
- * const b = /^()\/a\/(.+)$/.exec("/a/b/c")!;
- *
- * parseParams(b, ["r1"], 1, ["r1"]); // { r1: ["b", "c"] }
+ * parseParams(match, ["p1"], 1, []); // { p1: "v1" }
  * ```
  */
 export const parseParams = (

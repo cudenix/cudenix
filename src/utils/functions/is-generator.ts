@@ -9,35 +9,14 @@ const ASYNC_GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(
 );
 
 /**
- * Check whether `fn` was declared as a generator — `function*` or
- * `async function*`. Identity-based against cached prototypes, so the result
- * survives bundler renames.
+ * Check whether `fn` is a generator function — `function*` or
+ * `async function*`. Pass the function itself, not the iterator it returns.
  *
- * Pass the function itself, not the iterator it returns: `isGenerator(gen)`
- * is `true`, but `isGenerator(gen())` is `false`. Sync and async generators
- * are not distinguished — both return `true`. Plain async functions
- * (`async () => {}`) return `false`.
- *
- * The prototype identity carries through wrappers that preserve it — a
- * `bind`ed generator or a default `Proxy` around one still returns `true` —
- * while a generator function from another realm returns `false`.
- *
- * @param fn - Function to inspect.
- * @returns `true` when `fn` is a sync or async generator function.
  * @example
  * ```typescript
  * isGenerator(function* () {}); // true
  * isGenerator(async function* () {}); // true
- * isGenerator(async () => {}); // false
  * isGenerator(() => {}); // false
- *
- * if (isGenerator(fn)) {
- *   for await (const v1 of fn(p1)) {
- *     // consume each yielded value
- *   }
- * } else {
- *   await fn(p1);
- * }
  * ```
  */
 export const isGenerator = (fn: (...args: any[]) => unknown) => {

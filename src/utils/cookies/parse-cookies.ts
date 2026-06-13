@@ -7,29 +7,14 @@ import { Empty } from "@/utils/objects/empty";
 
 /**
  * Parse a `Cookie` request header into a dictionary keyed by cookie name.
- * Use it inside a request handler to look up cookies without pulling in a
- * heavier library.
+ * Values are returned undecoded — run `decodeURIComponent` yourself if needed.
  *
- * - Values are returned undecoded — run `decodeURIComponent` at the call
- *   site if needed.
- * - Last write wins when the header lists the same name more than once.
- * - Entries must be split by `"; "` (browser format); a bare `";"` is not a
- *   separator.
- * - Malformed entries (no `=`, empty name) are skipped silently.
- * - Result is prototype-free (built on {@link Empty}), so names like
- *   `__proto__` are safe to read.
- *
- * @param header - Raw value of the `Cookie` request header. Pass an empty
- *   string when the header is missing.
- * @returns Dictionary mapping each cookie name to its raw, undecoded value.
  * @example
  * ```typescript
- * const a = parseCookies("a=v1; b=v2");
+ * const cookies = parseCookies("a=v1; b=v2");
  *
- * a.a; // "v1"
- * a.b; // "v2"
- *
- * decodeURIComponent(parseCookies("a=a%20b").a); // "a b"
+ * cookies.a; // "v1"
+ * cookies.b; // "v2"
  * ```
  */
 export const parseCookies = (header: string) => {

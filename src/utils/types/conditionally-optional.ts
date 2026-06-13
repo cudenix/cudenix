@@ -1,26 +1,12 @@
 /**
  * @module
- * Relax keys of an object whose value type already admits a given marker —
- * turning explicit `| undefined` (or another sentinel) fields into truly
- * optional ones.
+ * Make keys optional when their value type already admits a given marker.
  */
 
 /**
- * Copy of `T` where every key whose value type accepts `U` is re-declared
- * with `?`. Use it to lift an explicit `| undefined` (or any sentinel) into
- * the optional-key vocabulary so callers can omit the field entirely.
+ * Copy of `T` where every key whose value type accepts `U` becomes optional
+ * (`?`). Use it to turn explicit `| undefined` fields into truly optional ones.
  *
- * The check is "marker fits into value": a field typed as `string` is relaxed
- * by `"v1"`, but a field typed as `"v1"` is not relaxed by `string`. A union
- * marker distributes — a key relaxes when any member fits — and an `any`
- * marker relaxes every key. `readonly` is preserved per promoted key.
- * Unmatched keys pass through untouched. Built for record/object shapes — an
- * array or tuple input collapses to `never` rather than relaxing its indices,
- * so pass a plain object.
- *
- * @typeParam T - Source object whose keys are inspected.
- * @typeParam U - Marker value; keys whose value type accepts it become
- *   optional.
  * @example
  * ```typescript
  * type A = ConditionallyOptional<
@@ -28,9 +14,6 @@
  *   undefined
  * >;
  * // { a: string; b?: string | undefined }
- *
- * type B = ConditionallyOptional<{ a: string | null; b: number }, null>;
- * // { a?: string | null; b: number }
  * ```
  */
 export type ConditionallyOptional<T extends object, U> = {

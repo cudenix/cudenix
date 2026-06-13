@@ -6,28 +6,14 @@ import type { AnyFail, AnyOk } from "@/core/reply";
  */
 
 /**
- * Shape of a single frame yielded by a generator handler that targets the
- * `text/event-stream` protocol. The framework serializes each yielded value
- * into the SSE wire format.
+ * Shape of one frame yielded by a generator handler targeting
+ * `text/event-stream`. `data` is the payload; `event`, `id`, and `retry` are
+ * the optional SSE fields.
  *
- * Fields:
- *
- * - `data` — payload, restricted to {@link AnyFail} or {@link AnyOk} so
- *   the success/error discriminant survives the stream.
- * - `event` — channel name listeners receive on. Defaults to `"message"`.
- * - `id` — replayed in `Last-Event-ID` on reconnect; use it to mark resumable
- *   positions.
- * - `retry` — advised reconnect delay in milliseconds.
- *
- * @typeParam Data - Payload type carried by the frame.
- * @typeParam Event - Literal name of the event channel. Defaults to `"message"`.
  * @example
  * ```typescript
  * type A = GeneratorSSE<AnyOk>;
  * // { data: AnyOk; event?: "message"; id?: string; retry?: number }
- *
- * type B = GeneratorSSE<AnyFail, "v1">;
- * // { data: AnyFail; event?: "v1"; id?: string; retry?: number }
  * ```
  */
 export interface GeneratorSSE<
@@ -41,9 +27,8 @@ export interface GeneratorSSE<
 }
 
 /**
- * Parameter-free alias matching any {@link GeneratorSSE} regardless of payload
- * or event-name parameters. Use in container, registry, or boundary types
- * where the concrete generics are irrelevant.
+ * Any {@link GeneratorSSE} regardless of its payload or event-name type
+ * parameters. Use it where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript

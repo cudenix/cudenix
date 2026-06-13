@@ -6,8 +6,6 @@
 
 /**
  * Strip a single trailing `/` from `Type`, leaving `"/"` itself untouched.
- *
- * @typeParam Type - Path-shaped string literal to normalize.
  */
 type RemoveTrailingSlash<Type extends string> = Type extends "/"
 	? Type
@@ -16,23 +14,15 @@ type RemoveTrailingSlash<Type extends string> = Type extends "/"
 		: Type;
 
 /**
- * Join `Prefix` and `Path` into a single literal type, normalizing the
- * boundary: a single trailing `/` is stripped from each operand, so the
- * child's leading `/` becomes the one separator. Both operands must start
- * with `/`; either may be the root path. Doubled slashes anywhere else
- * (`"/a//"`, `"//"`) are kept as written.
+ * Join `Prefix` and `Path` into one path literal, collapsing the slash on the
+ * boundary so there is exactly one separator between them. Both must start
+ * with `/`.
  *
- * Parameter, rest, and wildcard segments (`:name`, `...name`, `*`) pass
- * through unchanged. Unions distribute pairwise.
- *
- * @typeParam Prefix - Parent prefix. Must start with `/`.
- * @typeParam Path - Child path. Must start with `/`.
  * @example
  * ```typescript
  * type A = MergePaths<"/a", "/b">; // "/a/b"
  * type B = MergePaths<"/a/", "/b/">; // "/a/b"
  * type C = MergePaths<"/", "/b">; // "/b"
- * type D = MergePaths<"/a", "/b/:p1">; // "/a/b/:p1"
  * ```
  */
 export type MergePaths<
