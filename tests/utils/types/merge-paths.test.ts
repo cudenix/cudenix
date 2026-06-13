@@ -89,6 +89,36 @@ describe("MergePaths", () => {
 		});
 	});
 
+	describe("doubled-slash passthrough", () => {
+		it("should keep a doubled slash inside the prefix as written", () => {
+			expectTypeOf<
+				MergePaths<"/a//b", "/c">
+			>().toEqualTypeOf<"/a//b/c">();
+		});
+
+		it("should keep a doubled slash inside the path as written", () => {
+			expectTypeOf<
+				MergePaths<"/a", "/b//c">
+			>().toEqualTypeOf<"/a/b//c">();
+		});
+
+		it("should strip only one slash from a doubled trailing slash on the prefix", () => {
+			expectTypeOf<MergePaths<"/a//", "/b">>().toEqualTypeOf<"/a//b">();
+		});
+
+		it("should strip only one slash from a doubled trailing slash on the path", () => {
+			expectTypeOf<MergePaths<"/a", "/b//">>().toEqualTypeOf<"/a/b/">();
+		});
+
+		it("should keep the doubled slash of a slashes-only prefix", () => {
+			expectTypeOf<MergePaths<"//", "/b">>().toEqualTypeOf<"//b">();
+		});
+
+		it("should reduce a slashes-only path to a trailing slash on the prefix", () => {
+			expectTypeOf<MergePaths<"/a", "//">>().toEqualTypeOf<"/a/">();
+		});
+	});
+
 	describe("structural relations", () => {
 		describe("union distribution", () => {
 			it("should distribute over a union of prefixes", () => {
