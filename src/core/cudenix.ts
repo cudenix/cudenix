@@ -73,7 +73,7 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
  *     static: false,
  *     type: "ROUTE",
  *   },
- *   router: "cudenix",
+ *   router: "bun",
  *   sse: false,
  * };
  * ```
@@ -100,13 +100,14 @@ export interface Endpoint {
  *
  * - `endpoints` — every endpoint registered under the method, in match order.
  * - `regexp` — the merged pattern matched against the request URL; a hit
- *   means one of the endpoints applies.
+ *   means one of the endpoints applies. Literal path characters appear
+ *   `RegExp.escape`-escaped, so the leading `a` of `/a` shows up as `\x61`.
  *
  * @example
  * ```typescript
  * const a: MethodData = {
  *   endpoints: [],
- *   regexp: /^(https?:\/\/)[^\s\/]+(()\/a)(?![^?#])/,
+ *   regexp: /^(https?:\/\/)[^\s\/]+(()\/\x61)(?![^?#])/,
  * };
  * ```
  */
@@ -292,9 +293,11 @@ Cudenix.prototype.compile = function (this: Cudenix) {
  * Resolve a request to a `Response`. Looks up the {@link MethodData} for the
  * request method, matches the URL against its merged regexp, then walks the
  * candidate {@link Endpoint}s to find the one whose capture group fired and
- * dispatches its chain. The compiled-but-direct Bun route table handles
- * static paths separately, so this path serves the dynamic and fallback
- * matches.
+ * dispatches its chain. Inside a live `Bun.serve`, its own `routes` table
+ * intercepts the statically-matchable paths before this handler runs, so there
+ * it mainly serves the dynamic and fallback matches; called directly, `.fetch()`
+ * matches every compiled endpoint — static-enough ones included — through the
+ * merged regexp.
  *
  * Returns a clone of the shared `404` response whenever the method is
  * unknown, the URL matches nothing, or no endpoint claims the match.
@@ -356,12 +359,17 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
  * Compile the app and start serving it through `Bun.serve`. Wires the app's
  * own `.fetch()` and `routes` table into the server, defaulting to
  * `development: false` and `reusePort: true` — both overridable through
- * `options`. Registers a `beforeExit` hook that stops the server on shutdown,
- * then runs a one-off `Bun.gc()` pass now that startup is done.
+ * `options`. Registers a `beforeExit` hook that stops the server once the event
+ * loop drains and the process is about to exit on its own; note this does not
+ * fire on a signal-driven shutdown (`SIGINT`/`SIGTERM`) or `process.exit()`.
+ * Then runs a one-off `Bun.gc()` pass now that startup is done.
  *
- * `fetch` and `unix` are excluded from `options` because the app supplies its
- * own request handler. The returned reference drops `.listen()` so it cannot
- * be started twice.
+ * `fetch` is excluded from `options` because the app supplies its own request
+ * handler, and `unix` because `.listen()` always binds a port-based `routes`
+ * server, which is incompatible with unix-socket binding. The returned
+ * reference is typed to omit `.listen()`, so the type checker blocks starting
+ * it twice — at run time the method is still present and a second call throws,
+ * since `.compile()` is one-shot.
  *
  * @param options - Extra `Bun.serve` options merged over the defaults, minus
  *   `fetch` and `unix`.
