@@ -76,6 +76,19 @@ describe("usage: routing", () => {
 			expect(await result.text()).toBe("v1");
 		});
 
+		it("should ignore a URL fragment when matching a path", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", () => ok("v1")),
+			);
+
+			const result = await server.app.fetch(
+				new Request(`${server.url("/a")}#frag`),
+			);
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v1");
+		});
+
 		it("should 404 a request that extends past a registered path", async () => {
 			using server = serveApp(
 				new Module().route("GET", "/a", () => ok("v1")),
@@ -447,6 +460,42 @@ describe("usage: routing", () => {
 		});
 	});
 
+	describe("mixed segments", () => {
+		it("should match a rest param followed by a trailing literal segment", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a/...r1/b", () => ok("v1")),
+			);
+
+			const single = await server.fetch("/a/1/b");
+			const deep = await server.fetch("/a/1/2/b");
+			const ignoresQuery = await server.fetch("/a/1/b?x=1");
+			const bare = await server.fetch("/a/b");
+			const overshoot = await server.fetch("/a/1/b/c");
+
+			expect(single.status).toBe(200);
+			expect(deep.status).toBe(200);
+			expect(ignoresQuery.status).toBe(200);
+			expect(bare.status).toBe(404);
+			expect(overshoot.status).toBe(404);
+		});
+
+		it("should match a param segment followed by a rest segment", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a/:p1/...r2", () => ok("v1")),
+			);
+
+			const single = await server.fetch("/a/1/2");
+			const deep = await server.fetch("/a/1/2/3");
+			const missingRest = await server.fetch("/a/1");
+			const bare = await server.fetch("/a");
+
+			expect(single.status).toBe(200);
+			expect(deep.status).toBe(200);
+			expect(missingRest.status).toBe(404);
+			expect(bare.status).toBe(404);
+		});
+	});
+
 	describe("precedence", () => {
 		it("should prefer a static route over a param route for its literal segment", async () => {
 			using server = serveApp(
@@ -516,6 +565,46 @@ describe("usage: routing", () => {
 
 			expect(await served.text()).toBe("first");
 			expect(await fallback.text()).toBe("first");
+		});
+
+		it("should prefer a static route over a wildcard regardless of registration order", async () => {
+			using wildFirst = serveApp(
+				new Module()
+					.route("GET", "/a/*", () => ok("wild"))
+					.route("GET", "/a/b", () => ok("static")),
+			);
+			using staticFirst = serveApp(
+				new Module()
+					.route("GET", "/a/b", () => ok("static"))
+					.route("GET", "/a/*", () => ok("wild")),
+			);
+
+			expect(await (await wildFirst.fetch("/a/b")).text()).toBe("static");
+			expect(await (await staticFirst.fetch("/a/b")).text()).toBe(
+				"static",
+			);
+			expect(await (await wildFirst.fetch("/a/c")).text()).toBe("wild");
+		});
+
+		it("should prefer a param route over a wildcard for a single segment regardless of registration order", async () => {
+			using paramFirst = serveApp(
+				new Module()
+					.route("GET", "/a/:p1", () => ok("param"))
+					.route("GET", "/a/*", () => ok("wild")),
+			);
+			using wildFirst = serveApp(
+				new Module()
+					.route("GET", "/a/*", () => ok("wild"))
+					.route("GET", "/a/:p1", () => ok("param")),
+			);
+
+			expect(await (await paramFirst.fetch("/a/1")).text()).toBe("param");
+			expect(await (await wildFirst.fetch("/a/1")).text()).toBe("param");
+
+			const multi = await paramFirst.fetch("/a/1/2");
+
+			expect(multi.status).toBe(200);
+			expect(await multi.text()).toBe("wild");
 		});
 	});
 

@@ -240,6 +240,25 @@ describe("usage: groups", () => {
 			expect(result.status).toBe(200);
 			expect(await result.text()).toBe("v1");
 		});
+
+		it("should apply the group's own middleware to a module mounted inside the group", async () => {
+			using server = serveApp(
+				new Module().group(
+					(module) =>
+						module
+							.middleware(() => fail("blocked", { status: 403 }))
+							.mount(
+								new Module().route("GET", "/a", () => ok("v1")),
+							),
+					{ prefix: "/v1" },
+				),
+			);
+
+			const result = await server.fetch("/v1/a");
+
+			expect(result.status).toBe(403);
+			expect(await result.text()).toBe("blocked");
+		});
 	});
 
 	describe("nesting", () => {
@@ -351,6 +370,32 @@ describe("usage: groups", () => {
 
 			expect(await first.text()).toBe("v1");
 			expect(await second.text()).toBe("v2");
+		});
+
+		it("should keep one group's middleware from leaking to a sibling group sharing its prefix", async () => {
+			using server = serveApp(
+				new Module()
+					.group(
+						(module) =>
+							module
+								.middleware(() =>
+									fail("blocked", { status: 403 }),
+								)
+								.route("GET", "/a", () => ok("v1")),
+						{ prefix: "/v1" },
+					)
+					.group(
+						(module) => module.route("GET", "/b", () => ok("v2")),
+						{ prefix: "/v1" },
+					),
+			);
+
+			const denied = await server.fetch("/v1/a");
+			const allowed = await server.fetch("/v1/b");
+
+			expect(denied.status).toBe(403);
+			expect(allowed.status).toBe(200);
+			expect(await allowed.text()).toBe("v2");
 		});
 
 		it("should keep one group's middleware from affecting a sibling group", async () => {
@@ -597,6 +642,55 @@ describe("usage: groups", () => {
 			expect(await grouped.text()).toBe("v1");
 			expect(await sibling.text()).toBe("v2");
 			expect(events).toEqual(["store"]);
+		});
+
+		it("should run a parent store declared before the group exactly once for a grouped route", async () => {
+			const events: string[] = [];
+
+			using server = serveApp(
+				new Module()
+					.store(() => {
+						events.push("store");
+
+						return { a: "v1" };
+					})
+					.group(
+						(module) =>
+							module.route("GET", "/a", (context) =>
+								ok(context.store.a),
+							),
+						{ prefix: "/v1" },
+					),
+			);
+
+			const result = await server.fetch("/v1/a");
+
+			expect(await result.text()).toBe("v1");
+			expect(events).toEqual(["store"]);
+		});
+
+		it("should keep a group store key off a parent route declared after the group", async () => {
+			using server = serveApp(
+				new Module()
+					.group(
+						(module) =>
+							module
+								.store(() => ({ a: "v1" }))
+								.route("GET", "/a", (context) =>
+									ok(context.store.a),
+								),
+						{ prefix: "/v1" },
+					)
+					.route("GET", "/b", (context) =>
+						ok("a" in context.store ? "present" : "absent"),
+					),
+			);
+
+			const grouped = await server.fetch("/v1/a");
+			const sibling = await server.fetch("/b");
+
+			expect(await grouped.text()).toBe("v1");
+			expect(await sibling.text()).toBe("absent");
 		});
 	});
 

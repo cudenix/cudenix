@@ -332,6 +332,58 @@ describe("usage: middlewares", () => {
 			expect(result.status).toBe(200);
 			expect(await result.text()).toBe("outer");
 		});
+
+		it("should recover a downstream store short-circuit from a wrapping middleware after next", async () => {
+			using server = serveApp(
+				new Module()
+					.middleware(async (context, next) => {
+						await next();
+
+						const content = context.response.content;
+
+						if (content instanceof Reply && !content.success) {
+							return ok("recovered");
+						}
+					})
+					.store(() => fail("blocked", { status: 403 }))
+					.route("GET", "/a", () => ok("inner")),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("recovered");
+		});
+
+		it("should not override a downstream fail when the middleware returns its next call", async () => {
+			using server = serveApp(
+				new Module()
+					.middleware((_, next) => next())
+					.route("GET", "/a", () => fail("inner", { status: 500 })),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(500);
+			expect(await result.text()).toBe("inner");
+		});
+
+		it("should override the handler with an ok carrying a falsy payload after next", async () => {
+			using server = serveApp(
+				new Module()
+					.middleware(async (_, next) => {
+						await next();
+
+						return ok("");
+					})
+					.route("GET", "/a", () => ok("inner")),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("");
+		});
 	});
 
 	describe("thrown errors", () => {

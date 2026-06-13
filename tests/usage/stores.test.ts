@@ -151,6 +151,20 @@ describe("usage: stores", () => {
 			expect(result.status).toBe(200);
 			expect(await result.text()).toBe("v1");
 		});
+
+		it("should leave the store unchanged when a store returns an empty object", async () => {
+			using server = serveApp(
+				new Module()
+					.store(() => ({ a: "v1" }))
+					.store(() => ({}))
+					.route("GET", "/a", (context) => ok(context.store.a)),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v1");
+		});
 	});
 
 	describe("ordering", () => {
@@ -250,6 +264,26 @@ describe("usage: stores", () => {
 
 			expect(result.status).toBe(400);
 			expect(events).toEqual(["first"]);
+		});
+
+		it("should collapse a fail with null content to 204, dropping the status and skipping the handler", async () => {
+			let ran = false;
+
+			using server = serveApp(
+				new Module()
+					.store(() => fail(null, { status: 401 }))
+					.route("GET", "/a", () => {
+						ran = true;
+
+						return ok("v1");
+					}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(204);
+			expect(await result.text()).toBe("");
+			expect(ran).toBe(false);
 		});
 	});
 
@@ -468,6 +502,28 @@ describe("usage: stores", () => {
 
 			expect(await first.text()).toBe("v1");
 			expect(await second.text()).toBe("v1");
+		});
+
+		it("should share a nested object returned by reference across requests", async () => {
+			const shared = { nested: { a: "v1" } };
+
+			using server = serveApp(
+				new Module()
+					.store(() => shared)
+					.route("GET", "/a", (context) => {
+						const before = context.store.nested.a;
+
+						context.store.nested.a = "v2";
+
+						return ok(before);
+					}),
+			);
+
+			const first = await server.fetch("/a");
+			const second = await server.fetch("/a");
+
+			expect(await first.text()).toBe("v1");
+			expect(await second.text()).toBe("v2");
 		});
 	});
 });

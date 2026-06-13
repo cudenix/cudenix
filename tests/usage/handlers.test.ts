@@ -86,4 +86,23 @@ describe("usage: handlers", () => {
 			expect(await fnResult.text()).toBe(await staticResult.text());
 		});
 	});
+
+	describe("generator handler", () => {
+		it("should not stream a generator handler yet (migration gap)", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", async function* () {
+					yield { data: ok("frame1") };
+					yield { data: ok("frame2") };
+
+					return ok("final");
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(204);
+			expect(result.headers.get("content-type")).toBeNull();
+			expect(await result.text()).toBe("");
+		});
+	});
 });

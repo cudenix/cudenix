@@ -221,6 +221,42 @@ describe("usage: mounts", () => {
 			expect(await nested.text()).toBe("v1");
 			expect(bare.status).toBe(404);
 		});
+
+		it("should bleed a deeply nested mount's composed prefix onto a later sibling", async () => {
+			using server = serveApp(
+				new Module()
+					.mount(
+						new Module({ prefix: "/v1" }).mount(
+							new Module({ prefix: "/v2" }),
+						),
+					)
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			const nested = await server.fetch("/v1/v2/a");
+			const partial = await server.fetch("/v1/a");
+			const bare = await server.fetch("/a");
+
+			expect(nested.status).toBe(200);
+			expect(await nested.text()).toBe("v1");
+			expect(partial.status).toBe(404);
+			expect(bare.status).toBe(404);
+		});
+
+		it("should bleed a param-segment mounted prefix onto a later sibling", async () => {
+			using server = serveApp(
+				new Module()
+					.mount(new Module({ prefix: "/v1/:p1" }))
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			const hit = await server.fetch("/v1/1/a");
+			const miss = await server.fetch("/v1/a");
+
+			expect(hit.status).toBe(200);
+			expect(await hit.text()).toBe("v1");
+			expect(miss.status).toBe(404);
+		});
 	});
 
 	describe("nesting", () => {
@@ -367,6 +403,46 @@ describe("usage: mounts", () => {
 
 			expect(result.status).toBe(403);
 			expect(await result.text()).toBe("blocked");
+		});
+
+		it("should run a bubbled mount middleware around a parent middleware declared after the mount", async () => {
+			const events: string[] = [];
+
+			using server = serveApp(
+				new Module()
+					.mount(
+						new Module().middleware(async (_, next) => {
+							events.push("mount:before");
+
+							await next();
+
+							events.push("mount:after");
+						}),
+					)
+					.middleware(async (_, next) => {
+						events.push("after:before");
+
+						await next();
+
+						events.push("after:after");
+					})
+					.route("GET", "/a", () => {
+						events.push("handler");
+
+						return ok("v1");
+					}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(events).toEqual([
+				"mount:before",
+				"after:before",
+				"handler",
+				"after:after",
+				"mount:after",
+			]);
 		});
 	});
 
