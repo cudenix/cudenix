@@ -49,7 +49,7 @@ import type { ValueOf } from "@/utils/types/value-of";
 /**
  * @module
  * Fluent module builder that gathers groups, middlewares, stores, validators,
- * and routes into a chain the compiler later flattens into endpoints.
+ * and routes.
  */
 
 /**
@@ -410,8 +410,7 @@ export const Module = function (
 } as unknown as ModuleConstructor;
 
 /**
- * Add a nested group whose links stay scoped to it while its routes merge
- * into the parent under `prefix`. Returns the module, for chaining.
+ * Add a nested group to the module. Returns the module, for chaining.
  *
  * @example
  * ```typescript
@@ -451,9 +450,7 @@ Module.prototype.middleware = function (
 };
 
 /**
- * Mount another module; its routes nest under this module's prefix and its
- * errors, stores, successes, and validators merge into the parent. Returns
- * the module, for chaining.
+ * Mount another module. Returns the module, for chaining.
  *
  * @example
  * ```typescript

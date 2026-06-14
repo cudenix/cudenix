@@ -9,8 +9,8 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
  * Callable shape of a `.store()` step. Receives a {@link DeveloperContext} and
- * returns either a record merged into `context.store` or an {@link AnyFail}
- * that halts the chain. May be sync or async.
+ * returns either a record merged into `context.store` or an {@link AnyFail}.
+ * May be sync or async.
  *
  * @example
  * ```typescript
@@ -41,8 +41,7 @@ export type StoreFn<
 export type AnyStoreFn = StoreFn<any, any, any>;
 
 /**
- * Compiled {@link StoreFn} descriptor stored on the chain by `module.store`,
- * tagged `"STORE"`.
+ * Compiled {@link StoreFn} descriptor tagged `"STORE"`.
  *
  * @example
  * ```typescript

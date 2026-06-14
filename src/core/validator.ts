@@ -9,8 +9,7 @@ import type { StandardSchemaV1 } from "@/utils/types/standard-schema";
  */
 
 /**
- * Runtime contract every validator adapter must satisfy, returning the
- * validated `content` plus a `success` flag.
+ * Runtime contract every validator adapter must satisfy.
  *
  * @example
  * ```typescript
@@ -88,9 +87,7 @@ export type DeepInferValidatorError<T extends object> = {
 };
 
 /**
- * Map each request slot in `T` to the input type its Standard Schema accepts —
- * the pre-validation payload a caller must send, in contrast to
- * {@link DeepInferValidatorOutput}.
+ * Map each request slot in `T` to the input type its Standard Schema accepts.
  *
  * @example
  * ```typescript
@@ -104,7 +101,7 @@ export type DeepInferValidatorInput<T extends object> = {
 
 /**
  * Map each request slot in `T` to the output type its Standard Schema
- * produces — the validated value written back into `context.request`.
+ * produces.
  *
  * @example
  * ```typescript
@@ -117,9 +114,7 @@ export type DeepInferValidatorOutput<T extends object> = {
 };
 
 /**
- * Wrap a per-slot error map into the `422`-keyed {@link Fail} envelope the
- * validator step emits on failure. Slots are optional — only failing ones
- * appear.
+ * Wrap a per-slot error map into the `422`-keyed {@link Fail} envelope.
  *
  * @example
  * ```typescript
@@ -181,8 +176,7 @@ export interface ValidatorRequest<
 }
 
 /**
- * Compiled {@link ValidatorOptions} descriptor stored on the chain by
- * `module.validator`, tagged `"VALIDATOR"`.
+ * Compiled {@link ValidatorOptions} descriptor, tagged `"VALIDATOR"`.
  *
  * @example
  * ```typescript
@@ -211,8 +205,7 @@ export interface Validator<Request extends Partial<ValidatorRequest>> {
 export type AnyValidator = Validator<any>;
 
 /**
- * Options accepted by `module.validator` and the per-route `validator` option,
- * carrying the per-slot schema map compiled into a {@link Validator}.
+ * Options accepted by `module.validator` and the per-route `validator` option.
  *
  * @example
  * ```typescript

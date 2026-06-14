@@ -57,8 +57,7 @@ export type GroupFn<Module extends AnyModule, Return extends AnyModule> = (
 export type AnyGroupFn = GroupFn<any, any>;
 
 /**
- * Compiled {@link GroupFn} descriptor stored on the chain by `module.group`,
- * tagged `"GROUP"`.
+ * Compiled {@link GroupFn} descriptor tagged `"GROUP"`.
  *
  * @example
  * ```typescript

@@ -52,8 +52,7 @@ export type MiddlewareFn<
 export type AnyMiddlewareFn = MiddlewareFn<any, any, any>;
 
 /**
- * Compiled {@link MiddlewareFn} descriptor stored on the chain by
- * `module.middleware`, tagged `"MIDDLEWARE"`.
+ * Compiled {@link MiddlewareFn} descriptor tagged `"MIDDLEWARE"`.
  *
  * @example
  * ```typescript

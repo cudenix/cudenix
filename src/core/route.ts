@@ -21,8 +21,7 @@ import type { Merge } from "@/utils/types/merge";
 
 /**
  * Lift a slash-separated `Path` literal into a nested record whose deepest
- * leaf carries `Value`. Used by {@link ParseRoute} to build the type-side
- * route tree.
+ * leaf carries `Value`.
  *
  * @example
  * ```typescript
@@ -234,7 +233,6 @@ export type AnyRouteFn = RouteFn<any, any, any, any>;
 
 /**
  * Compiled route descriptor stored on the chain, tagged `type: "ROUTE"`.
- * Holds the route metadata and the normalized handler.
  *
  * @example
  * ```typescript

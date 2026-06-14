@@ -4,8 +4,7 @@ import { Empty } from "@/utils/objects/empty";
 
 /**
  * @module
- * Per-request Context threaded through every chain link, plus its
- * developer-facing view.
+ * Per-request Context plus its developer-facing view.
  */
 
 /**
@@ -55,8 +54,7 @@ export interface ContextResponse {
 }
 
 /**
- * Per-request state holding the matched endpoint and framework bookkeeping
- * alongside the fields exposed via {@link DeveloperContext}.
+ * Per-request state holding the matched endpoint and framework bookkeeping.
  *
  * @example
  * ```typescript

@@ -15,7 +15,7 @@ import type { HttpMethod } from "@/utils/types/http-method";
  */
 
 /**
- * The inherited {@link Chain} and path prefix passed into `flatten`.
+ * The inherited {@link Chain} and path prefix.
  */
 interface FlattenInherited {
 	chain: Chain;
@@ -24,7 +24,7 @@ interface FlattenInherited {
 
 /**
  * Flatten a module subtree into `endpoints`, keyed by HTTP method. Returns
- * the chain and path this subtree folds back into its parent.
+ * the chain and path of this subtree.
  */
 const flatten = (
 	endpoints: Record<HttpMethod, Endpoint[]>,
@@ -113,7 +113,7 @@ const flatten = (
 
 /**
  * Compile a {@link Cudenix} app's module tree into its runtime routing
- * tables on `app.methods` and `app.routes`. Backs `app.compile()`.
+ * tables on `app.methods` and `app.routes`.
  *
  * @example
  * ```typescript

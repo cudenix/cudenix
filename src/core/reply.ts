@@ -10,8 +10,7 @@ import type { ExtractContent } from "@/utils/types/extract-content";
 /**
  * Response envelope returned by middlewares, stores, validators, and route
  * handlers, with `success` as the discriminant between the success and error
- * directions. Build one with the {@link ok} / {@link fail} factories;
- * {@link Fail} and {@link Ok} are the directional aliases.
+ * directions.
  *
  * @example
  * ```typescript
@@ -47,7 +46,7 @@ export type AnyReply = Reply<any, any, any>;
 
 /**
  * Error direction of a {@link Reply} — discriminant fixed to `false`, status
- * defaulting to `400`. Build one with {@link fail}.
+ * defaulting to `400`.
  *
  * @example
  * ```typescript
@@ -66,7 +65,7 @@ export type Fail<Content, Status extends number = 400> = Reply<
 
 /**
  * Success direction of a {@link Reply} — discriminant fixed to `true`, status
- * defaulting to `200`. Build one with {@link ok}.
+ * defaulting to `200`.
  *
  * @example
  * ```typescript
@@ -170,8 +169,7 @@ export interface ReplyOptions<Status extends number = number> {
 export type AnyReplyOptions = ReplyOptions<any>;
 
 /**
- * Constructor signature of {@link Reply}. Prefer {@link ok} / {@link fail}
- * over invoking it directly.
+ * Constructor signature of {@link Reply}.
  *
  * @example
  * ```typescript
@@ -191,7 +189,6 @@ export interface ReplyConstructor {
 
 /**
  * Constructor for a {@link Reply} envelope; must be invoked with `new`.
- * Prefer the {@link ok} / {@link fail} factories.
  *
  * @example
  * ```typescript

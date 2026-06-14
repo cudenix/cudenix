@@ -20,8 +20,8 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 const NOT_FOUND = new Response(undefined, { status: 404 });
 
 /**
- * Flattened list of middlewares, stores, and validators a single
- * {@link Endpoint} walks per request, inherited from its enclosing modules.
+ * Flattened list of middlewares, stores, and validators for a single
+ * {@link Endpoint}.
  *
  * @example
  * ```typescript
@@ -32,8 +32,7 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 
 /**
  * Compiled endpoint descriptor — one fully-resolved {@link AnyRoute} plus
- * everything the dispatcher needs to match a URL against it and run it.
- * Grouped under its HTTP method in {@link MethodData}.
+ * everything needed to match a URL against it and run it.
  *
  * @example
  * ```typescript
@@ -70,8 +69,8 @@ export interface Endpoint {
 }
 
 /**
- * Per-method routing table read by `.fetch()`: the {@link Endpoint}s for one
- * HTTP method and the merged `regexp` matched against the request URL.
+ * Per-method routing table: the {@link Endpoint}s for one HTTP method and the
+ * merged `regexp` matched against the request URL.
  *
  * @example
  * ```typescript
@@ -88,7 +87,7 @@ export interface MethodData {
 
 /**
  * Setup hook registered through `.plugins()`, run once during `.compile()`
- * with `this` bound to the {@link Cudenix} app so it can read or seed `memory`.
+ * with `this` bound to the {@link Cudenix} app.
  *
  * @example
  * ```typescript
@@ -100,8 +99,7 @@ export interface MethodData {
 export type Plugin = (...options: any[]) => void;
 
 /**
- * Options accepted by the {@link Cudenix} constructor. `jit` sets the app-wide
- * default for per-route JIT compilation (defaults to `true`).
+ * Options accepted by the {@link Cudenix} constructor.
  *
  * @example
  * ```typescript
@@ -114,8 +112,7 @@ export interface CudenixOptions {
 
 /**
  * Public shape of a Cudenix application instance — the methods that compile,
- * serve, and extend the app plus the run-time state the dispatcher reads.
- * Built with `new Cudenix(module)`.
+ * serve, and extend the app plus its run-time state.
  *
  * @example
  * ```typescript
@@ -270,9 +267,8 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 };
 
 /**
- * Compile the app and start serving it through `Bun.serve`, defaulting to
- * `development: false` and `reusePort: true` (both overridable). Returns the
- * same app, narrowed to omit `.listen()`.
+ * Compile the app and start serving it through `Bun.serve`. Returns the same
+ * app, narrowed to omit `.listen()`.
  *
  * @example
  * ```typescript
@@ -311,8 +307,7 @@ Cudenix.prototype.listen = function (
 
 /**
  * Register {@link Plugin} setup hooks to run during the next `.compile()`.
- * Repeated calls accumulate, and hooks fire in registration order. Returns the
- * same app, for chaining.
+ * Returns the same app, for chaining.
  *
  * @example
  * ```typescript
