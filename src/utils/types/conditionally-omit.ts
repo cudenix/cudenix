@@ -1,9 +1,4 @@
 /**
- * @module
- * Drop keys from an object type when their value type matches a marker.
- */
-
-/**
  * Union of keys in `T` whose value type is mutually assignable with `U`.
  */
 type OmitKeys<T extends object, U> = {

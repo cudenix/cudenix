@@ -14,12 +14,6 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 import type { Merge } from "@/utils/types/merge";
 
 /**
- * @module
- * Route types — handler signatures, the compiled descriptor, and the helpers
- * that lift a route declaration into the client-facing route tree.
- */
-
-/**
  * Lift a slash-separated `Path` literal into a nested record whose deepest
  * leaf carries `Value`.
  *

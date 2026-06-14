@@ -1,11 +1,6 @@
 import { Empty } from "@/utils/objects/empty";
 
 /**
- * @module
- * Parse a request body into a value chosen by its `Content-Type`.
- */
-
-/**
  * Read and parse a `Request` body by its `Content-Type`: parsed JSON,
  * an `ArrayBuffer`, a field dictionary for form bodies, or text.
  *

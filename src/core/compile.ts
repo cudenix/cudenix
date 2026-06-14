@@ -10,11 +10,6 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 
 /**
- * @module
- * Compile a Cudenix app's module tree into its runtime routing tables.
- */
-
-/**
  * The inherited {@link Chain} and path prefix.
  */
 interface FlattenInherited {

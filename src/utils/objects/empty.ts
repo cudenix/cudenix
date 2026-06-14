@@ -1,9 +1,4 @@
 /**
- * @module
- * Prototype-less empty object factory for safe dictionary use.
- */
-
-/**
  * Create a fresh dictionary with no prototype — safe for untrusted keys like
  * `__proto__` or `toString`. Use it instead of `{}` for lookup tables. Must
  * be called with `new`.

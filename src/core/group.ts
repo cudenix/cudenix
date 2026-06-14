@@ -1,12 +1,6 @@
 import type { AnyModule } from "@/core/module";
 
 /**
- * @module
- * Group chain link — scopes a sub-module so links added inside it affect only
- * its own routes.
- */
-
-/**
  * Options accepted by `module.group`. The optional `prefix` must start with
  * `/`.
  *

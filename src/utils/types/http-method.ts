@@ -1,9 +1,4 @@
 /**
- * @module
- * HTTP method literals plus an open string brand for custom verbs.
- */
-
-/**
  * Union of the common HTTP verbs and any other string, allowing custom
  * verbs like `"PURGE"`.
  *

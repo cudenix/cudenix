@@ -2,12 +2,6 @@ import { FrozenEmpty } from "@/utils/objects/empty";
 import type { ExtractContent } from "@/utils/types/extract-content";
 
 /**
- * @module
- * Response envelope (`Reply`) with its `ok` / `fail` factories and the
- * `MergeReplies` type helper.
- */
-
-/**
  * Response envelope returned by middlewares, stores, validators, and route
  * handlers, with `success` as the discriminant between the success and error
  * directions.

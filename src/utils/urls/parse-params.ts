@@ -1,11 +1,6 @@
 import { Empty } from "@/utils/objects/empty";
 
 /**
- * @module
- * Parse route path parameters out of a successful URL match.
- */
-
-/**
  * Read named path parameters from a route match into a dictionary keyed by
  * name. Rest parameters become arrays of segments, all others are strings.
  * Returns an empty dictionary when there is no match.

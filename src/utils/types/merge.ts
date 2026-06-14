@@ -1,10 +1,4 @@
 /**
- * @module
- * Type-level shallow merge — overlay an overrides type onto a base type,
- * mirroring the key-copy semantics of the runtime object merge.
- */
-
-/**
  * Keys of `U` that are certainly present. Only these replace the base
  * declaration wholesale.
  */

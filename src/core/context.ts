@@ -3,11 +3,6 @@ import type { AnyFail, AnyOk } from "@/core/reply";
 import { Empty } from "@/utils/objects/empty";
 
 /**
- * @module
- * Per-request Context plus its developer-facing view.
- */
-
-/**
  * Developer-facing view of {@link Context} handed to middlewares, stores,
  * validators, and route handlers.
  *

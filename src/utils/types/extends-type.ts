@@ -1,9 +1,4 @@
 /**
- * @module
- * Bidirectional type-level mutual-assignability probe.
- */
-
-/**
  * Resolve to `true` when `T` and `U` are mutually assignable, else `false`.
  * Use it when `T extends U` is too permissive — e.g. to tell a literal from
  * its widened primitive.

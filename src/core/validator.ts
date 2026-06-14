@@ -3,12 +3,6 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 import type { StandardSchemaV1 } from "@/utils/types/standard-schema";
 
 /**
- * @module
- * Validator plugin contract, schema-inference helpers, and the compiled
- * validator descriptor.
- */
-
-/**
  * Runtime contract every validator adapter must satisfy.
  *
  * @example

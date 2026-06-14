@@ -1,10 +1,4 @@
 /**
- * @module
- * Concatenate two route fragments at the type level, normalizing the slash
- * on the boundary.
- */
-
-/**
  * Strip a single trailing `/` from `Type`, leaving `"/"` itself untouched.
  */
 type RemoveTrailingSlash<Type extends string> = Type extends "/"

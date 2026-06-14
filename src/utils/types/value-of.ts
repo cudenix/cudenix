@@ -1,10 +1,4 @@
 /**
- * @module
- * Type-level counterpart to `Object.values` — collapse an object type into
- * the union of its value types.
- */
-
-/**
  * Union of every value type in `T`. The value-side counterpart to `keyof T`.
  *
  * @example

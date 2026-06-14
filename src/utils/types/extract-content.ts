@@ -1,9 +1,4 @@
 /**
- * @module
- * Unwrap a value-or-factory slot to its resolved payload type.
- */
-
-/**
  * Resolve `T` to the value it produces, awaiting a factory's return.
  *
  * @example

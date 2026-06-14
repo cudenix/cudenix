@@ -1,9 +1,4 @@
 /**
- * @module
- * Read named route parameters out of a route pattern, at the type level.
- */
-
-/**
  * Dictionary of the named parameters declared by the route literal
  * `Path`, used to type a handler's `params`. `Path` must be a string
  * literal.

@@ -1,9 +1,4 @@
 /**
- * @module
- * Shallow in-place object merge.
- */
-
-/**
  * Merge `object2` into `object1` in place, overwriting existing keys. Use
  * an {@link Empty} target for untrusted input to avoid prototype pollution.
  *

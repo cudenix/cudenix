@@ -1,9 +1,4 @@
 /**
- * @module
- * Make keys optional when their value type already admits a given marker.
- */
-
-/**
  * Copy of `T` where every key whose value type accepts `U` becomes optional
  * (`?`). Use it to turn explicit `| undefined` fields into truly optional ones.
  *

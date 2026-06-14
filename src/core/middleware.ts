@@ -3,11 +3,6 @@ import type { AnyFail, AnyOk } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
- * @module
- * Middleware step — function shape and chain descriptor for `.middleware()`.
- */
-
-/**
  * Callable shape of a `.middleware()` step. Receives a {@link DeveloperContext}
  * and a `next` continuation that advances the chain. Returning {@link AnyFail}
  * or {@link AnyOk} becomes the response; `void` defers to the rest of the

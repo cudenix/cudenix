@@ -1,11 +1,6 @@
 import { Empty } from "@/utils/objects/empty";
 
 /**
- * @module
- * Parse the `Cookie` request header into a name/value dictionary.
- */
-
-/**
  * Parse a `Cookie` request header into a dictionary keyed by cookie name.
  * Values are returned undecoded — run `decodeURIComponent` yourself if needed.
  *

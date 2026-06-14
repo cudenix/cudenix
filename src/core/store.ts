@@ -3,11 +3,6 @@ import type { AnyFail } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
- * @module
- * Function shape and chain descriptor for `.store()` links.
- */
-
-/**
  * Callable shape of a `.store()` step. Receives a {@link DeveloperContext} and
  * returns either a record merged into `context.store` or an {@link AnyFail}.
  * May be sync or async.

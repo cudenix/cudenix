@@ -1,9 +1,4 @@
 /**
- * @module
- * Value-or-factory union — a value, or a zero-argument producer of one.
- */
-
-/**
  * Union of `T` and a zero-argument factory returning `T | Promise<T>`. Use it
  * for lazily-evaluated slots like configuration defaults.
  *

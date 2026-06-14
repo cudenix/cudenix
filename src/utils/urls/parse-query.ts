@@ -1,10 +1,5 @@
 import { Empty } from "@/utils/objects/empty";
 
-/**
- * @module
- * Parse the query string of a URL into a parameter name/value dictionary.
- */
-
 const Q_KEY_PLUS = 1;
 const Q_KEY_PCT = 2;
 const Q_VAL_PLUS = 4;

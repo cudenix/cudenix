@@ -47,12 +47,6 @@ import type { RequiredKeys } from "@/utils/types/required-keys";
 import type { ValueOf } from "@/utils/types/value-of";
 
 /**
- * @module
- * Fluent module builder that gathers groups, middlewares, stores, validators,
- * and routes.
- */
-
-/**
  * Ordered list of links a module accumulates — a nested {@link AnyGroup},
  * {@link AnyMiddleware}, mounted {@link AnyModule}, {@link AnyRoute},
  * {@link AnyStore}, or {@link AnyValidator}.

@@ -1,9 +1,4 @@
 /**
- * @module
- * Append every element of one array onto another, in place.
- */
-
-/**
  * Append every element of `source` onto the end of `target`, in place.
  * Equivalent to `target.push(...source)`; nothing is returned.
  *

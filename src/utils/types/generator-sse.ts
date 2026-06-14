@@ -1,11 +1,6 @@
 import type { AnyFail, AnyOk } from "@/core/reply";
 
 /**
- * @module
- * Server-Sent Events frame shape for streaming handlers.
- */
-
-/**
  * Shape of one frame yielded by a generator handler targeting
  * `text/event-stream`.
  *

@@ -1,9 +1,3 @@
-/**
- * @module
- * Vendored copy of the Standard Schema V1 interface
- * (https://standardschema.dev), kept dependency-free on purpose.
- */
-
 export interface StandardSchemaV1<Input = unknown, Output = Input> {
 	readonly "~standard": StandardSchemaV1.Props<Input, Output>;
 }

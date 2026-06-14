@@ -11,12 +11,6 @@ import { Empty, FrozenEmpty } from "@/utils/objects/empty";
 import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
-/**
- * @module
- * Central app object that compiles a root module into routing tables and
- * serves requests.
- */
-
 const NOT_FOUND = new Response(undefined, { status: 404 });
 
 /**

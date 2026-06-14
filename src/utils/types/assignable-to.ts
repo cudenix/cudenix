@@ -1,9 +1,4 @@
 /**
- * @module
- * One-directional type-level assignability probe (no union distribution).
- */
-
-/**
  * Resolve to `true` when `T` is assignable to `U`, else `false`. Checks only
  * the `T → U` direction; for mutual assignability use {@link ExtendsType}.
  *

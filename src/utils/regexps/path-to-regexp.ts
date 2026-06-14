@@ -1,8 +1,3 @@
-/**
- * @module
- * Compile route-style path patterns into regular expression sources.
- */
-
 const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";

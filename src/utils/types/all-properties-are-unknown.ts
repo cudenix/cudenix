@@ -1,9 +1,4 @@
 /**
- * @module
- * Check whether every property of an object type is typed `unknown`.
- */
-
-/**
  * Resolve to `true` when every property of `T` is typed `unknown`, else
  * `false`. Useful for detecting an untouched generic, e.g. a schema that was
  * never supplied.

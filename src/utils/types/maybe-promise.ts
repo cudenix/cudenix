@@ -1,9 +1,4 @@
 /**
- * @module
- * Sync-or-async value type — `T` or `Promise<T>`.
- */
-
-/**
  * Union of `T` and `Promise<T>`. Use it on seams that accept either a direct
  * value or a promise, so the consumer can `await` uniformly.
  *

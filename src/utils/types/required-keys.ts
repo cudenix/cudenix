@@ -1,9 +1,4 @@
 /**
- * @module
- * Union of keys in an object type whose values cannot be `undefined`.
- */
-
-/**
  * Keys of `T` that are required (not optional and not `undefined`).
  *
  * @example
