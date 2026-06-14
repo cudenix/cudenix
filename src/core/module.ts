@@ -55,8 +55,7 @@ import type { ValueOf } from "@/utils/types/value-of";
 /**
  * Ordered list of links a module accumulates — a nested {@link AnyGroup},
  * {@link AnyMiddleware}, mounted {@link AnyModule}, {@link AnyRoute},
- * {@link AnyStore}, or {@link AnyValidator} — that the compiler walks to
- * flatten the module into endpoints.
+ * {@link AnyStore}, or {@link AnyValidator}.
  *
  * @example
  * ```typescript
@@ -73,9 +72,8 @@ export type ModuleChain = (
 )[];
 
 /**
- * Constraint on the `Validators` generic threaded through {@link Module}:
- * `inputs` is the pre-validation shape a caller must send and `outputs` is the
- * parsed shape later links receive on `context.request`.
+ * Constraint on the `Validators` generic of {@link Module}: `inputs` is the
+ * pre-validation shape and `outputs` is the parsed shape.
  *
  * @example
  * ```typescript
@@ -91,10 +89,8 @@ export interface ModuleValidatorsConstraint {
 }
 
 /**
- * Fluent module builder whose `group`, `middleware`, `mount`, `route`,
- * `store`, and `validator` methods each push a link onto the chain and return
- * a refined `Module` type that folds in that step's contribution to the
- * accumulated errors, prefix, routes, stores, successes, and validators.
+ * Fluent module builder with `group`, `middleware`, `mount`, `route`, `store`,
+ * and `validator` methods for assembling routes.
  *
  * @example
  * ```typescript
@@ -352,8 +348,7 @@ export interface ModuleOptions<Prefix extends `/${string}`> {
 export type AnyModuleOptions = ModuleOptions<any>;
 
 /**
- * Constructor signature of {@link Module}, split out so the runtime value can
- * be a plain `function` cast to a constructable type.
+ * Constructor signature of {@link Module}.
  *
  * @example
  * ```typescript

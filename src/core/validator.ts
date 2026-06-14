@@ -9,9 +9,8 @@ import type { StandardSchemaV1 } from "@/utils/types/standard-schema";
  */
 
 /**
- * Runtime contract every validator adapter must satisfy. Given a schema, the
- * raw slot value, and the slot key, it returns the validated `content` plus a
- * `success` flag, sync or async.
+ * Runtime contract every validator adapter must satisfy, returning the
+ * validated `content` plus a `success` flag.
  *
  * @example
  * ```typescript
@@ -133,9 +132,7 @@ export interface TransformValidatorError<T extends object> {
 }
 
 /**
- * Merge two per-slot request maps with right-side precedence: a concrete `U`
- * slot wins, otherwise `T` carries through. Slots `unknown` on both sides are
- * dropped.
+ * Merge two per-slot request maps with right-side precedence.
  *
  * @example
  * ```typescript
@@ -161,8 +158,7 @@ export type MergeInferValidatorRequest<
 
 /**
  * Shape of the five request slots a validator may operate on (`body`,
- * `cookies`, `headers`, `params`, `query`). Each generic defaults to `unknown`
- * so a partial declaration can refine only the slots it cares about.
+ * `cookies`, `headers`, `params`, `query`).
  *
  * @example
  * ```typescript
@@ -186,8 +182,7 @@ export interface ValidatorRequest<
 
 /**
  * Compiled {@link ValidatorOptions} descriptor stored on the chain by
- * `module.validator`, tagged `"VALIDATOR"` so the chain walker can dispatch on
- * it.
+ * `module.validator`, tagged `"VALIDATOR"`.
  *
  * @example
  * ```typescript

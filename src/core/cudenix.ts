@@ -70,9 +70,8 @@ export interface Endpoint {
 }
 
 /**
- * Per-method routing table read by `.fetch()`. The {@link Endpoint}s sharing
- * one HTTP method are folded into a single merged `regexp` matched against the
- * request URL.
+ * Per-method routing table read by `.fetch()`: the {@link Endpoint}s for one
+ * HTTP method and the merged `regexp` matched against the request URL.
  *
  * @example
  * ```typescript
@@ -145,8 +144,7 @@ export interface Cudenix {
 }
 
 /**
- * Constructor signature of {@link Cudenix}, split out so the runtime value can
- * be a plain `function` cast to a constructable type.
+ * Constructor signature of {@link Cudenix}.
  *
  * @example
  * ```typescript

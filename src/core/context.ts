@@ -10,8 +10,7 @@ import { Empty } from "@/utils/objects/empty";
 
 /**
  * Developer-facing view of {@link Context} handed to middlewares, stores,
- * validators, and route handlers, with the runtime-only `endpoint` and `match`
- * fields stripped.
+ * validators, and route handlers.
  *
  * @example
  * ```typescript
@@ -38,8 +37,7 @@ export type DeveloperContext<
 export type AnyDeveloperContext = DeveloperContext<any, any>;
 
 /**
- * Response envelope on `context.response` that chain links write into and the
- * runtime serializes once the chain settles.
+ * Response envelope on `context.response`.
  *
  * @example
  * ```typescript
@@ -57,8 +55,7 @@ export interface ContextResponse {
 }
 
 /**
- * Per-request state built once per incoming request and threaded through the
- * entire chain, holding the matched endpoint and framework bookkeeping
+ * Per-request state holding the matched endpoint and framework bookkeeping
  * alongside the fields exposed via {@link DeveloperContext}.
  *
  * @example
@@ -96,8 +93,7 @@ export interface Context<
 export type AnyContext = Context<any, any>;
 
 /**
- * Constructor signature of {@link Context}, split out so the runtime value can
- * be a plain `function` cast to a constructable type.
+ * Constructor signature of {@link Context}.
  *
  * @example
  * ```typescript
@@ -118,8 +114,7 @@ export interface ContextConstructor {
 }
 
 /**
- * Build a {@link Context} for a single request, seeding `request`, `response`,
- * and `store` ready for the chain to fill in. Must be invoked with `new`.
+ * Build a {@link Context} for a single request. Must be invoked with `new`.
  *
  * @example
  * ```typescript

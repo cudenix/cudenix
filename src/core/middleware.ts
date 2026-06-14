@@ -53,8 +53,7 @@ export type AnyMiddlewareFn = MiddlewareFn<any, any, any>;
 
 /**
  * Compiled {@link MiddlewareFn} descriptor stored on the chain by
- * `module.middleware`, tagged `"MIDDLEWARE"` so the chain walker can dispatch
- * on it.
+ * `module.middleware`, tagged `"MIDDLEWARE"`.
  *
  * @example
  * ```typescript

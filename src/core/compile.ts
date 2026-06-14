@@ -15,8 +15,7 @@ import type { HttpMethod } from "@/utils/types/http-method";
  */
 
 /**
- * State `flatten` threads down the module tree: the {@link Chain} inherited
- * from enclosing modules and the path prefix built up from their prefixes.
+ * The inherited {@link Chain} and path prefix passed into `flatten`.
  */
 interface FlattenInherited {
 	chain: Chain;

@@ -42,7 +42,7 @@ export type AnyStoreFn = StoreFn<any, any, any>;
 
 /**
  * Compiled {@link StoreFn} descriptor stored on the chain by `module.store`,
- * tagged `"STORE"` so the chain walker can dispatch on it.
+ * tagged `"STORE"`.
  *
  * @example
  * ```typescript

@@ -112,9 +112,7 @@ export type AnyFail = Reply<any, any, false>;
 export type AnyOk = Reply<any, any, true>;
 
 /**
- * Deeply merge two status-keyed reply dictionaries, unioning the per-property
- * values where both share a status. Used by the `module.*` operations to
- * accumulate the error and success shapes each unit contributes.
+ * Deeply merge two status-keyed reply dictionaries.
  *
  * @example
  * ```typescript
@@ -144,8 +142,7 @@ export type MergeReplies<T extends object, U extends object> = {
 };
 
 /**
- * Options accepted by the {@link ok} / {@link fail} factories, threading the
- * literal status code through so the envelope keeps its narrow `status`.
+ * Options accepted by the {@link ok} / {@link fail} factories.
  *
  * @example
  * ```typescript
@@ -173,9 +170,8 @@ export interface ReplyOptions<Status extends number = number> {
 export type AnyReplyOptions = ReplyOptions<any>;
 
 /**
- * Constructor signature of {@link Reply}, split out so the runtime value can be
- * a plain `function` cast to a constructable type. Prefer {@link ok} /
- * {@link fail} over invoking it directly.
+ * Constructor signature of {@link Reply}. Prefer {@link ok} / {@link fail}
+ * over invoking it directly.
  *
  * @example
  * ```typescript

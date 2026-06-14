@@ -79,18 +79,15 @@ export type ParseRoute<
 >;
 
 /**
- * Distinguish a route descriptor leaf from a path-segment branch. Only leaves
- * carry string-valued `method`/`path` fields; branch nodes map segment names
- * to further records.
+ * Distinguish a route descriptor leaf from a path-segment branch.
  */
 export type IsRouteLeaf<T> = T extends { method: string; path: string }
 	? true
 	: false;
 
 /**
- * Deeply merge two route trees, resolving each shared key by what the runtime
- * router actually serves. On a duplicate route the first tree's descriptor
- * wins, unlike `T & U` which would intersect into an impossible response.
+ * Deeply merge two route trees; on a duplicate route the first tree's
+ * descriptor wins.
  *
  * @example
  * ```typescript
@@ -236,9 +233,8 @@ export type RouteFn<
 export type AnyRouteFn = RouteFn<any, any, any, any>;
 
 /**
- * Compiled route descriptor stored on the chain, tagged `type: "ROUTE"` so the
- * chain walker can dispatch on it. Holds the route metadata and the normalized
- * handler the runtime invokes per request.
+ * Compiled route descriptor stored on the chain, tagged `type: "ROUTE"`.
+ * Holds the route metadata and the normalized handler.
  *
  * @example
  * ```typescript

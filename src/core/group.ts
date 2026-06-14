@@ -7,9 +7,8 @@ import type { AnyModule } from "@/core/module";
  */
 
 /**
- * Options accepted by `module.group`. The optional `prefix` (must start with
- * `/`) is concatenated with the parent module's prefix when the inner module
- * is mounted.
+ * Options accepted by `module.group`. The optional `prefix` must start with
+ * `/`.
  *
  * @example
  * ```typescript
@@ -34,7 +33,7 @@ export type AnyGroupOptions = GroupOptions<any>;
 
 /**
  * Factory that receives a fresh inner module and returns the configured module
- * to mount; its routes are merged into the parent under the group's prefix.
+ * to mount.
  *
  * @example
  * ```typescript
@@ -59,7 +58,7 @@ export type AnyGroupFn = GroupFn<any, any>;
 
 /**
  * Compiled {@link GroupFn} descriptor stored on the chain by `module.group`,
- * tagged `"GROUP"` so the chain walker can dispatch on it.
+ * tagged `"GROUP"`.
  *
  * @example
  * ```typescript
