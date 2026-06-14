@@ -1,11 +1,7 @@
 /**
  * @module
  * Vendored copy of the Standard Schema V1 interface
- * (https://standardschema.dev), kept dependency-free on purpose. Mirrors the
- * upstream spec source — including the optional `options`/`libraryOptions`
- * channel of `validate`, which this framework never passes — and is the one
- * file in `src/utils` deliberately left without per-member documentation so
- * it can be diffed against upstream verbatim. Edit it only to track the spec.
+ * (https://standardschema.dev), kept dependency-free on purpose.
  */
 
 export interface StandardSchemaV1<Input = unknown, Output = Input> {
