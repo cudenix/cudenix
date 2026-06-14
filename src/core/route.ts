@@ -170,8 +170,8 @@ export type RouteFnReturnGenerator =
 
 /**
  * Augment a validator map with a `params` slot inferred from `Path` when the
- * pattern declares URL parameters; otherwise pass the map through unchanged. A
- * `params` slot already declared by a validator wins.
+ * pattern declares URL parameters. A `params` slot already declared by a
+ * validator wins.
  *
  * @example
  * ```typescript
