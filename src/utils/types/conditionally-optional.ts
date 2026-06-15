@@ -1,6 +1,6 @@
 /**
- * Copy of `T` where every key whose value type accepts `U` becomes optional
- * (`?`). Use it to turn explicit `| undefined` fields into truly optional ones.
+ * Make every key of `T` whose value type accepts `U` optional (`?`). Use it to
+ * turn explicit `| undefined` fields into truly optional ones.
  *
  * @example
  * ```typescript

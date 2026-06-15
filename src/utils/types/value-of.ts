@@ -1,5 +1,6 @@
 /**
- * Union of every value type in `T`. The value-side counterpart to `keyof T`.
+ * Resolve to a union of every value type in `T`. The value-side counterpart to
+ * `keyof T`.
  *
  * @example
  * ```typescript

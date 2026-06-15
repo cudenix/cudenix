@@ -1,5 +1,6 @@
 /**
- * Union of keys in `T` whose value type is mutually assignable with `U`.
+ * Resolve to a union of keys in `T` whose value type is mutually assignable
+ * with `U`.
  */
 type OmitKeys<T extends object, U> = {
 	[K in keyof T]: [T[K], U] extends [U, T[K]] ? K : never;

@@ -11,9 +11,10 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
  * @example
  * ```typescript
  * const { paramKeys, pattern } = pathToRegexp("/a/:p1");
- * const match = new RegExp(`^${pattern}$`).exec("/a/v1");
+ * const match = new RegExp(`^${pattern}$`).exec("/a/v1")!;
  *
- * paramKeys; // ["p1"] — match[2] is "v1"
+ * paramKeys; // ["p1"]
+ * match[2]; // "v1"
  * ```
  */
 export const pathToRegexp = (path: string) => {

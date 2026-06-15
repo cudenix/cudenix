@@ -1,5 +1,6 @@
 /**
- * Keys of `T` that are required (not optional and not `undefined`).
+ * Resolve to the keys of `T` that are required (not optional and not
+ * `undefined`).
  *
  * @example
  * ```typescript

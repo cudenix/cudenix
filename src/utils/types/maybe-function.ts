@@ -1,6 +1,7 @@
 /**
- * Union of `T` and a zero-argument factory returning `T | Promise<T>`. Use it
- * for lazily-evaluated slots like configuration defaults.
+ * Resolve to a union of `T` and a zero-argument factory returning
+ * `T | Promise<T>`. Use it for lazily-evaluated slots like configuration
+ * defaults.
  *
  * @example
  * ```typescript

@@ -6,8 +6,8 @@ const Q_VAL_PLUS = 4;
 const Q_VAL_PCT = 8;
 
 /**
- * Parse a URL's query string into a parameter name/value
- * dictionary; empty when there is no query string.
+ * Parse a URL's query string into a dictionary keyed by parameter
+ * name; empty when there is no query string.
  *
  * @example
  * ```typescript

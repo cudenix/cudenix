@@ -1,6 +1,6 @@
 /**
- * Keys of `U` that are certainly present. Only these replace the base
- * declaration wholesale.
+ * Resolve to the keys of `U` that are certainly present. Only these replace
+ * the base declaration wholesale.
  */
 type ReplacedKeys<U> = {
 	[K in keyof U]-?: NonNullable<unknown> extends Pick<U, K> ? never : K;

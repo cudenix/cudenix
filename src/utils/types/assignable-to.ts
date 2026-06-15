@@ -1,6 +1,7 @@
 /**
- * Resolve to `true` when `T` is assignable to `U`, else `false`. Checks only
- * the `T → U` direction; for mutual assignability use {@link ExtendsType}.
+ * Resolve to `true` when `T` is assignable to `U`, else `false`. Only the
+ * `T → U` direction is checked; for mutual assignability use
+ * {@link ExtendsType}.
  *
  * @example
  * ```typescript

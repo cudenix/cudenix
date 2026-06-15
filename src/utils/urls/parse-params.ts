@@ -3,7 +3,7 @@ import { Empty } from "@/utils/objects/empty";
 /**
  * Read named path parameters from a route match into a dictionary keyed by
  * name. Rest parameters become arrays of segments, all others are strings.
- * Returns an empty dictionary when there is no match.
+ * The dictionary is empty when there is no match.
  *
  * @example
  * ```typescript
