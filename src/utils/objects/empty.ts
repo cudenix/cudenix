@@ -19,8 +19,8 @@ export const Empty = function Empty() {} as unknown as new () => Record<
 Empty.prototype = Object.create(null);
 
 /**
- * A shared, frozen empty dictionary — a read-only default for optional options
- * objects. Built on {@link Empty}.
+ * Provide a shared, frozen empty dictionary — a read-only default for optional
+ * options objects. Built on {@link Empty}.
  *
  * @example
  * ```typescript

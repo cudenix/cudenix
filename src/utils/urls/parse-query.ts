@@ -7,7 +7,7 @@ const Q_VAL_PCT = 8;
 
 /**
  * Parse a URL's query string into a dictionary keyed by parameter
- * name; empty when there is no query string.
+ * name. The dictionary is empty when there is no query string.
  *
  * @example
  * ```typescript

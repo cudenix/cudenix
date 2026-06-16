@@ -8,6 +8,7 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
  *
  * @returns `pattern` (regex source), `paramKeys` (parameter names in order),
  * and `restKeys` (the subset that are rest parameters).
+ *
  * @example
  * ```typescript
  * const { paramKeys, pattern } = pathToRegexp("/a/:p1");
