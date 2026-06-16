@@ -1,5 +1,5 @@
 /**
- * Resolve `T` to the value it produces, awaiting a factory's return.
+ * Resolve to the value `T` produces, awaiting a factory's return.
  *
  * @example
  * ```typescript
