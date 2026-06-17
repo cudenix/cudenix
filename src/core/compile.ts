@@ -10,7 +10,7 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 
 /**
- * The inherited {@link Chain} and path prefix.
+ * Inherited {@link Chain} and path prefix.
  */
 interface FlattenInherited {
 	chain: Chain;

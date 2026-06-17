@@ -191,8 +191,9 @@ export type ValidatorsWithParams<
 
 /**
  * Function signature of a route handler. Receives a typed
- * {@link Context} and returns a sync or async `AnyFail | AnyOk`
- * envelope, or a {@link RouteFnReturnGenerator} for streaming.
+ * {@link Context} and returns a sync or async {@link AnyFail} |
+ * {@link AnyOk} envelope, or a {@link RouteFnReturnGenerator} for
+ * streaming.
  *
  * @example
  * ```typescript
