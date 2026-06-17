@@ -14,8 +14,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 const NOT_FOUND = new Response(undefined, { status: 404 });
 
 /**
- * Flattened list of middlewares, stores, and validators for a single
- * {@link Endpoint}.
+ * Flattened list of middlewares, stores, and validators for a single {@link Endpoint}.
  *
  * @example
  * ```typescript
@@ -105,8 +104,7 @@ export interface CudenixOptions {
 }
 
 /**
- * Public shape of a Cudenix application instance — the methods that compile,
- * serve, and extend the app plus its run-time state.
+ * Public shape of a Cudenix application instance.
  *
  * @example
  * ```typescript
@@ -151,8 +149,7 @@ export interface CudenixConstructor {
 }
 
 /**
- * Construct a {@link Cudenix} app around a root {@link AnyModule}. Must be
- * called with `new`. `jit` defaults to `true`.
+ * Construct a {@link Cudenix} app around a root {@link AnyModule}.
  *
  * @example
  * ```typescript
@@ -179,8 +176,7 @@ export const Cudenix = function (
 } as unknown as CudenixConstructor;
 
 /**
- * Compile the app so it can serve requests. Call it before the first
- * `.fetch()`; `.listen()` calls it automatically.
+ * Compile the app so it can serve requests.
  *
  * @example
  * ```typescript
@@ -207,7 +203,7 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 };
 
 /**
- * Resolve a request to a `Response`. Returns a `404` when no route matches.
+ * Resolve a request to a `Response`.
  *
  * @example
  * ```typescript
@@ -261,8 +257,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 };
 
 /**
- * Compile the app and start serving it through `Bun.serve`. Returns the same
- * app, narrowed to omit `.listen()`.
+ * Compile the app and start serving it through `Bun.serve`.
  *
  * @example
  * ```typescript
@@ -301,7 +296,6 @@ Cudenix.prototype.listen = function (
 
 /**
  * Register {@link Plugin} setup hooks to run during the next `.compile()`.
- * Returns the same app, for chaining.
  *
  * @example
  * ```typescript
