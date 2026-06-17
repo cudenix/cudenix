@@ -169,7 +169,7 @@ export interface ValidatorRequest<
 }
 
 /**
- * Compiled {@link ValidatorOptions} descriptor, tagged `"VALIDATOR"`.
+ * Compiled {@link ValidatorOptions} descriptor tagged `"VALIDATOR"`.
  *
  * @example
  * ```typescript

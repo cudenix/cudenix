@@ -179,7 +179,7 @@ export interface ReplyConstructor {
 }
 
 /**
- * Constructor for a {@link Reply} envelope; must be invoked with `new`.
+ * Construct a {@link Reply} envelope; must be invoked with `new`.
  *
  * @example
  * ```typescript
