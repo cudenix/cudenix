@@ -6,6 +6,11 @@ import type { ValidatorPlugin } from "@/core/validator";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 
+/**
+ * Walk the {@link Chain} from `index`, running each middleware, store, and
+ * validator, then the route handler, and write the result to
+ * `context.response.content`.
+ */
 const walk = async (
 	endpoint: Endpoint,
 	request: Request,
@@ -94,6 +99,10 @@ const walk = async (
 	context.response.content = await endpoint.route.handler(context);
 };
 
+/**
+ * Walk a matched {@link Endpoint}'s {@link Chain}, then serialize the resolved
+ * `context.response.content` into a `Response`.
+ */
 export const dispatch = async (
 	endpoint: Endpoint,
 	request: Request,

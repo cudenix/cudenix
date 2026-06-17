@@ -199,11 +199,35 @@ export const Reply = function Reply(
 	this.success = success;
 } as unknown as ReplyConstructor;
 
+/**
+ * Call signature of {@link ok}.
+ *
+ * @example
+ * ```typescript
+ * const fn: OkFactory = ok;
+ *
+ * const a = fn({ a: "v1" }, { status: 201 });
+ *
+ * a.status; // 201
+ * ```
+ */
 export type OkFactory = <const Content, const Status extends number = 200>(
 	content: Content,
 	options?: ReplyOptions<Status>,
 ) => Ok<Content, Status>;
 
+/**
+ * Call signature of {@link fail}.
+ *
+ * @example
+ * ```typescript
+ * const fn: FailFactory = fail;
+ *
+ * const a = fn({ a: "v1" }, { status: 401 });
+ *
+ * a.status; // 401
+ * ```
+ */
 export type FailFactory = <const Content, const Status extends number = 400>(
 	content: Content,
 	options?: ReplyOptions<Status>,

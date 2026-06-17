@@ -2,6 +2,23 @@ import type { ContextResponse } from "@/core/context";
 
 const NOT_CONTENT = new Response(undefined, { status: 204 });
 
+/**
+ * Build a `Response` from a {@link ContextResponse} `content` value — a
+ * `ReadableStream` becomes a `text/event-stream`, a missing or empty body
+ * becomes `204`, and a reply envelope is serialized by its content's
+ * constructor.
+ *
+ * @example
+ * ```typescript
+ * const a = response(ok({ a: "v1" }));
+ *
+ * a.status; // 200
+ *
+ * const b = response(undefined);
+ *
+ * b.status; // 204
+ * ```
+ */
 export const response = (content: ContextResponse["content"]) => {
 	if (!content) {
 		return NOT_CONTENT.clone();
