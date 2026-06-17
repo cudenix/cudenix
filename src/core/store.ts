@@ -1,9 +1,9 @@
-import type { DeveloperContext } from "@/core/context";
+import type { Context } from "@/core/context";
 import type { AnyFail } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
- * Callable shape of a `.store()` step. Receives a {@link DeveloperContext} and
+ * Callable shape of a `.store()` step. Receives a {@link Context} and
  * returns either a record merged into `context.store` or an {@link AnyFail}.
  * May be sync or async.
  *
@@ -22,7 +22,7 @@ export type StoreFn<
 	Return extends MaybePromise<Record<PropertyKey, unknown> | AnyFail>,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
-> = (context: DeveloperContext<Stores, Validators>) => Return;
+> = (context: Context<Stores, Validators>) => Return;
 
 /**
  * Any {@link StoreFn} regardless of its return, store, or validator generics.

@@ -1,4 +1,4 @@
-import type { AnyDeveloperContext } from "@/core/context";
+import type { AnyContext } from "@/core/context";
 import { Module } from "@/core/module";
 import { ok } from "@/core/reply";
 import { FrozenEmpty } from "@/utils/objects/empty";
@@ -15,7 +15,7 @@ interface CorsOptions {
 		| string
 		| ((
 				origin: string | undefined,
-				context: AnyDeveloperContext,
+				context: AnyContext,
 		  ) => string | undefined);
 }
 

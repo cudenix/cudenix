@@ -1,9 +1,9 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
-import type { AnyDeveloperContext } from "@/core/context";
+import type { AnyContext } from "@/core/context";
 import { Module } from "@/core/module";
 
-const ASYNC_LOCAL_STORAGE = new AsyncLocalStorage<AnyDeveloperContext>();
+const ASYNC_LOCAL_STORAGE = new AsyncLocalStorage<AnyContext>();
 
 export const getRequestContext = () => ASYNC_LOCAL_STORAGE.getStore();
 

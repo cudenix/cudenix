@@ -1,9 +1,9 @@
-import type { DeveloperContext } from "@/core/context";
+import type { Context } from "@/core/context";
 import type { AnyFail, AnyOk } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
- * Callable shape of a `.middleware()` step. Receives a {@link DeveloperContext}
+ * Callable shape of a `.middleware()` step. Receives a {@link Context}
  * and a `next` continuation that advances the chain. Returning {@link AnyFail}
  * or {@link AnyOk} becomes the response; `void` defers to the rest of the
  * chain. May be sync or async.
@@ -31,7 +31,7 @@ export type MiddlewareFn<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > = (
-	context: DeveloperContext<Stores, Validators>,
+	context: Context<Stores, Validators>,
 	next: () => MaybePromise<void>,
 ) => Return;
 

@@ -3,34 +3,6 @@ import type { AnyFail, AnyOk } from "@/core/reply";
 import { Empty } from "@/utils/objects/empty";
 
 /**
- * Developer-facing view of {@link Context} handed to middlewares, stores,
- * validators, and route handlers.
- *
- * @example
- * ```typescript
- * const fn = (context: DeveloperContext<{ a: string }, {}>) => {
- *   context.store.a; // string
- *   context.request.raw; // Request
- * };
- * ```
- */
-export type DeveloperContext<
-	Stores extends Record<PropertyKey, unknown>,
-	Validators extends Record<PropertyKey, unknown>,
-> = Omit<Context<Stores, Validators>, "endpoint" | "match">;
-
-/**
- * Any {@link DeveloperContext} regardless of its store or validator generics.
- * Use it where the concrete generics are irrelevant.
- *
- * @example
- * ```typescript
- * const fn = (context: AnyDeveloperContext) => context.response.headers;
- * ```
- */
-export type AnyDeveloperContext = DeveloperContext<any, any>;
-
-/**
  * Response envelope on `context.response`.
  *
  * @example

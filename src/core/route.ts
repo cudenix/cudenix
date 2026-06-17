@@ -1,4 +1,4 @@
-import type { DeveloperContext } from "@/core/context";
+import type { Context } from "@/core/context";
 import type { AnyFail, AnyOk } from "@/core/reply";
 import type {
 	AnyValidator,
@@ -191,7 +191,7 @@ export type ValidatorsWithParams<
 
 /**
  * Function signature of a route handler. Receives a typed
- * {@link DeveloperContext} and returns a sync or async `AnyFail | AnyOk`
+ * {@link Context} and returns a sync or async `AnyFail | AnyOk`
  * envelope, or a {@link RouteFnReturnGenerator} for streaming.
  *
  * @example
@@ -210,7 +210,7 @@ export type RouteFn<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > = (
-	context: DeveloperContext<Stores, ValidatorsWithParams<Path, Validators>>,
+	context: Context<Stores, ValidatorsWithParams<Path, Validators>>,
 ) => Return;
 
 /**
