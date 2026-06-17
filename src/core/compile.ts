@@ -18,8 +18,7 @@ interface FlattenInherited {
 }
 
 /**
- * Flatten a module subtree into `endpoints`, keyed by HTTP method. Returns
- * the chain and path of this subtree.
+ * Flatten a module subtree into `endpoints`, keyed by HTTP method.
  */
 const flatten = (
 	endpoints: Record<HttpMethod, Endpoint[]>,
