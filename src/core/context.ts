@@ -45,8 +45,7 @@ export interface Context<
 }
 
 /**
- * Any {@link Context} regardless of its store or validator generics. Use it
- * where the concrete generics are irrelevant.
+ * Any {@link Context} regardless of its store or validator generics.
  *
  * @example
  * ```typescript
@@ -79,7 +78,7 @@ export interface ContextConstructor {
 }
 
 /**
- * Build a {@link Context} for a single request. Must be invoked with `new`.
+ * Build a {@link Context} for a single request.
  *
  * @example
  * ```typescript
