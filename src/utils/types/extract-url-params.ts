@@ -1,7 +1,6 @@
 /**
  * Resolve to a dictionary of the named parameters declared by the route
- * literal `Path`, used to type a handler's `params`. `Path` must be a string
- * literal.
+ * literal `Path`.
  *
  * @example
  * ```typescript

@@ -1,9 +1,7 @@
 import { Empty } from "@/utils/objects/empty";
 
 /**
- * Read named path parameters from a route match into a dictionary keyed by
- * name. Rest parameters become arrays of segments, all others are strings.
- * The dictionary is empty when there is no match.
+ * Read named path parameters from a route match into a dictionary keyed by name.
  *
  * @example
  * ```typescript
@@ -44,7 +42,7 @@ export const parseParams = (
 			}
 		}
 
-		if (restKeys.includes(name)) {
+		if (restKeys.indexOf(name) !== -1) {
 			params[name] = decoded.split("/");
 		} else {
 			params[name] = decoded;

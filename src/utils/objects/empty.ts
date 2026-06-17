@@ -1,7 +1,5 @@
 /**
- * Create a fresh dictionary with no prototype — safe for untrusted keys like
- * `__proto__` or `toString`. Use it instead of `{}` for lookup tables. Must
- * be called with `new`.
+ * Create a fresh dictionary with no prototype.
  *
  * @example
  * ```typescript

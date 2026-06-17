@@ -1,6 +1,5 @@
 /**
  * Return a new array with `item` appended, leaving `array` untouched.
- * Equivalent to `[...array, item]`.
  *
  * @example
  * ```typescript

@@ -1,6 +1,5 @@
 /**
- * Merge `object2` into `object1` in place, overwriting existing keys. Use
- * an {@link Empty} target for untrusted input to avoid prototype pollution.
+ * Merge `object2` into `object1` in place, overwriting existing keys.
  *
  * @example
  * ```typescript

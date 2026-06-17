@@ -1,6 +1,5 @@
 /**
  * Append every element of `source` onto the end of `target`, in place.
- * Equivalent to `target.push(...source)`; nothing is returned.
  *
  * @example
  * ```typescript

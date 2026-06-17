@@ -3,11 +3,7 @@ const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
 
 /**
- * Compile a route pattern into a regex source plus its parameter names. Pair
- * the result with `new RegExp()` to match URLs.
- *
- * @returns `pattern` (regex source), `paramKeys` (parameter names in order),
- * and `restKeys` (the subset that are rest parameters).
+ * Compile a route pattern into a regex source plus its parameter names.
  *
  * @example
  * ```typescript

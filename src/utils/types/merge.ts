@@ -7,7 +7,7 @@ type ReplacedKeys<U> = {
 }[keyof U];
 
 /**
- * Overlay `U` onto `T`, mirroring the runtime object merge.
+ * Overlay `U` onto `T`.
  *
  * @example
  * ```typescript

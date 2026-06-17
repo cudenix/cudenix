@@ -4,8 +4,7 @@ const ASYNC_GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(
 );
 
 /**
- * Check whether `fn` is a generator function — `function*` or
- * `async function*`. Pass the function itself, not the iterator it returns.
+ * Check whether `fn` is a generator function — `function*` or `async function*`.
  *
  * @example
  * ```typescript

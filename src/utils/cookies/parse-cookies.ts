@@ -2,7 +2,6 @@ import { Empty } from "@/utils/objects/empty";
 
 /**
  * Parse a `Cookie` request header into a dictionary keyed by cookie name.
- * Values are returned undecoded — run `decodeURIComponent` yourself if needed.
  *
  * @example
  * ```typescript

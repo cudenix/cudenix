@@ -1,8 +1,7 @@
 import { Empty } from "@/utils/objects/empty";
 
 /**
- * Read and parse a `Request` body by its `Content-Type`: parsed `JSON`,
- * an `ArrayBuffer`, a field dictionary for form bodies, or text.
+ * Read and parse a `Request` body by its `Content-Type`.
  *
  * @example
  * ```typescript

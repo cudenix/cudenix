@@ -1,6 +1,5 @@
 /**
- * Resolve to a union of `T` and `Promise<T>`. Use it on seams that accept
- * either a direct value or a promise, so the consumer can `await` uniformly.
+ * Resolve to a union of `T` and `Promise<T>`.
  *
  * @example
  * ```typescript

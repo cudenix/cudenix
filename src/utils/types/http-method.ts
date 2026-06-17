@@ -1,6 +1,5 @@
 /**
- * Resolve to a union of the common HTTP verbs and any other string, allowing
- * custom verbs like `"PURGE"`.
+ * Resolve to a union of the common HTTP verbs and any other string.
  *
  * @example
  * ```typescript
