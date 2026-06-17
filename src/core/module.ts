@@ -306,8 +306,7 @@ export interface Module<
 
 /**
  * Any {@link Module} regardless of its errors, prefix, routes, stores,
- * successes, or validators generics. Use it where the concrete generics are
- * irrelevant.
+ * successes, or validators generics.
  *
  * @example
  * ```typescript
@@ -331,8 +330,7 @@ export interface ModuleOptions<Prefix extends `/${string}`> {
 }
 
 /**
- * Any {@link ModuleOptions} regardless of its prefix generic. Use it where the
- * concrete prefix is irrelevant.
+ * Any {@link ModuleOptions} regardless of its prefix generic.
  *
  * @example
  * ```typescript
@@ -382,8 +380,7 @@ export interface ModuleConstructor {
 }
 
 /**
- * Construct a {@link Module} from optional {@link ModuleOptions}. Must be
- * invoked with `new`.
+ * Construct a {@link Module} from optional {@link ModuleOptions}.
  *
  * @example
  * ```typescript
@@ -404,7 +401,7 @@ export const Module = function (
 } as unknown as ModuleConstructor;
 
 /**
- * Add a nested group to the module. Returns the module, for chaining.
+ * Add a nested group to the module.
  *
  * @example
  * ```typescript
@@ -425,7 +422,7 @@ Module.prototype.group = function (
 };
 
 /**
- * Add a middleware to the module. Returns the module, for chaining.
+ * Add a middleware to the module.
  *
  * @example
  * ```typescript
@@ -444,7 +441,7 @@ Module.prototype.middleware = function (
 };
 
 /**
- * Mount another module. Returns the module, for chaining.
+ * Mount another module.
  *
  * @example
  * ```typescript
@@ -460,8 +457,7 @@ Module.prototype.mount = function (this: AnyModule, module: AnyModule) {
 };
 
 /**
- * Add a route binding a handler to a method and path. Returns the module, for
- * chaining.
+ * Add a route binding a handler to a method and path.
  *
  * @example
  * ```typescript
@@ -506,7 +502,7 @@ Module.prototype.route = function (
 };
 
 /**
- * Add a store to the module. Returns the module, for chaining.
+ * Add a store to the module.
  *
  * @example
  * ```typescript
@@ -520,7 +516,7 @@ Module.prototype.store = function (this: AnyModule, handler: AnyStoreFn) {
 };
 
 /**
- * Add a validator to the module. Returns the module, for chaining.
+ * Add a validator to the module.
  *
  * @example
  * ```typescript

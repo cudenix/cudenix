@@ -27,7 +27,7 @@ export interface Reply<
 
 /**
  * Any {@link Reply} regardless of its content, status, or discriminant
- * generics. Use it where the concrete generics are irrelevant.
+ * generics.
  *
  * @example
  * ```typescript
@@ -78,8 +78,7 @@ export type Ok<Content, Status extends number = 200> = Reply<
 
 /**
  * Any error-direction {@link Reply} (`success: false`) regardless of its
- * content or status generics. Use it where the concrete generics are
- * irrelevant.
+ * content or status generics.
  *
  * @example
  * ```typescript
@@ -92,8 +91,7 @@ export type AnyFail = Reply<any, any, false>;
 
 /**
  * Any success-direction {@link Reply} (`success: true`) regardless of its
- * content or status generics. Use it where the concrete generics are
- * irrelevant.
+ * content or status generics.
  *
  * @example
  * ```typescript
@@ -149,8 +147,7 @@ export interface ReplyOptions<Status extends number = number> {
 }
 
 /**
- * Any {@link ReplyOptions} regardless of its status generic. Use it where the
- * concrete status is irrelevant.
+ * Any {@link ReplyOptions} regardless of its status generic.
  *
  * @example
  * ```typescript
@@ -202,12 +199,12 @@ export const Reply = function Reply(
 	this.success = success;
 } as unknown as ReplyConstructor;
 
-type OkFactory = <const Content, const Status extends number = 200>(
+export type OkFactory = <const Content, const Status extends number = 200>(
 	content: Content,
 	options?: ReplyOptions<Status>,
 ) => Ok<Content, Status>;
 
-type FailFactory = <const Content, const Status extends number = 400>(
+export type FailFactory = <const Content, const Status extends number = 400>(
 	content: Content,
 	options?: ReplyOptions<Status>,
 ) => Fail<Content, Status>;

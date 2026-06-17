@@ -37,7 +37,7 @@ export type MiddlewareFn<
 
 /**
  * Any {@link MiddlewareFn} regardless of its return, store, or validator
- * generics. Use it where the concrete generics are irrelevant.
+ * generics.
  *
  * @example
  * ```typescript
@@ -70,7 +70,7 @@ export interface Middleware<
 
 /**
  * Any {@link Middleware} regardless of its return, store, or validator
- * generics. Use it where the concrete generics are irrelevant.
+ * generics.
  *
  * @example
  * ```typescript

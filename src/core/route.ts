@@ -214,8 +214,7 @@ export type RouteFn<
 ) => Return;
 
 /**
- * Any {@link RouteFn} regardless of its generics. Use it where the concrete
- * method, path, and inputs are irrelevant.
+ * Any {@link RouteFn} regardless of its generics.
  *
  * @example
  * ```typescript
@@ -267,8 +266,7 @@ export interface Route<
 }
 
 /**
- * Any {@link Route} regardless of its generics. Use it where the concrete
- * generics are irrelevant.
+ * Any {@link Route} regardless of its generics.
  *
  * @example
  * ```typescript
@@ -304,8 +302,7 @@ export type RouteHandler<
 	| Extract<Awaited<Return>, AnyFail | AnyOk>;
 
 /**
- * Any {@link RouteHandler} regardless of its generics. Use it where the
- * concrete generics are irrelevant.
+ * Any {@link RouteHandler} regardless of its generics.
  *
  * @example
  * ```typescript
@@ -334,8 +331,7 @@ export interface RouteOptions<
 }
 
 /**
- * Any {@link RouteOptions} regardless of its validator generics. Use it where
- * the concrete validator shape is irrelevant.
+ * Any {@link RouteOptions} regardless of its validator generics.
  *
  * @example
  * ```typescript

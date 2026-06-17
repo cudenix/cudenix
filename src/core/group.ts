@@ -1,8 +1,7 @@
 import type { AnyModule } from "@/core/module";
 
 /**
- * Options accepted by `module.group`. The optional `prefix` must start with
- * `/`.
+ * Options accepted by `module.group`.
  *
  * @example
  * ```typescript
@@ -15,8 +14,7 @@ export interface GroupOptions<Prefix extends `/${string}`> {
 }
 
 /**
- * Any {@link GroupOptions} regardless of its prefix generic. Use it where the
- * concrete prefix is irrelevant.
+ * Any {@link GroupOptions} regardless of its prefix generic.
  *
  * @example
  * ```typescript
@@ -40,8 +38,7 @@ export type GroupFn<Module extends AnyModule, Return extends AnyModule> = (
 ) => Return;
 
 /**
- * Any {@link GroupFn} regardless of its module or return generics. Use it
- * where the concrete generics are irrelevant.
+ * Any {@link GroupFn} regardless of its module or return generics.
  *
  * @example
  * ```typescript
@@ -73,8 +70,7 @@ export interface Group<
 }
 
 /**
- * Any {@link Group} regardless of its module, prefix, or return generics. Use
- * it where the concrete generics are irrelevant.
+ * Any {@link Group} regardless of its module, prefix, or return generics.
  *
  * @example
  * ```typescript

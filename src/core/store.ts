@@ -26,7 +26,6 @@ export type StoreFn<
 
 /**
  * Any {@link StoreFn} regardless of its return, store, or validator generics.
- * Use it where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript
@@ -57,7 +56,6 @@ export interface Store<
 
 /**
  * Any {@link Store} regardless of its return, store, or validator generics.
- * Use it where the concrete generics are irrelevant.
  *
  * @example
  * ```typescript

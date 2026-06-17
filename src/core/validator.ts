@@ -32,7 +32,7 @@ export type ValidatorPlugin = (
  * // SomeSchemaIssues
  * ```
  */
-type InferValidatorError<Type> = Type extends StandardSchemaV1
+export type InferValidatorError<Type> = Type extends StandardSchemaV1
 	? Type extends { "~types"?: { issue: infer Issue } }
 		? Issue
 		: StandardSchemaV1.Issue[]
@@ -48,7 +48,7 @@ type InferValidatorError<Type> = Type extends StandardSchemaV1
  * // SomeSchemaInput
  * ```
  */
-type InferValidatorInput<Type> = Type extends StandardSchemaV1
+export type InferValidatorInput<Type> = Type extends StandardSchemaV1
 	? StandardSchemaV1.InferInput<Type>
 	: Type;
 
@@ -63,7 +63,7 @@ type InferValidatorInput<Type> = Type extends StandardSchemaV1
  * // SomeSchemaOutput
  * ```
  */
-type InferValidatorOutput<Type> = Type extends StandardSchemaV1
+export type InferValidatorOutput<Type> = Type extends StandardSchemaV1
 	? StandardSchemaV1.InferOutput<Type>
 	: Type;
 
@@ -146,8 +146,7 @@ export type MergeInferValidatorRequest<
 };
 
 /**
- * Shape of the five request slots a validator may operate on (`body`,
- * `cookies`, `headers`, `params`, `query`).
+ * Shape of the five request slots a validator may operate.
  *
  * @example
  * ```typescript
@@ -188,8 +187,7 @@ export interface Validator<Request extends Partial<ValidatorRequest>> {
 }
 
 /**
- * Any {@link Validator} regardless of its request generics. Use it where the
- * concrete schemas are irrelevant.
+ * Any {@link Validator} regardless of its request generics.
  *
  * @example
  * ```typescript
@@ -213,8 +211,7 @@ export interface ValidatorOptions<Request extends Partial<ValidatorRequest>> {
 }
 
 /**
- * Any {@link ValidatorOptions} regardless of its request generics. Use it
- * where the concrete schemas are irrelevant.
+ * Any {@link ValidatorOptions} regardless of its request generics.
  *
  * @example
  * ```typescript
