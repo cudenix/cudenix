@@ -36,8 +36,6 @@ export type JittedDispatch = (
  * handler calls `next` — exactly the recursion `walk` performs at runtime.
  */
 const generate = (chain: Chain, index: number): string => {
-	// Past the last link the route handler runs, just as `walk` does after its
-	// loop.
 	if (index >= chain.length) {
 		return "context.response.content = await endpoint.route.handler(context);";
 	}
@@ -118,8 +116,6 @@ const generate = (chain: Chain, index: number): string => {
 		${generate(chain, index + 1)}`;
 	}
 
-	// Any other link type (e.g. a stray `ROUTE`) is a no-op in `walk`, so skip
-	// it here too.
 	return generate(chain, index + 1);
 };
 
