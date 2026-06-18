@@ -31,7 +31,7 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
  * ```typescript
  * const a: Endpoint = {
  *   chain: [],
- *   jit: true,
+ *   dispatch: jitDispatch,
  *   matchOffset: 3,
  *   paramKeys: ["p1"],
  *   path: "/a/:p1",
@@ -45,7 +45,6 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
  *     type: "ROUTE",
  *   },
  *   router: "bun",
- *   sse: false,
  * };
  * ```
  */
