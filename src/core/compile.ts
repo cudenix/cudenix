@@ -125,7 +125,6 @@ const flatten = (
  */
 export const compile = (app: Cudenix) => {
 	const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
-	const jit = app.jit;
 	const routes = app.routes;
 
 	flatten(endpoints, app.memory.module as AnyModule, { chain: [], path: "" });
