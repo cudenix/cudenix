@@ -6,6 +6,7 @@ import { response } from "@/core/response";
 import type { ValidatorPlugin } from "@/core/validator";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
  * Per-endpoint resolver stored on `endpoint.dispatch`: run the matched endpoint
@@ -26,7 +27,7 @@ import { merge } from "@/utils/objects/merge";
 export type Dispatch = (
 	endpoint: Endpoint,
 	context: AnyContext,
-) => Promise<Response>;
+) => MaybePromise<Response>;
 
 /**
  * Walk the {@link Chain} from `index`, running each middleware, store, and
@@ -119,6 +120,17 @@ const walk = async (
 
 	context.response.content = await endpoint.route.handler(context);
 };
+
+/**
+ * {@link Dispatch} assigned to a `static` route with an empty chain. Its
+ * response is request-independent, so `compile` builds it once into
+ * `endpoint.staticResponse`; this just hands back a fresh clone — no chain run,
+ * no re-serialization. (When the path is plain, Bun's router serves that same
+ * precomputed `Response` natively; this dispatcher covers the regexp /
+ * `app.fetch` path and wildcard static routes Bun can't table.)
+ */
+export const staticDispatch: Dispatch = (endpoint) =>
+	endpoint.staticResponse!.clone();
 
 /**
  * {@link Dispatch} assigned when an endpoint's JIT is off: walk the chain on

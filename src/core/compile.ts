@@ -1,6 +1,6 @@
 import { Context } from "@/core/context";
 import type { Chain, Cudenix, Endpoint } from "@/core/cudenix";
-import { jitDispatch, walkDispatch } from "@/core/dispatch";
+import { jitDispatch, staticDispatch, walkDispatch } from "@/core/dispatch";
 import { type AnyModule, Module } from "@/core/module";
 import { response } from "@/core/response";
 import { cloneAppend } from "@/utils/arrays/clone-append";
@@ -156,12 +156,24 @@ export const compile = (app: Cudenix) => {
 			);
 
 			const jit = methodEndpoint.route.jit ?? app.jit;
+			const isStatic =
+				methodEndpoint.route.static &&
+				methodEndpoint.chain.length === 0;
 
 			methodEndpoint.jit = jit;
-			methodEndpoint.dispatch = jit ? jitDispatch : walkDispatch;
 			methodEndpoint.matchOffset = matchOffset;
 			methodEndpoint.paramKeys = paramKeys;
 			methodEndpoint.restKeys = restKeys;
+
+			if (isStatic) {
+				methodEndpoint.staticResponse = response(
+					methodEndpoint.route.handler(undefined as any),
+				);
+
+				methodEndpoint.dispatch = staticDispatch;
+			} else {
+				methodEndpoint.dispatch = jit ? jitDispatch : walkDispatch;
+			}
 
 			matchOffset += 1 + paramKeys.length;
 
@@ -183,13 +195,8 @@ export const compile = (app: Cudenix) => {
 				if (!(method in pathRoutes)) {
 					methodEndpoint.router = "bun";
 
-					if (
-						methodEndpoint.route.static &&
-						methodEndpoint.chain.length === 0
-					) {
-						pathRoutes[method] = response(
-							methodEndpoint.route.handler(undefined as any),
-						);
+					if (isStatic) {
+						pathRoutes[method] = methodEndpoint.staticResponse!;
 
 						continue;
 					}

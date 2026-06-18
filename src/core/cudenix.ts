@@ -60,6 +60,7 @@ export interface Endpoint {
 	route: AnyRoute;
 	router: "bun" | "cudenix";
 	sse: boolean;
+	staticResponse?: Response | undefined;
 }
 
 /**

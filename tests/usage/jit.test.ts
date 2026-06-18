@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import { Cudenix, type Plugin } from "@/core/cudenix";
+import { staticDispatch } from "@/core/dispatch";
 import { jit } from "@/core/jit";
 import { Module } from "@/core/module";
 import { fail, ok } from "@/core/reply";
@@ -276,6 +277,68 @@ describe("usage: jit", () => {
 
 			expect(await first.text()).toBe("body:query");
 			expect(await second.text()).toBe("body:query");
+		});
+	});
+
+	describe("static fast path", () => {
+		it("should serve a static, chainless route from a precomputed clone", async () => {
+			using server = serveApp(new Module().route("GET", "/b", ok("v2")));
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+
+			expect(endpoint.dispatch).toBe(staticDispatch);
+			expect(endpoint.staticResponse).toBeInstanceOf(Response);
+
+			// Bun's router serves the precomputed Response natively...
+			const native = await server.fetch("/b");
+
+			// ...and the in-process app.fetch path reuses it via staticDispatch.
+			const inProcess = await server.app.fetch(
+				new Request(server.url("/b")),
+			);
+			const again = await server.app.fetch(new Request(server.url("/b")));
+
+			expect(await native.text()).toBe("v2");
+			expect(await inProcess.text()).toBe("v2");
+			expect(await again.text()).toBe("v2");
+			expect(endpoint.dispatch).toBe(staticDispatch);
+		});
+
+		it("should serve a static wildcard route through staticDispatch", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/b/...rest", ok("v2")),
+			);
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+
+			expect(endpoint.dispatch).toBe(staticDispatch);
+
+			// A wildcard path is not tabled by Bun, so the server falls back to
+			// cudenix.fetch -> staticDispatch.
+			const first = await server.fetch("/b/x/y");
+			const second = await server.fetch("/b/x/y");
+
+			expect(await first.text()).toBe("v2");
+			expect(await second.text()).toBe("v2");
+		});
+
+		it("should not use staticDispatch when a static route has chain links", async () => {
+			using server = serveApp(
+				new Module()
+					.middleware(async (_, next) => {
+						await next();
+					})
+					.route("GET", "/b", ok("v2")),
+			);
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+
+			expect(endpoint.dispatch).not.toBe(staticDispatch);
+			expect(endpoint.staticResponse).toBeUndefined();
+
+			const result = await server.fetch("/b");
+
+			expect(await result.text()).toBe("v2");
 		});
 	});
 });
