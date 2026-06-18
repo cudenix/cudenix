@@ -56,11 +56,11 @@ export interface Endpoint {
 	matchOffset: number;
 	paramKeys: string[];
 	path: string;
+	response?: Response;
 	restKeys: string[];
 	route: AnyRoute;
 	router: "bun" | "cudenix";
 	sse: boolean;
-	staticResponse?: Response | undefined;
 }
 
 /**

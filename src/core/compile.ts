@@ -166,7 +166,7 @@ export const compile = (app: Cudenix) => {
 			methodEndpoint.restKeys = restKeys;
 
 			if (isStatic) {
-				methodEndpoint.staticResponse = response(
+				methodEndpoint.response = response(
 					methodEndpoint.route.handler(undefined as any),
 				);
 
@@ -196,7 +196,7 @@ export const compile = (app: Cudenix) => {
 					methodEndpoint.router = "bun";
 
 					if (isStatic) {
-						pathRoutes[method] = methodEndpoint.staticResponse!;
+						pathRoutes[method] = methodEndpoint.response!;
 
 						continue;
 					}
