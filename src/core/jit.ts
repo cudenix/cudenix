@@ -5,11 +5,9 @@ import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 
 /**
- * Compiled per-endpoint dispatcher produced by {@link jit}. Mirrors `walk` —
- * runs the endpoint's {@link Chain} and its route handler, writing the result
- * to `context.response.content` — but as straight-line, type-specialized code
- * with no per-link `type` branching and no recursive `walk` call: each
- * middleware's `next` continuation is inlined as a nested closure.
+ * Compiled per-endpoint dispatcher produced by {@link jit}: run the endpoint's
+ * {@link Chain} and route handler as straight-line code, writing the result to
+ * `context.response.content` without `walk`'s per-link branching or recursion.
  *
  * @example
  * ```typescript
@@ -27,13 +25,8 @@ export type JittedDispatch = (
 
 /**
  * Emit the source for the {@link Chain} links from `index` onward, ending with
- * the route handler call. {@link Reply}, {@link merge}, {@link Empty},
- * {@link fail}, and `chain` are referenced as free identifiers — {@link jit}
- * supplies them through the compiling factory's scope.
- *
- * A `MIDDLEWARE` nests the remaining links inside its `next` closure and never
- * appends siblings after itself, so the rest of the chain runs only when the
- * handler calls `next` — exactly the recursion `walk` performs at runtime.
+ * the route handler call. A `MIDDLEWARE` nests the rest of the chain in its
+ * `next` closure, so it runs only when the handler calls `next`.
  */
 const generate = (chain: Chain, index: number): string => {
 	if (index >= chain.length) {
@@ -120,12 +113,9 @@ const generate = (chain: Chain, index: number): string => {
 };
 
 /**
- * Compile an {@link Endpoint}'s chain into a {@link JittedDispatch}. The
- * generated body is built once with {@link generate}, then a `new Function`
- * factory closes over `chain` and the runtime helpers it references and returns
- * the dispatcher. `jitDispatch` calls this on an endpoint's first request and
- * swaps the result into `endpoint.dispatch`, so `walk` is skipped on every later
- * request.
+ * Compile an {@link Endpoint}'s chain into a {@link JittedDispatch}. The body is
+ * built once by {@link generate}, then a `new Function` factory closes over
+ * `chain` and the runtime helpers it references and returns the dispatcher.
  *
  * @example
  * ```typescript
