@@ -9,14 +9,14 @@ import { Empty } from "@/utils/objects/empty";
  * ```typescript
  * const a: ContextResponse = {
  *   content: ok({ a: "v1" }),
- *   cookies: { b: "v2" },
+ *   cookies: new Bun.CookieMap(),
  *   headers: { c: "v3" },
  * };
  * ```
  */
 export interface ContextResponse {
 	content?: AnyFail | AnyOk | ReadableStream;
-	cookies: Record<string, string>;
+	cookies: Bun.CookieMap;
 	headers: Record<string, string>;
 }
 
@@ -105,6 +105,9 @@ export const Context = function (
 
 	this.request.raw = request;
 
-	this.response.cookies = new Empty() as ContextResponse["cookies"];
+	this.response.cookies =
+		"cookies" in request
+			? (request as Bun.BunRequest).cookies
+			: new Bun.CookieMap(request.headers.get("cookie") ?? undefined);
 	this.response.headers = new Empty() as ContextResponse["headers"];
 } as unknown as ContextConstructor;

@@ -44,7 +44,6 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
  *     static: false,
  *     type: "ROUTE",
  *   },
- *   router: "bun",
  * };
  * ```
  */
@@ -57,7 +56,6 @@ export interface Endpoint {
 	response?: Response;
 	restKeys: string[];
 	route: AnyRoute;
-	router: "bun" | "cudenix";
 }
 
 /**

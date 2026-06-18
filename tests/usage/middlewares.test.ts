@@ -619,11 +619,11 @@ describe("usage: middlewares", () => {
 			expect(result.headers.get("x-a")).toBeNull();
 		});
 
-		it("should not apply response cookies set by a middleware yet (migration gap)", async () => {
+		it("should apply a response cookie set by a middleware as a Set-Cookie header", async () => {
 			using server = serveApp(
 				new Module()
 					.middleware((context, next) => {
-						context.response.cookies.a = "v1";
+						context.response.cookies.set("a", "v1");
 
 						return next();
 					})
@@ -633,7 +633,242 @@ describe("usage: middlewares", () => {
 			const result = await server.fetch("/a");
 
 			expect(result.status).toBe(200);
+			expect(result.headers.get("set-cookie")).toContain("a=v1");
+		});
+
+		it("should carry cookie attributes onto the Set-Cookie header", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.cookies.set("sid", "abc", {
+						httpOnly: true,
+						maxAge: 3600,
+						sameSite: "strict",
+						secure: true,
+					});
+
+					return ok("v1");
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			const setCookie = result.headers.get("set-cookie") ?? "";
+
+			expect(setCookie).toContain("sid=abc");
+			expect(setCookie).toContain("Max-Age=3600");
+			expect(setCookie).toContain("HttpOnly");
+			expect(setCookie).toContain("Secure");
+			expect(setCookie).toContain("SameSite=Strict");
+		});
+
+		it("should emit one Set-Cookie header per cookie", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.cookies.set("a", "v1");
+					context.response.cookies.set("b", "v2");
+
+					return ok("v1");
+				}),
+			);
+
+			const result = await server.fetch("/a");
+			const setCookies = result.headers.getSetCookie();
+
+			expect(setCookies).toHaveLength(2);
+			expect(setCookies.some((cookie) => cookie.startsWith("a=v1"))).toBe(
+				true,
+			);
+			expect(setCookies.some((cookie) => cookie.startsWith("b=v2"))).toBe(
+				true,
+			);
+		});
+
+		it("should expire a deleted cookie via Set-Cookie", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.cookies.delete("session");
+
+					return ok("v1");
+				}),
+			);
+
+			const result = await server.fetch("/a", {
+				headers: { cookie: "session=abc" },
+			});
+
+			const setCookie = result.headers.get("set-cookie") ?? "";
+
+			expect(setCookie).toContain("session=");
+			expect(setCookie).toContain("Expires=");
+		});
+
+		it("should read an incoming request cookie through the response cookie map", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) =>
+					ok(context.response.cookies.get("session") ?? "none"),
+				),
+			);
+
+			const result = await server.fetch("/a", {
+				headers: { cookie: "session=abc" },
+			});
+
+			expect(await result.text()).toBe("abc");
+		});
+
+		it("should not echo an untouched incoming cookie back as Set-Cookie", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", () => ok("v1")),
+			);
+
+			const result = await server.fetch("/a", {
+				headers: { cookie: "session=abc" },
+			});
+
 			expect(result.headers.get("set-cookie")).toBeNull();
+		});
+
+		it("should leave Set-Cookie absent when no cookie is set", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", () => ok("v1")),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.headers.get("set-cookie")).toBeNull();
+		});
+
+		it("should emit exactly one Set-Cookie per cookie, never doubling", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.cookies.set("a", "v1");
+
+					return ok("v1");
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.headers.getSetCookie()).toHaveLength(1);
+		});
+
+		it("should not double a cookie alongside a handler-returned raw Response", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.cookies.set("a", "v1");
+
+					return ok(new Response("raw", { headers: { "x-y": "z" } }));
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.headers.getSetCookie()).toHaveLength(1);
+			expect(result.headers.get("x-y")).toBe("z");
+			expect(await result.text()).toBe("raw");
+		});
+	});
+
+	describe("response cookies through the regexp fallback", () => {
+		it("should serialize a cookie set on a plain app.fetch request", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.cookies.set("a", "v1");
+
+					return ok("v1");
+				}),
+			);
+
+			const result = await server.app.fetch(
+				new Request(server.url("/a")),
+			);
+
+			expect(result.headers.getSetCookie()).toHaveLength(1);
+			expect(result.headers.get("set-cookie")).toContain("a=v1");
+		});
+
+		it("should emit one Set-Cookie per cookie on a plain request", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.cookies.set("a", "v1");
+					context.response.cookies.set("b", "v2");
+
+					return ok("v1");
+				}),
+			);
+
+			const result = await server.app.fetch(
+				new Request(server.url("/a")),
+			);
+
+			expect(result.headers.getSetCookie()).toHaveLength(2);
+		});
+
+		it("should expire a deleted cookie on a plain request", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.cookies.delete("session");
+
+					return ok("v1");
+				}),
+			);
+
+			const result = await server.app.fetch(
+				new Request(server.url("/a"), {
+					headers: { cookie: "session=abc" },
+				}),
+			);
+
+			const setCookie = result.headers.get("set-cookie") ?? "";
+
+			expect(setCookie).toContain("session=");
+			expect(setCookie).toContain("Expires=");
+		});
+
+		it("should read an incoming cookie from a plain request", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) =>
+					ok(context.response.cookies.get("session") ?? "none"),
+				),
+			);
+
+			const result = await server.app.fetch(
+				new Request(server.url("/a"), {
+					headers: { cookie: "session=abc" },
+				}),
+			);
+
+			expect(await result.text()).toBe("abc");
+		});
+
+		it("should not echo an untouched incoming cookie on a plain request", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", () => ok("v1")),
+			);
+
+			const result = await server.app.fetch(
+				new Request(server.url("/a"), {
+					headers: { cookie: "session=abc" },
+				}),
+			);
+
+			expect(result.headers.get("set-cookie")).toBeNull();
+		});
+
+		it("should serialize a cookie on a wildcard route served over the network", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/w/...rest", (context) => {
+					context.response.cookies.set("a", "v1");
+
+					return ok("v1");
+				}),
+			);
+
+			const result = await server.fetch("/w/x/y");
+
+			expect(result.status).toBe(200);
+			expect(result.headers.getSetCookie()).toHaveLength(1);
+			expect(result.headers.get("set-cookie")).toContain("a=v1");
 		});
 	});
 });

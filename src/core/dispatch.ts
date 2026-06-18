@@ -122,6 +122,19 @@ const walk = async (
 };
 
 /**
+ * Serialize a resolved {@link AnyContext} into a `Response`. Cookies are handed
+ * to {@link response} only when this request reached us through the regexp
+ * fallback or `app.fetch` — a plain `Request` Bun won't post-process. When Bun's
+ * native router served the route the request is a `BunRequest` whose `CookieMap`
+ * Bun applies itself, so passing it again would emit every `Set-Cookie` twice.
+ */
+const serialize = (context: AnyContext) =>
+	response(
+		context.response.content,
+		"cookies" in context.request.raw ? undefined : context.response.cookies,
+	);
+
+/**
  * {@link Dispatch} assigned to a `static` route with an empty chain. Its
  * response is request-independent, so `compile` builds it once into
  * `endpoint.response`; this just hands back a fresh clone — no chain run,
@@ -139,7 +152,7 @@ export const staticDispatch: Dispatch = (endpoint) =>
 export const walkDispatch: Dispatch = async (endpoint, context) => {
 	await walk(endpoint, context, endpoint.chain, 0);
 
-	return response(context.response.content);
+	return serialize(context);
 };
 
 /**
@@ -156,8 +169,8 @@ export const jitDispatch: Dispatch = async (endpoint, context) => {
 	endpoint.dispatch = async (endpoint, context) => {
 		await jitted(endpoint, context);
 
-		return response(context.response.content);
+		return serialize(context);
 	};
 
-	return response(context.response.content);
+	return serialize(context);
 };

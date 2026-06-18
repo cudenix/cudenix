@@ -97,7 +97,6 @@ const flatten = (
 				"/",
 			restKeys: [],
 			route: link,
-			router: "cudenix",
 		});
 	}
 
@@ -191,8 +190,6 @@ export const compile = (app: Cudenix) => {
 				}
 
 				if (!(method in pathRoutes)) {
-					methodEndpoint.router = "bun";
-
 					if (isStatic) {
 						pathRoutes[method] = methodEndpoint.response!;
 
