@@ -90,7 +90,6 @@ const flatten = (
 				? cloneAppend(merged, link.validator)
 				: merged.slice(),
 			dispatch: walkDispatch,
-			jit: link.jit ?? true,
 			matchOffset: 0,
 			paramKeys: [],
 			path:
@@ -99,7 +98,6 @@ const flatten = (
 			restKeys: [],
 			route: link,
 			router: "cudenix",
-			sse: link.sse,
 		});
 	}
 
@@ -155,12 +153,10 @@ export const compile = (app: Cudenix) => {
 				methodEndpoint.path,
 			);
 
-			const jit = methodEndpoint.route.jit ?? app.jit;
 			const isStatic =
 				methodEndpoint.route.static &&
 				methodEndpoint.chain.length === 0;
 
-			methodEndpoint.jit = jit;
 			methodEndpoint.matchOffset = matchOffset;
 			methodEndpoint.paramKeys = paramKeys;
 			methodEndpoint.restKeys = restKeys;
@@ -172,7 +168,10 @@ export const compile = (app: Cudenix) => {
 
 				methodEndpoint.dispatch = staticDispatch;
 			} else {
-				methodEndpoint.dispatch = jit ? jitDispatch : walkDispatch;
+				methodEndpoint.dispatch =
+					(methodEndpoint.route.jit ?? app.jit)
+						? jitDispatch
+						: walkDispatch;
 			}
 
 			matchOffset += 1 + paramKeys.length;

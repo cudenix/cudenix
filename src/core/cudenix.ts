@@ -52,7 +52,6 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
 export interface Endpoint {
 	chain: Chain;
 	dispatch: Dispatch;
-	jit: boolean;
 	matchOffset: number;
 	paramKeys: string[];
 	path: string;
@@ -60,7 +59,6 @@ export interface Endpoint {
 	restKeys: string[];
 	route: AnyRoute;
 	router: "bun" | "cudenix";
-	sse: boolean;
 }
 
 /**
