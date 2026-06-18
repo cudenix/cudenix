@@ -1,10 +1,32 @@
 import type { AnyContext } from "@/core/context";
 import type { Chain, Endpoint } from "@/core/cudenix";
+import { jit } from "@/core/jit";
 import { fail, Reply } from "@/core/reply";
 import { response } from "@/core/response";
 import type { ValidatorPlugin } from "@/core/validator";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
+
+/**
+ * Per-endpoint resolver stored on `endpoint.dispatch`: run the matched endpoint
+ * and serialize the result into a `Response`. `compile` assigns one to every
+ * endpoint up front — {@link walkDispatch} when the endpoint's JIT is off,
+ * {@link jitDispatch} when it is on — so the request path never has to branch on
+ * whether a route is JIT-enabled or already compiled.
+ *
+ * @example
+ * ```typescript
+ * const run: Dispatch = walkDispatch;
+ *
+ * const a = await run(endpoint, context);
+ *
+ * a.status; // 200
+ * ```
+ */
+export type Dispatch = (
+	endpoint: Endpoint,
+	context: AnyContext,
+) => Promise<Response>;
 
 /**
  * Walk the {@link Chain} from `index`, running each middleware, store, and
@@ -13,7 +35,6 @@ import { merge } from "@/utils/objects/merge";
  */
 const walk = async (
 	endpoint: Endpoint,
-	request: Request,
 	context: AnyContext,
 	chain: Chain,
 	index: number,
@@ -27,7 +48,7 @@ const walk = async (
 
 		if (link.type === "MIDDLEWARE") {
 			const returned = await link.handler(context, () =>
-				walk(endpoint, request, context, chain, i + 1),
+				walk(endpoint, context, chain, i + 1),
 			);
 
 			if (returned) {
@@ -100,17 +121,31 @@ const walk = async (
 };
 
 /**
- * Walk a matched {@link Endpoint}'s {@link Chain}, then serialize the resolved
- * `context.response.content` into a `Response`.
+ * {@link Dispatch} assigned when an endpoint's JIT is off: walk the chain on
+ * every request and serialize the result.
  */
-export const dispatch = async (
-	endpoint: Endpoint,
-	request: Request,
-	context: AnyContext,
-	chain: Chain,
-	index: number,
-) => {
-	await walk(endpoint, request, context, chain, index);
+export const walkDispatch: Dispatch = async (endpoint, context) => {
+	await walk(endpoint, context, endpoint.chain, 0);
+
+	return response(context.response.content);
+};
+
+/**
+ * {@link Dispatch} assigned when an endpoint's JIT is on. The first request
+ * walks the chain, then {@link jit} compiles it into a straight-line dispatcher
+ * which replaces `endpoint.dispatch` in place — so every later request runs the
+ * compiled fast path directly, never walking the chain again.
+ */
+export const jitDispatch: Dispatch = async (endpoint, context) => {
+	await walk(endpoint, context, endpoint.chain, 0);
+
+	const jitted = jit(endpoint);
+
+	endpoint.dispatch = async (endpoint, context) => {
+		await jitted(endpoint, context);
+
+		return response(context.response.content);
+	};
 
 	return response(context.response.content);
 };

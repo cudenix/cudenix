@@ -1,6 +1,6 @@
 import { Context } from "@/core/context";
 import type { Chain, Cudenix, Endpoint } from "@/core/cudenix";
-import { dispatch } from "@/core/dispatch";
+import { jitDispatch, walkDispatch } from "@/core/dispatch";
 import { type AnyModule, Module } from "@/core/module";
 import { response } from "@/core/response";
 import { cloneAppend } from "@/utils/arrays/clone-append";
@@ -89,6 +89,7 @@ const flatten = (
 			chain: link.validator
 				? cloneAppend(merged, link.validator)
 				: merged.slice(),
+			dispatch: walkDispatch,
 			jit: link.jit ?? true,
 			matchOffset: 0,
 			paramKeys: [],
@@ -154,7 +155,10 @@ export const compile = (app: Cudenix) => {
 				methodEndpoint.path,
 			);
 
-			methodEndpoint.jit = methodEndpoint.route.jit ?? jit;
+			const jit = methodEndpoint.route.jit ?? app.jit;
+
+			methodEndpoint.jit = jit;
+			methodEndpoint.dispatch = jit ? jitDispatch : walkDispatch;
 			methodEndpoint.matchOffset = matchOffset;
 			methodEndpoint.paramKeys = paramKeys;
 			methodEndpoint.restKeys = restKeys;
@@ -191,12 +195,9 @@ export const compile = (app: Cudenix) => {
 					}
 
 					pathRoutes[method] = (request: Request) =>
-						dispatch(
+						methodEndpoint.dispatch(
 							methodEndpoint,
-							request,
 							new Context(app, methodEndpoint, request),
-							methodEndpoint.chain,
-							0,
 						);
 				}
 			}

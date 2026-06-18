@@ -1,6 +1,6 @@
 import { compile } from "@/core/compile";
 import { Context } from "@/core/context";
-import { dispatch } from "@/core/dispatch";
+import type { Dispatch } from "@/core/dispatch";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
 import type { AnyRoute } from "@/core/route";
@@ -51,6 +51,7 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
  */
 export interface Endpoint {
 	chain: Chain;
+	dispatch: Dispatch;
 	jit: boolean;
 	matchOffset: number;
 	paramKeys: string[];
@@ -247,12 +248,9 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 		return NOT_FOUND.clone();
 	}
 
-	return dispatch(
+	return endpoint.dispatch(
 		endpoint,
-		request,
 		new Context(this, endpoint, request, match),
-		endpoint.chain,
-		0,
 	);
 };
 
