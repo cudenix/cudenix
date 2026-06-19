@@ -287,7 +287,7 @@ describe("usage: jit", () => {
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
 
 			expect(endpoint.dispatch).toBe(staticDispatch);
-			expect(endpoint.staticResponse).toBeInstanceOf(Response);
+			expect(endpoint.response).toBeInstanceOf(Response);
 
 			// Bun's router serves the precomputed Response natively...
 			const native = await server.fetch("/b");
@@ -334,7 +334,7 @@ describe("usage: jit", () => {
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
 
 			expect(endpoint.dispatch).not.toBe(staticDispatch);
-			expect(endpoint.staticResponse).toBeUndefined();
+			expect(endpoint.response).toBeUndefined();
 
 			const result = await server.fetch("/b");
 

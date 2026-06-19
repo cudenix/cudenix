@@ -132,6 +132,7 @@ const serialize = (context: AnyContext) =>
 	response(
 		context.response.content,
 		"cookies" in context.request.raw ? undefined : context.response.cookies,
+		context.response.headers,
 	);
 
 /**

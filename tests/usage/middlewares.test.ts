@@ -602,11 +602,11 @@ describe("usage: middlewares", () => {
 	});
 
 	describe("response metadata", () => {
-		it("should not apply response headers set by a middleware yet (migration gap)", async () => {
+		it("should apply a response header set by a middleware", async () => {
 			using server = serveApp(
 				new Module()
 					.middleware((context, next) => {
-						context.response.headers["x-a"] = "v1";
+						context.response.headers.set("x-a", "v1");
 
 						return next();
 					})
@@ -616,7 +616,7 @@ describe("usage: middlewares", () => {
 			const result = await server.fetch("/a");
 
 			expect(result.status).toBe(200);
-			expect(result.headers.get("x-a")).toBeNull();
+			expect(result.headers.get("x-a")).toBe("v1");
 		});
 
 		it("should apply a response cookie set by a middleware as a Set-Cookie header", async () => {

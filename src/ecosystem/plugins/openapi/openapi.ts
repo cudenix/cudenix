@@ -244,7 +244,7 @@ export const openapi = ({ path }: OpenapiModuleOptions = FrozenEmpty) => {
 
 	return new Module()
 		.route("GET", url, ({ memory, response: { headers } }) => {
-			headers["content-type"] = "text/html";
+			headers.set("content-type", "text/html");
 
 			if (!cachedHtml) {
 				cachedJson ??= JSON.stringify(memory.openapi);
@@ -264,7 +264,7 @@ export const openapi = ({ path }: OpenapiModuleOptions = FrozenEmpty) => {
 				cachedJson = JSON.stringify(memory.openapi);
 			}
 
-			headers["content-type"] = "application/json";
+			headers.set("content-type", "application/json");
 
 			return ok(cachedJson);
 		});
