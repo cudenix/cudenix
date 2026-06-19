@@ -86,7 +86,7 @@ const flatten = (
 			mounts.push({
 				fetch: link.fetch,
 				path:
-					`${inherited.path}${path === "/" ? "" : path}${link.path === "/" ? "" : link.path}` ||
+					`${inherited.path}${module.prefix === "/" ? "" : module.prefix}${link.path === "/" ? "" : link.path}` ||
 					"/",
 			});
 

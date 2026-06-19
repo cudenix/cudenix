@@ -242,6 +242,81 @@ describe("usage: mounts", () => {
 		});
 	});
 
+	describe("bleed isolation", () => {
+		it("should not inherit a preceding use()'s prefix (absolute mount prefix)", async () => {
+			using server = serveApp(
+				new Module()
+					.use(new Module({ prefix: "/v1" }))
+					.mount(
+						(request) =>
+							new Response(new URL(request.url).pathname),
+						{ prefix: "/api" },
+					),
+			);
+
+			const absolute = await server.fetch("/api/x");
+			const bled = await server.fetch("/v1/api/x");
+
+			expect(await absolute.text()).toBe("/x");
+			expect(bled.status).toBe(404);
+		});
+
+		it("should keep a root mount at the root after a prefixed use()", async () => {
+			using server = serveApp(
+				new Module()
+					.use(new Module({ prefix: "/v1" }))
+					.mount(
+						(request) =>
+							new Response(new URL(request.url).pathname),
+					),
+			);
+
+			const anything = await server.fetch("/anything");
+
+			expect(await anything.text()).toBe("/anything");
+		});
+
+		it("should not inherit a deeply nested use()'s composed prefix", async () => {
+			using server = serveApp(
+				new Module()
+					.use(
+						new Module({ prefix: "/v1" }).use(
+							new Module({ prefix: "/v2" }),
+						),
+					)
+					.mount(
+						(request) =>
+							new Response(new URL(request.url).pathname),
+						{ prefix: "/api" },
+					),
+			);
+
+			const absolute = await server.fetch("/api/x");
+			const bled = await server.fetch("/v1/v2/api/x");
+
+			expect(await absolute.text()).toBe("/x");
+			expect(bled.status).toBe(404);
+		});
+
+		it("should keep the declaring module's own prefix but not a sibling use()'s", async () => {
+			using server = serveApp(
+				new Module({ prefix: "/v1" })
+					.use(new Module({ prefix: "/v2" }))
+					.mount(
+						(request) =>
+							new Response(new URL(request.url).pathname),
+						{ prefix: "/api" },
+					),
+			);
+
+			const own = await server.fetch("/v1/api/x");
+			const sibling = await server.fetch("/v1/v2/api/x");
+
+			expect(await own.text()).toBe("/x");
+			expect(sibling.status).toBe(404);
+		});
+	});
+
 	describe("interop", () => {
 		it("should mount another Cudenix app's fetch", async () => {
 			const sub = new Cudenix(
