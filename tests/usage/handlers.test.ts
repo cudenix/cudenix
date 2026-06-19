@@ -88,7 +88,7 @@ describe("usage: handlers", () => {
 	});
 
 	describe("generator handler", () => {
-		it("should not stream a generator handler yet (migration gap)", async () => {
+		it("should stream a generator handler as text/event-stream", async () => {
 			using server = serveApp(
 				new Module().route("GET", "/a", async function* () {
 					yield { data: ok("frame1") };
@@ -100,9 +100,13 @@ describe("usage: handlers", () => {
 
 			const result = await server.fetch("/a");
 
-			expect(result.status).toBe(204);
-			expect(result.headers.get("content-type")).toBeNull();
-			expect(await result.text()).toBe("");
+			expect(result.status).toBe(200);
+			expect(result.headers.get("content-type")).toBe(
+				"text/event-stream",
+			);
+			expect(await result.text()).toBe(
+				'data: "frame1"\n\ndata: "frame2"\n\ndata: "final"\n\n',
+			);
 		});
 	});
 });

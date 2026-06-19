@@ -24,7 +24,11 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FrozenEmpty) =>
 	new Module().middleware(async ({ request: { raw }, response }, next) => {
 		await next();
 
-		if (!response.content || raw.method === "HEAD") {
+		if (
+			!response.content ||
+			raw.method === "HEAD" ||
+			response.content instanceof ReadableStream
+		) {
 			return;
 		}
 

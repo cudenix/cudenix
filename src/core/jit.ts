@@ -1,6 +1,7 @@
 import type { AnyContext } from "@/core/context";
 import type { Chain, Endpoint } from "@/core/cudenix";
 import { fail, Reply } from "@/core/reply";
+import { stream } from "@/core/sse";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 
@@ -26,23 +27,32 @@ export type JittedDispatch = (
 /**
  * Emit the source for the {@link Chain} links from `index` onward, ending with
  * the route handler call. A `MIDDLEWARE` nests the rest of the chain in its
- * `next` closure, so it runs only when the handler calls `next`.
+ * `next` closure, so it runs only when the handler calls `next`. When `sse` is
+ * set the tail is specialized: the generator handler is invoked once for its
+ * iterator, the request's idle timeout is disabled, and `stream` adapts it into
+ * the `text/event-stream` body — instead of awaiting a single reply envelope.
  */
-const generate = (chain: Chain, index: number): string => {
+const generate = (chain: Chain, index: number, sse: boolean): string => {
 	if (index >= chain.length) {
-		return "context.response.content = await endpoint.route.handler(context);";
+		return sse
+			? `const generator = endpoint.route.handler(context);
+
+				context.server?.timeout(context.request.raw, 0);
+
+				context.response.content = stream(generator);`
+			: "context.response.content = await endpoint.route.handler(context);";
 	}
 
 	const link = chain[index];
 
 	if (!link) {
-		return generate(chain, index + 1);
+		return generate(chain, index + 1, sse);
 	}
 
 	if (link.type === "MIDDLEWARE") {
 		return `{
 			const next_${index} = async () => {
-				${generate(chain, index + 1)}
+				${generate(chain, index + 1, sse)}
 			};
 
 			const returned_${index} = await chain[${index}].handler(context, next_${index});
@@ -66,7 +76,7 @@ const generate = (chain: Chain, index: number): string => {
 			merge(context.store, returned_${index});
 		}
 
-		${generate(chain, index + 1)}`;
+		${generate(chain, index + 1, sse)}`;
 	}
 
 	if (link.type === "VALIDATOR") {
@@ -106,10 +116,10 @@ const generate = (chain: Chain, index: number): string => {
 			}
 		}
 
-		${generate(chain, index + 1)}`;
+		${generate(chain, index + 1, sse)}`;
 	}
 
-	return generate(chain, index + 1);
+	return generate(chain, index + 1, sse);
 };
 
 /**
@@ -143,14 +153,16 @@ export const jit = (endpoint: Endpoint): JittedDispatch => {
 		"merge",
 		"Empty",
 		"fail",
-		`return async (endpoint, context) => {\n${generate(chain, 0)}\n};`,
+		"stream",
+		`return async (endpoint, context) => {\n${generate(chain, 0, endpoint.route.sse)}\n};`,
 	) as (
 		chain: Chain,
 		reply: typeof Reply,
 		mergeObjects: typeof merge,
 		empty: typeof Empty,
 		failReply: typeof fail,
+		sseStream: typeof stream,
 	) => JittedDispatch;
 
-	return factory(chain, Reply, merge, Empty, fail);
+	return factory(chain, Reply, merge, Empty, fail, stream);
 };

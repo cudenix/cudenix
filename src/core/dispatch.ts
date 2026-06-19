@@ -3,6 +3,8 @@ import type { Chain, Endpoint } from "@/core/cudenix";
 import { jit } from "@/core/jit";
 import { fail, Reply } from "@/core/reply";
 import { response } from "@/core/response";
+import type { RouteFnReturnGenerator } from "@/core/route";
+import { stream } from "@/core/sse";
 import type { ValidatorPlugin } from "@/core/validator";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
@@ -32,7 +34,10 @@ export type Dispatch = (
 /**
  * Walk the {@link Chain} from `index`, running each middleware, store, and
  * validator, then the route handler, and write the result to
- * `context.response.content`.
+ * `context.response.content`. An `sse` route's handler is a generator: it is
+ * invoked once for its iterator (its body runs lazily as the stream is read),
+ * the request's idle timeout is disabled, and {@link stream} adapts it into the
+ * `ReadableStream` {@link materialize} serves as `text/event-stream`.
  */
 const walk = async (
 	endpoint: Endpoint,
@@ -116,6 +121,18 @@ const walk = async (
 				return;
 			}
 		}
+	}
+
+	if (endpoint.route.sse) {
+		const generator = endpoint.route.handler(
+			context,
+		) as RouteFnReturnGenerator;
+
+		context.server?.timeout(context.request.raw, 0);
+
+		context.response.content = stream(generator);
+
+		return;
 	}
 
 	context.response.content = await endpoint.route.handler(context);

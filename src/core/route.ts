@@ -140,7 +140,8 @@ export type RouteFnReturnGeneratorFrame = GeneratorSSE<
 /**
  * Sync or async generator returned by a streaming route. Yields a
  * {@link RouteFnReturnGeneratorFrame} per chunk and may `return` a final
- * {@link RouteFnReturnGeneratorEnvelope}.
+ * {@link RouteFnReturnGeneratorEnvelope} — `void` covers the common case of a
+ * handler that only ever yields and never returns a closing value.
  *
  * @example
  * ```typescript
@@ -155,11 +156,11 @@ export type RouteFnReturnGeneratorFrame = GeneratorSSE<
 export type RouteFnReturnGenerator =
 	| Generator<
 			RouteFnReturnGeneratorFrame,
-			RouteFnReturnGeneratorEnvelope | undefined
+			RouteFnReturnGeneratorEnvelope | undefined | void
 	  >
 	| AsyncGenerator<
 			RouteFnReturnGeneratorFrame,
-			RouteFnReturnGeneratorEnvelope | undefined
+			RouteFnReturnGeneratorEnvelope | undefined | void
 	  >;
 
 /**
