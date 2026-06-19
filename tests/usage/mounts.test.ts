@@ -1,613 +1,268 @@
-import { describe, expect, expectTypeOf, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
+import { Cudenix } from "@/core/cudenix";
 import { Module } from "@/core/module";
-import { fail, ok } from "@/core/reply";
+import { ok } from "@/core/reply";
 
 import { serveApp } from "./helpers";
 
 describe("usage: mounts", () => {
-	describe("prefixes", () => {
-		it("should nest mounted routes under the parent prefix when only the parent declares one", async () => {
+	describe("delegation", () => {
+		it("should delegate a request under the prefix to the mounted fetch", async () => {
 			using server = serveApp(
-				new Module({ prefix: "/v1" }).mount(
-					new Module().route("GET", "/a", () => ok("v1")),
-				),
+				new Module().mount(() => new Response("mounted"), {
+					prefix: "/api",
+				}),
 			);
 
-			const prefixed = await server.fetch("/v1/a");
-			const bare = await server.fetch("/a");
-
-			expect(prefixed.status).toBe(200);
-			expect(await prefixed.text()).toBe("v1");
-			expect(bare.status).toBe(404);
-		});
-
-		it("should serve mounted routes under the mounted module's own prefix when the parent has none", async () => {
-			using server = serveApp(
-				new Module().mount(
-					new Module({ prefix: "/v1" }).route("GET", "/a", () =>
-						ok("v1"),
-					),
-				),
-			);
-
-			const prefixed = await server.fetch("/v1/a");
-			const bare = await server.fetch("/a");
-
-			expect(prefixed.status).toBe(200);
-			expect(await prefixed.text()).toBe("v1");
-			expect(bare.status).toBe(404);
-		});
-
-		it("should compose the parent and mounted module prefixes", async () => {
-			using server = serveApp(
-				new Module({ prefix: "/v1" }).mount(
-					new Module({ prefix: "/v2" }).route("GET", "/a", () =>
-						ok("v1"),
-					),
-				),
-			);
-
-			const composed = await server.fetch("/v1/v2/a");
-			const childOnly = await server.fetch("/v2/a");
-
-			expect(composed.status).toBe(200);
-			expect(await composed.text()).toBe("v1");
-			expect(childOnly.status).toBe(404);
-		});
-
-		it("should treat a root mounted prefix the same as no prefix", async () => {
-			using server = serveApp(
-				new Module()
-					.mount(
-						new Module({ prefix: "/" }).route("GET", "/a", () =>
-							ok("v1"),
-						),
-					)
-					.route("GET", "/b", () => ok("v2")),
-			);
-
-			const mounted = await server.fetch("/a");
-			const sibling = await server.fetch("/b");
-
-			expect(mounted.status).toBe(200);
-			expect(await mounted.text()).toBe("v1");
-			expect(await sibling.text()).toBe("v2");
-		});
-
-		it("should serve routes under a multi-segment mounted prefix", async () => {
-			using server = serveApp(
-				new Module().mount(
-					new Module({ prefix: "/v1/v2" }).route("GET", "/a", () =>
-						ok("v1"),
-					),
-				),
-			);
-
-			const prefixed = await server.fetch("/v1/v2/a");
-			const bare = await server.fetch("/a");
-
-			expect(prefixed.status).toBe(200);
-			expect(await prefixed.text()).toBe("v1");
-			expect(bare.status).toBe(404);
-		});
-
-		it("should serve a root route at the mounted prefix itself", async () => {
-			using server = serveApp(
-				new Module().mount(
-					new Module({ prefix: "/v1" }).route("GET", "/", () =>
-						ok("v1"),
-					),
-				),
-			);
-
-			const exact = await server.fetch("/v1");
-			const trailing = await server.fetch("/v1/");
-
-			expect(exact.status).toBe(200);
-			expect(await exact.text()).toBe("v1");
-			expect(trailing.status).toBe(404);
-		});
-
-		it("should match a param segment declared in the mounted prefix", async () => {
-			using server = serveApp(
-				new Module().mount(
-					new Module({ prefix: "/v1/:p1" }).route("GET", "/a", () =>
-						ok("v1"),
-					),
-				),
-			);
-
-			const hit = await server.fetch("/v1/1/a");
-			const miss = await server.fetch("/v1/a");
-
-			expect(hit.status).toBe(200);
-			expect(await hit.text()).toBe("v1");
-			expect(miss.status).toBe(404);
-		});
-	});
-
-	describe("prefix bleed", () => {
-		it("should not nest routes declared before the mount under the mounted prefix", async () => {
-			using server = serveApp(
-				new Module()
-					.route("GET", "/a", () => ok("v1"))
-					.mount(
-						new Module({ prefix: "/v1" }).route("GET", "/b", () =>
-							ok("v2"),
-						),
-					),
-			);
-
-			const before = await server.fetch("/a");
-			const mounted = await server.fetch("/v1/b");
-			const nested = await server.fetch("/v1/a");
-
-			expect(await before.text()).toBe("v1");
-			expect(await mounted.text()).toBe("v2");
-			expect(nested.status).toBe(404);
-		});
-
-		it("should keep sibling routes declared after an unprefixed mount at the parent's root", async () => {
-			using server = serveApp(
-				new Module()
-					.mount(new Module().route("GET", "/a", () => ok("v1")))
-					.route("GET", "/b", () => ok("v2")),
-			);
-
-			const mounted = await server.fetch("/a");
-			const sibling = await server.fetch("/b");
-
-			expect(await mounted.text()).toBe("v1");
-			expect(await sibling.text()).toBe("v2");
-		});
-
-		it("should compose the prefixes of consecutive prefixed mounts", async () => {
-			using server = serveApp(
-				new Module()
-					.mount(
-						new Module({ prefix: "/v1" }).route("GET", "/a", () =>
-							ok("v1"),
-						),
-					)
-					.mount(
-						new Module({ prefix: "/v2" }).route("GET", "/b", () =>
-							ok("v2"),
-						),
-					),
-			);
-
-			const first = await server.fetch("/v1/a");
-			const second = await server.fetch("/v1/v2/b");
-			const bare = await server.fetch("/v2/b");
-
-			expect(await first.text()).toBe("v1");
-			expect(second.status).toBe(200);
-			expect(await second.text()).toBe("v2");
-			expect(bare.status).toBe(404);
-		});
-
-		it("should nest sibling routes declared after a prefixed mount under that prefix", async () => {
-			using server = serveApp(
-				new Module()
-					.mount(
-						new Module({ prefix: "/v1" }).route("GET", "/a", () =>
-							ok("v1"),
-						),
-					)
-					.route("GET", "/b", () => ok("v2")),
-			);
-
-			const mounted = await server.fetch("/v1/a");
-			const nested = await server.fetch("/v1/b");
-			const bare = await server.fetch("/b");
-
-			expect(await mounted.text()).toBe("v1");
-			expect(await nested.text()).toBe("v2");
-			expect(bare.status).toBe(404);
-		});
-
-		it("should nest later siblings under the prefix of a mounted module with no routes", async () => {
-			using server = serveApp(
-				new Module()
-					.mount(new Module({ prefix: "/v1" }))
-					.route("GET", "/a", () => ok("v1")),
-			);
-
-			const nested = await server.fetch("/v1/a");
-			const bare = await server.fetch("/a");
-
-			expect(nested.status).toBe(200);
-			expect(await nested.text()).toBe("v1");
-			expect(bare.status).toBe(404);
-		});
-
-		it("should bleed a deeply nested mount's composed prefix onto a later sibling", async () => {
-			using server = serveApp(
-				new Module()
-					.mount(
-						new Module({ prefix: "/v1" }).mount(
-							new Module({ prefix: "/v2" }),
-						),
-					)
-					.route("GET", "/a", () => ok("v1")),
-			);
-
-			const nested = await server.fetch("/v1/v2/a");
-			const partial = await server.fetch("/v1/a");
-			const bare = await server.fetch("/a");
-
-			expect(nested.status).toBe(200);
-			expect(await nested.text()).toBe("v1");
-			expect(partial.status).toBe(404);
-			expect(bare.status).toBe(404);
-		});
-
-		it("should bleed a param-segment mounted prefix onto a later sibling", async () => {
-			using server = serveApp(
-				new Module()
-					.mount(new Module({ prefix: "/v1/:p1" }))
-					.route("GET", "/a", () => ok("v1")),
-			);
-
-			const hit = await server.fetch("/v1/1/a");
-			const miss = await server.fetch("/v1/a");
-
-			expect(hit.status).toBe(200);
-			expect(await hit.text()).toBe("v1");
-			expect(miss.status).toBe(404);
-		});
-	});
-
-	describe("nesting", () => {
-		it("should compose prefixes across nested mounts", async () => {
-			using server = serveApp(
-				new Module({ prefix: "/v1" }).mount(
-					new Module({ prefix: "/v2" }).mount(
-						new Module({ prefix: "/v3" }).route("GET", "/a", () =>
-							ok("v1"),
-						),
-					),
-				),
-			);
-
-			const composed = await server.fetch("/v1/v2/v3/a");
-			const partial = await server.fetch("/v2/v3/a");
-
-			expect(composed.status).toBe(200);
-			expect(await composed.text()).toBe("v1");
-			expect(partial.status).toBe(404);
-		});
-
-		it("should apply a middleware declared in an outer mounted module to deeply mounted routes", async () => {
-			using server = serveApp(
-				new Module().mount(
-					new Module()
-						.middleware(() => fail("blocked", { status: 403 }))
-						.mount(new Module().route("GET", "/a", () => ok("v1"))),
-				),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(403);
-			expect(await result.text()).toBe("blocked");
-		});
-	});
-
-	describe("middlewares", () => {
-		it("should apply a mounted module's middleware to its own routes", async () => {
-			using server = serveApp(
-				new Module().mount(
-					new Module()
-						.middleware(() => fail("blocked", { status: 403 }))
-						.route("GET", "/a", () => ok("v1")),
-				),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(403);
-			expect(await result.text()).toBe("blocked");
-		});
-
-		it("should run a parent middleware around the mounted module's middleware", async () => {
-			const events: string[] = [];
-
-			using server = serveApp(
-				new Module()
-					.middleware(async (_, next) => {
-						events.push("parent:before");
-
-						await next();
-
-						events.push("parent:after");
-					})
-					.mount(
-						new Module()
-							.middleware(async (_, next) => {
-								events.push("mounted:before");
-
-								await next();
-
-								events.push("mounted:after");
-							})
-							.route("GET", "/a", () => {
-								events.push("handler");
-
-								return ok("v1");
-							}),
-					),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(200);
-			expect(events).toEqual([
-				"parent:before",
-				"mounted:before",
-				"handler",
-				"mounted:after",
-				"parent:after",
-			]);
-		});
-
-		it("should not apply a parent middleware declared after the mount to mounted routes", async () => {
-			using server = serveApp(
-				new Module()
-					.mount(new Module().route("GET", "/a", () => ok("v1")))
-					.middleware(() => fail("blocked", { status: 403 }))
-					.route("GET", "/b", () => ok("v2")),
-			);
-
-			const mounted = await server.fetch("/a");
-			const after = await server.fetch("/b");
-
-			expect(mounted.status).toBe(200);
-			expect(await mounted.text()).toBe("v1");
-			expect(after.status).toBe(403);
-		});
-
-		it("should apply a mounted module's middleware to sibling routes declared after the mount", async () => {
-			using server = serveApp(
-				new Module()
-					.route("GET", "/a", () => ok("v1"))
-					.mount(
-						new Module().middleware(() =>
-							fail("blocked", { status: 403 }),
-						),
-					)
-					.route("GET", "/b", () => ok("v2")),
-			);
-
-			const before = await server.fetch("/a");
-			const after = await server.fetch("/b");
-
-			expect(before.status).toBe(200);
-			expect(await before.text()).toBe("v1");
-			expect(after.status).toBe(403);
-		});
-
-		it("should apply one mounted module's middleware to a sibling mount declared after it", async () => {
-			using server = serveApp(
-				new Module()
-					.mount(
-						new Module().middleware(() =>
-							fail("blocked", { status: 403 }),
-						),
-					)
-					.mount(new Module().route("GET", "/a", () => ok("v1"))),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(403);
-			expect(await result.text()).toBe("blocked");
-		});
-
-		it("should run a bubbled mount middleware around a parent middleware declared after the mount", async () => {
-			const events: string[] = [];
-
-			using server = serveApp(
-				new Module()
-					.mount(
-						new Module().middleware(async (_, next) => {
-							events.push("mount:before");
-
-							await next();
-
-							events.push("mount:after");
-						}),
-					)
-					.middleware(async (_, next) => {
-						events.push("after:before");
-
-						await next();
-
-						events.push("after:after");
-					})
-					.route("GET", "/a", () => {
-						events.push("handler");
-
-						return ok("v1");
-					}),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(200);
-			expect(events).toEqual([
-				"mount:before",
-				"after:before",
-				"handler",
-				"after:after",
-				"mount:after",
-			]);
-		});
-	});
-
-	describe("stores", () => {
-		it("should expose a mounted module's store to its own routes", async () => {
-			using server = serveApp(
-				new Module().mount(
-					new Module()
-						.store(() => ({ a: "v1" }))
-						.route("GET", "/a", (context) => ok(context.store.a)),
-				),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(200);
-			expect(await result.text()).toBe("v1");
-		});
-
-		it("should apply a parent store declared before the mount to mounted routes", async () => {
-			const events: string[] = [];
-
-			using server = serveApp(
-				new Module()
-					.store(() => {
-						events.push("store");
-
-						return { a: "v1" };
-					})
-					.mount(new Module().route("GET", "/a", () => ok("v2"))),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(200);
-			expect(await result.text()).toBe("v2");
-			expect(events).toEqual(["store"]);
-		});
-
-		it("should merge a parent store with a mounted module's store on a route declared after the mount", async () => {
-			using server = serveApp(
-				new Module()
-					.store((): { a: string } => ({ a: "v1" }))
-					.mount(
-						new Module().store((): { b: string } => ({ b: "v2" })),
-					)
-					.route("GET", "/a", (context) => {
-						expectTypeOf(context.store).branded.toEqualTypeOf<{
-							a: string;
-							b: string;
-						}>();
-
-						return ok(`${context.store.a}:${context.store.b}`);
-					}),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(200);
-			expect(await result.text()).toBe("v1:v2");
-		});
-
-		it("should let a mounted module's store overwrite a parent store key", async () => {
-			using server = serveApp(
-				new Module()
-					.store(() => ({ a: "v1" }))
-					.mount(new Module().store(() => ({ a: "v2" })))
-					.route("GET", "/a", (context) => ok(context.store.a)),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(200);
-			expect(await result.text()).toBe("v2");
-		});
-
-		it("should expose a mounted module's store only to routes declared after the mount", async () => {
-			const events: string[] = [];
-
-			using server = serveApp(
-				new Module()
-					.route("GET", "/a", (context) => {
-						expectTypeOf(context.store).toEqualTypeOf<
-							NonNullable<unknown>
-						>();
-
-						return ok("a" in context.store ? "present" : "absent");
-					})
-					.mount(
-						new Module().store(() => {
-							events.push("store");
-
-							return { a: "v1" };
-						}),
-					)
-					.route("GET", "/b", (context) => ok(context.store.a)),
-			);
-
-			const before = await server.fetch("/a");
-			const after = await server.fetch("/b");
-
-			expect(await before.text()).toBe("absent");
-			expect(after.status).toBe(200);
-			expect(await after.text()).toBe("v1");
-			expect(events).toEqual(["store"]);
-		});
-	});
-
-	describe("precedence", () => {
-		it("should prefer a parent route registered before a mounted route at the same path", async () => {
-			using server = serveApp(
-				new Module()
-					.route("GET", "/a", () => ok("parent"))
-					.mount(
-						new Module().route("GET", "/a", () => ok("mounted")),
-					),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(200);
-			expect(await result.text()).toBe("parent");
-		});
-
-		it("should prefer a mounted route registered before a parent route at the same path", async () => {
-			using server = serveApp(
-				new Module()
-					.mount(new Module().route("GET", "/a", () => ok("mounted")))
-					.route("GET", "/a", () => ok("parent")),
-			);
-
-			const result = await server.fetch("/a");
+			const result = await server.fetch("/api/a");
 
 			expect(result.status).toBe(200);
 			expect(await result.text()).toBe("mounted");
 		});
-	});
 
-	describe("compilation", () => {
-		it("should serve siblings normally when the mounted module declares no links", async () => {
-			using server = serveApp(
-				new Module()
-					.mount(new Module())
-					.route("GET", "/a", () => ok("v1")),
-			);
-
-			const result = await server.fetch("/a");
-
-			expect(result.status).toBe(200);
-			expect(await result.text()).toBe("v1");
-		});
-
-		it("should serve a static-value route inside a mounted module at the composed path", async () => {
+		it("should strip the prefix so the mounted handler sees a root-relative path", async () => {
 			using server = serveApp(
 				new Module().mount(
-					new Module({ prefix: "/v1" }).route("GET", "/a", ok("v1")),
+					(request) => new Response(new URL(request.url).pathname),
+					{ prefix: "/api" },
 				),
 			);
 
-			const prefixed = await server.fetch("/v1/a");
-			const bare = await server.fetch("/a");
+			const result = await server.fetch("/api/a/b");
 
-			expect(prefixed.status).toBe(200);
-			expect(await prefixed.text()).toBe("v1");
+			expect(await result.text()).toBe("/a/b");
+		});
+
+		it("should serve the mounted handler at the prefix itself with a root path", async () => {
+			using server = serveApp(
+				new Module().mount(
+					(request) => new Response(new URL(request.url).pathname),
+					{ prefix: "/api" },
+				),
+			);
+
+			const exact = await server.fetch("/api");
+			const trailing = await server.fetch("/api/");
+
+			expect(await exact.text()).toBe("/");
+			expect(await trailing.text()).toBe("/");
+		});
+
+		it("should preserve the query string when delegating", async () => {
+			using server = serveApp(
+				new Module().mount(
+					(request) => {
+						const url = new URL(request.url);
+
+						return new Response(`${url.pathname}${url.search}`);
+					},
+					{ prefix: "/api" },
+				),
+			);
+
+			const result = await server.fetch("/api/a?x=1&y=2");
+
+			expect(await result.text()).toBe("/a?x=1&y=2");
+		});
+
+		it("should preserve the request method when delegating", async () => {
+			using server = serveApp(
+				new Module().mount((request) => new Response(request.method), {
+					prefix: "/api",
+				}),
+			);
+
+			const result = await server.fetch("/api/a", { method: "DELETE" });
+
+			expect(await result.text()).toBe("DELETE");
+		});
+
+		it("should preserve the request body when delegating", async () => {
+			using server = serveApp(
+				new Module().mount(
+					async (request) => new Response(await request.text()),
+					{ prefix: "/api" },
+				),
+			);
+
+			const result = await server.fetch("/api/echo", {
+				body: "hello",
+				method: "POST",
+			});
+
+			expect(await result.text()).toBe("hello");
+		});
+
+		it("should pass the mounted handler's response through unchanged", async () => {
+			using server = serveApp(
+				new Module().mount(
+					() =>
+						new Response("teapot", {
+							headers: { "x-mounted": "yes" },
+							status: 418,
+						}),
+					{ prefix: "/api" },
+				),
+			);
+
+			const result = await server.fetch("/api/a");
+
+			expect(result.status).toBe(418);
+			expect(result.headers.get("x-mounted")).toBe("yes");
+			expect(await result.text()).toBe("teapot");
+		});
+	});
+
+	describe("matching", () => {
+		it("should not match a path that only shares the prefix as a string", async () => {
+			using server = serveApp(
+				new Module().mount(() => new Response("mounted"), {
+					prefix: "/api",
+				}),
+			);
+
+			const result = await server.fetch("/apiserver");
+
+			expect(result.status).toBe(404);
+		});
+
+		it("should fall through to 404 when neither a route nor a mount matches", async () => {
+			using server = serveApp(
+				new Module().mount(() => new Response("mounted"), {
+					prefix: "/api",
+				}),
+			);
+
+			const result = await server.fetch("/other");
+
+			expect(result.status).toBe(404);
+		});
+
+		it("should prefer an app route over a mount sharing the prefix", async () => {
+			using server = serveApp(
+				new Module()
+					.route("GET", "/api/health", () => ok("app"))
+					.mount(() => new Response("mounted"), { prefix: "/api" }),
+			);
+
+			const route = await server.fetch("/api/health");
+			const fallback = await server.fetch("/api/other");
+
+			expect(await route.text()).toBe("app");
+			expect(await fallback.text()).toBe("mounted");
+		});
+
+		it("should delegate a method the app does not define on a non-route path", async () => {
+			using server = serveApp(
+				new Module()
+					.route("GET", "/api/info", () => ok("app"))
+					.mount((request) => new Response(request.method), {
+						prefix: "/api",
+					}),
+			);
+
+			const route = await server.fetch("/api/info");
+			const posted = await server.fetch("/api/data", { method: "POST" });
+
+			expect(await route.text()).toBe("app");
+			expect(await posted.text()).toBe("POST");
+		});
+
+		it("should pick the longest matching prefix", async () => {
+			using server = serveApp(
+				new Module()
+					.mount(() => new Response("a"), { prefix: "/a" })
+					.mount(() => new Response("b"), { prefix: "/a/b" }),
+			);
+
+			const deep = await server.fetch("/a/b/c");
+			const exact = await server.fetch("/a/b");
+			const shallow = await server.fetch("/a/c");
+
+			expect(await deep.text()).toBe("b");
+			expect(await exact.text()).toBe("b");
+			expect(await shallow.text()).toBe("a");
+		});
+	});
+
+	describe("root", () => {
+		it("should delegate every unmatched request when mounted at the root", async () => {
+			using server = serveApp(
+				new Module()
+					.route("GET", "/keep", () => ok("app"))
+					.mount(
+						(request) =>
+							new Response(new URL(request.url).pathname),
+					),
+			);
+
+			const route = await server.fetch("/keep");
+			const anything = await server.fetch("/anything/deep");
+
+			expect(await route.text()).toBe("app");
+			expect(await anything.text()).toBe("/anything/deep");
+		});
+	});
+
+	describe("prefixes", () => {
+		it("should compose the mount prefix with the module prefix", async () => {
+			using server = serveApp(
+				new Module({ prefix: "/v1" }).mount(
+					(request) => new Response(new URL(request.url).pathname),
+					{ prefix: "/api" },
+				),
+			);
+
+			const prefixed = await server.fetch("/v1/api/a");
+			const bare = await server.fetch("/api/a");
+
+			expect(await prefixed.text()).toBe("/a");
 			expect(bare.status).toBe(404);
+		});
+
+		it("should compose the mount prefix with a group prefix", async () => {
+			using server = serveApp(
+				new Module().group(
+					(module) =>
+						module.mount(
+							(request) =>
+								new Response(new URL(request.url).pathname),
+							{ prefix: "/api" },
+						),
+					{ prefix: "/v1" },
+				),
+			);
+
+			const prefixed = await server.fetch("/v1/api/a");
+			const bare = await server.fetch("/api/a");
+
+			expect(await prefixed.text()).toBe("/a");
+			expect(bare.status).toBe(404);
+		});
+	});
+
+	describe("interop", () => {
+		it("should mount another Cudenix app's fetch", async () => {
+			const sub = new Cudenix(
+				new Module()
+					.route("GET", "/", () => ok("sub:root"))
+					.route("GET", "/a", () => ok("sub:a")),
+			);
+
+			sub.compile();
+
+			using server = serveApp(
+				new Module().mount((request) => sub.fetch(request), {
+					prefix: "/sub",
+				}),
+			);
+
+			const root = await server.fetch("/sub");
+			const nested = await server.fetch("/sub/a");
+
+			expect(await root.text()).toBe("sub:root");
+			expect(await nested.text()).toBe("sub:a");
 		});
 	});
 });

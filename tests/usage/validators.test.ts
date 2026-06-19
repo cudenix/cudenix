@@ -305,9 +305,9 @@ describe("usage: validators", () => {
 			expect(await sibling.text()).toBe("v2");
 		});
 
-		it("should apply a mounted module's validator to its own routes", async () => {
+		it("should apply a used module's validator to its own routes", async () => {
 			using server = serveApp(
-				new Module().mount(
+				new Module().use(
 					new Module()
 						.validator({ request: { body: { v: "" } } })
 						.route("GET", "/a", () => ok("v1")),
@@ -320,11 +320,11 @@ describe("usage: validators", () => {
 			expect(result.status).toBe(422);
 		});
 
-		it("should apply a mounted module's validator to a sibling route declared after the mount", async () => {
+		it("should apply a used module's validator to a sibling route declared after the use", async () => {
 			using server = serveApp(
 				new Module()
 					.route("GET", "/a", () => ok("v1"))
-					.mount(
+					.use(
 						new Module().validator({
 							request: { body: { v: "" } },
 						}),

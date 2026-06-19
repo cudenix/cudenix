@@ -3,6 +3,7 @@ import { Context } from "@/core/context";
 import type { Dispatch } from "@/core/dispatch";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
+import type { CompiledMount } from "@/core/mount";
 import type { AnyRoute } from "@/core/route";
 import type { AnyStore } from "@/core/store";
 import type { AnyValidator } from "@/core/validator";
@@ -124,6 +125,7 @@ export interface Cudenix {
 	): Omit<Cudenix, "listen">;
 	memory: Record<PropertyKey, unknown>;
 	methods: Record<HttpMethod, MethodData>;
+	mounts?: CompiledMount[];
 	plugins(plugins: Plugin[]): Cudenix;
 	routes: Record<string, Bun.Serve.Routes<unknown, string>>;
 	server?: Bun.Server<unknown>;
@@ -216,38 +218,48 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 	const data = this.methods[request.method as HttpMethod];
 
-	if (!data) {
-		return NOT_FOUND.clone();
-	}
+	if (data) {
+		const match = data.regexp.exec(request.url);
 
-	const match = data.regexp.exec(request.url);
+		if (match?.[2]) {
+			const endpoints = data.endpoints;
 
-	if (!match?.[2]) {
-		return NOT_FOUND.clone();
-	}
+			for (let i = 0; i < endpoints.length; i++) {
+				const candidate = endpoints[i]!;
 
-	const endpoints = data.endpoints;
-
-	let endpoint: Endpoint | undefined;
-
-	for (let i = 0; i < endpoints.length; i++) {
-		const candidate = endpoints[i]!;
-
-		if (match[candidate.matchOffset] !== undefined) {
-			endpoint = candidate;
-
-			break;
+				if (match[candidate.matchOffset] !== undefined) {
+					return candidate.dispatch(
+						candidate,
+						new Context(this, candidate, request, match),
+					);
+				}
+			}
 		}
 	}
 
-	if (!endpoint) {
-		return NOT_FOUND.clone();
+	const mounts = this.mounts;
+
+	if (mounts) {
+		const url = new URL(request.url);
+		const pathname = url.pathname;
+
+		for (let i = 0; i < mounts.length; i++) {
+			const mount = mounts[i]!;
+			const prefix = mount.path;
+
+			if (prefix === "/") {
+				return mount.fetch(request);
+			}
+
+			if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
+				url.pathname = pathname.slice(prefix.length) || "/";
+
+				return mount.fetch(new Request(url, request));
+			}
+		}
 	}
 
-	return endpoint.dispatch(
-		endpoint,
-		new Context(this, endpoint, request, match),
-	);
+	return NOT_FOUND.clone();
 };
 
 /**

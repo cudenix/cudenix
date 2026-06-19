@@ -2,6 +2,7 @@ import { Context } from "@/core/context";
 import type { Chain, Cudenix, Endpoint } from "@/core/cudenix";
 import { jitDispatch, staticDispatch, walkDispatch } from "@/core/dispatch";
 import { type AnyModule, Module } from "@/core/module";
+import type { CompiledMount } from "@/core/mount";
 import { response } from "@/core/response";
 import { cloneAppend } from "@/utils/arrays/clone-append";
 import { pushAll } from "@/utils/arrays/push-all";
@@ -22,6 +23,7 @@ interface FlattenInherited {
  */
 const flatten = (
 	endpoints: Record<HttpMethod, Endpoint[]>,
+	mounts: CompiledMount[],
 	module: AnyModule,
 	inherited: FlattenInherited,
 ) => {
@@ -44,7 +46,10 @@ const flatten = (
 
 			module.chain = merged.slice();
 
-			flatten(endpoints, link.handler(module), { chain: [], path: "" });
+			flatten(endpoints, mounts, link.handler(module), {
+				chain: [],
+				path: "",
+			});
 
 			continue;
 		}
@@ -62,7 +67,7 @@ const flatten = (
 		}
 
 		if (link.type === "MODULE") {
-			const compiled = flatten(endpoints, link, {
+			const compiled = flatten(endpoints, mounts, link, {
 				chain: merged,
 				path: `${inherited.path}${path === "/" ? "" : path}`,
 			});
@@ -73,6 +78,17 @@ const flatten = (
 			if (compiled.path !== "/") {
 				path = `${path === "/" ? "" : path}${compiled.path}`;
 			}
+
+			continue;
+		}
+
+		if (link.type === "MOUNT") {
+			mounts.push({
+				fetch: link.fetch,
+				path:
+					`${inherited.path}${path === "/" ? "" : path}${link.path === "/" ? "" : link.path}` ||
+					"/",
+			});
 
 			continue;
 		}
@@ -124,9 +140,13 @@ const flatten = (
  */
 export const compile = (app: Cudenix) => {
 	const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
+	const mounts: CompiledMount[] = [];
 	const routes = app.routes;
 
-	flatten(endpoints, app.memory.module as AnyModule, { chain: [], path: "" });
+	flatten(endpoints, mounts, app.memory.module as AnyModule, {
+		chain: [],
+		path: "",
+	});
 
 	for (const method in endpoints) {
 		const methodEndpoints = endpoints[method];
@@ -215,5 +235,11 @@ export const compile = (app: Cudenix) => {
 				`^(https?:\\/\\/)[^\\s\\/]+(${methodRegexps.join("|")})(?![^?#])`,
 			),
 		};
+	}
+
+	if (mounts.length > 0) {
+		mounts.sort((a, b) => b.path.length - a.path.length);
+
+		app.mounts = mounts;
 	}
 };

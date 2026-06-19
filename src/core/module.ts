@@ -10,6 +10,7 @@ import type {
 	AnyMiddlewareFn,
 	MiddlewareFn,
 } from "@/core/middleware";
+import type { AnyMount, MountFn, MountOptions } from "@/core/mount";
 import type { AnyFail, AnyOk, MergeReplies } from "@/core/reply";
 import type {
 	AnyRoute,
@@ -60,6 +61,7 @@ export type ModuleChain = (
 	| AnyGroup
 	| AnyMiddleware
 	| AnyModule
+	| AnyMount
 	| AnyRoute
 	| AnyStore
 	| AnyValidator
@@ -84,7 +86,7 @@ export interface ModuleValidatorsConstraint {
 
 /**
  * Fluent module builder with `group`, `middleware`, `mount`, `route`, `store`,
- * and `validator` methods for assembling routes.
+ * `use`, and `validator` methods for assembling routes.
  *
  * @example
  * ```typescript
@@ -154,46 +156,10 @@ export interface Module<
 		>,
 		Validators
 	>;
-	mount<
-		const ModuleErrors extends Record<PropertyKey, unknown>,
-		const ModulePrefix extends `/${string}`,
-		const ModuleRoutes extends Record<PropertyKey, unknown>,
-		const ModuleStores extends Record<PropertyKey, unknown>,
-		const ModuleSuccesses extends Record<PropertyKey, unknown>,
-		const ModuleValidators extends ModuleValidatorsConstraint,
-	>(
-		module: Module<
-			ModuleErrors,
-			ModulePrefix,
-			ModuleRoutes,
-			ModuleStores,
-			ModuleSuccesses,
-			ModuleValidators
-		>,
-	): Module<
-		MergeReplies<Errors, ModuleErrors>,
-		MergePaths<Prefix, ModulePrefix>,
-		MergeRoutes<
-			Routes,
-			Prefix extends "/"
-				? ModuleRoutes
-				: Prefix extends `/${infer Rest}`
-					? PathToObject<Rest, ModuleRoutes>
-					: ModuleRoutes
-		>,
-		Merge<Stores, ModuleStores>,
-		MergeReplies<Successes, ModuleSuccesses>,
-		{
-			inputs: MergeInferValidatorRequest<
-				Validators["inputs"],
-				ModuleValidators["inputs"]
-			>;
-			outputs: MergeInferValidatorRequest<
-				Validators["outputs"],
-				ModuleValidators["outputs"]
-			>;
-		}
-	>;
+	mount(
+		fetch: MountFn,
+		options?: MountOptions,
+	): Module<Errors, Prefix, Routes, Stores, Successes, Validators>;
 	prefix: `/${string}`;
 	route<
 		const RouteMethod extends HttpMethod,
@@ -280,6 +246,46 @@ export interface Module<
 		Validators
 	>;
 	type: "MODULE";
+	use<
+		const ModuleErrors extends Record<PropertyKey, unknown>,
+		const ModulePrefix extends `/${string}`,
+		const ModuleRoutes extends Record<PropertyKey, unknown>,
+		const ModuleStores extends Record<PropertyKey, unknown>,
+		const ModuleSuccesses extends Record<PropertyKey, unknown>,
+		const ModuleValidators extends ModuleValidatorsConstraint,
+	>(
+		module: Module<
+			ModuleErrors,
+			ModulePrefix,
+			ModuleRoutes,
+			ModuleStores,
+			ModuleSuccesses,
+			ModuleValidators
+		>,
+	): Module<
+		MergeReplies<Errors, ModuleErrors>,
+		MergePaths<Prefix, ModulePrefix>,
+		MergeRoutes<
+			Routes,
+			Prefix extends "/"
+				? ModuleRoutes
+				: Prefix extends `/${infer Rest}`
+					? PathToObject<Rest, ModuleRoutes>
+					: ModuleRoutes
+		>,
+		Merge<Stores, ModuleStores>,
+		MergeReplies<Successes, ModuleSuccesses>,
+		{
+			inputs: MergeInferValidatorRequest<
+				Validators["inputs"],
+				ModuleValidators["inputs"]
+			>;
+			outputs: MergeInferValidatorRequest<
+				Validators["outputs"],
+				ModuleValidators["outputs"]
+			>;
+		}
+	>;
 	validator<const _ValidatorRequest extends Partial<ValidatorRequest>>(
 		options: ValidatorOptions<_ValidatorRequest>,
 	): Module<
@@ -441,17 +447,40 @@ Module.prototype.middleware = function (
 };
 
 /**
- * Mount another module.
+ * Compose another module into this one, merging its routes, stores, validators,
+ * and replies.
  *
  * @example
  * ```typescript
- * const a = new Module({ prefix: "/v1" }).mount(
+ * const a = new Module({ prefix: "/v1" }).use(
  *   new Module().route("GET", "/a", () => ok("v1")),
  * );
  * ```
  */
-Module.prototype.mount = function (this: AnyModule, module: AnyModule) {
+Module.prototype.use = function (this: AnyModule, module: AnyModule) {
 	this.chain.push(module);
+
+	return this;
+};
+
+/**
+ * Mount a foreign WinterCG `fetch` handler — another framework (Hono, Elysia,
+ * …) or another Cudenix app. Every request below `options.prefix` is delegated
+ * to `fetch` with the prefix stripped; omit `prefix` to mount at the root.
+ *
+ * @example
+ * ```typescript
+ * const a = new Module().mount(hono.fetch, { prefix: "/hono" });
+ *
+ * const b = new Module().mount((request) => new Response(request.url));
+ * ```
+ */
+Module.prototype.mount = function (
+	this: AnyModule,
+	fetch: MountFn,
+	{ prefix = "/" }: MountOptions = FrozenEmpty,
+) {
+	this.chain.push({ fetch, path: prefix, type: "MOUNT" as const });
 
 	return this;
 };
