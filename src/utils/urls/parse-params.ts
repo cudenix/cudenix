@@ -23,6 +23,7 @@ export const parseParams = (
 	}
 
 	const offset = matchOffset + 1;
+	const hasRestKeys = restKeys.length > 0;
 
 	for (let i = 0; i < paramKeys.length; i++) {
 		const name = paramKeys[i];
@@ -42,7 +43,7 @@ export const parseParams = (
 			}
 		}
 
-		if (restKeys.indexOf(name) !== -1) {
+		if (hasRestKeys && restKeys.indexOf(name) !== -1) {
 			params[name] = decoded.split("/");
 		} else {
 			params[name] = decoded;
