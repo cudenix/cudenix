@@ -214,7 +214,7 @@ export const compile = (app: Cudenix) => {
 					}
 
 					pathRoutes[method] = (request: Request) =>
-						methodEndpoint.dispatch(methodEndpoint, app, request);
+						methodEndpoint.dispatch(app, methodEndpoint, request);
 				}
 			}
 		}
