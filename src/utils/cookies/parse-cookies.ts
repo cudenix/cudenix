@@ -23,18 +23,44 @@ export const parseCookies = (header: string) => {
 	let start = 0;
 
 	while (start < length) {
-		const sep = header.indexOf("; ", start);
-		const end = sep === -1 ? length : sep;
-
+		let i = start;
 		let eq = -1;
 
-		for (let i = start; i < end; i++) {
-			if (header.charCodeAt(i) === 61) {
+		while (i < length) {
+			const code = header.charCodeAt(i);
+
+			if (code === 61) {
 				eq = i;
+
+				i++;
 
 				break;
 			}
+
+			if (
+				code === 59 &&
+				i + 1 < length &&
+				header.charCodeAt(i + 1) === 32
+			) {
+				break;
+			}
+
+			i++;
 		}
+
+		while (i < length) {
+			if (
+				header.charCodeAt(i) === 59 &&
+				i + 1 < length &&
+				header.charCodeAt(i + 1) === 32
+			) {
+				break;
+			}
+
+			i++;
+		}
+
+		const end = i;
 
 		if (eq > start) {
 			cookies[header.substring(start, eq)] = header.substring(
@@ -43,11 +69,11 @@ export const parseCookies = (header: string) => {
 			);
 		}
 
-		if (sep === -1) {
+		if (i >= length) {
 			break;
 		}
 
-		start = sep + 2;
+		start = i + 2;
 	}
 
 	return cookies;
