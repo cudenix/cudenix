@@ -201,7 +201,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 	if (data) {
 		const match = data.regexp.exec(request.url);
 
-		if (match?.[2]) {
+		if (match) {
 			const endpoints = data.endpoints;
 
 			for (let i = 0; i < endpoints.length; i++) {
@@ -220,8 +220,8 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 	const mounts = this.mounts;
 
 	if (mounts) {
-		const url = new URL(request.url);
-		const pathname = url.pathname;
+		let url: URL | undefined;
+		let pathname = "";
 
 		for (let i = 0; i < mounts.length; i++) {
 			const mount = mounts[i]!;
@@ -231,7 +231,16 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 				return mount.fetch(request);
 			}
 
-			if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
+			if (url === undefined) {
+				url = new URL(request.url);
+				pathname = url.pathname;
+			}
+
+			if (
+				pathname.startsWith(prefix) &&
+				(pathname.length === prefix.length ||
+					pathname.charCodeAt(prefix.length) === 47)
+			) {
 				url.pathname = pathname.slice(prefix.length) || "/";
 
 				return mount.fetch(new Request(url, request));
