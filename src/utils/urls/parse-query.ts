@@ -28,9 +28,9 @@ export const parseQuery = (url: string) => {
 		return params;
 	}
 
-	const multiValue = new Set<string>();
 	const urlLength = url.length;
 
+	let multiValue: Set<string> | undefined;
 	let i = queryIndex + 1;
 
 	while (i < urlLength) {
@@ -129,9 +129,13 @@ export const parseQuery = (url: string) => {
 
 			if (params[key] === undefined) {
 				params[key] = parsed;
-			} else if (multiValue.has(key)) {
+			} else if (multiValue?.has(key)) {
 				(params[key] as unknown[]).push(parsed);
 			} else {
+				if (!multiValue) {
+					multiValue = new Set<string>();
+				}
+
 				multiValue.add(key);
 
 				params[key] = [params[key], parsed];
