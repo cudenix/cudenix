@@ -269,16 +269,11 @@ describe("usage: sse", () => {
 			expect(second).toBe(first);
 		});
 
-		it("should stream with per-route JIT disabled", async () => {
+		it("should stream a generator route compiled through jit", async () => {
 			using server = serveApp(
-				new Module().route(
-					"GET",
-					"/a",
-					async function* () {
-						yield { data: ok("v1") };
-					},
-					{ jit: false },
-				),
+				new Module().route("GET", "/a", async function* () {
+					yield { data: ok("v1") };
+				}),
 			);
 
 			const result = await server.fetch("/a");

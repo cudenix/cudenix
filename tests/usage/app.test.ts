@@ -8,16 +8,6 @@ import type { ValidatorPlugin } from "@/core/validator";
 import { serveApp } from "./helpers";
 
 describe("usage: app", () => {
-	describe("constructor", () => {
-		it("should default jit to true when no options are given", () => {
-			expect(new Cudenix(new Module()).jit).toBe(true);
-		});
-
-		it("should honor an explicit jit override", () => {
-			expect(new Cudenix(new Module(), { jit: false }).jit).toBe(false);
-		});
-	});
-
 	describe("plugins", () => {
 		it("should expose a value a plugin stashed on memory to a handler", async () => {
 			using server = serveApp(
@@ -105,9 +95,9 @@ describe("usage: app", () => {
 	});
 
 	describe("jit", () => {
-		it("should serve identically when a route opts out of jit", async () => {
+		it("should serve a jit-compiled route", async () => {
 			using server = serveApp(
-				new Module().route("GET", "/a", () => ok("v1"), { jit: false }),
+				new Module().route("GET", "/a", () => ok("v1")),
 			);
 
 			const result = await server.fetch("/a");

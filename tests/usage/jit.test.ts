@@ -6,6 +6,7 @@ import { jit } from "@/core/jit";
 import { Module } from "@/core/module";
 import { fail, ok } from "@/core/reply";
 import type { ValidatorPlugin } from "@/core/validator";
+import { isAsync } from "@/utils/functions/is-async";
 
 import { serveApp } from "./helpers";
 
@@ -14,9 +15,31 @@ const withValidator = (validate: ValidatorPlugin): Plugin =>
 		this.memory.validator = validate;
 	};
 
+/**
+ * A validator plugin that echoes whatever input it is handed straight back as
+ * its parsed output — so a test can read the value the slot was parsed into.
+ */
+const echo: ValidatorPlugin = (_schema, input) => ({
+	content: input,
+	success: true,
+});
+
+/**
+ * The generated source of the first `GET` endpoint's compiled dispatcher.
+ */
+const jitSource = (
+	module: ConstructorParameters<typeof Cudenix>[0],
+): string => {
+	const app = new Cudenix(module);
+
+	app.compile();
+
+	return jit(app.methods.GET!.endpoints[0]!).toString();
+};
+
 describe("usage: jit", () => {
 	describe("compilation", () => {
-		it("should swap in a compiled dispatcher after the first request and reuse it", async () => {
+		it("should compile a dispatcher at compile time and keep it stable across requests", async () => {
 			using server = serveApp(
 				new Module()
 					.store(() => ({ a: "v1" }))
@@ -25,18 +48,20 @@ describe("usage: jit", () => {
 
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
 
-			const cold = endpoint.dispatch;
+			// A chained route is JIT-compiled up front — neither the static fast
+			// path nor a placeholder swapped on the first request.
+			const compiled = endpoint.dispatch;
+
+			expect(compiled).not.toBe(staticDispatch);
 
 			const first = await server.fetch("/a");
 
-			const hot = endpoint.dispatch;
-
-			expect(hot).not.toBe(cold);
+			expect(endpoint.dispatch).toBe(compiled);
 			expect(await first.text()).toBe("v1");
 
 			const second = await server.fetch("/a");
 
-			expect(endpoint.dispatch).toBe(hot);
+			expect(endpoint.dispatch).toBe(compiled);
 			expect(await second.text()).toBe("v1");
 		});
 
@@ -57,55 +82,9 @@ describe("usage: jit", () => {
 			expect(await first.text()).toBe("v1");
 			expect(await second.text()).toBe("v1");
 		});
-
-		it("should never swap the dispatcher when the route opts out with jit: false", async () => {
-			using server = serveApp(
-				new Module()
-					.store(() => ({ a: "v1" }))
-					.route("GET", "/a", (context) => ok(context.store.a), {
-						jit: false,
-					}),
-			);
-
-			const endpoint = server.app.methods.GET!.endpoints[0]!;
-
-			const dispatch = endpoint.dispatch;
-
-			const first = await server.fetch("/a");
-			const second = await server.fetch("/a");
-
-			expect(endpoint.dispatch).toBe(dispatch);
-			expect(await first.text()).toBe("v1");
-			expect(await second.text()).toBe("v1");
-		});
-
-		it("should never swap the dispatcher when the app opts out with jit: false", () => {
-			const app = new Cudenix(
-				new Module()
-					.store(() => ({ a: "v1" }))
-					.route("GET", "/a", (context) => ok(context.store.a)),
-				{ jit: false },
-			);
-
-			app.listen({ port: 0 });
-
-			const port = app.server!.port!;
-			const endpoint = app.methods.GET!.endpoints[0]!;
-			const dispatch = endpoint.dispatch;
-
-			return fetch(`http://localhost:${port}/a`)
-				.then((response) => response.text())
-				.then((text) => {
-					expect(text).toBe("v1");
-					expect(endpoint.dispatch).toBe(dispatch);
-				})
-				.finally(() => {
-					app.server?.stop(true);
-				});
-		});
 	});
 
-	describe("parity with walk", () => {
+	describe("chain semantics", () => {
 		it("should run a store, validator, middleware, and route identically when jitted", async () => {
 			using server = serveApp(
 				new Module()
@@ -128,14 +107,14 @@ describe("usage: jit", () => {
 			);
 
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
-			const cold = endpoint.dispatch;
+			const compiled = endpoint.dispatch;
 
 			const first = await server.fetch("/a");
 			const second = await server.fetch("/a");
 
 			expect(await first.text()).toBe("store:valid");
 			expect(await second.text()).toBe("store:valid");
-			expect(endpoint.dispatch).not.toBe(cold);
+			expect(endpoint.dispatch).toBe(compiled);
 		});
 
 		it("should short-circuit on a failing store when jitted", async () => {
@@ -339,6 +318,407 @@ describe("usage: jit", () => {
 			const result = await server.fetch("/b");
 
 			expect(await result.text()).toBe("v2");
+		});
+	});
+
+	describe("async-aware codegen", () => {
+		it("should await an async route handler and emit a bare call for a plain one", async () => {
+			using asyncServer = serveApp(
+				new Module().route("GET", "/a", async () => ok("v1")),
+			);
+
+			using syncServer = serveApp(
+				new Module().route("GET", "/a", () => ok("v1")),
+			);
+
+			const asyncEndpoint = asyncServer.app.methods.GET!.endpoints[0]!;
+			const syncEndpoint = syncServer.app.methods.GET!.endpoints[0]!;
+
+			// An async handler is awaited from its declared signature alone.
+			const asyncSource = jit(asyncEndpoint).toString();
+
+			expect(asyncSource).toContain("await endpoint.route.handler");
+			expect(asyncSource.startsWith("async")).toBe(true);
+
+			// A plain handler is called bare — no await, and no runtime
+			// promise/thenable check — and the whole dispatcher is synchronous.
+			const syncSource = jit(syncEndpoint).toString();
+
+			expect(syncSource).toContain(
+				"context.response.content = endpoint.route.handler(context);",
+			);
+			expect(syncSource).not.toContain("await");
+			expect(syncSource).not.toContain("then");
+			expect(syncSource.startsWith("async")).toBe(false);
+		});
+
+		it("should await a store and middleware from their declared async signature", async () => {
+			using server = serveApp(
+				new Module()
+					.middleware(async (_, next) => {
+						await next();
+					})
+					.store(async () => ({ a: "v1" }))
+					.route("GET", "/a", (context) => ok(context.store.a)),
+			);
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+			const source = jit(endpoint).toString();
+
+			expect(source).toContain("await chain[0].handler(context, next_0)");
+			expect(source).toContain("await chain[1].handler(context)");
+
+			const first = await server.fetch("/a");
+			const second = await server.fetch("/a");
+
+			expect(await first.text()).toBe("v1");
+			expect(await second.text()).toBe("v1");
+		});
+
+		it("should compile a fully synchronous chain to a synchronous dispatcher", async () => {
+			using server = serveApp(
+				new Module()
+					.store(() => ({ a: "v1" }))
+					.route("GET", "/a", (context) => ok(context.store.a)),
+			);
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+			const compiled = endpoint.dispatch;
+
+			const first = await server.fetch("/a");
+
+			// No handler is async, so the compiled dispatcher is itself
+			// synchronous — it never allocates a promise — and never swaps.
+			expect(endpoint.dispatch).toBe(compiled);
+			expect(isAsync(endpoint.dispatch)).toBe(false);
+
+			const source = jit(endpoint).toString();
+
+			expect(source.startsWith("async")).toBe(false);
+			expect(source).not.toContain("await");
+
+			const second = await server.fetch("/a");
+
+			expect(await first.text()).toBe("v1");
+			expect(await second.text()).toBe("v1");
+		});
+
+		it("should serve a synchronous endpoint synchronously from the very first request", async () => {
+			using server = serveApp(
+				new Module()
+					.store(() => ({ a: "v1" }))
+					.route("GET", "/a", (context) => ok(context.store.a)),
+			);
+
+			// The compiled sync dispatcher runs on every request — no warm-up
+			// walk — so app.fetch hands back a Response synchronously rather than
+			// a promise, identically on every request.
+			const first = server.app.fetch(new Request(server.url("/a")));
+
+			expect(first).toBeInstanceOf(Response);
+			expect(await (first as Response).text()).toBe("v1");
+
+			const second = server.app.fetch(new Request(server.url("/a")));
+
+			expect(second).toBeInstanceOf(Response);
+			expect(await (second as Response).text()).toBe("v1");
+		});
+
+		it("should keep the dispatcher async when any handler awaits", async () => {
+			using server = serveApp(
+				new Module()
+					.store(async () => ({ a: "v1" }))
+					.route("GET", "/a", (context) => ok(context.store.a)),
+			);
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+
+			expect(isAsync(endpoint.dispatch)).toBe(true);
+
+			const second = await server.fetch("/a");
+
+			expect(await second.text()).toBe("v1");
+		});
+
+		it("should keep a plain gating middleware synchronous and correct in both branches", async () => {
+			using server = serveApp(
+				new Module()
+					.middleware((context, next) =>
+						context.request.raw.headers.get("authorization")
+							? next()
+							: fail("denied", { status: 401 }),
+					)
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+
+			// A plain middleware that only forwards through next() needs no
+			// async: next is a sync closure here (the tail never awaits), so the
+			// whole dispatcher stays synchronous.
+			const denied = await server.fetch("/a");
+
+			expect(isAsync(endpoint.dispatch)).toBe(false);
+
+			const allowed = await server.fetch("/a", {
+				headers: { authorization: "token" },
+			});
+			const deniedAgain = await server.fetch("/a");
+
+			expect(denied.status).toBe(401);
+			expect(allowed.status).toBe(200);
+			expect(await allowed.text()).toBe("v1");
+			expect(deniedAgain.status).toBe(401);
+		});
+
+		it("should await a bound async route handler whose source text is not 'async'", async () => {
+			// `bind` returns an exotic function whose source is
+			// "function () { [native code] }" — it does not start with "async" —
+			// yet it still always returns a promise. The prototype fallback keeps
+			// it awaited, so its result is resolved rather than leaked as a
+			// dangling promise on response.content.
+			const handler = (async () => ok("v1")).bind(null);
+
+			using server = serveApp(new Module().route("GET", "/a", handler));
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+
+			expect(isAsync(endpoint.dispatch)).toBe(true);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v1");
+		});
+
+		it("should short-circuit on a failing bound async store", async () => {
+			let ran = 0;
+
+			const store = (async () => fail("denied", { status: 401 })).bind(
+				null,
+			);
+
+			using server = serveApp(
+				new Module().store(store).route("GET", "/a", () => {
+					ran++;
+
+					return ok("v1");
+				}),
+			);
+
+			const first = await server.fetch("/a");
+			const second = await server.fetch("/a");
+
+			expect(first.status).toBe(401);
+			expect(second.status).toBe(401);
+			expect(ran).toBe(0);
+		});
+
+		it("should run a sync validator plugin when jitted", async () => {
+			using server = serveApp(
+				new Module()
+					.validator({ request: { body: { v: "" } } })
+					.route("GET", "/a", (context) =>
+						ok(context.request.body.v),
+					),
+				{
+					plugins: [
+						withValidator((_schema, _input, slot) => ({
+							content: { v: `sync-${slot}` },
+							success: true,
+						})),
+					],
+				},
+			);
+
+			const first = await server.fetch("/a");
+			const second = await server.fetch("/a");
+
+			expect(await first.text()).toBe("sync-body");
+			expect(await second.text()).toBe("sync-body");
+		});
+
+		it("should run an async validator plugin when jitted", async () => {
+			using server = serveApp(
+				new Module()
+					.validator({ request: { body: { v: "" } } })
+					.route("GET", "/a", (context) =>
+						ok(context.request.body.v),
+					),
+				{
+					plugins: [
+						withValidator(async (_schema, _input, slot) => ({
+							content: { v: `async-${slot}` },
+							success: true,
+						})),
+					],
+				},
+			);
+
+			const first = await server.fetch("/a");
+			const second = await server.fetch("/a");
+
+			expect(await first.text()).toBe("async-body");
+			expect(await second.text()).toBe("async-body");
+		});
+	});
+
+	describe("request slot parsing", () => {
+		it("should emit a parse call only for the slot a validator declares", () => {
+			const source = jitSource(
+				new Module()
+					.validator({ request: { body: {} } })
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			expect(source).toContain("parseBody");
+			expect(source).not.toContain("parseQuery");
+			expect(source).not.toContain("parseParams");
+			expect(source).not.toContain("parseCookies");
+		});
+
+		it("should emit no parse call when the chain has no validator", () => {
+			const source = jitSource(
+				new Module()
+					.store(() => ({ a: "v1" }))
+					.route("GET", "/a", (context) => ok(context.store.a)),
+			);
+
+			expect(source).not.toContain("parseBody");
+			expect(source).not.toContain("parseQuery");
+			expect(source).not.toContain("parseParams");
+			expect(source).not.toContain("parseCookies");
+		});
+
+		it("should emit parseQuery for a query validator", () => {
+			const source = jitSource(
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			expect(source).toContain("parseQuery");
+		});
+
+		it("should emit parseParams for a params validator", () => {
+			const source = jitSource(
+				new Module()
+					.validator({ request: { params: {} } })
+					.route("GET", "/a/:p1", () => ok("v1")),
+			);
+
+			expect(source).toContain("parseParams");
+		});
+
+		it("should emit parseCookies for a cookies validator", () => {
+			const source = jitSource(
+				new Module()
+					.validator({ request: { cookies: {} } })
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			expect(source).toContain("parseCookies");
+		});
+
+		it("should read raw headers for a headers validator", () => {
+			const source = jitSource(
+				new Module()
+					.validator({ request: { headers: {} } })
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			expect(source).toContain("headers.toJSON()");
+		});
+
+		it("should parse each slot at most once across multiple validators", () => {
+			const source = jitSource(
+				new Module()
+					.validator({ request: { body: {} } })
+					.validator({ request: { body: {} } })
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			expect((source.match(/parseBody/g) ?? []).length).toBe(1);
+		});
+
+		it("should parse the body and hand it to the validator", async () => {
+			using server = serveApp(
+				new Module()
+					.validator({ request: { body: {} } })
+					.route("POST", "/a", (context) => ok(context.request.body)),
+				{ plugins: [withValidator(echo)] },
+			);
+
+			const result = await server.fetch("/a", {
+				body: JSON.stringify({ v: "hi" }),
+				headers: { "content-type": "application/json" },
+				method: "POST",
+			});
+
+			expect(await result.json()).toEqual({ v: "hi" });
+		});
+
+		it("should parse the query and hand it to the validator", async () => {
+			using server = serveApp(
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", (context) => ok(context.request.query)),
+				{ plugins: [withValidator(echo)] },
+			);
+
+			const result = await server.fetch("/a?v=hi&n=2");
+
+			expect(await result.json()).toEqual({ n: "2", v: "hi" });
+		});
+
+		it("should resolve params from a Bun-native route and hand them to the validator", async () => {
+			using server = serveApp(
+				new Module()
+					.validator({ request: { params: {} } })
+					.route("GET", "/a/:p1", (context) =>
+						ok(context.request.params),
+					),
+				{ plugins: [withValidator(echo)] },
+			);
+
+			const result = await server.fetch("/a/1");
+
+			expect(await result.json()).toEqual({ p1: "1" });
+		});
+
+		it("should resolve params through the regexp fallback and hand them to the validator", async () => {
+			using server = serveApp(
+				new Module()
+					.validator({ request: { params: {} } })
+					.route("GET", "/a/:p1", (context) =>
+						ok(context.request.params),
+					),
+				{ plugins: [withValidator(echo)] },
+			);
+
+			const result = await server.app.fetch(
+				new Request(server.url("/a/1")),
+			);
+
+			expect(await result.json()).toEqual({ p1: "1" });
+		});
+
+		it("should not parse a slot no validator declares", async () => {
+			using server = serveApp(
+				new Module()
+					.validator({ request: { body: {} } })
+					.route("GET", "/a", (context) =>
+						ok(
+							typeof (context.request as Record<string, unknown>)
+								.query,
+						),
+					),
+				{ plugins: [withValidator(echo)] },
+			);
+
+			const result = await server.fetch("/a?v=hi");
+
+			expect(await result.text()).toBe("undefined");
 		});
 	});
 });
