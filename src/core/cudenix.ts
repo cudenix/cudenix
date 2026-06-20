@@ -1,5 +1,4 @@
 import { compile } from "@/core/compile";
-import { Context } from "@/core/context";
 import type { Dispatch } from "@/core/dispatch";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
@@ -208,10 +207,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 				const candidate = endpoints[i]!;
 
 				if (match[candidate.matchOffset] !== undefined) {
-					return candidate.dispatch(
-						candidate,
-						new Context(this, candidate, request, match),
-					);
+					return candidate.dispatch(this, candidate, request, match);
 				}
 			}
 		}

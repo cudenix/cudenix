@@ -1,5 +1,5 @@
 import type { AnyContext } from "@/core/context";
-import type { Endpoint } from "@/core/cudenix";
+import type { Cudenix, Endpoint } from "@/core/cudenix";
 import { response } from "@/core/response";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
@@ -10,18 +10,28 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  * the specialized dispatcher {@link jit} compiles for everything else — so the
  * request path never has to branch on how a route is served.
  *
+ * The dispatcher receives the raw request materials, not a prebuilt `Context`:
+ * {@link staticDispatch} ignores them (its response is request-independent), and
+ * the jitted dispatcher builds its own `Context` inline, only for the slots its
+ * chain actually reads. The caller (`fetch` / the native-router handler) never
+ * allocates a `Context` a static route would discard. `match` is the regexp
+ * result on the `fetch` / `app.fetch` path and `undefined` when Bun's native
+ * router served the route (params come from the `BunRequest` instead).
+ *
  * @example
  * ```typescript
  * const run: Dispatch = staticDispatch;
  *
- * const a = run(endpoint, context);
+ * const a = run(endpoint, app, request);
  *
  * a.status; // 200
  * ```
  */
 export type Dispatch = (
+	app: Cudenix,
 	endpoint: Endpoint,
-	context: AnyContext,
+	request: Request,
+	match?: RegExpExecArray,
 ) => MaybePromise<Response>;
 
 /**
@@ -49,5 +59,5 @@ export const serialize = (context: AnyContext) =>
  * precomputed `Response` natively; this dispatcher covers the regexp /
  * `app.fetch` path and wildcard static routes Bun can't table.)
  */
-export const staticDispatch: Dispatch = (endpoint) =>
+export const staticDispatch: Dispatch = (app, endpoint) =>
 	endpoint.response!.clone();

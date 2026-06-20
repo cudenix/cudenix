@@ -1,4 +1,3 @@
-import { Context } from "@/core/context";
 import type { Chain, Cudenix, Endpoint } from "@/core/cudenix";
 import { staticDispatch } from "@/core/dispatch";
 import { jit } from "@/core/jit";
@@ -215,10 +214,7 @@ export const compile = (app: Cudenix) => {
 					}
 
 					pathRoutes[method] = (request: Request) =>
-						methodEndpoint.dispatch(
-							methodEndpoint,
-							new Context(app, methodEndpoint, request),
-						);
+						methodEndpoint.dispatch(methodEndpoint, app, request);
 				}
 			}
 		}

@@ -1,3 +1,4 @@
+import { Context } from "@/core/context";
 import type { Chain, Endpoint } from "@/core/cudenix";
 import { type Dispatch, serialize } from "@/core/dispatch";
 import { fail, Reply } from "@/core/reply";
@@ -303,6 +304,7 @@ export const jit = (endpoint: Endpoint): Dispatch => {
 	const async = scopeNeedsAwait(chain, 0, sse, routeHandler) ? "async " : "";
 
 	const factory = new Function(
+		"Context",
 		"chain",
 		"serialize",
 		"Reply",
@@ -314,8 +316,9 @@ export const jit = (endpoint: Endpoint): Dispatch => {
 		"parseCookies",
 		"parseParams",
 		"parseQuery",
-		`return ${async}(endpoint, context) => {\n${generate(chain, 0, sse, routeHandler, new Set(), false)}\n};`,
+		`return ${async}(endpoint, app, request, match) => {\nconst context = new Context(app, endpoint, request, match);\n\n${generate(chain, 0, sse, routeHandler, new Set(), false)}\n};`,
 	) as (
+		context: typeof Context,
 		chain: Chain,
 		serializeContext: typeof serialize,
 		reply: typeof Reply,
@@ -330,6 +333,7 @@ export const jit = (endpoint: Endpoint): Dispatch => {
 	) => Dispatch;
 
 	return factory(
+		Context,
 		chain,
 		serialize,
 		Reply,
