@@ -58,11 +58,16 @@ export const parseQuery = (url: string) => {
 
 		let key = url.substring(keyStart, i);
 		let value: string;
+		let firstChar = -1;
 
 		if (hasValue) {
 			i++;
 
 			const valueStart = i;
+
+			if (i < urlLength) {
+				firstChar = url.charCodeAt(i);
+			}
 
 			while (i < urlLength) {
 				const char = url.charCodeAt(i);
@@ -96,33 +101,34 @@ export const parseQuery = (url: string) => {
 				} catch {}
 			}
 
+			let parsed = value as unknown;
+
 			if (hasValue) {
 				if (flags & Q_VAL_PLUS) {
 					value = value.replaceAll("+", " ");
+					parsed = value;
 				}
 
 				if (flags & Q_VAL_PCT) {
 					try {
 						value = decodeURIComponent(value);
+						parsed = value;
+						firstChar = value.charCodeAt(0);
 					} catch {}
 				}
-			}
 
-			const firstChar = value.charCodeAt(0);
+				if (firstChar === 123 || firstChar === 91) {
+					const lastChar = value.charCodeAt(value.length - 1);
 
-			let parsed = value as unknown;
-
-			if (firstChar === 123 || firstChar === 91) {
-				const lastChar = value.charCodeAt(value.length - 1);
-
-				if (
-					(firstChar === 123 && lastChar === 125) ||
-					(firstChar === 91 && lastChar === 93)
-				) {
-					try {
-						parsed = JSON.parse(value);
-					} catch {
-						parsed = value;
+					if (
+						(firstChar === 123 && lastChar === 125) ||
+						(firstChar === 91 && lastChar === 93)
+					) {
+						try {
+							parsed = JSON.parse(value);
+						} catch {
+							parsed = value;
+						}
 					}
 				}
 			}
