@@ -258,7 +258,6 @@ export interface Route<
 			DeepInferValidatorOutput<RouteValidatorOptions["request"]>
 		>
 	>;
-	jit?: boolean | undefined;
 	method: Method;
 	path: Path;
 	sse: boolean;
@@ -315,12 +314,11 @@ export type AnyRouteHandler = RouteHandler<any, any, any, any>;
 
 /**
  * Options object accepted as the trailing argument to `module.route` — a
- * per-route `jit` override and a route-scoped {@link ValidatorOptions}.
+ * route-scoped {@link ValidatorOptions}.
  *
  * @example
  * ```typescript
  * const a: RouteOptions<{ request: { body: SomeSchema } }> = {
- *   jit: true,
  *   validator: { request: { body: someSchema } },
  * };
  * ```
@@ -328,7 +326,6 @@ export type AnyRouteHandler = RouteHandler<any, any, any, any>;
 export interface RouteOptions<
 	RouteValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
 > {
-	jit?: boolean;
 	validator?: RouteValidatorOptions;
 }
 
@@ -337,7 +334,7 @@ export interface RouteOptions<
  *
  * @example
  * ```typescript
- * const fn = (options: AnyRouteOptions) => options.jit;
+ * const fn = (options: AnyRouteOptions) => options.validator;
  * ```
  */
 export type AnyRouteOptions = RouteOptions<any>;

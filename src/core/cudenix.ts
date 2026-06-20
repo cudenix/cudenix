@@ -8,7 +8,7 @@ import type { AnyRoute } from "@/core/route";
 import type { AnyStore } from "@/core/store";
 import type { AnyValidator } from "@/core/validator";
 import { pushAll } from "@/utils/arrays/push-all";
-import { Empty, FrozenEmpty } from "@/utils/objects/empty";
+import { Empty } from "@/utils/objects/empty";
 import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
@@ -32,7 +32,7 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
  * ```typescript
  * const a: Endpoint = {
  *   chain: [],
- *   dispatch: jitDispatch,
+ *   dispatch: staticDispatch,
  *   matchOffset: 3,
  *   paramKeys: ["p1"],
  *   path: "/a/:p1",
@@ -90,18 +90,6 @@ export interface MethodData {
 export type Plugin = (...options: any[]) => void;
 
 /**
- * Options accepted by the {@link Cudenix} constructor.
- *
- * @example
- * ```typescript
- * const a: CudenixOptions = { jit: false };
- * ```
- */
-export interface CudenixOptions {
-	jit?: boolean;
-}
-
-/**
  * Public shape of a Cudenix application instance.
  *
  * @example
@@ -116,7 +104,6 @@ export interface CudenixOptions {
 export interface Cudenix {
 	compile(): void;
 	fetch(request: Request): MaybePromise<Response>;
-	jit: boolean;
 	listen(
 		options?: Omit<
 			Extract<Bun.Serve.Options<unknown>, { websocket?: never }>,
@@ -138,13 +125,13 @@ export interface Cudenix {
  * ```typescript
  * const Ctor: CudenixConstructor = Cudenix;
  *
- * const a = new Ctor(new Module(), { jit: false });
+ * const a = new Ctor(new Module());
  *
- * a.jit; // false
+ * a.compile();
  * ```
  */
 export interface CudenixConstructor {
-	new (module: AnyModule, options?: CudenixOptions): Cudenix;
+	new (module: AnyModule): Cudenix;
 }
 
 /**
@@ -154,19 +141,12 @@ export interface CudenixConstructor {
  * ```typescript
  * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
  *
- * a.jit; // true
+ * a.compile();
  *
- * const b = new Cudenix(new Module(), { jit: false });
- *
- * b.jit; // false
+ * a.fetch(new Request("http://localhost/a"));
  * ```
  */
-export const Cudenix = function (
-	this: Cudenix,
-	module: AnyModule,
-	{ jit = true }: CudenixOptions = FrozenEmpty,
-) {
-	this.jit = jit;
+export const Cudenix = function (this: Cudenix, module: AnyModule) {
 	this.memory = new Empty();
 	this.methods = new Empty() as Cudenix["methods"];
 	this.routes = new Empty() as Cudenix["routes"];

@@ -502,7 +502,7 @@ Module.prototype.route = function (
 	method: HttpMethod,
 	path: `/${string}`,
 	handler: AnyRouteHandler,
-	{ jit, validator }: AnyRouteOptions = FrozenEmpty,
+	{ validator }: AnyRouteOptions = FrozenEmpty,
 ) {
 	const isFn = typeof handler === "function";
 
@@ -510,7 +510,6 @@ Module.prototype.route = function (
 		handler: isFn
 			? (handler as AnyRouteFn)
 			: () => handler as AnyFail | AnyOk,
-		jit,
 		method,
 		path,
 		sse: isFn && isGenerator(handler as AnyRouteFn),
