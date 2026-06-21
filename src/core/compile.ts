@@ -27,8 +27,9 @@ const flatten = (
 	module: AnyModule,
 	inherited: FlattenInherited,
 ) => {
-	const chain: EndpointChain = [];
-	const merged = inherited.chain.slice();
+	const inheritedChain = inherited.chain;
+	const inheritedLength = inheritedChain.length;
+	const merged = inheritedChain.slice();
 
 	let path = module.prefix;
 
@@ -59,8 +60,6 @@ const flatten = (
 			link.type === "STORE" ||
 			link.type === "VALIDATOR"
 		) {
-			chain.push(link);
-
 			merged.push(link);
 
 			continue;
@@ -72,7 +71,6 @@ const flatten = (
 				path: `${inherited.path}${path === "/" ? "" : path}`,
 			});
 
-			pushAll(chain, compiled.chain);
 			pushAll(merged, compiled.chain);
 
 			if (compiled.path !== "/") {
@@ -116,7 +114,7 @@ const flatten = (
 		});
 	}
 
-	return { chain, path };
+	return { chain: merged.slice(inheritedLength), path };
 };
 
 /**
