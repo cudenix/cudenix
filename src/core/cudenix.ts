@@ -59,19 +59,26 @@ export interface Endpoint {
 }
 
 /**
- * Per-method routing table: the {@link Endpoint}s for one HTTP method and the
- * merged `regexp` matched against the request URL.
+ * Per-method routing table: the {@link Endpoint}s for one HTTP method, their
+ * `matchOffset`s hoisted into a packed `offsets` array index-aligned with
+ * `endpoints`, and the merged `regexp` matched against the request URL. `fetch`
+ * scans `offsets` — a contiguous integer array — instead of loading
+ * `endpoints[i].matchOffset` per iteration, touching the {@link Endpoint} object
+ * only on the single hit; for large method buckets this is a measurable
+ * per-request win (see `bench/`).
  *
  * @example
  * ```typescript
  * const a: MethodData = {
  *   endpoints: [],
+ *   offsets: [],
  *   regexp: /^(https?:\/\/)[^\s\/]+(()\/\x61)(?![^?#])/,
  * };
  * ```
  */
 export interface MethodData {
 	endpoints: Endpoint[];
+	offsets: number[];
 	regexp: RegExp;
 }
 
@@ -201,12 +208,13 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 		const match = data.regexp.exec(request.url);
 
 		if (match) {
+			const offsets = data.offsets;
 			const endpoints = data.endpoints;
 
-			for (let i = 0; i < endpoints.length; i++) {
-				const candidate = endpoints[i]!;
+			for (let i = 0; i < offsets.length; i++) {
+				if (match[offsets[i]!] !== undefined) {
+					const candidate = endpoints[i]!;
 
-				if (match[candidate.matchOffset] !== undefined) {
 					return candidate.dispatch(this, candidate, request, match);
 				}
 			}

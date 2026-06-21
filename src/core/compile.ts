@@ -157,6 +157,7 @@ export const compile = (app: Cudenix) => {
 
 		const methodRegexps: string[] = [];
 		const regexpEndpoints: Endpoint[] = [];
+		const regexpOffsets: number[] = [];
 
 		let matchOffset = 3;
 
@@ -193,6 +194,7 @@ export const compile = (app: Cudenix) => {
 
 			methodRegexps.push(pattern);
 			regexpEndpoints.push(methodEndpoint);
+			regexpOffsets.push(methodEndpoint.matchOffset);
 
 			if (
 				methodEndpoint.path.indexOf("?") === -1 &&
@@ -225,6 +227,7 @@ export const compile = (app: Cudenix) => {
 
 		app.methods[method] = {
 			endpoints: regexpEndpoints,
+			offsets: regexpOffsets,
 			regexp: new RegExp(
 				`^(https?:\\/\\/)[^\\s\\/]+(${methodRegexps.join("|")})(?![^?#])`,
 			),
