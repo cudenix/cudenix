@@ -187,7 +187,7 @@ export const compile = (app: Cudenix) => {
 
 				methodEndpoint.dispatch = staticDispatch;
 			} else {
-				methodEndpoint.dispatch = jit(methodEndpoint, app);
+				methodEndpoint.dispatch = jit(app, methodEndpoint);
 			}
 
 			matchOffset += 1 + paramKeys.length;

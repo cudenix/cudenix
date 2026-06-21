@@ -292,10 +292,10 @@ const generate = (
  * const endpoint = a.methods.GET.endpoints[0];
  *
  * // Each call builds a fresh function with identical generated source.
- * endpoint.dispatch.toString() === jit(endpoint, a).toString(); // true
+ * endpoint.dispatch.toString() === jit(a, endpoint).toString(); // true
  * ```
  */
-export const jit = (endpoint: Endpoint, app: Cudenix): Dispatch => {
+export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 	const chain = endpoint.chain;
 
 	const sse = endpoint.route.sse;
