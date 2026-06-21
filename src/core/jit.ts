@@ -316,7 +316,7 @@ export const jit = (endpoint: Endpoint): Dispatch => {
 		"parseCookies",
 		"parseParams",
 		"parseQuery",
-		`return ${async}(endpoint, app, request, match) => {\nconst context = new Context(app, endpoint, request, match);\n\n${generate(chain, 0, sse, routeHandler, new Set(), false)}\n};`,
+		`return ${async}(app, endpoint, request, match) => {\nconst context = new Context(app, endpoint, request, match);\n\n${generate(chain, 0, sse, routeHandler, new Set(), false)}\n};`,
 	) as (
 		context: typeof Context,
 		chain: Chain,
