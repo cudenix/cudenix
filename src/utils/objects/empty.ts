@@ -1,5 +1,6 @@
 /**
- * Create a fresh dictionary with no prototype.
+ * Create a fresh dictionary backed by a shared null-prototype, so it inherits
+ * no `Object.prototype` members.
  *
  * @example
  * ```typescript
