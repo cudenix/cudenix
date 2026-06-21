@@ -218,8 +218,8 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 	const mounts = this.mounts;
 
 	if (mounts) {
-		let url: URL | undefined;
-		let pathname = "";
+		const url = request.url;
+		const pathStart = url.indexOf("/", 8);
 
 		for (let i = 0; i < mounts.length; i++) {
 			const mount = mounts[i]!;
@@ -229,24 +229,39 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 				return mount.fetch(request);
 			}
 
-			if (url === undefined) {
-				url = new URL(request.url);
-				pathname = url.pathname;
-			}
+			if (url.startsWith(prefix, pathStart)) {
+				const after = pathStart + prefix.length;
 
-			if (
-				pathname.startsWith(prefix) &&
-				(pathname.length === prefix.length ||
-					pathname.charCodeAt(prefix.length) === 47)
-			) {
-				url.pathname = pathname.slice(prefix.length) || "/";
+				if (after === url.length) {
+					return mount.fetch(
+						new Request(`${url.slice(0, pathStart)}/`, request),
+					);
+				}
 
-				return mount.fetch(new Request(url, request));
+				const code = url.charCodeAt(after);
+
+				if (code === 47) {
+					return mount.fetch(
+						new Request(
+							url.slice(0, pathStart) + url.slice(after),
+							request,
+						),
+					);
+				}
+
+				if (code === 63 || code === 35) {
+					return mount.fetch(
+						new Request(
+							`${url.slice(0, pathStart)}/${url.slice(after)}`,
+							request,
+						),
+					);
+				}
 			}
 		}
 	}
 
-	return NOT_FOUND.clone();
+	return NOT_FOUND;
 };
 
 /**
