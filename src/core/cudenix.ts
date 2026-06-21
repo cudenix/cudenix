@@ -60,12 +60,8 @@ export interface Endpoint {
 
 /**
  * Per-method routing table: the {@link Endpoint}s for one HTTP method, their
- * `matchOffset`s hoisted into a packed `offsets` array index-aligned with
- * `endpoints`, and the merged `regexp` matched against the request URL. `fetch`
- * scans `offsets` — a contiguous integer array — instead of loading
- * `endpoints[i].matchOffset` per iteration, touching the {@link Endpoint} object
- * only on the single hit; for large method buckets this is a measurable
- * per-request win (see `bench/`).
+ * `matchOffset`s in an index-aligned `offsets` array, and the merged `regexp`
+ * matched against the request URL.
  *
  * @example
  * ```typescript
