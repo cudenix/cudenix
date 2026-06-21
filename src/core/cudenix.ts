@@ -209,9 +209,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 
 			for (let i = 0; i < offsets.length; i++) {
 				if (match[offsets[i]!] !== undefined) {
-					const candidate = data.endpoints[i]!;
-
-					return candidate.dispatch(this, request, match);
+					return data.endpoints[i]!.dispatch(this, request, match);
 				}
 			}
 		}
