@@ -72,9 +72,7 @@ describe("usage: jit", () => {
 
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
 
-			expect(jit(endpoint).toString()).toContain(
-				"endpoint.route.handler",
-			);
+			expect(jit(endpoint).toString()).toContain("this.route.handler");
 
 			const first = await server.fetch("/a");
 			const second = await server.fetch("/a");
@@ -337,7 +335,7 @@ describe("usage: jit", () => {
 			// An async handler is awaited from its declared signature alone.
 			const asyncSource = jit(asyncEndpoint).toString();
 
-			expect(asyncSource).toContain("await endpoint.route.handler");
+			expect(asyncSource).toContain("await this.route.handler");
 			expect(asyncSource.startsWith("async")).toBe(true);
 
 			// A plain handler is called bare — no await, and no runtime
@@ -345,7 +343,7 @@ describe("usage: jit", () => {
 			const syncSource = jit(syncEndpoint).toString();
 
 			expect(syncSource).toContain(
-				"context.response.content = endpoint.route.handler(context);",
+				"context.response.content = this.route.handler(context);",
 			);
 			expect(syncSource).not.toContain("await");
 			expect(syncSource).not.toContain("then");

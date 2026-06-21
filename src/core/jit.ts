@@ -59,7 +59,7 @@ const PARSERS: Record<keyof ValidatorRequest, string> = {
 	cookies:
 		'context.request.cookies = parseCookies(context.request.raw.headers.get("cookie") ?? "");',
 	headers: "context.request.headers = context.request.raw.headers.toJSON();",
-	params: 'context.request.params = "cookies" in context.request.raw ? context.request.raw.params : parseParams(context.match, endpoint.paramKeys, endpoint.matchOffset, endpoint.restKeys);',
+	params: 'context.request.params = "cookies" in context.request.raw ? context.request.raw.params : parseParams(context.match, this.paramKeys, this.matchOffset, this.restKeys);',
 	query: "context.request.query = parseQuery(context.request.raw.url);",
 };
 
@@ -140,7 +140,7 @@ const generate = (
 ): string => {
 	if (index >= chain.length) {
 		if (sse) {
-			const body = `const generator = endpoint.route.handler(context);
+			const body = `const generator = this.route.handler(context);
 
 				context.server?.timeout(context.request.raw, 0);
 
@@ -150,8 +150,8 @@ const generate = (
 		}
 
 		const call = isAsyncSource(routeHandler)
-			? "context.response.content = await endpoint.route.handler(context);"
-			: "context.response.content = endpoint.route.handler(context);";
+			? "context.response.content = await this.route.handler(context);"
+			: "context.response.content = this.route.handler(context);";
 
 		return nested ? call : `${call}\n\nreturn serialize(context);`;
 	}
@@ -316,7 +316,7 @@ export const jit = (endpoint: Endpoint): Dispatch => {
 		"parseCookies",
 		"parseParams",
 		"parseQuery",
-		`return ${async}(app, endpoint, request, match) => {\nconst context = new Context(app, endpoint, request, match);\n\n${generate(chain, 0, sse, routeHandler, new Set(), false)}\n};`,
+		`return ${async}function (app, request, match) {\nconst context = new Context(app, this, request, match);\n\n${generate(chain, 0, sse, routeHandler, new Set(), false)}\n};`,
 	) as (
 		context: typeof Context,
 		chain: EndpointChain,

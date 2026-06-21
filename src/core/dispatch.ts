@@ -10,6 +10,11 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  * the specialized dispatcher {@link jit} compiles for everything else — so the
  * request path never has to branch on how a route is served.
  *
+ * The matched endpoint is the dispatcher's `this`: it is always invoked
+ * method-style (`endpoint.dispatch(app, request, match)`) — by `fetch` and by the
+ * native-router handler `compile` builds — so it is read off `this` rather than
+ * threaded as a redundant argument.
+ *
  * The dispatcher receives the raw request materials, not a prebuilt `Context`:
  * {@link staticDispatch} ignores them (its response is request-independent), and
  * the jitted dispatcher builds its own `Context` inline, only for the slots its
@@ -22,14 +27,14 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  * ```typescript
  * const run: Dispatch = staticDispatch;
  *
- * const a = run(endpoint, app, request);
+ * const a = run.call(endpoint, app, request);
  *
  * a.status; // 200
  * ```
  */
 export type Dispatch = (
+	this: Endpoint,
 	app: Cudenix,
-	endpoint: Endpoint,
 	request: Request,
 	match?: RegExpExecArray,
 ) => MaybePromise<Response>;
@@ -58,6 +63,10 @@ export const serialize = (context: AnyContext) =>
  * no re-serialization. (When the path is plain, Bun's router serves that same
  * precomputed `Response` natively; this dispatcher covers the regexp /
  * `app.fetch` path and wildcard static routes Bun can't table.)
+ *
+ * Reads the endpoint off `this`, so the single shared function serves every
+ * static endpoint without per-endpoint allocation.
  */
-export const staticDispatch: Dispatch = (app, endpoint) =>
-	endpoint.response!.clone();
+export const staticDispatch: Dispatch = function () {
+	return this.response!.clone();
+};

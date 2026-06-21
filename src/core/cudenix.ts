@@ -211,7 +211,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 				if (match[offsets[i]!] !== undefined) {
 					const candidate = data.endpoints[i]!;
 
-					return candidate.dispatch(this, candidate, request, match);
+					return candidate.dispatch(this, request, match);
 				}
 			}
 		}
