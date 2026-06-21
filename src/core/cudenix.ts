@@ -14,9 +14,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 const NOT_FOUND = new Response(undefined, { status: 404 });
 
 /**
- * Flattened list of middlewares, stores, and validators for a single
- * {@link Endpoint}. The route itself is held separately on the endpoint's
- * `route` field, so it never appears in this chain.
+ * Flattened list of middlewares, stores, and validators for a single {@link Endpoint}.
  *
  * @example
  * ```typescript
@@ -69,7 +67,7 @@ export interface Endpoint {
  * @example
  * ```typescript
  * const a: MethodData = {
- *   endpoints: [endpoint], // one Endpoint for "/a", matchOffset 3
+ *   endpoints: [endpoint],
  *   offsets: [3],
  *   regexp: /^(https?:\/\/)[^\s\/]+(()\/\x61)(?![^?#])/,
  * };
