@@ -1,5 +1,5 @@
 import { Context } from "@/core/context";
-import type { Endpoint, EndpointChain } from "@/core/cudenix";
+import type { Cudenix, Endpoint, EndpointChain } from "@/core/cudenix";
 import { type Dispatch, serialize } from "@/core/dispatch";
 import { fail, Reply } from "@/core/reply";
 import type { AnyRouteFn } from "@/core/route";
@@ -292,10 +292,10 @@ const generate = (
  * const endpoint = a.methods.GET.endpoints[0];
  *
  * // Each call builds a fresh function with identical generated source.
- * endpoint.dispatch.toString() === jit(endpoint).toString(); // true
+ * endpoint.dispatch.toString() === jit(endpoint, a).toString(); // true
  * ```
  */
-export const jit = (endpoint: Endpoint): Dispatch => {
+export const jit = (endpoint: Endpoint, app: Cudenix): Dispatch => {
 	const chain = endpoint.chain;
 
 	const sse = endpoint.route.sse;
@@ -304,6 +304,7 @@ export const jit = (endpoint: Endpoint): Dispatch => {
 	const async = scopeNeedsAwait(chain, 0, sse, routeHandler) ? "async " : "";
 
 	const factory = new Function(
+		"app",
 		"Context",
 		"chain",
 		"serialize",
@@ -316,8 +317,9 @@ export const jit = (endpoint: Endpoint): Dispatch => {
 		"parseCookies",
 		"parseParams",
 		"parseQuery",
-		`return ${async}function (app, request, match) {\nconst context = new Context(app, this, request, match);\n\n${generate(chain, 0, sse, routeHandler, new Set(), false)}\n};`,
+		`return ${async}function (request, match) {\nconst context = new Context(app, this, request, match);\n\n${generate(chain, 0, sse, routeHandler, new Set(), false)}\n};`,
 	) as (
+		app: Cudenix,
 		context: typeof Context,
 		chain: EndpointChain,
 		serializeContext: typeof serialize,
@@ -333,6 +335,7 @@ export const jit = (endpoint: Endpoint): Dispatch => {
 	) => Dispatch;
 
 	return factory(
+		app,
 		Context,
 		chain,
 		serialize,

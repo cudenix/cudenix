@@ -1,5 +1,5 @@
 import type { AnyContext } from "@/core/context";
-import type { Cudenix, Endpoint } from "@/core/cudenix";
+import type { Endpoint } from "@/core/cudenix";
 import { response } from "@/core/response";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
@@ -11,9 +11,11 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  * request path never has to branch on how a route is served.
  *
  * The matched endpoint is the dispatcher's `this`: it is always invoked
- * method-style (`endpoint.dispatch(app, request, match)`) — by `fetch` and by the
+ * method-style (`endpoint.dispatch(request, match)`) — by `fetch` and by the
  * native-router handler `compile` builds — so it is read off `this` rather than
- * threaded as a redundant argument.
+ * threaded as a redundant argument. The owning `Cudenix` app is likewise not
+ * passed per request: it is fixed at `compile` time, so the jitted dispatcher
+ * closes over it (and {@link staticDispatch} never needs it at all).
  *
  * The dispatcher receives the raw request materials, not a prebuilt `Context`:
  * {@link staticDispatch} ignores them (its response is request-independent), and
@@ -27,14 +29,13 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  * ```typescript
  * const run: Dispatch = staticDispatch;
  *
- * const a = run.call(endpoint, app, request);
+ * const a = run.call(endpoint, request);
  *
  * a.status; // 200
  * ```
  */
 export type Dispatch = (
 	this: Endpoint,
-	app: Cudenix,
 	request: Request,
 	match?: RegExpExecArray,
 ) => MaybePromise<Response>;

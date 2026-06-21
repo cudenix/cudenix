@@ -34,7 +34,7 @@ const jitSource = (
 
 	app.compile();
 
-	return jit(app.methods.GET!.endpoints[0]!).toString();
+	return jit(app.methods.GET!.endpoints[0]!, app).toString();
 };
 
 describe("usage: jit", () => {
@@ -72,7 +72,9 @@ describe("usage: jit", () => {
 
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
 
-			expect(jit(endpoint).toString()).toContain("this.route.handler");
+			expect(jit(endpoint, server.app).toString()).toContain(
+				"this.route.handler",
+			);
 
 			const first = await server.fetch("/a");
 			const second = await server.fetch("/a");
@@ -333,14 +335,14 @@ describe("usage: jit", () => {
 			const syncEndpoint = syncServer.app.methods.GET!.endpoints[0]!;
 
 			// An async handler is awaited from its declared signature alone.
-			const asyncSource = jit(asyncEndpoint).toString();
+			const asyncSource = jit(asyncEndpoint, asyncServer.app).toString();
 
 			expect(asyncSource).toContain("await this.route.handler");
 			expect(asyncSource.startsWith("async")).toBe(true);
 
 			// A plain handler is called bare — no await, and no runtime
 			// promise/thenable check — and the whole dispatcher is synchronous.
-			const syncSource = jit(syncEndpoint).toString();
+			const syncSource = jit(syncEndpoint, syncServer.app).toString();
 
 			expect(syncSource).toContain(
 				"context.response.content = this.route.handler(context);",
@@ -361,7 +363,7 @@ describe("usage: jit", () => {
 			);
 
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
-			const source = jit(endpoint).toString();
+			const source = jit(endpoint, server.app).toString();
 
 			expect(source).toContain("await chain[0].handler(context, next_0)");
 			expect(source).toContain("await chain[1].handler(context)");
@@ -390,7 +392,7 @@ describe("usage: jit", () => {
 			expect(endpoint.dispatch).toBe(compiled);
 			expect(isAsync(endpoint.dispatch)).toBe(false);
 
-			const source = jit(endpoint).toString();
+			const source = jit(endpoint, server.app).toString();
 
 			expect(source.startsWith("async")).toBe(false);
 			expect(source).not.toContain("await");

@@ -187,7 +187,7 @@ export const compile = (app: Cudenix) => {
 
 				methodEndpoint.dispatch = staticDispatch;
 			} else {
-				methodEndpoint.dispatch = jit(methodEndpoint);
+				methodEndpoint.dispatch = jit(methodEndpoint, app);
 			}
 
 			matchOffset += 1 + paramKeys.length;
@@ -216,7 +216,7 @@ export const compile = (app: Cudenix) => {
 					}
 
 					pathRoutes[method] = (request: Request) =>
-						methodEndpoint.dispatch(app, request);
+						methodEndpoint.dispatch(request);
 				}
 			}
 		}
