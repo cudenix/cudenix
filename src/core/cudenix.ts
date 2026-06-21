@@ -206,11 +206,10 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 
 		if (match) {
 			const offsets = data.offsets;
-			const endpoints = data.endpoints;
 
 			for (let i = 0; i < offsets.length; i++) {
 				if (match[offsets[i]!] !== undefined) {
-					const candidate = endpoints[i]!;
+					const candidate = data.endpoints[i]!;
 
 					return candidate.dispatch(this, candidate, request, match);
 				}
