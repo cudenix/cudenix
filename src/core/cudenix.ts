@@ -14,14 +14,16 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 const NOT_FOUND = new Response(undefined, { status: 404 });
 
 /**
- * Flattened list of middlewares, stores, and validators for a single {@link Endpoint}.
+ * Flattened list of middlewares, stores, and validators for a single
+ * {@link Endpoint}. The route itself is held separately on the endpoint's
+ * `route` field, so it never appears in this chain.
  *
  * @example
  * ```typescript
- * const a: Chain = [];
+ * const a: EndpointChain = [];
  * ```
  */
-export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
+export type EndpointChain = (AnyMiddleware | AnyStore | AnyValidator)[];
 
 /**
  * Compiled endpoint descriptor — one fully-resolved {@link AnyRoute} plus
@@ -33,22 +35,23 @@ export type Chain = (AnyMiddleware | AnyRoute | AnyStore | AnyValidator)[];
  *   chain: [],
  *   dispatch: staticDispatch,
  *   matchOffset: 3,
- *   paramKeys: ["p1"],
- *   path: "/a/:p1",
+ *   paramKeys: [],
+ *   path: "/a",
+ *   response: new Response("v1"),
  *   restKeys: [],
  *   route: {
  *     method: "GET",
- *     path: "/a/:p1",
+ *     path: "/a",
  *     handler: () => ok("v1"),
  *     sse: false,
- *     static: false,
+ *     static: true,
  *     type: "ROUTE",
  *   },
  * };
  * ```
  */
 export interface Endpoint {
-	chain: Chain;
+	chain: EndpointChain;
 	dispatch: Dispatch;
 	matchOffset: number;
 	paramKeys: string[];
@@ -66,8 +69,8 @@ export interface Endpoint {
  * @example
  * ```typescript
  * const a: MethodData = {
- *   endpoints: [],
- *   offsets: [],
+ *   endpoints: [endpoint], // one Endpoint for "/a", matchOffset 3
+ *   offsets: [3],
  *   regexp: /^(https?:\/\/)[^\s\/]+(()\/\x61)(?![^?#])/,
  * };
  * ```

@@ -1,4 +1,4 @@
-import type { Chain, Cudenix, Endpoint } from "@/core/cudenix";
+import type { Cudenix, Endpoint, EndpointChain } from "@/core/cudenix";
 import { staticDispatch } from "@/core/dispatch";
 import { jit } from "@/core/jit";
 import { type AnyModule, Module } from "@/core/module";
@@ -11,10 +11,10 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 
 /**
- * Inherited {@link Chain} and path prefix.
+ * Inherited {@link EndpointChain} and path prefix.
  */
 interface FlattenInherited {
-	chain: Chain;
+	chain: EndpointChain;
 	path: string;
 }
 
@@ -27,7 +27,7 @@ const flatten = (
 	module: AnyModule,
 	inherited: FlattenInherited,
 ) => {
-	const chain: Chain = [];
+	const chain: EndpointChain = [];
 	const merged = inherited.chain.slice();
 
 	let path = module.prefix;

@@ -1,5 +1,5 @@
 import { Context } from "@/core/context";
-import type { Chain, Endpoint } from "@/core/cudenix";
+import type { Endpoint, EndpointChain } from "@/core/cudenix";
 import { type Dispatch, serialize } from "@/core/dispatch";
 import { fail, Reply } from "@/core/reply";
 import type { AnyRouteFn } from "@/core/route";
@@ -79,7 +79,7 @@ const PARSERS: Record<keyof ValidatorRequest, string> = {
  * (`(context, next) => ok ? next() : fail(...)`) need no `async`.
  */
 const scopeNeedsAwait = (
-	chain: Chain,
+	chain: EndpointChain,
 	index: number,
 	sse: boolean,
 	routeHandler: AnyRouteFn,
@@ -115,7 +115,7 @@ const scopeNeedsAwait = (
 };
 
 /**
- * Emit the source for the {@link Chain} links from `index` onward, ending with
+ * Emit the source for the {@link EndpointChain} links from `index` onward, ending with
  * the route handler call and `return serialize(context)` so the compiled
  * dispatcher resolves the `Response` inline. A `MIDDLEWARE` nests the rest of
  * the chain in its `next` closure, so it runs only when the handler calls
@@ -131,7 +131,7 @@ const scopeNeedsAwait = (
  * promise" check.
  */
 const generate = (
-	chain: Chain,
+	chain: EndpointChain,
 	index: number,
 	sse: boolean,
 	routeHandler: AnyRouteFn,
@@ -319,7 +319,7 @@ export const jit = (endpoint: Endpoint): Dispatch => {
 		`return ${async}(app, endpoint, request, match) => {\nconst context = new Context(app, endpoint, request, match);\n\n${generate(chain, 0, sse, routeHandler, new Set(), false)}\n};`,
 	) as (
 		context: typeof Context,
-		chain: Chain,
+		chain: EndpointChain,
 		serializeContext: typeof serialize,
 		reply: typeof Reply,
 		mergeObjects: typeof merge,
