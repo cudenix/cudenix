@@ -5,7 +5,7 @@ import { type AnyModule, Module } from "@/core/module";
 import type { CompiledMount } from "@/core/mount";
 import { response } from "@/core/response";
 import { cloneAppend } from "@/utils/arrays/clone-append";
-import { pushAll } from "@/utils/arrays/push-all";
+import { pushAllFrom } from "@/utils/arrays/push-all-from";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
@@ -32,6 +32,7 @@ const flatten = (
 	const merged = inheritedChain.slice();
 
 	let path = module.prefix;
+	let snapshot: EndpointChain | undefined;
 
 	for (let i = 0; i < module.chain.length; i++) {
 		const link = module.chain[i];
@@ -62,6 +63,8 @@ const flatten = (
 		) {
 			merged.push(link);
 
+			snapshot = undefined;
+
 			continue;
 		}
 
@@ -71,7 +74,9 @@ const flatten = (
 				path: `${inherited.path}${path === "/" ? "" : path}`,
 			});
 
-			pushAll(merged, compiled.chain);
+			pushAllFrom(merged, compiled.chain, compiled.start);
+
+			snapshot = undefined;
 
 			if (compiled.path !== "/") {
 				path = `${path === "/" ? "" : path}${compiled.path}`;
@@ -99,10 +104,20 @@ const flatten = (
 			endpoints[link.method] = methodEndpoints;
 		}
 
+		let chain: EndpointChain;
+
+		if (link.validator) {
+			chain = cloneAppend(merged, link.validator);
+		} else if (snapshot) {
+			chain = snapshot;
+		} else {
+			chain = merged.slice();
+
+			snapshot = chain;
+		}
+
 		methodEndpoints.push({
-			chain: link.validator
-				? cloneAppend(merged, link.validator)
-				: merged.slice(),
+			chain,
 			dispatch: staticDispatch,
 			matchOffset: 0,
 			paramKeys: [],
@@ -114,7 +129,7 @@ const flatten = (
 		});
 	}
 
-	return { chain: merged.slice(inheritedLength), path };
+	return { chain: merged, path, start: inheritedLength };
 };
 
 /**
