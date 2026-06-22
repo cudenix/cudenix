@@ -29,21 +29,26 @@ const flatten = (
 ) => {
 	const inheritedChain = inherited.chain;
 	const inheritedLength = inheritedChain.length;
+	const inheritedPath = inherited.path;
 	const merged = inheritedChain.slice();
+	const moduleChain = module.chain;
 
 	let path = module.prefix;
+	let pathSegment: "" | `/${string}` = path === "/" ? "" : path;
 	let snapshot: EndpointChain | undefined;
 
-	for (let i = 0; i < module.chain.length; i++) {
-		const link = module.chain[i];
+	for (let i = 0; i < moduleChain.length; i++) {
+		const link = moduleChain[i];
 
 		if (!link) {
 			continue;
 		}
 
-		if (link.type === "GROUP") {
+		const type = link.type;
+
+		if (type === "GROUP") {
 			const module = new Module({
-				prefix: `${inherited.path}${path === "/" ? "" : path}${link.prefix === "/" ? "" : link.prefix}` as `/${string}`,
+				prefix: `${inheritedPath}${pathSegment}${link.prefix === "/" ? "" : link.prefix}` as `/${string}`,
 			});
 
 			module.chain = merged.slice();
@@ -56,11 +61,7 @@ const flatten = (
 			continue;
 		}
 
-		if (
-			link.type === "MIDDLEWARE" ||
-			link.type === "STORE" ||
-			link.type === "VALIDATOR"
-		) {
+		if (type === "MIDDLEWARE" || type === "STORE" || type === "VALIDATOR") {
 			merged.push(link);
 
 			snapshot = undefined;
@@ -68,10 +69,10 @@ const flatten = (
 			continue;
 		}
 
-		if (link.type === "MODULE") {
+		if (type === "MODULE") {
 			const compiled = flatten(endpoints, mounts, link, {
 				chain: merged,
-				path: `${inherited.path}${path === "/" ? "" : path}`,
+				path: `${inheritedPath}${pathSegment}`,
 			});
 
 			pushAllFrom(merged, compiled.chain, compiled.start);
@@ -79,17 +80,18 @@ const flatten = (
 			snapshot = undefined;
 
 			if (compiled.path !== "/") {
-				path = `${path === "/" ? "" : path}${compiled.path}`;
+				path = `${pathSegment}${compiled.path}`;
+				pathSegment = path === "/" ? "" : path;
 			}
 
 			continue;
 		}
 
-		if (link.type === "MOUNT") {
+		if (type === "MOUNT") {
 			mounts.push({
 				fetch: link.fetch,
 				path:
-					`${inherited.path}${module.prefix === "/" ? "" : module.prefix}${link.path === "/" ? "" : link.path}` ||
+					`${inheritedPath}${module.prefix === "/" ? "" : module.prefix}${link.path === "/" ? "" : link.path}` ||
 					"/",
 			});
 
@@ -122,7 +124,7 @@ const flatten = (
 			matchOffset: 0,
 			paramKeys: [],
 			path:
-				`${inherited.path}${path === "/" ? "" : path}${link.path === "/" ? "" : link.path}` ||
+				`${inheritedPath}${pathSegment}${link.path === "/" ? "" : link.path}` ||
 				"/",
 			restKeys: [],
 			route: link,
