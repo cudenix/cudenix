@@ -1,6 +1,6 @@
 import type { Cudenix, Endpoint, EndpointChain } from "@/core/cudenix";
-import { staticDispatch } from "@/core/dispatch";
-import { jit } from "@/core/jit";
+import { type Dispatch, staticDispatch } from "@/core/dispatch";
+import { isAsyncSource, jit } from "@/core/jit";
 import { type AnyModule, Module } from "@/core/module";
 import type { CompiledMount } from "@/core/mount";
 import { response } from "@/core/response";
@@ -155,6 +155,7 @@ const flatten = (
  */
 export const compile = (app: Cudenix) => {
 	const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
+	const jitCache = new Map<EndpointChain, Map<string, Dispatch>>();
 	const mounts: CompiledMount[] = [];
 	const routes = app.routes;
 
@@ -170,11 +171,11 @@ export const compile = (app: Cudenix) => {
 			continue;
 		}
 
-		const methodRegexps: string[] = [];
 		const regexpEndpoints: Endpoint[] = [];
 		const regexpOffsets: number[] = [];
 
 		let matchOffset = 3;
+		let regexpBody = "";
 
 		for (let i = 0; i < methodEndpoints.length; i++) {
 			const methodEndpoint = methodEndpoints[i];
@@ -183,15 +184,15 @@ export const compile = (app: Cudenix) => {
 				continue;
 			}
 
-			const { restKeys, paramKeys, pattern } = pathToRegexp(
-				methodEndpoint.path,
-			);
-
+			const endpointOffset = matchOffset;
 			const isStatic =
 				methodEndpoint.route.static &&
 				methodEndpoint.chain.length === 0;
+			const path = methodEndpoint.path;
 
-			methodEndpoint.matchOffset = matchOffset;
+			const { restKeys, paramKeys, pattern } = pathToRegexp(path);
+
+			methodEndpoint.matchOffset = endpointOffset;
 			methodEndpoint.paramKeys = paramKeys;
 			methodEndpoint.restKeys = restKeys;
 
@@ -202,25 +203,48 @@ export const compile = (app: Cudenix) => {
 
 				methodEndpoint.dispatch = staticDispatch;
 			} else {
-				methodEndpoint.dispatch = jit(app, methodEndpoint);
+				const chain = methodEndpoint.chain;
+				const route = methodEndpoint.route;
+				const subkey = route.sse
+					? "g"
+					: isAsyncSource(route.handler)
+						? "a"
+						: "s";
+
+				let cache = jitCache.get(chain);
+
+				if (!cache) {
+					cache = new Map();
+
+					jitCache.set(chain, cache);
+				}
+
+				let dispatch = cache.get(subkey);
+
+				if (!dispatch) {
+					dispatch = jit(app, methodEndpoint);
+
+					cache.set(subkey, dispatch);
+				}
+
+				methodEndpoint.dispatch = dispatch;
 			}
 
 			matchOffset += 1 + paramKeys.length;
 
-			methodRegexps.push(pattern);
-			regexpEndpoints.push(methodEndpoint);
-			regexpOffsets.push(methodEndpoint.matchOffset);
+			regexpBody =
+				regexpBody === "" ? pattern : `${regexpBody}|${pattern}`;
 
-			if (
-				methodEndpoint.path.indexOf("?") === -1 &&
-				methodEndpoint.path.indexOf("...") === -1
-			) {
-				let pathRoutes = routes[methodEndpoint.path];
+			regexpEndpoints.push(methodEndpoint);
+			regexpOffsets.push(endpointOffset);
+
+			if (path.indexOf("?") === -1 && path.indexOf("...") === -1) {
+				let pathRoutes = routes[path];
 
 				if (!pathRoutes) {
 					pathRoutes = new Empty() as (typeof routes)[string];
 
-					routes[methodEndpoint.path] = pathRoutes;
+					routes[path] = pathRoutes;
 				}
 
 				if (!(method in pathRoutes)) {
@@ -244,7 +268,7 @@ export const compile = (app: Cudenix) => {
 			endpoints: regexpEndpoints,
 			offsets: regexpOffsets,
 			regexp: new RegExp(
-				`^(https?:\\/\\/)[^\\s\\/]+(${methodRegexps.join("|")})(?![^?#])`,
+				`^(https?:\\/\\/)[^\\s\\/]+(${regexpBody})(?![^?#])`,
 			),
 		};
 	}
