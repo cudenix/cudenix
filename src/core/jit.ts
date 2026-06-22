@@ -39,7 +39,7 @@ import { parseQuery } from "@/utils/urls/parse-query";
  * isAsyncSource((async () => {}).bind(null)); // true
  * ```
  */
-const isAsyncSource = (fn: (...args: any[]) => unknown): boolean =>
+export const isAsyncSource = (fn: (...args: any[]) => unknown): boolean =>
 	fn.toString().startsWith("async") || isAsync(fn);
 
 /**
