@@ -11,6 +11,12 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 
 /**
+ * Shared frozen placeholder for an endpoint's `paramKeys`/`restKeys` at
+ * {@link flatten} time.
+ */
+const EMPTY_KEYS = Object.freeze([]) as unknown as string[];
+
+/**
  * Inherited {@link EndpointChain} and path prefix.
  */
 interface FlattenInherited {
@@ -122,11 +128,11 @@ const flatten = (
 			chain,
 			dispatch: staticDispatch,
 			matchOffset: 0,
-			paramKeys: [],
+			paramKeys: EMPTY_KEYS,
 			path:
 				`${inheritedPath}${pathSegment}${link.path === "/" ? "" : link.path}` ||
 				"/",
-			restKeys: [],
+			restKeys: EMPTY_KEYS,
 			route: link,
 		});
 	}
