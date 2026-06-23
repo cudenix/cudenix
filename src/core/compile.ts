@@ -11,13 +11,13 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 
 /**
- * Shared frozen placeholder for an endpoint's `paramKeys`/`restKeys` at
- * {@link flatten} time.
+ * Shared frozen placeholder for an endpoint's `paramKeys`/`restKeys` until
+ * {@link compile} swaps in the real keys.
  */
 const EMPTY_KEYS = Object.freeze([]) as unknown as string[];
 
 /**
- * Inherited {@link EndpointChain} and path prefix.
+ * The {@link EndpointChain} and path prefix inherited from a parent module.
  */
 interface FlattenInherited {
 	chain: EndpointChain;
@@ -25,7 +25,8 @@ interface FlattenInherited {
 }
 
 /**
- * Flatten a module subtree into `endpoints`, keyed by HTTP method.
+ * Walk a module subtree, collecting endpoints into `endpoints` (keyed by HTTP
+ * method) and mounts into `mounts`.
  */
 const flatten = (
 	endpoints: Record<HttpMethod, Endpoint[]>,
@@ -141,8 +142,8 @@ const flatten = (
 };
 
 /**
- * Compile a {@link Cudenix} app's module tree into its runtime routing
- * tables on `app.methods` and `app.routes`.
+ * Compile a {@link Cudenix} app's module tree into its runtime routing tables:
+ * `app.methods`, `app.routes`, and `app.mounts`.
  *
  * @example
  * ```typescript
@@ -154,7 +155,7 @@ const flatten = (
  *
  * compile(a);
  *
- * a.methods.GET; // { endpoints: [...], regexp: /.../ }
+ * a.methods.GET; // { endpoints: [...], offsets: [...], regexp: /.../ }
  * a.routes["/a"]; // { GET: (request) => ... } — dispatch handler
  * a.routes["/b"]; // { GET: Response } — pre-built static response
  * ```
