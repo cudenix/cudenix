@@ -39,7 +39,7 @@ import { parseQuery } from "@/utils/urls/parse-query";
  * isAsyncSource((async () => {}).bind(null)); // true
  * ```
  */
-export const isAsyncSource = (fn: (...args: any[]) => unknown): boolean =>
+export const isAsyncSource = (fn: (...args: any[]) => unknown) =>
 	fn.toString().startsWith("async") || isAsync(fn);
 
 /**
@@ -295,11 +295,10 @@ const generate = (
  * endpoint.dispatch.toString() === jit(a, endpoint).toString(); // true
  * ```
  */
-export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
+export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const chain = endpoint.chain;
-
-	const sse = endpoint.route.sse;
 	const routeHandler = endpoint.route.handler;
+	const sse = endpoint.route.sse;
 
 	const async = scopeNeedsAwait(chain, 0, sse, routeHandler) ? "async " : "";
 
