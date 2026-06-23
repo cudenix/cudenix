@@ -47,13 +47,13 @@ const flatten = (
 		const type = link.type;
 
 		if (type === "GROUP") {
-			const module = new Module({
+			const groupModule = new Module({
 				prefix: `${inheritedPath}${pathSegment}${link.prefix === "/" ? "" : link.prefix}` as `/${string}`,
 			});
 
-			module.chain = merged.slice();
+			groupModule.chain = merged.slice();
 
-			flatten(endpoints, mounts, link.handler(module), {
+			flatten(endpoints, mounts, link.handler(groupModule), {
 				chain: [],
 				path: "",
 			});
