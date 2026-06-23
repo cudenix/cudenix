@@ -82,9 +82,13 @@ const flatten = (
 				path: `${inheritedPath}${pathSegment}`,
 			});
 
+			const beforeLength = merged.length;
+
 			pushAllFrom(merged, compiled.chain, compiled.start);
 
-			snapshot = undefined;
+			if (merged.length !== beforeLength) {
+				snapshot = undefined;
+			}
 
 			if (compiled.path !== "/") {
 				path = `${pathSegment}${compiled.path}`;
