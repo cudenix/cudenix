@@ -2,7 +2,6 @@ import { Context } from "@/core/context";
 import type { Cudenix, Endpoint, EndpointChain } from "@/core/cudenix";
 import { type Dispatch, serialize } from "@/core/dispatch";
 import { fail, Reply } from "@/core/reply";
-import type { AnyRouteFn } from "@/core/route";
 import { stream } from "@/core/sse";
 import type { ValidatorRequest } from "@/core/validator";
 import { parseBody } from "@/utils/bodies/parse-body";
@@ -25,49 +24,15 @@ const PARSERS: Record<keyof ValidatorRequest, string> = {
 	query: "context.request.query = parseQuery(context.request.raw.url);",
 };
 
-const scopeNeedsAwait = (
-	chain: EndpointChain,
-	index: number,
-	sse: boolean,
-	routeHandler: AnyRouteFn,
-): boolean => {
-	for (let i = index; i < chain.length; i++) {
-		const link = chain[i];
-
-		if (!link) {
-			continue;
-		}
-
-		if (link.type === "STORE") {
-			if (isAsyncSource(link.handler)) {
-				return true;
-			}
-
-			continue;
-		}
-
-		if (link.type === "VALIDATOR") {
-			return true;
-		}
-
-		if (link.type === "MIDDLEWARE") {
-			return (
-				isAsyncSource(link.handler) ||
-				scopeNeedsAwait(chain, i + 1, sse, routeHandler)
-			);
-		}
-	}
-
-	return !sse && isAsyncSource(routeHandler);
-};
-
 const generate = (
 	chain: EndpointChain,
 	index: number,
 	sse: boolean,
-	routeHandler: AnyRouteFn,
 	parsed: Set<string>,
 	nested: boolean,
+	needsAwait: boolean[],
+	linkAsync: boolean[],
+	routeAsync: boolean,
 ): string => {
 	if (index >= chain.length) {
 		if (sse) {
@@ -80,7 +45,7 @@ const generate = (
 			return nested ? body : `${body}\n\nreturn serialize(context);`;
 		}
 
-		const call = isAsyncSource(routeHandler)
+		const call = routeAsync
 			? "context.response.content = await this.route.handler(context);"
 			: "context.response.content = this.route.handler(context);";
 
@@ -90,20 +55,29 @@ const generate = (
 	const link = chain[index];
 
 	if (!link) {
-		return generate(chain, index + 1, sse, routeHandler, parsed, nested);
+		return generate(
+			chain,
+			index + 1,
+			sse,
+			parsed,
+			nested,
+			needsAwait,
+			linkAsync,
+			routeAsync,
+		);
 	}
 
 	if (link.type === "MIDDLEWARE") {
-		const tailAsync = scopeNeedsAwait(chain, index + 1, sse, routeHandler);
+		const tailAsync = needsAwait[index + 1];
 
 		const call =
-			isAsyncSource(link.handler) || tailAsync
+			linkAsync[index] || tailAsync
 				? `const returned_${index} = await chain[${index}].handler(context, next_${index});`
 				: `const returned_${index} = chain[${index}].handler(context, next_${index});`;
 
 		const block = `{
 			const next_${index} = ${tailAsync ? "async " : ""}() => {
-				${generate(chain, index + 1, sse, routeHandler, parsed, true)}
+				${generate(chain, index + 1, sse, parsed, true, needsAwait, linkAsync, routeAsync)}
 			};
 
 			${call}
@@ -117,7 +91,7 @@ const generate = (
 	}
 
 	if (link.type === "STORE") {
-		const call = isAsyncSource(link.handler)
+		const call = linkAsync[index]
 			? `const returned_${index} = await chain[${index}].handler(context);`
 			: `const returned_${index} = chain[${index}].handler(context);`;
 
@@ -133,7 +107,7 @@ const generate = (
 			merge(context.store, returned_${index});
 		}
 
-		${generate(chain, index + 1, sse, routeHandler, parsed, nested)}`;
+		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, routeAsync)}`;
 	}
 
 	if (link.type === "VALIDATOR") {
@@ -189,10 +163,19 @@ const generate = (
 			}
 		}
 
-		${generate(chain, index + 1, sse, routeHandler, parsed, nested)}`;
+		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, routeAsync)}`;
 	}
 
-	return generate(chain, index + 1, sse, routeHandler, parsed, nested);
+	return generate(
+		chain,
+		index + 1,
+		sse,
+		parsed,
+		nested,
+		needsAwait,
+		linkAsync,
+		routeAsync,
+	);
 };
 
 export const jit = (app: Cudenix, endpoint: Endpoint) => {
@@ -200,7 +183,33 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const routeHandler = endpoint.route.handler;
 	const sse = endpoint.route.sse;
 
-	const async = scopeNeedsAwait(chain, 0, sse, routeHandler) ? "async " : "";
+	const length = chain.length;
+	const linkAsync = new Array<boolean>(length);
+	const needsAwait = new Array<boolean>(length + 1);
+	const routeAsync = isAsyncSource(routeHandler);
+
+	let tail = !sse && routeAsync;
+
+	needsAwait[length] = tail;
+
+	for (let i = length - 1; i >= 0; i--) {
+		const link = chain[i];
+
+		if (link) {
+			if (link.type === "VALIDATOR") {
+				tail = true;
+			} else if (link.type === "MIDDLEWARE" || link.type === "STORE") {
+				const async = isAsyncSource(link.handler);
+
+				linkAsync[i] = async;
+				tail = async || tail;
+			}
+		}
+
+		needsAwait[i] = tail;
+	}
+
+	const async = tail ? "async " : "";
 
 	const factory = new Function(
 		"app",
@@ -216,7 +225,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		"parseCookies",
 		"parseParams",
 		"parseQuery",
-		`return ${async}function (request, match) {\nconst context = new Context(app, this, request, match);\n\n${generate(chain, 0, sse, routeHandler, new Set(), false)}\n};`,
+		`return ${async}function (request, match) {\nconst context = new Context(app, this, request, match);\n\n${generate(chain, 0, sse, new Set(), false, needsAwait, linkAsync, routeAsync)}\n};`,
 	) as (
 		app: Cudenix,
 		context: typeof Context,
