@@ -253,4 +253,40 @@ describe("ExtractUrlParams", () => {
 			>();
 		});
 	});
+
+	describe("non-prefix markers treated as literal", () => {
+		it("should ignore a ':' that is not at the start of a segment", () => {
+			expectTypeOf<ExtractUrlParams<"/a:b">>().branded.toEqualTypeOf<
+				NonNullable<unknown>
+			>();
+		});
+
+		it("should ignore a '...' that is not at the start of a segment", () => {
+			expectTypeOf<ExtractUrlParams<"/a...b">>().branded.toEqualTypeOf<
+				NonNullable<unknown>
+			>();
+		});
+	});
+
+	describe("duplicate parameter names", () => {
+		it("should collapse a name repeated as required then optional to the required type", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/:p1/:p1?">
+			>().branded.toEqualTypeOf<{ p1: string }>();
+		});
+	});
+
+	describe("negative assertions", () => {
+		it("should not widen a required param to optional", () => {
+			expectTypeOf<ExtractUrlParams<"/a/:p1">>().not.toEqualTypeOf<{
+				p1: string | undefined;
+			}>();
+		});
+
+		it("should not capture a key from a literal-only path", () => {
+			expectTypeOf<ExtractUrlParams<"/a/b">>().not.toEqualTypeOf<{
+				b: string;
+			}>();
+		});
+	});
 });

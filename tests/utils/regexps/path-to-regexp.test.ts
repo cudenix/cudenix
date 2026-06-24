@@ -230,10 +230,13 @@ describe("pathToRegexp", () => {
 				expect(compiled.regex.test("/a/")).toBe(false);
 			});
 
-			it("should reject values containing forbidden characters (/, whitespace, ?, #)", () => {
+			it("should reject a value containing whitespace, '?', or '#'", () => {
 				expect(compiled.regex.test("/a/0 v1")).toBe(false);
 				expect(compiled.regex.test("/a/0?v1")).toBe(false);
 				expect(compiled.regex.test("/a/0#v1")).toBe(false);
+			});
+
+			it("should not let a single param value span a '/' segment boundary", () => {
 				expect(compiled.regex.test("/a/v1/v2")).toBe(false);
 			});
 

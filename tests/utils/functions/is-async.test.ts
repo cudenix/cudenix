@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
 import { isAsync } from "@/utils/functions/is-async";
 
@@ -51,30 +51,24 @@ describe("isAsync", () => {
 	});
 
 	describe("async methods on a class", () => {
-		let instance: { method: () => Promise<number> };
-		let staticMethod: () => Promise<number>;
-
-		beforeAll(() => {
+		it("should return true for an async instance method", () => {
 			class A {
-				static async staticMethod() {
-					return 1;
-				}
-
 				async method() {
 					return 1;
 				}
 			}
 
-			instance = new A();
-			staticMethod = A.staticMethod;
-		});
-
-		it("should return true for an async instance method", () => {
-			expect(isAsync(instance.method)).toBe(true);
+			expect(isAsync(new A().method)).toBe(true);
 		});
 
 		it("should return true for an async static method", () => {
-			expect(isAsync(staticMethod)).toBe(true);
+			class A {
+				static async staticMethod() {
+					return 1;
+				}
+			}
+
+			expect(isAsync(A.staticMethod)).toBe(true);
 		});
 	});
 

@@ -155,7 +155,7 @@ describe("ConditionallyOmit", () => {
 		});
 	});
 
-	describe("`any` collapses mutual assignability", () => {
+	describe("`any` markers and values", () => {
 		it("should drop every key when the marker is `any`", () => {
 			interface A {
 				a: string;

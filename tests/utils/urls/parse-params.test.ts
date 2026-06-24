@@ -292,6 +292,22 @@ describe("parseParams", () => {
 			expect("r1" in result).toBe(false);
 			expect(Object.keys(result)).toHaveLength(0);
 		});
+
+		it("should skip a slot whose parameter name is undefined (sparse keys)", () => {
+			const paramKeys: string[] = [];
+
+			paramKeys[1] = "p2";
+
+			const result = parseParams(
+				exec("()/a/([^/]+)/([^/]+)", "/a/v1/v2"),
+				paramKeys,
+				1,
+				[],
+			);
+
+			expect(Object.keys(result)).toEqual(["p2"]);
+			expect(result.p2).toBe("v2");
+		});
 	});
 
 	describe("dangerous key names", () => {
@@ -305,7 +321,9 @@ describe("parseParams", () => {
 
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
 			expect(result.__proto__).toBe("v1");
-			expect(({} as Record<string, unknown>).__proto__).not.toBe("v1");
+			expect(
+				Object.getPrototypeOf(Object.getPrototypeOf(result)),
+			).toBeNull();
 		});
 
 		it("should store `constructor` as a real own key without invoking inheritance", () => {

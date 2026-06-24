@@ -131,9 +131,9 @@ describe("AllPropertiesAreUnknown", () => {
 	});
 
 	describe("empty and synthetic shapes", () => {
-		type Empty = NonNullable<unknown>;
-
 		it("should resolve to true for an empty object via `NonNullable<unknown>` alias", () => {
+			type Empty = NonNullable<unknown>;
+
 			expectTypeOf<
 				AllPropertiesAreUnknown<Empty>
 			>().toEqualTypeOf<true>();

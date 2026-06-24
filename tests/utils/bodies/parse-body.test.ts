@@ -81,22 +81,27 @@ describe("parseBody", () => {
 	});
 
 	describe("octet-stream bodies", () => {
-		let result: unknown;
+		describe("with a byte body", () => {
+			let result: unknown;
 
-		beforeAll(async () => {
-			result = await parseBody(
-				request(new Uint8Array([1, 2, 3]), "application/octet-stream"),
-			);
-		});
+			beforeAll(async () => {
+				result = await parseBody(
+					request(
+						new Uint8Array([1, 2, 3]),
+						"application/octet-stream",
+					),
+				);
+			});
 
-		it("should return an ArrayBuffer", () => {
-			expect(result).toBeInstanceOf(ArrayBuffer);
-		});
+			it("should return an ArrayBuffer", () => {
+				expect(result).toBeInstanceOf(ArrayBuffer);
+			});
 
-		it("should preserve the body bytes", () => {
-			const bytes = new Uint8Array(result as ArrayBuffer);
+			it("should preserve the body bytes", () => {
+				const bytes = new Uint8Array(result as ArrayBuffer);
 
-			expect(Array.from(bytes)).toEqual([1, 2, 3]);
+				expect(Array.from(bytes)).toEqual([1, 2, 3]);
+			});
 		});
 
 		it("should match when a parameter trails the octet-stream content type", async () => {
@@ -105,6 +110,14 @@ describe("parseBody", () => {
 					new Uint8Array([1, 2, 3]),
 					"application/octet-stream; charset=binary",
 				),
+			);
+
+			expect(result).toBeInstanceOf(ArrayBuffer);
+		});
+
+		it("should match a bare trailing semicolon with no parameter", async () => {
+			const result = await parseBody(
+				request(new Uint8Array([1, 2, 3]), "application/octet-stream;"),
 			);
 
 			expect(result).toBeInstanceOf(ArrayBuffer);
@@ -150,6 +163,14 @@ describe("parseBody", () => {
 		it("should match the content type set by URLSearchParams", async () => {
 			const result = (await parseBody(
 				request(new URLSearchParams("a=v1")),
+			)) as Record<string, unknown>;
+
+			expect(result.a).toBe("v1");
+		});
+
+		it("should match a bare trailing semicolon with no parameter", async () => {
+			const result = (await parseBody(
+				request("a=v1", "application/x-www-form-urlencoded;"),
 			)) as Record<string, unknown>;
 
 			expect(result.a).toBe("v1");
@@ -223,6 +244,12 @@ describe("parseBody", () => {
 		it("should reject for 'multipart/form-data' without a boundary parameter", async () => {
 			await expect(
 				parseBody(request("v1", "multipart/form-data")),
+			).rejects.toThrow();
+		});
+
+		it("should enter the multipart branch for a bare trailing semicolon (then reject without a boundary)", async () => {
+			await expect(
+				parseBody(request("v1", "multipart/form-data;")),
 			).rejects.toThrow();
 		});
 	});
@@ -325,7 +352,9 @@ describe("parseBody", () => {
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
 			expect(result.__proto__).toBe("v1");
 			expect(result.a).toBe("v2");
-			expect(({} as Record<string, unknown>).__proto__).not.toBe("v1");
+			expect(
+				Object.getPrototypeOf(Object.getPrototypeOf(result)),
+			).toBeNull();
 		});
 
 		it("should store `constructor` as a real own key without invoking inheritance", async () => {
@@ -355,7 +384,9 @@ describe("parseBody", () => {
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
 			expect(result.__proto__).toBe("v1");
 			expect(result.a).toBe("v2");
-			expect(({} as Record<string, unknown>).__proto__).not.toBe("v1");
+			expect(
+				Object.getPrototypeOf(Object.getPrototypeOf(result)),
+			).toBeNull();
 		});
 
 		it("should store a multipart `constructor` field as a real own key without invoking inheritance", async () => {

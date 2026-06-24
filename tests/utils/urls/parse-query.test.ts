@@ -73,6 +73,13 @@ describe("parseQuery", () => {
 			expect(result["b c"]).toBe("v1");
 		});
 
+		it("should keep a key that is non-empty raw but decodes to whitespace", () => {
+			const result = parseQuery("/a?%20=v1");
+
+			expect(Object.hasOwn(result, " ")).toBe(true);
+			expect(result[" "]).toBe("v1");
+		});
+
 		it("should decode '%xx' escapes inside a value", () => {
 			const result = parseQuery("/a?b=v1%20v2");
 
@@ -198,6 +205,12 @@ describe("parseQuery", () => {
 			const result = parseQuery("/a?b={bad}");
 
 			expect(result.b).toBe("{bad}");
+		});
+
+		it("should keep the raw string when a percent-decode failure leaves JSON-shaped text", () => {
+			const result = parseQuery("/a?b={%zz}");
+
+			expect(result.b).toBe("{%zz}");
 		});
 
 		it("should not parse a value that opens but never closes a brace", () => {
@@ -390,7 +403,9 @@ describe("parseQuery", () => {
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
 			expect(result.__proto__).toBe("v1");
 			expect(result.b).toBe("v2");
-			expect(({} as Record<string, unknown>).__proto__).not.toBe("v1");
+			expect(
+				Object.getPrototypeOf(Object.getPrototypeOf(result)),
+			).toBeNull();
 		});
 
 		it("should store `constructor` as a real own key without invoking inheritance", () => {

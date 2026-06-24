@@ -3,70 +3,57 @@ import { describe, expectTypeOf, it } from "bun:test";
 import type { HttpMethod } from "@/utils/types/http-method";
 
 describe("HttpMethod", () => {
-	describe("custom verbs via the string brand", () => {
-		it("should accept an arbitrary uppercase verb", () => {
-			expectTypeOf<"PURGE">().toExtend<HttpMethod>();
+	describe("named members", () => {
+		it("should keep `DELETE` extractable from the union", () => {
+			expectTypeOf<
+				Extract<HttpMethod, "DELETE">
+			>().toEqualTypeOf<"DELETE">();
 		});
 
-		it("should accept the WebDAV `REPORT` verb", () => {
-			expectTypeOf<"REPORT">().toExtend<HttpMethod>();
+		it("should keep `GET` extractable from the union", () => {
+			expectTypeOf<Extract<HttpMethod, "GET">>().toEqualTypeOf<"GET">();
 		});
 
-		it("should accept a long single-word uppercase verb", () => {
-			expectTypeOf<"MKCALENDAR">().toExtend<HttpMethod>();
+		it("should keep `HEAD` extractable from the union", () => {
+			expectTypeOf<Extract<HttpMethod, "HEAD">>().toEqualTypeOf<"HEAD">();
 		});
 
-		it("should accept a verb containing digits", () => {
-			expectTypeOf<"HTTP2">().toExtend<HttpMethod>();
+		it("should keep `OPTIONS` extractable from the union", () => {
+			expectTypeOf<
+				Extract<HttpMethod, "OPTIONS">
+			>().toEqualTypeOf<"OPTIONS">();
 		});
 
-		it("should accept a verb containing a hyphen", () => {
-			expectTypeOf<"X-CUSTOM">().toExtend<HttpMethod>();
+		it("should keep `PATCH` extractable from the union", () => {
+			expectTypeOf<
+				Extract<HttpMethod, "PATCH">
+			>().toEqualTypeOf<"PATCH">();
 		});
 
-		it("should accept a verb containing an underscore", () => {
-			expectTypeOf<"X_CUSTOM">().toExtend<HttpMethod>();
+		it("should keep `POST` extractable from the union", () => {
+			expectTypeOf<Extract<HttpMethod, "POST">>().toEqualTypeOf<"POST">();
 		});
 
-		it("should accept the empty string", () => {
-			expectTypeOf<"">().toExtend<HttpMethod>();
-		});
-	});
-
-	describe("case insensitivity", () => {
-		it("should accept a fully lowercase verb", () => {
-			expectTypeOf<"get">().toExtend<HttpMethod>();
+		it("should keep `PUT` extractable from the union", () => {
+			expectTypeOf<Extract<HttpMethod, "PUT">>().toEqualTypeOf<"PUT">();
 		});
 
-		it("should accept a capitalised verb", () => {
-			expectTypeOf<"Get">().toExtend<HttpMethod>();
-		});
-
-		it("should accept a mixed-case verb", () => {
-			expectTypeOf<"gEt">().toExtend<HttpMethod>();
-		});
-
-		it("should accept a lowercase custom verb", () => {
-			expectTypeOf<"purge">().toExtend<HttpMethod>();
+		it("should not surface an unnamed verb as a literal member", () => {
+			expectTypeOf<Extract<HttpMethod, "PURGE">>().toEqualTypeOf<never>();
 		});
 	});
 
-	describe("subtype relations", () => {
-		it("should include all canonical named methods as assignable values", () => {
-			type A =
-				| "DELETE"
-				| "GET"
-				| "HEAD"
-				| "OPTIONS"
-				| "PATCH"
-				| "POST"
-				| "PUT";
-
-			expectTypeOf<A>().toExtend<HttpMethod>();
-		});
-
-		it("should accept plain `string` (the underlying brand)", () => {
+	describe("string brand", () => {
+		it("should accept plain `string` (the brand widens the union)", () => {
 			expectTypeOf<string>().toExtend<HttpMethod>();
+		});
+
+		it("should not be exactly equal to `string` (the brand preserves literals)", () => {
+			expectTypeOf<HttpMethod>().not.toEqualTypeOf<string>();
+		});
+
+		it("should accept an arbitrary custom verb via the brand", () => {
+			expectTypeOf<"PURGE">().toExtend<HttpMethod>();
 		});
 	});
 
@@ -77,16 +64,6 @@ describe("HttpMethod", () => {
 
 		it("should not be constrained to `Uppercase<string>` (case is unrestricted)", () => {
 			expectTypeOf<HttpMethod>().not.toExtend<Uppercase<string>>();
-		});
-	});
-
-	describe("brand preservation", () => {
-		it("should not be exactly equal to `string` (the brand preserves literals)", () => {
-			expectTypeOf<HttpMethod>().not.toEqualTypeOf<string>();
-		});
-
-		it("should keep the named literals extractable from the union", () => {
-			expectTypeOf<Extract<HttpMethod, "GET">>().toEqualTypeOf<"GET">();
 		});
 	});
 

@@ -4,7 +4,7 @@ import { cloneAppend } from "@/utils/arrays/clone-append";
 
 describe("cloneAppend", () => {
 	describe("empty source", () => {
-		describe("with empty source and string item 'a'", () => {
+		describe("with source [] and item 'a'", () => {
 			let source: string[];
 			let result: string[];
 
@@ -170,6 +170,12 @@ describe("cloneAppend", () => {
 
 			expect(result).toHaveLength(3);
 			expect(result[2]).toEqual([3, 4]);
+		});
+
+		it("should produce a dense array literal with no holes", () => {
+			const result = cloneAppend([1, 2], 3);
+
+			expect(Object.keys(result)).toEqual(["0", "1", "2"]);
 		});
 
 		it("should not invoke the iterator protocol on the source array", () => {

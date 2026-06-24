@@ -117,6 +117,10 @@ describe("MergePaths", () => {
 		it("should reduce a slashes-only path to a trailing slash on the prefix", () => {
 			expectTypeOf<MergePaths<"/a", "//">>().toEqualTypeOf<"/a/">();
 		});
+
+		it("should reduce a slashes-only path to root when the prefix is root", () => {
+			expectTypeOf<MergePaths<"/", "//">>().toEqualTypeOf<"/">();
+		});
 	});
 
 	describe("structural relations", () => {

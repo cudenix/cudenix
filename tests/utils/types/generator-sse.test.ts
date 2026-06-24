@@ -80,6 +80,12 @@ describe("GeneratorSSE", () => {
 			expectTypeOf<A["event"]>().toEqualTypeOf<"message" | undefined>();
 		});
 
+		it("should reject an `event` outside the default `message` channel", () => {
+			expectTypeOf<{ data: AnyOk; event: "v1" }>().not.toExtend<
+				GeneratorSSE<AnyOk>
+			>();
+		});
+
 		describe("with channel literal 'tick'", () => {
 			type A = GeneratorSSE<AnyOk, "tick">;
 
@@ -159,44 +165,44 @@ describe("GeneratorSSE", () => {
 			}>().toExtend<A>();
 		});
 	});
+});
 
-	describe("AnyGeneratorSSE", () => {
-		it("should keep `data` required even on the relaxed alias", () => {
-			expectTypeOf<{ event: "v1" }>().not.toExtend<AnyGeneratorSSE>();
-		});
+describe("AnyGeneratorSSE", () => {
+	it("should keep `data` required even on the relaxed alias", () => {
+		expectTypeOf<{ event: "v1" }>().not.toExtend<AnyGeneratorSSE>();
+	});
 
-		it("should accept a frame whose `data` is `AnyFail`", () => {
-			expectTypeOf<{ data: AnyFail }>().toExtend<AnyGeneratorSSE>();
-		});
+	it("should accept a frame whose `data` is `AnyFail`", () => {
+		expectTypeOf<{ data: AnyFail }>().toExtend<AnyGeneratorSSE>();
+	});
 
-		it("should accept any string for the `event` channel", () => {
-			expectTypeOf<{
-				data: AnyOk;
-				event: "v1";
-			}>().toExtend<AnyGeneratorSSE>();
-		});
+	it("should accept any string for the `event` channel", () => {
+		expectTypeOf<{
+			data: AnyOk;
+			event: "v1";
+		}>().toExtend<AnyGeneratorSSE>();
+	});
 
-		it("should accept any concrete `GeneratorSSE<X, Y>` as a subtype", () => {
-			type A = GeneratorSSE<Ok<{ a: true }, 1>, "tick">;
+	it("should accept any concrete `GeneratorSSE<X, Y>` as a subtype", () => {
+		type A = GeneratorSSE<Ok<{ a: true }, 1>, "tick">;
 
-			expectTypeOf<A>().toExtend<AnyGeneratorSSE>();
-		});
+		expectTypeOf<A>().toExtend<AnyGeneratorSSE>();
+	});
 
-		it("should widen `data` and `event` to `any` while leaving `id` and `retry` narrow", () => {
-			expectTypeOf<AnyGeneratorSSE["data"]>().toBeAny();
-			expectTypeOf<AnyGeneratorSSE["event"]>().toBeAny();
-			expectTypeOf<AnyGeneratorSSE["id"]>().toEqualTypeOf<
-				string | undefined
-			>();
-			expectTypeOf<AnyGeneratorSSE["retry"]>().toEqualTypeOf<
-				number | undefined
-			>();
-		});
+	it("should widen `data` and `event` to `any` while leaving `id` and `retry` narrow", () => {
+		expectTypeOf<AnyGeneratorSSE["data"]>().toBeAny();
+		expectTypeOf<AnyGeneratorSSE["event"]>().toBeAny();
+		expectTypeOf<AnyGeneratorSSE["id"]>().toEqualTypeOf<
+			string | undefined
+		>();
+		expectTypeOf<AnyGeneratorSSE["retry"]>().toEqualTypeOf<
+			number | undefined
+		>();
+	});
 
-		it("should be usable as an array element type", () => {
-			expectTypeOf<GeneratorSSE<Ok<{ a: true }, 1>, "tick">[]>().toExtend<
-				AnyGeneratorSSE[]
-			>();
-		});
+	it("should be usable as an array element type", () => {
+		expectTypeOf<GeneratorSSE<Ok<{ a: true }, 1>, "tick">[]>().toExtend<
+			AnyGeneratorSSE[]
+		>();
 	});
 });

@@ -95,6 +95,12 @@ describe("MaybeFunction", () => {
 				MaybeFunction<number | string>
 			>();
 		});
+
+		it("should accept an async factory resolving to a member of the wrapped union via promise covariance", () => {
+			expectTypeOf<() => Promise<number>>().toExtend<
+				MaybeFunction<number | string>
+			>();
+		});
 	});
 
 	describe("structural relations", () => {
@@ -141,6 +147,12 @@ describe("MaybeFunction", () => {
 		it("should reject a factory whose promise resolves to the wrong type", () => {
 			expectTypeOf<() => Promise<string>>().not.toExtend<
 				MaybeFunction<number>
+			>();
+		});
+
+		it("should reject an async factory resolving outside the wrapped union", () => {
+			expectTypeOf<() => Promise<boolean>>().not.toExtend<
+				MaybeFunction<number | string>
 			>();
 		});
 
