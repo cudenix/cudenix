@@ -36,11 +36,9 @@ const generate = (
 ): string => {
 	if (index >= chain.length) {
 		if (sse) {
-			const body = `const generator = this.route.handler(context);
+			const body = `context.server.timeout(context.request.raw, 0);
 
-				context.server?.timeout(context.request.raw, 0);
-
-				context.response.content = stream(generator);`;
+				context.response.content = stream(this.route.handler(context));`;
 
 			return nested ? body : `${body}\n\nreturn serialize(context);`;
 		}
