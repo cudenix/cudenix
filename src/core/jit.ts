@@ -13,7 +13,7 @@ import { parseParams } from "@/utils/urls/parse-params";
 import { parseQuery } from "@/utils/urls/parse-query";
 
 export const isAsyncSource = (fn: (...args: any[]) => unknown) =>
-	fn.toString().startsWith("async") || isAsync(fn);
+	isAsync(fn) || fn.toString().startsWith("async");
 
 const PARSERS: Record<keyof ValidatorRequest, string> = {
 	body: "context.request.body = await parseBody(context.request.raw);",
