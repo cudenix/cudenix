@@ -1,11 +1,12 @@
 import type { Cudenix, Endpoint, EndpointChain } from "@/core/cudenix";
 import { type Dispatch, staticDispatch } from "@/core/dispatch";
-import { isAsyncSource, jit } from "@/core/jit";
+import { jit } from "@/core/jit";
 import { type AnyModule, Module } from "@/core/module";
 import type { CompiledMount } from "@/core/mount";
 import { response } from "@/core/response";
 import { cloneAppend } from "@/utils/arrays/clone-append";
 import { pushAllFrom } from "@/utils/arrays/push-all-from";
+import { isAsync } from "@/utils/functions/is-async";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
@@ -218,7 +219,7 @@ export const compile = (app: Cudenix) => {
 				const route = methodEndpoint.route;
 				const subkey = route.sse
 					? "g"
-					: isAsyncSource(route.handler)
+					: isAsync(route.handler)
 						? "a"
 						: "s";
 
