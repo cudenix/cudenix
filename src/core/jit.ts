@@ -12,16 +12,14 @@ import { merge } from "@/utils/objects/merge";
 import { parseParams } from "@/utils/urls/parse-params";
 import { parseQuery } from "@/utils/urls/parse-query";
 
-export const isAsyncSource = (fn: (...args: any[]) => unknown) =>
-	isAsync(fn) || fn.toString().startsWith("async");
-
-const PARSERS: Record<keyof ValidatorRequest, string> = {
-	body: "context.request.body = await parseBody(context.request.raw);",
-	cookies:
-		'context.request.cookies = parseCookies(context.request.raw.headers.get("cookie") ?? "");',
-	headers: "context.request.headers = context.request.raw.headers.toJSON();",
-	params: 'context.request.params = "cookies" in context.request.raw ? context.request.raw.params : parseParams(context.match, this.paramKeys, this.matchOffset, this.restKeys);',
-	query: "context.request.query = parseQuery(context.request.raw.url);",
+const PARSERS: Record<keyof ValidatorRequest, (raw: string) => string> = {
+	body: (raw) => `context.request.body = await parseBody(${raw});`,
+	cookies: (raw) =>
+		`context.request.cookies = parseCookies(${raw}.headers.get("cookie") ?? "");`,
+	headers: (raw) => `context.request.headers = ${raw}.headers.toJSON();`,
+	params: (raw) =>
+		`context.request.params = "cookies" in ${raw} ? ${raw}.params : parseParams(context.match, this.paramKeys, this.matchOffset, this.restKeys);`,
+	query: (raw) => `context.request.query = parseQuery(${raw}.url);`,
 };
 
 const generate = (
@@ -110,6 +108,7 @@ const generate = (
 
 	if (link.type === "VALIDATOR") {
 		let keys = "";
+		let usedRaw = false;
 
 		for (let i = 0; i < link.keys.length; i++) {
 			const key = link.keys[i];
@@ -123,14 +122,16 @@ const generate = (
 			if (!parsed.has(key)) {
 				parsed.add(key);
 
-				load = PARSERS[key];
+				load = PARSERS[key](`raw_${index}`);
+
+				usedRaw = true;
 			}
 
 			const json = JSON.stringify(key);
 
 			const validate = `{
 					const validated = await validator_${index}(
-						chain[${index}].request[${json}],
+						request_${index}[${json}],
 						context.request[${json}],
 						${json},
 					);
@@ -149,6 +150,8 @@ const generate = (
 			const validator_${index} = context.memory.validator;
 
 			if (validator_${index}) {
+				const request_${index} = chain[${index}].request;
+				${usedRaw ? `const raw_${index} = context.request.raw;\n` : ""}
 				let errors_${index};
 
 				${keys}
@@ -184,7 +187,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const length = chain.length;
 	const linkAsync = new Array<boolean>(length);
 	const needsAwait = new Array<boolean>(length + 1);
-	const routeAsync = isAsyncSource(routeHandler);
+	const routeAsync = isAsync(routeHandler);
 
 	let tail = !sse && routeAsync;
 
@@ -197,7 +200,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 			if (link.type === "VALIDATOR") {
 				tail = true;
 			} else if (link.type === "MIDDLEWARE" || link.type === "STORE") {
-				const async = isAsyncSource(link.handler);
+				const async = isAsync(link.handler);
 
 				linkAsync[i] = async;
 				tail = async || tail;
