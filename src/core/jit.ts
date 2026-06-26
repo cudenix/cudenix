@@ -12,14 +12,14 @@ import { merge } from "@/utils/objects/merge";
 import { parseParams } from "@/utils/urls/parse-params";
 import { parseQuery } from "@/utils/urls/parse-query";
 
-const PARSERS: Record<keyof ValidatorRequest, (raw: string) => string> = {
-	body: (raw) => `context.request.body = await parseBody(${raw});`,
-	cookies: (raw) =>
-		`context.request.cookies = parseCookies(${raw}.headers.get("cookie") ?? "");`,
-	headers: (raw) => `context.request.headers = ${raw}.headers.toJSON();`,
-	params: (raw) =>
-		`context.request.params = "cookies" in ${raw} ? ${raw}.params : parseParams(context.match, this.paramKeys, this.matchOffset, this.restKeys);`,
-	query: (raw) => `context.request.query = parseQuery(${raw}.url);`,
+const PARSERS: Record<keyof ValidatorRequest, () => string> = {
+	body: () => "context.request.body = await parseBody(request);",
+	cookies: () =>
+		`context.request.cookies = parseCookies(request.headers.get("cookie") ?? "");`,
+	headers: () => "context.request.headers = request.headers.toJSON();",
+	params: () =>
+		`context.request.params = "cookies" in request ? request.params : parseParams(context.match, this.paramKeys, this.matchOffset, this.restKeys);`,
+	query: () => "context.request.query = parseQuery(request.url);",
 };
 
 const generate = (
@@ -34,7 +34,7 @@ const generate = (
 ): string => {
 	if (index >= chain.length) {
 		if (sse) {
-			const body = `context.server.timeout(context.request.raw, 0);
+			const body = `context.server.timeout(request, 0);
 
 				context.response.content = stream(this.route.handler(context));`;
 
@@ -100,7 +100,9 @@ const generate = (
 				return${nested ? "" : " serialize(context)"};
 			}
 
-			merge(context.store, returned_${index});
+			if (returned_${index}) {
+				merge(context.store, returned_${index});
+			}
 		}
 
 		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, routeAsync)}`;
@@ -108,7 +110,6 @@ const generate = (
 
 	if (link.type === "VALIDATOR") {
 		let keys = "";
-		let usedRaw = false;
 
 		for (let i = 0; i < link.keys.length; i++) {
 			const key = link.keys[i];
@@ -122,9 +123,7 @@ const generate = (
 			if (!parsed.has(key)) {
 				parsed.add(key);
 
-				load = PARSERS[key](`raw_${index}`);
-
-				usedRaw = true;
+				load = PARSERS[key]();
 			}
 
 			const json = JSON.stringify(key);
@@ -151,7 +150,6 @@ const generate = (
 
 			if (validator_${index}) {
 				const request_${index} = chain[${index}].request;
-				${usedRaw ? `const raw_${index} = context.request.raw;\n` : ""}
 				let errors_${index};
 
 				${keys}
@@ -226,7 +224,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		"parseCookies",
 		"parseParams",
 		"parseQuery",
-		`return ${async}function (request, match) {\nconst context = new Context(app, this, request, match);\n\n${generate(chain, 0, sse, new Set(), false, needsAwait, linkAsync, routeAsync)}\n};`,
+		`return ${async}function (request, match) {\nconst context = new Context(app, request, match);\n\n${generate(chain, 0, sse, new Set(), false, needsAwait, linkAsync, routeAsync)}\n};`,
 	) as (
 		app: Cudenix,
 		context: typeof Context,
