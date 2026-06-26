@@ -170,8 +170,6 @@ export const Cudenix = function (this: Cudenix, module: AnyModule) {
  * ```
  */
 Cudenix.prototype.compile = function (this: Cudenix) {
-	compile(this);
-
 	if ("plugins" in this.memory) {
 		const plugins = this.memory.plugins as Plugin[];
 
@@ -179,6 +177,8 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 			plugins[i]!.call(this);
 		}
 	}
+
+	compile(this);
 
 	delete this.memory.module;
 	delete this.memory.plugins;
