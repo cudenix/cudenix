@@ -1,4 +1,4 @@
-import type { Cudenix, Endpoint } from "@/core/cudenix";
+import type { Cudenix } from "@/core/cudenix";
 import type { AnyFail, AnyOk } from "@/core/reply";
 import { Empty } from "@/utils/objects/empty";
 
@@ -35,7 +35,6 @@ export interface Context<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
-	endpoint: Endpoint;
 	match?: RegExpExecArray;
 	memory: Cudenix["memory"];
 	request: { raw: Request } & Validators;
@@ -49,7 +48,7 @@ export interface Context<
  *
  * @example
  * ```typescript
- * const a: AnyContext = new Context(app, endpoint, request);
+ * const a: AnyContext = new Context(app, request);
  *
  * a.request.raw; // Request
  * ```
@@ -63,18 +62,13 @@ export type AnyContext = Context<any, any>;
  * ```typescript
  * const Ctor: ContextConstructor = Context;
  *
- * const a = new Ctor(app, endpoint, request);
+ * const a = new Ctor(app, request);
  *
- * a.endpoint; // endpoint
+ * a.request.raw; // request
  * ```
  */
 export interface ContextConstructor {
-	new (
-		app: Cudenix,
-		endpoint: Endpoint,
-		request: Request,
-		match?: RegExpExecArray,
-	): AnyContext;
+	new (app: Cudenix, request: Request, match?: RegExpExecArray): AnyContext;
 }
 
 /**
@@ -82,7 +76,7 @@ export interface ContextConstructor {
  *
  * @example
  * ```typescript
- * const a = new Context(app, endpoint, request, match);
+ * const a = new Context(app, request, match);
  *
  * a.request.raw; // request
  * a.response.headers; // Headers {}
@@ -91,11 +85,9 @@ export interface ContextConstructor {
 export const Context = function (
 	this: AnyContext,
 	app: Cudenix,
-	endpoint: Endpoint,
 	request: Request,
 	match?: RegExpExecArray,
 ) {
-	this.endpoint = endpoint;
 	this.match = match;
 	this.memory = app.memory;
 	this.request = new Empty() as unknown as AnyContext["request"];
