@@ -1,12 +1,11 @@
 import type { Cudenix, Endpoint, EndpointChain } from "@/core/cudenix";
-import { type Dispatch, staticDispatch } from "@/core/dispatch";
+import { staticDispatch } from "@/core/dispatch";
 import { jit } from "@/core/jit";
 import { type AnyModule, Module } from "@/core/module";
 import type { CompiledMount } from "@/core/mount";
 import { response } from "@/core/response";
 import { cloneAppend } from "@/utils/arrays/clone-append";
 import { pushAllFrom } from "@/utils/arrays/push-all-from";
-import { isAsync } from "@/utils/functions/is-async";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
@@ -167,7 +166,6 @@ const flatten = (
  */
 export const compile = (app: Cudenix) => {
 	const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
-	const jitCache = new Map<EndpointChain, Map<string, Dispatch>>();
 	const mounts: CompiledMount[] = [];
 	const routes = app.routes;
 
@@ -215,31 +213,7 @@ export const compile = (app: Cudenix) => {
 
 				methodEndpoint.dispatch = staticDispatch;
 			} else {
-				const chain = methodEndpoint.chain;
-				const route = methodEndpoint.route;
-				const subkey = route.sse
-					? "g"
-					: isAsync(route.handler)
-						? "a"
-						: "s";
-
-				let cache = jitCache.get(chain);
-
-				if (!cache) {
-					cache = new Map();
-
-					jitCache.set(chain, cache);
-				}
-
-				let dispatch = cache.get(subkey);
-
-				if (!dispatch) {
-					dispatch = jit(app, methodEndpoint);
-
-					cache.set(subkey, dispatch);
-				}
-
-				methodEndpoint.dispatch = dispatch;
+				methodEndpoint.dispatch = jit(app, methodEndpoint);
 			}
 
 			matchOffset += 1 + paramKeys.length;
