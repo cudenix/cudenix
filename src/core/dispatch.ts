@@ -1,6 +1,4 @@
-import type { AnyContext } from "@/core/context";
 import type { Endpoint } from "@/core/cudenix";
-import { response } from "@/core/response";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
@@ -39,23 +37,6 @@ export type Dispatch = (
 	request: Request,
 	match?: RegExpExecArray,
 ) => MaybePromise<Response>;
-
-/**
- * Serialize a resolved {@link AnyContext} into a `Response`. Cookies are handed
- * to {@link response} only when this request reached us through the regexp
- * fallback or `app.fetch` — a plain `Request` Bun won't post-process. When Bun's
- * native router served the route the request is a `BunRequest` whose `CookieMap`
- * Bun applies itself, so passing it again would emit every `Set-Cookie` twice.
- *
- * The jitted dispatcher {@link jit} builds closes over this and `return`s it as
- * its last statement, so the compiled code serializes inline without a wrapper.
- */
-export const serialize = (context: AnyContext) =>
-	response(
-		context.response.content,
-		"cookies" in context.request.raw ? undefined : context.response.cookies,
-		context.response.headers,
-	);
 
 /**
  * {@link Dispatch} assigned to a `static` route with an empty chain. Its
