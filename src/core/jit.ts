@@ -1,25 +1,78 @@
 import { Context } from "@/core/context";
 import type { Cudenix, Endpoint, EndpointChain } from "@/core/cudenix";
-import { type Dispatch, serialize } from "@/core/dispatch";
+import type { Dispatch } from "@/core/dispatch";
 import { fail, Reply } from "@/core/reply";
+import { response } from "@/core/response";
 import { stream } from "@/core/sse";
-import type { ValidatorRequest } from "@/core/validator";
+import type { ValidatorPlugin, ValidatorRequest } from "@/core/validator";
 import { parseBody } from "@/utils/bodies/parse-body";
 import { parseCookies } from "@/utils/cookies/parse-cookies";
 import { isAsync } from "@/utils/functions/is-async";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
-import { parseParams } from "@/utils/urls/parse-params";
 import { parseQuery } from "@/utils/urls/parse-query";
 
-const PARSERS: Record<keyof ValidatorRequest, () => string> = {
-	body: () => "context.request.body = await parseBody(request);",
-	cookies: () =>
-		`context.request.cookies = parseCookies(request.headers.get("cookie") ?? "");`,
-	headers: () => "context.request.headers = request.headers.toJSON();",
-	params: () =>
-		`context.request.params = "cookies" in request ? request.params : parseParams(context.match, this.paramKeys, this.matchOffset, this.restKeys);`,
-	query: () => "context.request.query = parseQuery(request.url);",
+const RESPONSE_CALL =
+	"response(context.response.content, isBun ? undefined : context.response.cookies, context.response.headers)";
+
+const PARSERS = {
+	body: "context.request.body = await parseBody(request);",
+	cookies: `context.request.cookies = parseCookies(request.headers.get("cookie") ?? "");`,
+	headers: "context.request.headers = request.headers.toJSON();",
+	query: "context.request.query = parseQuery(request.url);",
+};
+
+const paramsParser = (
+	paramKeys: string[],
+	matchOffset: number,
+	restKeys: string[],
+): string => {
+	if (paramKeys.length === 0) {
+		return "context.request.params = isBun ? request.params : new Empty();";
+	}
+
+	let assigns = "";
+
+	for (let i = 0; i < paramKeys.length; i++) {
+		const name = paramKeys[i];
+
+		if (name === undefined) {
+			continue;
+		}
+
+		const slot = matchOffset + 1 + i;
+		const json = JSON.stringify(name);
+		const stored =
+			restKeys.indexOf(name) !== -1 ? 'value.split("/")' : "value";
+
+		assigns += `
+				{
+					let value = match[${slot}];
+
+					if (value !== undefined) {
+						if (value.indexOf("%") !== -1) {
+							try {
+								value = decodeURIComponent(value);
+							} catch {}
+						}
+
+						params[${json}] = ${stored};
+					}
+				}`;
+	}
+
+	return `let params;
+
+			if (isBun) {
+				params = request.params;
+			} else {
+				params = new Empty();
+
+				if (match !== undefined) {${assigns}
+				}
+			}
+
+			context.request.params = params;`;
 };
 
 const generate = (
@@ -31,21 +84,23 @@ const generate = (
 	needsAwait: boolean[],
 	linkAsync: boolean[],
 	routeAsync: boolean,
+	parsers: Record<keyof ValidatorRequest, string>,
+	hasValidator: boolean,
 ): string => {
 	if (index >= chain.length) {
 		if (sse) {
 			const body = `context.server.timeout(request, 0);
 
-				context.response.content = stream(this.route.handler(context));`;
+				context.response.content = stream(handler(context));`;
 
-			return nested ? body : `${body}\n\nreturn serialize(context);`;
+			return nested ? body : `${body}\n\nreturn ${RESPONSE_CALL};`;
 		}
 
 		const call = routeAsync
-			? "context.response.content = await this.route.handler(context);"
-			: "context.response.content = this.route.handler(context);";
+			? "context.response.content = await handler(context);"
+			: "context.response.content = handler(context);";
 
-		return nested ? call : `${call}\n\nreturn serialize(context);`;
+		return nested ? call : `${call}\n\nreturn ${RESPONSE_CALL};`;
 	}
 
 	const link = chain[index];
@@ -60,6 +115,8 @@ const generate = (
 			needsAwait,
 			linkAsync,
 			routeAsync,
+			parsers,
+			hasValidator,
 		);
 	}
 
@@ -73,7 +130,7 @@ const generate = (
 
 		const block = `{
 			const next_${index} = ${tailAsync ? "async " : ""}() => {
-				${generate(chain, index + 1, sse, parsed, true, needsAwait, linkAsync, routeAsync)}
+				${generate(chain, index + 1, sse, parsed, true, needsAwait, linkAsync, routeAsync, parsers, hasValidator)}
 			};
 
 			${call}
@@ -83,7 +140,7 @@ const generate = (
 			}
 		}`;
 
-		return nested ? block : `${block}\n\nreturn serialize(context);`;
+		return nested ? block : `${block}\n\nreturn ${RESPONSE_CALL};`;
 	}
 
 	if (link.type === "STORE") {
@@ -97,7 +154,7 @@ const generate = (
 			if (returned_${index} instanceof Reply && !returned_${index}.success) {
 				context.response.content = returned_${index};
 
-				return${nested ? "" : " serialize(context)"};
+				return${nested ? "" : ` ${RESPONSE_CALL}`};
 			}
 
 			if (returned_${index}) {
@@ -105,10 +162,25 @@ const generate = (
 			}
 		}
 
-		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, routeAsync)}`;
+		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, routeAsync, parsers, hasValidator)}`;
 	}
 
 	if (link.type === "VALIDATOR") {
+		if (!hasValidator) {
+			return generate(
+				chain,
+				index + 1,
+				sse,
+				parsed,
+				nested,
+				needsAwait,
+				linkAsync,
+				routeAsync,
+				parsers,
+				hasValidator,
+			);
+		}
+
 		let keys = "";
 
 		for (let i = 0; i < link.keys.length; i++) {
@@ -123,13 +195,13 @@ const generate = (
 			if (!parsed.has(key)) {
 				parsed.add(key);
 
-				load = PARSERS[key]();
+				load = parsers[key];
 			}
 
 			const json = JSON.stringify(key);
 
 			const validate = `{
-					const validated = await validator_${index}(
+					const validated = await validator(
 						request_${index}[${json}],
 						context.request[${json}],
 						${json},
@@ -146,23 +218,20 @@ const generate = (
 		}
 
 		return `{
-			const validator_${index} = context.memory.validator;
+			const request_${index} = chain[${index}].request;
+			
+			let errors_${index};
 
-			if (validator_${index}) {
-				const request_${index} = chain[${index}].request;
-				let errors_${index};
+			${keys}
 
-				${keys}
+			if (errors_${index}) {
+				context.response.content = fail(errors_${index}, { status: 422 });
 
-				if (errors_${index}) {
-					context.response.content = fail(errors_${index}, { status: 422 });
-
-					return${nested ? "" : " serialize(context)"};
-				}
+				return${nested ? "" : ` ${RESPONSE_CALL}`};
 			}
 		}
 
-		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, routeAsync)}`;
+		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, routeAsync, parsers, hasValidator)}`;
 	}
 
 	return generate(
@@ -174,18 +243,22 @@ const generate = (
 		needsAwait,
 		linkAsync,
 		routeAsync,
+		parsers,
+		hasValidator,
 	);
 };
 
 export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const chain = endpoint.chain;
-	const routeHandler = endpoint.route.handler;
+	const handler = endpoint.route.handler;
 	const sse = endpoint.route.sse;
+	const validator = app.memory.validator as ValidatorPlugin | undefined;
+	const hasValidator = validator !== undefined;
 
 	const length = chain.length;
 	const linkAsync = new Array<boolean>(length);
 	const needsAwait = new Array<boolean>(length + 1);
-	const routeAsync = isAsync(routeHandler);
+	const routeAsync = isAsync(handler);
 
 	let tail = !sse && routeAsync;
 
@@ -196,7 +269,9 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 
 		if (link) {
 			if (link.type === "VALIDATOR") {
-				tail = true;
+				if (hasValidator) {
+					tail = true;
+				}
 			} else if (link.type === "MIDDLEWARE" || link.type === "STORE") {
 				const async = isAsync(link.handler);
 
@@ -208,13 +283,25 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		needsAwait[i] = tail;
 	}
 
+	const parsers: Record<keyof ValidatorRequest, string> = {
+		body: PARSERS.body,
+		cookies: PARSERS.cookies,
+		headers: PARSERS.headers,
+		params: paramsParser(
+			endpoint.paramKeys,
+			endpoint.matchOffset,
+			endpoint.restKeys,
+		),
+		query: PARSERS.query,
+	};
+
 	const async = tail ? "async " : "";
 
 	const factory = new Function(
 		"app",
 		"Context",
 		"chain",
-		"serialize",
+		"response",
 		"Reply",
 		"merge",
 		"Empty",
@@ -222,14 +309,15 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		"stream",
 		"parseBody",
 		"parseCookies",
-		"parseParams",
 		"parseQuery",
-		`return ${async}function (request, match) {\nconst context = new Context(app, request, match);\n\n${generate(chain, 0, sse, new Set(), false, needsAwait, linkAsync, routeAsync)}\n};`,
+		"validator",
+		"handler",
+		`return ${async}function (request, match) {\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n\n${generate(chain, 0, sse, new Set(), false, needsAwait, linkAsync, routeAsync, parsers, hasValidator)}\n};`,
 	) as (
 		app: Cudenix,
 		context: typeof Context,
 		chain: EndpointChain,
-		serializeContext: typeof serialize,
+		responseBuilder: typeof response,
 		reply: typeof Reply,
 		mergeObjects: typeof merge,
 		empty: typeof Empty,
@@ -237,15 +325,16 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		sseStream: typeof stream,
 		bodyParser: typeof parseBody,
 		cookieParser: typeof parseCookies,
-		paramsParser: typeof parseParams,
 		queryParser: typeof parseQuery,
+		validatorPlugin: ValidatorPlugin | undefined,
+		routeHandler: Endpoint["route"]["handler"],
 	) => Dispatch;
 
 	return factory(
 		app,
 		Context,
 		chain,
-		serialize,
+		response,
 		Reply,
 		merge,
 		Empty,
@@ -253,7 +342,8 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		stream,
 		parseBody,
 		parseCookies,
-		parseParams,
 		parseQuery,
+		validator,
+		handler,
 	);
 };
