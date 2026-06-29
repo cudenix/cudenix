@@ -83,7 +83,7 @@ const generate = (
 	nested: boolean,
 	needsAwait: boolean[],
 	linkAsync: boolean[],
-	routeAsync: boolean,
+	isRouteAsync: boolean,
 	parsers: Record<keyof ValidatorRequest, string>,
 	hasValidator: boolean,
 ): string => {
@@ -96,7 +96,7 @@ const generate = (
 			return nested ? body : `${body}\n\nreturn ${RESPONSE_CALL};`;
 		}
 
-		const call = routeAsync
+		const call = isRouteAsync
 			? "context.response.content = await handler(context);"
 			: "context.response.content = handler(context);";
 
@@ -114,7 +114,7 @@ const generate = (
 			nested,
 			needsAwait,
 			linkAsync,
-			routeAsync,
+			isRouteAsync,
 			parsers,
 			hasValidator,
 		);
@@ -130,7 +130,7 @@ const generate = (
 
 		const block = `{
 			const next_${index} = ${tailAsync ? "async " : ""}() => {
-				${generate(chain, index + 1, sse, parsed, true, needsAwait, linkAsync, routeAsync, parsers, hasValidator)}
+				${generate(chain, index + 1, sse, parsed, true, needsAwait, linkAsync, isRouteAsync, parsers, hasValidator)}
 			};
 
 			${call}
@@ -162,7 +162,7 @@ const generate = (
 			}
 		}
 
-		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, routeAsync, parsers, hasValidator)}`;
+		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, isRouteAsync, parsers, hasValidator)}`;
 	}
 
 	if (link.type === "VALIDATOR") {
@@ -175,7 +175,7 @@ const generate = (
 				nested,
 				needsAwait,
 				linkAsync,
-				routeAsync,
+				isRouteAsync,
 				parsers,
 				hasValidator,
 			);
@@ -231,7 +231,7 @@ const generate = (
 			}
 		}
 
-		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, routeAsync, parsers, hasValidator)}`;
+		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, isRouteAsync, parsers, hasValidator)}`;
 	}
 
 	return generate(
@@ -242,7 +242,7 @@ const generate = (
 		nested,
 		needsAwait,
 		linkAsync,
-		routeAsync,
+		isRouteAsync,
 		parsers,
 		hasValidator,
 	);
@@ -258,9 +258,9 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const length = chain.length;
 	const linkAsync = new Array<boolean>(length);
 	const needsAwait = new Array<boolean>(length + 1);
-	const routeAsync = isAsync(handler);
+	const isRouteAsync = isAsync(handler);
 
-	let tail = !sse && routeAsync;
+	let tail = !sse && isRouteAsync;
 
 	needsAwait[length] = tail;
 
@@ -312,7 +312,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		"parseQuery",
 		"validator",
 		"handler",
-		`return ${async}function (request, match) {\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n\n${generate(chain, 0, sse, new Set(), false, needsAwait, linkAsync, routeAsync, parsers, hasValidator)}\n};`,
+		`return ${async}function (request, match) {\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n\n${generate(chain, 0, sse, new Set(), false, needsAwait, linkAsync, isRouteAsync, parsers, hasValidator)}\n};`,
 	) as (
 		app: Cudenix,
 		context: typeof Context,
