@@ -24,13 +24,13 @@ export const parseCookies = (header: string) => {
 
 	while (start < length) {
 		let i = start;
-		let eq = -1;
+		let equalsIndex = -1;
 
 		while (i < length) {
-			const code = header.charCodeAt(i);
+			const charCode = header.charCodeAt(i);
 
-			if (code === 61) {
-				eq = i;
+			if (charCode === 61) {
+				equalsIndex = i;
 
 				i++;
 
@@ -38,7 +38,7 @@ export const parseCookies = (header: string) => {
 			}
 
 			if (
-				code === 59 &&
+				charCode === 59 &&
 				i + 1 < length &&
 				header.charCodeAt(i + 1) === 32
 			) {
@@ -62,9 +62,9 @@ export const parseCookies = (header: string) => {
 
 		const end = i;
 
-		if (eq > start) {
-			cookies[header.substring(start, eq)] = header.substring(
-				eq + 1,
+		if (equalsIndex > start) {
+			cookies[header.substring(start, equalsIndex)] = header.substring(
+				equalsIndex + 1,
 				end,
 			);
 		}

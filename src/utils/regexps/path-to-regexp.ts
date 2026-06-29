@@ -23,7 +23,7 @@ export const pathToRegexp = (path: string) => {
 	const paramKeys: string[] = [];
 	const restKeys: string[] = [];
 
-	let allOptional = true;
+	let areAllSegmentsOptional = true;
 	let segments = "";
 	let i = 0;
 
@@ -34,26 +34,26 @@ export const pathToRegexp = (path: string) => {
 			continue;
 		}
 
-		let segEnd = path.indexOf("/", i);
+		let segmentEnd = path.indexOf("/", i);
 
-		if (segEnd === -1) {
-			segEnd = length;
+		if (segmentEnd === -1) {
+			segmentEnd = length;
 		}
 
-		const isOptional = path.charCodeAt(segEnd - 1) === 63;
-		const end = isOptional ? segEnd - 1 : segEnd;
-		const first = path.charCodeAt(i);
+		const isOptional = path.charCodeAt(segmentEnd - 1) === 63;
+		const end = isOptional ? segmentEnd - 1 : segmentEnd;
+		const firstCharCode = path.charCodeAt(i);
 
 		let segment: string;
 
-		if (first === 58) {
+		if (firstCharCode === 58) {
 			paramKeys.push(path.substring(i + 1, end));
 
 			segment = PARAM_CAPTURE;
-		} else if (first === 42 && end - i === 1) {
+		} else if (firstCharCode === 42 && end - i === 1) {
 			segment = WILDCARD;
 		} else if (
-			first === 46 &&
+			firstCharCode === 46 &&
 			path.charCodeAt(i + 1) === 46 &&
 			path.charCodeAt(i + 2) === 46
 		) {
@@ -71,18 +71,20 @@ export const pathToRegexp = (path: string) => {
 		if (isOptional) {
 			segment = `(?:${segment})?`;
 		} else {
-			allOptional = false;
+			areAllSegmentsOptional = false;
 		}
 
 		segments += segment;
 
-		i = segEnd;
+		i = segmentEnd;
 	}
 
 	return {
 		paramKeys,
 		pattern:
-			allOptional && segments ? `()(?:${segments}|\\/)` : `()${segments}`,
+			areAllSegmentsOptional && segments
+				? `()(?:${segments}|\\/)`
+				: `()${segments}`,
 		restKeys,
 	};
 };

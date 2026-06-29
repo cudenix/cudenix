@@ -21,11 +21,11 @@ export const parseBody = async (request: Request) => {
 		return request.text();
 	}
 
-	const first = contentType.charCodeAt(0);
+	const firstCharCode = contentType.charCodeAt(0);
 
 	let isForm = false;
 
-	if (first === 97) {
+	if (firstCharCode === 97) {
 		const length = contentType.length;
 
 		if (
@@ -45,7 +45,7 @@ export const parseBody = async (request: Request) => {
 		isForm =
 			(length === 33 || contentType.charCodeAt(33) === 59) &&
 			contentType.startsWith("application/x-www-form-urlencoded");
-	} else if (first === 109) {
+	} else if (firstCharCode === 109) {
 		const length = contentType.length;
 
 		isForm =

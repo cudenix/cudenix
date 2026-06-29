@@ -30,7 +30,7 @@ export const parseQuery = (url: string) => {
 
 	const urlLength = url.length;
 
-	let multiValue: Set<string> | undefined;
+	let multiValueKeys: Set<string> | undefined;
 	let i = queryIndex + 1;
 
 	while (i < urlLength) {
@@ -39,15 +39,15 @@ export const parseQuery = (url: string) => {
 		let flags = 0;
 
 		while (i < urlLength) {
-			const char = url.charCodeAt(i);
+			const charCode = url.charCodeAt(i);
 
-			if (char === 61 || char === 38 || char === 35) {
+			if (charCode === 61 || charCode === 38 || charCode === 35) {
 				break;
 			}
 
-			if (char === 43) {
+			if (charCode === 43) {
 				flags |= Q_KEY_PLUS;
-			} else if (char === 37) {
+			} else if (charCode === 37) {
 				flags |= Q_KEY_PCT;
 			}
 
@@ -58,7 +58,7 @@ export const parseQuery = (url: string) => {
 
 		let key = url.substring(keyStart, i);
 		let value: string;
-		let firstChar = -1;
+		let firstCharCode = -1;
 
 		if (hasValue) {
 			i++;
@@ -66,19 +66,19 @@ export const parseQuery = (url: string) => {
 			const valueStart = i;
 
 			if (i < urlLength) {
-				firstChar = url.charCodeAt(i);
+				firstCharCode = url.charCodeAt(i);
 			}
 
 			while (i < urlLength) {
-				const char = url.charCodeAt(i);
+				const charCode = url.charCodeAt(i);
 
-				if (char === 38 || char === 35) {
+				if (charCode === 38 || charCode === 35) {
 					break;
 				}
 
-				if (char === 43) {
+				if (charCode === 43) {
 					flags |= Q_VAL_PLUS;
-				} else if (char === 37) {
+				} else if (charCode === 37) {
 					flags |= Q_VAL_PCT;
 				}
 
@@ -113,16 +113,16 @@ export const parseQuery = (url: string) => {
 					try {
 						value = decodeURIComponent(value);
 						parsed = value;
-						firstChar = value.charCodeAt(0);
+						firstCharCode = value.charCodeAt(0);
 					} catch {}
 				}
 
-				if (firstChar === 123 || firstChar === 91) {
-					const lastChar = value.charCodeAt(value.length - 1);
+				if (firstCharCode === 123 || firstCharCode === 91) {
+					const lastCharCode = value.charCodeAt(value.length - 1);
 
 					if (
-						(firstChar === 123 && lastChar === 125) ||
-						(firstChar === 91 && lastChar === 93)
+						(firstCharCode === 123 && lastCharCode === 125) ||
+						(firstCharCode === 91 && lastCharCode === 93)
 					) {
 						try {
 							parsed = JSON.parse(value);
@@ -135,14 +135,14 @@ export const parseQuery = (url: string) => {
 
 			if (params[key] === undefined) {
 				params[key] = parsed;
-			} else if (multiValue?.has(key)) {
+			} else if (multiValueKeys?.has(key)) {
 				(params[key] as unknown[]).push(parsed);
 			} else {
-				if (!multiValue) {
-					multiValue = new Set<string>();
+				if (!multiValueKeys) {
+					multiValueKeys = new Set<string>();
 				}
 
-				multiValue.add(key);
+				multiValueKeys.add(key);
 
 				params[key] = [params[key], parsed];
 			}

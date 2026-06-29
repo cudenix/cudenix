@@ -1,5 +1,5 @@
 /**
- * Merge `object2` into `object1` in place, overwriting existing keys.
+ * Merge `source` into `target` in place, overwriting existing keys.
  *
  * @example
  * ```typescript
@@ -9,10 +9,10 @@
  * ```
  */
 export const merge = (
-	object1: Record<PropertyKey, unknown>,
-	object2: Record<PropertyKey, unknown>,
+	target: Record<PropertyKey, unknown>,
+	source: Record<PropertyKey, unknown>,
 ) => {
-	for (const key in object2) {
-		object1[key] = object2[key];
+	for (const key in source) {
+		target[key] = source[key];
 	}
 };
