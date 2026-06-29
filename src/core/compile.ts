@@ -37,12 +37,12 @@ const flatten = (
 	const inheritedChain = inherited.chain;
 	const inheritedLength = inheritedChain.length;
 	const inheritedPath = inherited.path;
-	const merged = inheritedChain.slice();
+	const accumulatedChain = inheritedChain.slice();
 	const moduleChain = module.chain;
 
 	let path = module.prefix;
-	let pathSegment: "" | `/${string}` = path === "/" ? "" : path;
-	let snapshot: EndpointChain | undefined;
+	let pathPrefix: "" | `/${string}` = path === "/" ? "" : path;
+	let cachedChain: EndpointChain | undefined;
 
 	for (let i = 0; i < moduleChain.length; i++) {
 		const link = moduleChain[i];
@@ -55,10 +55,10 @@ const flatten = (
 
 		if (type === "GROUP") {
 			const groupModule = new Module({
-				prefix: `${inheritedPath}${pathSegment}${link.prefix === "/" ? "" : link.prefix}` as `/${string}`,
+				prefix: `${inheritedPath}${pathPrefix}${link.prefix === "/" ? "" : link.prefix}` as `/${string}`,
 			});
 
-			groupModule.chain = merged.slice();
+			groupModule.chain = accumulatedChain.slice();
 
 			flatten(endpoints, mounts, link.handler(groupModule), {
 				chain: [],
@@ -69,30 +69,30 @@ const flatten = (
 		}
 
 		if (type === "MIDDLEWARE" || type === "STORE" || type === "VALIDATOR") {
-			merged.push(link);
+			accumulatedChain.push(link);
 
-			snapshot = undefined;
+			cachedChain = undefined;
 
 			continue;
 		}
 
 		if (type === "MODULE") {
 			const compiled = flatten(endpoints, mounts, link, {
-				chain: merged,
-				path: `${inheritedPath}${pathSegment}`,
+				chain: accumulatedChain,
+				path: `${inheritedPath}${pathPrefix}`,
 			});
 
-			const beforeLength = merged.length;
+			const beforeLength = accumulatedChain.length;
 
-			pushAllFrom(merged, compiled.chain, compiled.start);
+			pushAllFrom(accumulatedChain, compiled.chain, compiled.start);
 
-			if (merged.length !== beforeLength) {
-				snapshot = undefined;
+			if (accumulatedChain.length !== beforeLength) {
+				cachedChain = undefined;
 			}
 
 			if (compiled.path !== "/") {
-				path = `${pathSegment}${compiled.path}`;
-				pathSegment = path === "/" ? "" : path;
+				path = `${pathPrefix}${compiled.path}`;
+				pathPrefix = path === "/" ? "" : path;
 			}
 
 			continue;
@@ -120,13 +120,13 @@ const flatten = (
 		let chain: EndpointChain;
 
 		if (link.validator) {
-			chain = cloneAppend(merged, link.validator);
-		} else if (snapshot) {
-			chain = snapshot;
+			chain = cloneAppend(accumulatedChain, link.validator);
+		} else if (cachedChain) {
+			chain = cachedChain;
 		} else {
-			chain = merged.slice();
+			chain = accumulatedChain.slice();
 
-			snapshot = chain;
+			cachedChain = chain;
 		}
 
 		methodEndpoints.push({
@@ -135,14 +135,14 @@ const flatten = (
 			matchOffset: 0,
 			paramKeys: EMPTY_KEYS,
 			path:
-				`${inheritedPath}${pathSegment}${link.path === "/" ? "" : link.path}` ||
+				`${inheritedPath}${pathPrefix}${link.path === "/" ? "" : link.path}` ||
 				"/",
 			restKeys: EMPTY_KEYS,
 			route: link,
 		});
 	}
 
-	return { chain: merged, path, start: inheritedLength };
+	return { chain: accumulatedChain, path, start: inheritedLength };
 };
 
 /**

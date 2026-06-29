@@ -199,17 +199,17 @@ Cudenix.prototype.compile = function (this: Cudenix) {
  * ```
  */
 Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
-	const data = this.methods[request.method as HttpMethod];
+	const methodData = this.methods[request.method as HttpMethod];
 
-	if (data) {
-		const match = data.regexp.exec(request.url);
+	if (methodData) {
+		const match = methodData.regexp.exec(request.url);
 
 		if (match) {
-			const offsets = data.offsets;
+			const offsets = methodData.offsets;
 
 			for (let i = 0; i < offsets.length; i++) {
 				if (match[offsets[i]!] !== undefined) {
-					return data.endpoints[i]!.dispatch(request, match);
+					return methodData.endpoints[i]!.dispatch(request, match);
 				}
 			}
 		}
@@ -230,29 +230,29 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 			}
 
 			if (url.startsWith(prefix, pathStart)) {
-				const after = pathStart + prefix.length;
+				const afterPrefix = pathStart + prefix.length;
 
-				if (after === url.length) {
+				if (afterPrefix === url.length) {
 					return mount.fetch(
 						new Request(`${url.slice(0, pathStart)}/`, request),
 					);
 				}
 
-				const code = url.charCodeAt(after);
+				const charCode = url.charCodeAt(afterPrefix);
 
-				if (code === 47) {
+				if (charCode === 47) {
 					return mount.fetch(
 						new Request(
-							url.slice(0, pathStart) + url.slice(after),
+							url.slice(0, pathStart) + url.slice(afterPrefix),
 							request,
 						),
 					);
 				}
 
-				if (code === 63 || code === 35) {
+				if (charCode === 63 || charCode === 35) {
 					return mount.fetch(
 						new Request(
-							`${url.slice(0, pathStart)}/${url.slice(after)}`,
+							`${url.slice(0, pathStart)}/${url.slice(afterPrefix)}`,
 							request,
 						),
 					);

@@ -22,7 +22,7 @@ const PARSERS = {
 	query: "context.request.query = parseQuery(request.url);",
 };
 
-const paramsParser = (
+const generateParamsParser = (
 	paramKeys: string[],
 	matchOffset: number,
 	restKeys: string[],
@@ -31,7 +31,7 @@ const paramsParser = (
 		return "context.request.params = isBun ? request.params : new Empty();";
 	}
 
-	let assigns = "";
+	let assignmentsCode = "";
 
 	for (let i = 0; i < paramKeys.length; i++) {
 		const name = paramKeys[i];
@@ -40,14 +40,14 @@ const paramsParser = (
 			continue;
 		}
 
-		const slot = matchOffset + 1 + i;
-		const json = JSON.stringify(name);
-		const stored =
+		const matchGroupIndex = matchOffset + 1 + i;
+		const keyLiteral = JSON.stringify(name);
+		const paramValueExpression =
 			restKeys.indexOf(name) !== -1 ? 'value.split("/")' : "value";
 
-		assigns += `
+		assignmentsCode += `
 				{
-					let value = match[${slot}];
+					let value = match[${matchGroupIndex}];
 
 					if (value !== undefined) {
 						if (value.indexOf("%") !== -1) {
@@ -56,7 +56,7 @@ const paramsParser = (
 							} catch {}
 						}
 
-						params[${json}] = ${stored};
+						params[${keyLiteral}] = ${paramValueExpression};
 					}
 				}`;
 	}
@@ -68,7 +68,7 @@ const paramsParser = (
 			} else {
 				params = new Empty();
 
-				if (match !== undefined) {${assigns}
+				if (match !== undefined) {${assignmentsCode}
 				}
 			}
 
@@ -78,29 +78,29 @@ const paramsParser = (
 const generate = (
 	chain: EndpointChain,
 	index: number,
-	sse: boolean,
+	isSse: boolean,
 	parsed: Set<string>,
-	nested: boolean,
+	isNested: boolean,
 	needsAwait: boolean[],
-	linkAsync: boolean[],
+	isLinkAsync: boolean[],
 	isRouteAsync: boolean,
 	parsers: Record<keyof ValidatorRequest, string>,
 	hasValidator: boolean,
 ): string => {
 	if (index >= chain.length) {
-		if (sse) {
+		if (isSse) {
 			const body = `context.server.timeout(request, 0);
 
 				context.response.content = stream(handler(context));`;
 
-			return nested ? body : `${body}\n\nreturn ${RESPONSE_CALL};`;
+			return isNested ? body : `${body}\n\nreturn ${RESPONSE_CALL};`;
 		}
 
-		const call = isRouteAsync
+		const callCode = isRouteAsync
 			? "context.response.content = await handler(context);"
 			: "context.response.content = handler(context);";
 
-		return nested ? call : `${call}\n\nreturn ${RESPONSE_CALL};`;
+		return isNested ? callCode : `${callCode}\n\nreturn ${RESPONSE_CALL};`;
 	}
 
 	const link = chain[index];
@@ -109,11 +109,11 @@ const generate = (
 		return generate(
 			chain,
 			index + 1,
-			sse,
+			isSse,
 			parsed,
-			nested,
+			isNested,
 			needsAwait,
-			linkAsync,
+			isLinkAsync,
 			isRouteAsync,
 			parsers,
 			hasValidator,
@@ -121,40 +121,40 @@ const generate = (
 	}
 
 	if (link.type === "MIDDLEWARE") {
-		const tailAsync = needsAwait[index + 1];
+		const isTailAsync = needsAwait[index + 1];
 
-		const call =
-			linkAsync[index] || tailAsync
+		const callCode =
+			isLinkAsync[index] || isTailAsync
 				? `const returned_${index} = await chain[${index}].handler(context, next_${index});`
 				: `const returned_${index} = chain[${index}].handler(context, next_${index});`;
 
 		const block = `{
-			const next_${index} = ${tailAsync ? "async " : ""}() => {
-				${generate(chain, index + 1, sse, parsed, true, needsAwait, linkAsync, isRouteAsync, parsers, hasValidator)}
+			const next_${index} = ${isTailAsync ? "async " : ""}() => {
+				${generate(chain, index + 1, isSse, parsed, true, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator)}
 			};
 
-			${call}
+			${callCode}
 
 			if (returned_${index}) {
 				context.response.content = returned_${index};
 			}
 		}`;
 
-		return nested ? block : `${block}\n\nreturn ${RESPONSE_CALL};`;
+		return isNested ? block : `${block}\n\nreturn ${RESPONSE_CALL};`;
 	}
 
 	if (link.type === "STORE") {
-		const call = linkAsync[index]
+		const callCode = isLinkAsync[index]
 			? `const returned_${index} = await chain[${index}].handler(context);`
 			: `const returned_${index} = chain[${index}].handler(context);`;
 
 		return `{
-			${call}
+			${callCode}
 
 			if (returned_${index} instanceof Reply && !returned_${index}.success) {
 				context.response.content = returned_${index};
 
-				return${nested ? "" : ` ${RESPONSE_CALL}`};
+				return${isNested ? "" : ` ${RESPONSE_CALL}`};
 			}
 
 			if (returned_${index}) {
@@ -162,7 +162,7 @@ const generate = (
 			}
 		}
 
-		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, isRouteAsync, parsers, hasValidator)}`;
+		${generate(chain, index + 1, isSse, parsed, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator)}`;
 	}
 
 	if (link.type === "VALIDATOR") {
@@ -170,18 +170,18 @@ const generate = (
 			return generate(
 				chain,
 				index + 1,
-				sse,
+				isSse,
 				parsed,
-				nested,
+				isNested,
 				needsAwait,
-				linkAsync,
+				isLinkAsync,
 				isRouteAsync,
 				parsers,
 				hasValidator,
 			);
 		}
 
-		let keys = "";
+		let validationsCode = "";
 
 		for (let i = 0; i < link.keys.length; i++) {
 			const key = link.keys[i];
@@ -190,31 +190,33 @@ const generate = (
 				continue;
 			}
 
-			let load = "";
+			let parserCode = "";
 
 			if (!parsed.has(key)) {
 				parsed.add(key);
 
-				load = parsers[key];
+				parserCode = parsers[key];
 			}
 
-			const json = JSON.stringify(key);
+			const keyLiteral = JSON.stringify(key);
 
-			const validate = `{
+			const validationCode = `{
 					const validated = await validator(
-						request_${index}[${json}],
-						context.request[${json}],
-						${json},
+						request_${index}[${keyLiteral}],
+						context.request[${keyLiteral}],
+						${keyLiteral},
 					);
 
 					if (validated.success) {
-						context.request[${json}] = validated.content;
+						context.request[${keyLiteral}] = validated.content;
 					} else {
-						(errors_${index} ??= new Empty())[${json}] = validated.content;
+						(errors_${index} ??= new Empty())[${keyLiteral}] = validated.content;
 					}
 				}`;
 
-			keys += load ? `\n\n${load}\n\n${validate}` : `\n\n${validate}`;
+			validationsCode += parserCode
+				? `\n\n${parserCode}\n\n${validationCode}`
+				: `\n\n${validationCode}`;
 		}
 
 		return `{
@@ -222,26 +224,26 @@ const generate = (
 			
 			let errors_${index};
 
-			${keys}
+			${validationsCode}
 
 			if (errors_${index}) {
 				context.response.content = fail(errors_${index}, { status: 422 });
 
-				return${nested ? "" : ` ${RESPONSE_CALL}`};
+				return${isNested ? "" : ` ${RESPONSE_CALL}`};
 			}
 		}
 
-		${generate(chain, index + 1, sse, parsed, nested, needsAwait, linkAsync, isRouteAsync, parsers, hasValidator)}`;
+		${generate(chain, index + 1, isSse, parsed, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator)}`;
 	}
 
 	return generate(
 		chain,
 		index + 1,
-		sse,
+		isSse,
 		parsed,
-		nested,
+		isNested,
 		needsAwait,
-		linkAsync,
+		isLinkAsync,
 		isRouteAsync,
 		parsers,
 		hasValidator,
@@ -251,18 +253,18 @@ const generate = (
 export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const chain = endpoint.chain;
 	const handler = endpoint.route.handler;
-	const sse = endpoint.route.sse;
+	const isSse = endpoint.route.sse;
 	const validator = app.memory.validator as ValidatorPlugin | undefined;
 	const hasValidator = validator !== undefined;
 
 	const length = chain.length;
-	const linkAsync = new Array<boolean>(length);
+	const isLinkAsync = new Array<boolean>(length);
 	const needsAwait = new Array<boolean>(length + 1);
 	const isRouteAsync = isAsync(handler);
 
-	let tail = !sse && isRouteAsync;
+	let isTailAsync = !isSse && isRouteAsync;
 
-	needsAwait[length] = tail;
+	needsAwait[length] = isTailAsync;
 
 	for (let i = length - 1; i >= 0; i--) {
 		const link = chain[i];
@@ -270,24 +272,24 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		if (link) {
 			if (link.type === "VALIDATOR") {
 				if (hasValidator) {
-					tail = true;
+					isTailAsync = true;
 				}
 			} else if (link.type === "MIDDLEWARE" || link.type === "STORE") {
-				const async = isAsync(link.handler);
+				const isHandlerAsync = isAsync(link.handler);
 
-				linkAsync[i] = async;
-				tail = async || tail;
+				isLinkAsync[i] = isHandlerAsync;
+				isTailAsync = isHandlerAsync || isTailAsync;
 			}
 		}
 
-		needsAwait[i] = tail;
+		needsAwait[i] = isTailAsync;
 	}
 
 	const parsers: Record<keyof ValidatorRequest, string> = {
 		body: PARSERS.body,
 		cookies: PARSERS.cookies,
 		headers: PARSERS.headers,
-		params: paramsParser(
+		params: generateParamsParser(
 			endpoint.paramKeys,
 			endpoint.matchOffset,
 			endpoint.restKeys,
@@ -295,7 +297,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		query: PARSERS.query,
 	};
 
-	const async = tail ? "async " : "";
+	const asyncKeyword = isTailAsync ? "async " : "";
 
 	const factory = new Function(
 		"app",
@@ -312,7 +314,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		"parseQuery",
 		"validator",
 		"handler",
-		`return ${async}function (request, match) {\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n\n${generate(chain, 0, sse, new Set(), false, needsAwait, linkAsync, isRouteAsync, parsers, hasValidator)}\n};`,
+		`return ${asyncKeyword}function (request, match) {\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n\n${generate(chain, 0, isSse, new Set(), false, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator)}\n};`,
 	) as (
 		app: Cudenix,
 		context: typeof Context,
@@ -322,7 +324,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		mergeObjects: typeof merge,
 		empty: typeof Empty,
 		failReply: typeof fail,
-		sseStream: typeof stream,
+		isSseStream: typeof stream,
 		bodyParser: typeof parseBody,
 		cookieParser: typeof parseCookies,
 		queryParser: typeof parseQuery,
