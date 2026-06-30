@@ -285,15 +285,38 @@ const generate = (
 	);
 };
 
-export const jit = (app: Cudenix, endpoint: Endpoint) => {
-	const chain = endpoint.chain;
-	const handler = endpoint.route.handler;
-	const isRouteAsync = isAsync(handler);
-	const isSse = endpoint.route.sse;
+/**
+ * Walk the chain back-to-front to resolve the async/context shape the
+ * dispatcher is generated against.
+ *
+ * Two per-link arrays come out of the pass:
+ *
+ * - `isLinkAsync[i]` — whether link `i`'s own handler is declared `async` (only
+ *   middleware and store links call a handler directly).
+ * - `needsAwait[i]` — whether anything from link `i` onward awaits, so the
+ *   generator knows when a `next()` closure must itself be `async`. The extra
+ *   `needsAwait[length]` slot seeds the tail (the route handler).
+ *
+ * Alongside them two whole-chain flags fold up:
+ *
+ * - `isTailAsync` — whether the dispatcher needs the `async` keyword at all.
+ * - `needsContext` — whether any link, validator, or the handler reaches the
+ *   shared request `Context`; when false the `Context` is never allocated.
+ */
+const analyzeChain = (
+	chain: EndpointChain,
+	handler: Endpoint["route"]["handler"],
+	isSse: boolean,
+	isRouteAsync: boolean,
+	hasValidator: boolean,
+	isValidatorAsync: boolean,
+): {
+	isLinkAsync: boolean[];
+	isTailAsync: boolean;
+	needsAwait: boolean[];
+	needsContext: boolean;
+} => {
 	const length = chain.length;
-	const validator = app.memory.validator as ValidatorPlugin | undefined;
-	const hasValidator = validator !== undefined;
-	const isValidatorAsync = validator !== undefined && isAsync(validator);
 
 	const isLinkAsync = new Array<boolean>(length);
 	const needsAwait = new Array<boolean>(length + 1);
@@ -309,10 +332,6 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		if (link) {
 			if (link.type === "VALIDATOR") {
 				if (hasValidator) {
-					// A validator only forces the dispatcher async when the
-					// validator plugin is itself async, or when it parses the
-					// `body` slot — `parseBody` is awaited, whereas every other
-					// slot parser (cookies, headers, params, query) is sync.
 					if (isValidatorAsync || link.keys.includes("body")) {
 						isTailAsync = true;
 					}
@@ -333,6 +352,27 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 
 		needsAwait[i] = isTailAsync;
 	}
+
+	return { isLinkAsync, isTailAsync, needsAwait, needsContext };
+};
+
+export const jit = (app: Cudenix, endpoint: Endpoint) => {
+	const chain = endpoint.chain;
+	const handler = endpoint.route.handler;
+	const isRouteAsync = isAsync(handler);
+	const isSse = endpoint.route.sse;
+	const validator = app.memory.validator as ValidatorPlugin | undefined;
+	const hasValidator = validator !== undefined;
+	const isValidatorAsync = hasValidator && isAsync(validator);
+
+	const { isLinkAsync, needsAwait, isTailAsync, needsContext } = analyzeChain(
+		chain,
+		handler,
+		isSse,
+		isRouteAsync,
+		hasValidator,
+		isValidatorAsync,
+	);
 
 	const asyncKeyword = isTailAsync ? "async " : "";
 
