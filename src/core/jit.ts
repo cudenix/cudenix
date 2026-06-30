@@ -102,6 +102,7 @@ const generate = (
 	isRouteAsync: boolean,
 	parsers: Record<keyof ValidatorRequest, string>,
 	hasValidator: boolean,
+	isValidatorAsync: boolean,
 	needsContext: boolean,
 ): string => {
 	const linkArgument = needsContext ? "context" : "undefined";
@@ -139,6 +140,7 @@ const generate = (
 			isRouteAsync,
 			parsers,
 			hasValidator,
+			isValidatorAsync,
 			needsContext,
 		);
 	}
@@ -153,7 +155,7 @@ const generate = (
 
 		const block = `{
 			const next_${index} = ${isTailAsync ? "async " : ""}() => {
-				${generate(chain, index + 1, isSse, parsed, true, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, needsContext)}
+				${generate(chain, index + 1, isSse, parsed, true, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}
 			};
 
 			${callCode}
@@ -191,7 +193,7 @@ const generate = (
 			}${mergeStore}
 		}
 
-		${generate(chain, index + 1, isSse, parsed, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, needsContext)}`;
+		${generate(chain, index + 1, isSse, parsed, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}`;
 	}
 
 	if (link.type === "VALIDATOR") {
@@ -207,6 +209,7 @@ const generate = (
 				isRouteAsync,
 				parsers,
 				hasValidator,
+				isValidatorAsync,
 				needsContext,
 			);
 		}
@@ -231,7 +234,7 @@ const generate = (
 			const keyLiteral = JSON.stringify(key);
 
 			const validationCode = `{
-					const validated = await validator(
+					const validated = ${isValidatorAsync ? "await " : ""}validator(
 						request_${index}[${keyLiteral}],
 						context.request[${keyLiteral}],
 						${keyLiteral},
@@ -263,7 +266,7 @@ const generate = (
 			}
 		}
 
-		${generate(chain, index + 1, isSse, parsed, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, needsContext)}`;
+		${generate(chain, index + 1, isSse, parsed, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}`;
 	}
 
 	return generate(
@@ -277,6 +280,7 @@ const generate = (
 		isRouteAsync,
 		parsers,
 		hasValidator,
+		isValidatorAsync,
 		needsContext,
 	);
 };
@@ -284,14 +288,15 @@ const generate = (
 export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const chain = endpoint.chain;
 	const handler = endpoint.route.handler;
+	const isRouteAsync = isAsync(handler);
 	const isSse = endpoint.route.sse;
+	const length = chain.length;
 	const validator = app.memory.validator as ValidatorPlugin | undefined;
 	const hasValidator = validator !== undefined;
+	const isValidatorAsync = validator !== undefined && isAsync(validator);
 
-	const length = chain.length;
 	const isLinkAsync = new Array<boolean>(length);
 	const needsAwait = new Array<boolean>(length + 1);
-	const isRouteAsync = isAsync(handler);
 
 	let isTailAsync = !isSse && isRouteAsync;
 	let needsContext = usesContext(handler);
@@ -304,7 +309,14 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		if (link) {
 			if (link.type === "VALIDATOR") {
 				if (hasValidator) {
-					isTailAsync = true;
+					// A validator only forces the dispatcher async when the
+					// validator plugin is itself async, or when it parses the
+					// `body` slot — `parseBody` is awaited, whereas every other
+					// slot parser (cookies, headers, params, query) is sync.
+					if (isValidatorAsync || link.keys.includes("body")) {
+						isTailAsync = true;
+					}
+
 					needsContext = true;
 				}
 			} else if (link.type === "MIDDLEWARE" || link.type === "STORE") {
@@ -351,6 +363,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		isRouteAsync,
 		parsers,
 		hasValidator,
+		isValidatorAsync,
 		needsContext,
 	);
 
