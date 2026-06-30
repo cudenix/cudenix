@@ -97,8 +97,8 @@ const generateDispatcherBody = (
 	isSse: boolean,
 	parsedKeys: Set<string>,
 	isNested: boolean,
-	needsAwait: boolean[],
-	isLinkAsync: boolean[],
+	awaitMap: boolean[],
+	linkAsyncMap: boolean[],
 	isRouteAsync: boolean,
 	parsers: Record<keyof ValidatorRequest, string>,
 	hasValidator: boolean,
@@ -135,8 +135,8 @@ const generateDispatcherBody = (
 			isSse,
 			parsedKeys,
 			isNested,
-			needsAwait,
-			isLinkAsync,
+			awaitMap,
+			linkAsyncMap,
 			isRouteAsync,
 			parsers,
 			hasValidator,
@@ -146,16 +146,16 @@ const generateDispatcherBody = (
 	}
 
 	if (link.type === "MIDDLEWARE") {
-		const isTailAsync = needsAwait[index + 1];
+		const isTailAsync = awaitMap[index + 1];
 
 		const callCode =
-			isLinkAsync[index] || isTailAsync
+			linkAsyncMap[index] || isTailAsync
 				? `const returned_${index} = await chain[${index}].handler(${linkArgument}, next_${index});`
 				: `const returned_${index} = chain[${index}].handler(${linkArgument}, next_${index});`;
 
 		const block = `{
 			const next_${index} = ${isTailAsync ? "async " : ""}() => {
-				${generateDispatcherBody(chain, index + 1, isSse, parsedKeys, true, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}
+				${generateDispatcherBody(chain, index + 1, isSse, parsedKeys, true, awaitMap, linkAsyncMap, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}
 			};
 
 			${callCode}
@@ -169,7 +169,7 @@ const generateDispatcherBody = (
 	}
 
 	if (link.type === "STORE") {
-		const callCode = isLinkAsync[index]
+		const callCode = linkAsyncMap[index]
 			? `const returned_${index} = await chain[${index}].handler(${linkArgument});`
 			: `const returned_${index} = chain[${index}].handler(${linkArgument});`;
 
@@ -193,7 +193,7 @@ const generateDispatcherBody = (
 			}${mergeStore}
 		}
 
-		${generateDispatcherBody(chain, index + 1, isSse, parsedKeys, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}`;
+		${generateDispatcherBody(chain, index + 1, isSse, parsedKeys, isNested, awaitMap, linkAsyncMap, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}`;
 	}
 
 	if (link.type === "VALIDATOR") {
@@ -204,8 +204,8 @@ const generateDispatcherBody = (
 				isSse,
 				parsedKeys,
 				isNested,
-				needsAwait,
-				isLinkAsync,
+				awaitMap,
+				linkAsyncMap,
 				isRouteAsync,
 				parsers,
 				hasValidator,
@@ -266,7 +266,7 @@ const generateDispatcherBody = (
 			}
 		}
 
-		${generateDispatcherBody(chain, index + 1, isSse, parsedKeys, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}`;
+		${generateDispatcherBody(chain, index + 1, isSse, parsedKeys, isNested, awaitMap, linkAsyncMap, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}`;
 	}
 
 	return generateDispatcherBody(
@@ -275,8 +275,8 @@ const generateDispatcherBody = (
 		isSse,
 		parsedKeys,
 		isNested,
-		needsAwait,
-		isLinkAsync,
+		awaitMap,
+		linkAsyncMap,
 		isRouteAsync,
 		parsers,
 		hasValidator,
@@ -291,11 +291,11 @@ const generateDispatcherBody = (
  *
  * Two per-link arrays come out of the pass:
  *
- * - `isLinkAsync[i]` — whether link `i`'s own handler is declared `async` (only
+ * - `linkAsyncMap[i]` — whether link `i`'s own handler is declared `async` (only
  *   middleware and store links call a handler directly).
- * - `needsAwait[i]` — whether anything from link `i` onward awaits, so the
+ * - `awaitMap[i]` — whether anything from link `i` onward awaits, so the
  *   generator knows when a `next()` closure must itself be `async`. The extra
- *   `needsAwait[chainLength]` slot seeds the tail (the route handler).
+ *   `awaitMap[chainLength]` slot seeds the tail (the route handler).
  *
  * Alongside them two whole-chain flags fold up:
  *
@@ -312,19 +312,19 @@ const analyzeChain = (
 	isValidatorAsync: boolean,
 ): {
 	isChainAsync: boolean;
-	isLinkAsync: boolean[];
-	needsAwait: boolean[];
+	linkAsyncMap: boolean[];
+	awaitMap: boolean[];
 	needsContext: boolean;
 } => {
 	const chainLength = chain.length;
 
-	const isLinkAsync = new Array<boolean>(chainLength);
-	const needsAwait = new Array<boolean>(chainLength + 1);
+	const linkAsyncMap = new Array<boolean>(chainLength);
+	const awaitMap = new Array<boolean>(chainLength + 1);
 
 	let isChainAsync = !isSse && isRouteAsync;
 	let needsContext = usesContext(handler);
 
-	needsAwait[chainLength] = isChainAsync;
+	awaitMap[chainLength] = isChainAsync;
 
 	for (let i = chainLength - 1; i >= 0; i--) {
 		const link = chain[i];
@@ -341,7 +341,7 @@ const analyzeChain = (
 			} else if (link.type === "MIDDLEWARE" || link.type === "STORE") {
 				const isHandlerAsync = isAsync(link.handler);
 
-				isLinkAsync[i] = isHandlerAsync;
+				linkAsyncMap[i] = isHandlerAsync;
 				isChainAsync = isHandlerAsync || isChainAsync;
 
 				if (!needsContext && usesContext(link.handler)) {
@@ -350,10 +350,10 @@ const analyzeChain = (
 			}
 		}
 
-		needsAwait[i] = isChainAsync;
+		awaitMap[i] = isChainAsync;
 	}
 
-	return { isChainAsync, isLinkAsync, needsAwait, needsContext };
+	return { awaitMap, isChainAsync, linkAsyncMap, needsContext };
 };
 
 export const jit = (app: Cudenix, endpoint: Endpoint) => {
@@ -365,15 +365,14 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const hasValidator = validator !== undefined;
 	const isValidatorAsync = hasValidator && isAsync(validator);
 
-	const { isChainAsync, isLinkAsync, needsAwait, needsContext } =
-		analyzeChain(
-			chain,
-			handler,
-			isSse,
-			isRouteAsync,
-			hasValidator,
-			isValidatorAsync,
-		);
+	const { isChainAsync, linkAsyncMap, awaitMap, needsContext } = analyzeChain(
+		chain,
+		handler,
+		isSse,
+		isRouteAsync,
+		hasValidator,
+		isValidatorAsync,
+	);
 
 	const asyncKeyword = isChainAsync ? "async " : "";
 
@@ -399,8 +398,8 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		isSse,
 		new Set(),
 		false,
-		needsAwait,
-		isLinkAsync,
+		awaitMap,
+		linkAsyncMap,
 		isRouteAsync,
 		parsers,
 		hasValidator,
