@@ -299,7 +299,7 @@ const generate = (
  *
  * Alongside them two whole-chain flags fold up:
  *
- * - `isTailAsync` — whether the dispatcher needs the `async` keyword at all.
+ * - `isChainAsync` — whether the dispatcher needs the `async` keyword at all.
  * - `needsContext` — whether any link, validator, or the handler reaches the
  *   shared request `Context`; when false the `Context` is never allocated.
  */
@@ -311,8 +311,8 @@ const analyzeChain = (
 	hasValidator: boolean,
 	isValidatorAsync: boolean,
 ): {
+	isChainAsync: boolean;
 	isLinkAsync: boolean[];
-	isTailAsync: boolean;
 	needsAwait: boolean[];
 	needsContext: boolean;
 } => {
@@ -321,10 +321,10 @@ const analyzeChain = (
 	const isLinkAsync = new Array<boolean>(length);
 	const needsAwait = new Array<boolean>(length + 1);
 
-	let isTailAsync = !isSse && isRouteAsync;
+	let isChainAsync = !isSse && isRouteAsync;
 	let needsContext = usesContext(handler);
 
-	needsAwait[length] = isTailAsync;
+	needsAwait[length] = isChainAsync;
 
 	for (let i = length - 1; i >= 0; i--) {
 		const link = chain[i];
@@ -333,7 +333,7 @@ const analyzeChain = (
 			if (link.type === "VALIDATOR") {
 				if (hasValidator) {
 					if (isValidatorAsync || link.keys.includes("body")) {
-						isTailAsync = true;
+						isChainAsync = true;
 					}
 
 					needsContext = true;
@@ -342,7 +342,7 @@ const analyzeChain = (
 				const isHandlerAsync = isAsync(link.handler);
 
 				isLinkAsync[i] = isHandlerAsync;
-				isTailAsync = isHandlerAsync || isTailAsync;
+				isChainAsync = isHandlerAsync || isChainAsync;
 
 				if (!needsContext && usesContext(link.handler)) {
 					needsContext = true;
@@ -350,10 +350,10 @@ const analyzeChain = (
 			}
 		}
 
-		needsAwait[i] = isTailAsync;
+		needsAwait[i] = isChainAsync;
 	}
 
-	return { isLinkAsync, isTailAsync, needsAwait, needsContext };
+	return { isChainAsync, isLinkAsync, needsAwait, needsContext };
 };
 
 export const jit = (app: Cudenix, endpoint: Endpoint) => {
@@ -365,16 +365,17 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const hasValidator = validator !== undefined;
 	const isValidatorAsync = hasValidator && isAsync(validator);
 
-	const { isLinkAsync, needsAwait, isTailAsync, needsContext } = analyzeChain(
-		chain,
-		handler,
-		isSse,
-		isRouteAsync,
-		hasValidator,
-		isValidatorAsync,
-	);
+	const { isChainAsync, isLinkAsync, needsAwait, needsContext } =
+		analyzeChain(
+			chain,
+			handler,
+			isSse,
+			isRouteAsync,
+			hasValidator,
+			isValidatorAsync,
+		);
 
-	const asyncKeyword = isTailAsync ? "async " : "";
+	const asyncKeyword = isChainAsync ? "async " : "";
 
 	const parsers: Record<keyof ValidatorRequest, string> = {
 		body: PARSERS.body,
