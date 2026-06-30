@@ -8,6 +8,7 @@ import type { ValidatorPlugin, ValidatorRequest } from "@/core/validator";
 import { parseBody } from "@/utils/bodies/parse-body";
 import { parseCookies } from "@/utils/cookies/parse-cookies";
 import { isAsync } from "@/utils/functions/is-async";
+import { usesContext } from "@/utils/functions/uses-context";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 import { parseQuery } from "@/utils/urls/parse-query";
@@ -250,6 +251,97 @@ const generate = (
 	);
 };
 
+const generateContextFree = (
+	chain: EndpointChain,
+	index: number,
+	isSse: boolean,
+	isNested: boolean,
+	needsAwait: boolean[],
+	isLinkAsync: boolean[],
+	isRouteAsync: boolean,
+): string => {
+	if (index >= chain.length) {
+		if (isSse) {
+			return isNested
+				? "app.server.timeout(request, 0);\n\n\t\t\t\t\tcontent = stream(handler());"
+				: "app.server.timeout(request, 0);\n\nreturn response(stream(handler()));";
+		}
+
+		const call = isRouteAsync ? "await handler()" : "handler()";
+
+		return isNested ? `content = ${call};` : `return response(${call});`;
+	}
+
+	const link = chain[index];
+
+	if (!link) {
+		return generateContextFree(
+			chain,
+			index + 1,
+			isSse,
+			isNested,
+			needsAwait,
+			isLinkAsync,
+			isRouteAsync,
+		);
+	}
+
+	if (link.type === "MIDDLEWARE") {
+		const isTailAsync = needsAwait[index + 1];
+
+		const callCode =
+			isLinkAsync[index] || isTailAsync
+				? `const returned_${index} = await chain[${index}].handler(undefined, next_${index});`
+				: `const returned_${index} = chain[${index}].handler(undefined, next_${index});`;
+
+		const block = `{
+			const next_${index} = ${isTailAsync ? "async " : ""}() => {
+				${generateContextFree(chain, index + 1, isSse, true, needsAwait, isLinkAsync, isRouteAsync)}
+			};
+
+			${callCode}
+
+			if (returned_${index}) {
+				content = returned_${index};
+			}
+		}`;
+
+		return isNested
+			? block
+			: `let content;\n\n${block}\n\nreturn response(content);`;
+	}
+
+	if (link.type === "STORE") {
+		const callCode = isLinkAsync[index]
+			? `const returned_${index} = await chain[${index}].handler(undefined);`
+			: `const returned_${index} = chain[${index}].handler(undefined);`;
+
+		const shortCircuit = isNested
+			? `content = returned_${index};\n\n\t\t\t\treturn;`
+			: `return response(returned_${index});`;
+
+		return `{
+			${callCode}
+
+			if (returned_${index} instanceof Reply && !returned_${index}.success) {
+				${shortCircuit}
+			}
+		}
+
+		${generateContextFree(chain, index + 1, isSse, isNested, needsAwait, isLinkAsync, isRouteAsync)}`;
+	}
+
+	return generateContextFree(
+		chain,
+		index + 1,
+		isSse,
+		isNested,
+		needsAwait,
+		isLinkAsync,
+		isRouteAsync,
+	);
+};
+
 export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const chain = endpoint.chain;
 	const handler = endpoint.route.handler;
@@ -263,6 +355,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const isRouteAsync = isAsync(handler);
 
 	let isTailAsync = !isSse && isRouteAsync;
+	let needsContext = usesContext(handler);
 
 	needsAwait[length] = isTailAsync;
 
@@ -273,31 +366,66 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 			if (link.type === "VALIDATOR") {
 				if (hasValidator) {
 					isTailAsync = true;
+					needsContext = true;
 				}
 			} else if (link.type === "MIDDLEWARE" || link.type === "STORE") {
 				const isHandlerAsync = isAsync(link.handler);
 
 				isLinkAsync[i] = isHandlerAsync;
 				isTailAsync = isHandlerAsync || isTailAsync;
+
+				if (!needsContext && usesContext(link.handler)) {
+					needsContext = true;
+				}
 			}
 		}
 
 		needsAwait[i] = isTailAsync;
 	}
 
-	const parsers: Record<keyof ValidatorRequest, string> = {
-		body: PARSERS.body,
-		cookies: PARSERS.cookies,
-		headers: PARSERS.headers,
-		params: generateParamsParser(
-			endpoint.paramKeys,
-			endpoint.matchOffset,
-			endpoint.restKeys,
-		),
-		query: PARSERS.query,
-	};
-
 	const asyncKeyword = isTailAsync ? "async " : "";
+
+	let prelude: string;
+	let body: string;
+
+	if (needsContext) {
+		const parsers: Record<keyof ValidatorRequest, string> = {
+			body: PARSERS.body,
+			cookies: PARSERS.cookies,
+			headers: PARSERS.headers,
+			params: generateParamsParser(
+				endpoint.paramKeys,
+				endpoint.matchOffset,
+				endpoint.restKeys,
+			),
+			query: PARSERS.query,
+		};
+
+		prelude = `\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n\n`;
+		body = generate(
+			chain,
+			0,
+			isSse,
+			new Set(),
+			false,
+			needsAwait,
+			isLinkAsync,
+			isRouteAsync,
+			parsers,
+			hasValidator,
+		);
+	} else {
+		prelude = "\n";
+		body = generateContextFree(
+			chain,
+			0,
+			isSse,
+			false,
+			needsAwait,
+			isLinkAsync,
+			isRouteAsync,
+		);
+	}
 
 	const factory = new Function(
 		"app",
@@ -314,7 +442,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		"parseQuery",
 		"validator",
 		"handler",
-		`return ${asyncKeyword}function (request, match) {\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n\n${generate(chain, 0, isSse, new Set(), false, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator)}\n};`,
+		`return ${asyncKeyword}function (request, match) {${prelude}${body}\n};`,
 	) as (
 		app: Cudenix,
 		context: typeof Context,
