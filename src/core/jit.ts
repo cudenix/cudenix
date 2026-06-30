@@ -76,6 +76,21 @@ const generateParamsParser = (
 			context.request.params = params;`;
 };
 
+/**
+ * Emit the dispatcher body for one endpoint chain.
+ *
+ * A single generator drives both shapes the runtime needs, selected by
+ * `needsContext`:
+ *
+ * - With a context, every link receives the shared request `Context`, results
+ *   flow through `context.response.content`, stores merge into `context.store`,
+ *   validators run, and the function returns the full {@link RESPONSE_CALL}
+ *   (carrying cookies and headers).
+ * - Without one — when no link, validator, or handler can reach the context —
+ *   the `Context` is never allocated: links are called with `undefined`, results
+ *   flow through a local `content` binding, stores cannot merge (there is no
+ *   store to merge into), and the function returns a plain `response(content)`.
+ */
 const generate = (
 	chain: EndpointChain,
 	index: number,
@@ -87,21 +102,27 @@ const generate = (
 	isRouteAsync: boolean,
 	parsers: Record<keyof ValidatorRequest, string>,
 	hasValidator: boolean,
+	needsContext: boolean,
 ): string => {
+	const linkArgument = needsContext ? "context" : "undefined";
+	const routeArgument = needsContext ? "context" : "";
+	const contentTarget = needsContext ? "context.response.content" : "content";
+	const returnResponse = needsContext
+		? `return ${RESPONSE_CALL};`
+		: "return response(content);";
+
 	if (index >= chain.length) {
 		if (isSse) {
-			const body = `context.server.timeout(request, 0);
+			const body = `${needsContext ? "context" : "app"}.server.timeout(request, 0);
 
-				context.response.content = stream(handler(context));`;
+				${contentTarget} = stream(handler(${routeArgument}));`;
 
-			return isNested ? body : `${body}\n\nreturn ${RESPONSE_CALL};`;
+			return isNested ? body : `${body}\n\n${returnResponse}`;
 		}
 
-		const callCode = isRouteAsync
-			? "context.response.content = await handler(context);"
-			: "context.response.content = handler(context);";
+		const callCode = `${contentTarget} = ${isRouteAsync ? "await " : ""}handler(${routeArgument});`;
 
-		return isNested ? callCode : `${callCode}\n\nreturn ${RESPONSE_CALL};`;
+		return isNested ? callCode : `${callCode}\n\n${returnResponse}`;
 	}
 
 	const link = chain[index];
@@ -118,6 +139,7 @@ const generate = (
 			isRouteAsync,
 			parsers,
 			hasValidator,
+			needsContext,
 		);
 	}
 
@@ -126,44 +148,50 @@ const generate = (
 
 		const callCode =
 			isLinkAsync[index] || isTailAsync
-				? `const returned_${index} = await chain[${index}].handler(context, next_${index});`
-				: `const returned_${index} = chain[${index}].handler(context, next_${index});`;
+				? `const returned_${index} = await chain[${index}].handler(${linkArgument}, next_${index});`
+				: `const returned_${index} = chain[${index}].handler(${linkArgument}, next_${index});`;
 
 		const block = `{
 			const next_${index} = ${isTailAsync ? "async " : ""}() => {
-				${generate(chain, index + 1, isSse, parsed, true, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator)}
+				${generate(chain, index + 1, isSse, parsed, true, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, needsContext)}
 			};
 
 			${callCode}
 
 			if (returned_${index}) {
-				context.response.content = returned_${index};
+				${contentTarget} = returned_${index};
 			}
 		}`;
 
-		return isNested ? block : `${block}\n\nreturn ${RESPONSE_CALL};`;
+		return isNested ? block : `${block}\n\n${returnResponse}`;
 	}
 
 	if (link.type === "STORE") {
 		const callCode = isLinkAsync[index]
-			? `const returned_${index} = await chain[${index}].handler(context);`
-			: `const returned_${index} = chain[${index}].handler(context);`;
+			? `const returned_${index} = await chain[${index}].handler(${linkArgument});`
+			: `const returned_${index} = chain[${index}].handler(${linkArgument});`;
+
+		const shortCircuit = isNested
+			? `${contentTarget} = returned_${index};\n\n\t\t\t\treturn;`
+			: `${contentTarget} = returned_${index};\n\n\t\t\t\t${returnResponse}`;
+
+		const mergeStore = needsContext
+			? `
+
+			if (returned_${index}) {
+				merge(context.store, returned_${index});
+			}`
+			: "";
 
 		return `{
 			${callCode}
 
 			if (returned_${index} instanceof Reply && !returned_${index}.success) {
-				context.response.content = returned_${index};
-
-				return${isNested ? "" : ` ${RESPONSE_CALL}`};
-			}
-
-			if (returned_${index}) {
-				merge(context.store, returned_${index});
-			}
+				${shortCircuit}
+			}${mergeStore}
 		}
 
-		${generate(chain, index + 1, isSse, parsed, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator)}`;
+		${generate(chain, index + 1, isSse, parsed, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, needsContext)}`;
 	}
 
 	if (link.type === "VALIDATOR") {
@@ -179,6 +207,7 @@ const generate = (
 				isRouteAsync,
 				parsers,
 				hasValidator,
+				needsContext,
 			);
 		}
 
@@ -222,7 +251,7 @@ const generate = (
 
 		return `{
 			const request_${index} = chain[${index}].request;
-			
+
 			let errors_${index};
 
 			${validationsCode}
@@ -234,7 +263,7 @@ const generate = (
 			}
 		}
 
-		${generate(chain, index + 1, isSse, parsed, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator)}`;
+		${generate(chain, index + 1, isSse, parsed, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, needsContext)}`;
 	}
 
 	return generate(
@@ -248,97 +277,7 @@ const generate = (
 		isRouteAsync,
 		parsers,
 		hasValidator,
-	);
-};
-
-const generateContextFree = (
-	chain: EndpointChain,
-	index: number,
-	isSse: boolean,
-	isNested: boolean,
-	needsAwait: boolean[],
-	isLinkAsync: boolean[],
-	isRouteAsync: boolean,
-): string => {
-	if (index >= chain.length) {
-		if (isSse) {
-			return isNested
-				? "app.server.timeout(request, 0);\n\n\t\t\t\t\tcontent = stream(handler());"
-				: "app.server.timeout(request, 0);\n\nreturn response(stream(handler()));";
-		}
-
-		const call = isRouteAsync ? "await handler()" : "handler()";
-
-		return isNested ? `content = ${call};` : `return response(${call});`;
-	}
-
-	const link = chain[index];
-
-	if (!link) {
-		return generateContextFree(
-			chain,
-			index + 1,
-			isSse,
-			isNested,
-			needsAwait,
-			isLinkAsync,
-			isRouteAsync,
-		);
-	}
-
-	if (link.type === "MIDDLEWARE") {
-		const isTailAsync = needsAwait[index + 1];
-
-		const callCode =
-			isLinkAsync[index] || isTailAsync
-				? `const returned_${index} = await chain[${index}].handler(undefined, next_${index});`
-				: `const returned_${index} = chain[${index}].handler(undefined, next_${index});`;
-
-		const block = `{
-			const next_${index} = ${isTailAsync ? "async " : ""}() => {
-				${generateContextFree(chain, index + 1, isSse, true, needsAwait, isLinkAsync, isRouteAsync)}
-			};
-
-			${callCode}
-
-			if (returned_${index}) {
-				content = returned_${index};
-			}
-		}`;
-
-		return isNested
-			? block
-			: `let content;\n\n${block}\n\nreturn response(content);`;
-	}
-
-	if (link.type === "STORE") {
-		const callCode = isLinkAsync[index]
-			? `const returned_${index} = await chain[${index}].handler(undefined);`
-			: `const returned_${index} = chain[${index}].handler(undefined);`;
-
-		const shortCircuit = isNested
-			? `content = returned_${index};\n\n\t\t\t\treturn;`
-			: `return response(returned_${index});`;
-
-		return `{
-			${callCode}
-
-			if (returned_${index} instanceof Reply && !returned_${index}.success) {
-				${shortCircuit}
-			}
-		}
-
-		${generateContextFree(chain, index + 1, isSse, isNested, needsAwait, isLinkAsync, isRouteAsync)}`;
-	}
-
-	return generateContextFree(
-		chain,
-		index + 1,
-		isSse,
-		isNested,
-		needsAwait,
-		isLinkAsync,
-		isRouteAsync,
+		needsContext,
 	);
 };
 
@@ -385,47 +324,35 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 
 	const asyncKeyword = isTailAsync ? "async " : "";
 
-	let prelude: string;
-	let body: string;
+	const parsers: Record<keyof ValidatorRequest, string> = {
+		body: PARSERS.body,
+		cookies: PARSERS.cookies,
+		headers: PARSERS.headers,
+		params: generateParamsParser(
+			endpoint.paramKeys,
+			endpoint.matchOffset,
+			endpoint.restKeys,
+		),
+		query: PARSERS.query,
+	};
 
-	if (needsContext) {
-		const parsers: Record<keyof ValidatorRequest, string> = {
-			body: PARSERS.body,
-			cookies: PARSERS.cookies,
-			headers: PARSERS.headers,
-			params: generateParamsParser(
-				endpoint.paramKeys,
-				endpoint.matchOffset,
-				endpoint.restKeys,
-			),
-			query: PARSERS.query,
-		};
+	const prelude = needsContext
+		? `\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n\n`
+		: "\nlet content;\n\n";
 
-		prelude = `\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n\n`;
-		body = generate(
-			chain,
-			0,
-			isSse,
-			new Set(),
-			false,
-			needsAwait,
-			isLinkAsync,
-			isRouteAsync,
-			parsers,
-			hasValidator,
-		);
-	} else {
-		prelude = "\n";
-		body = generateContextFree(
-			chain,
-			0,
-			isSse,
-			false,
-			needsAwait,
-			isLinkAsync,
-			isRouteAsync,
-		);
-	}
+	const body = generate(
+		chain,
+		0,
+		isSse,
+		new Set(),
+		false,
+		needsAwait,
+		isLinkAsync,
+		isRouteAsync,
+		parsers,
+		hasValidator,
+		needsContext,
+	);
 
 	const factory = new Function(
 		"app",
