@@ -35,16 +35,16 @@ const generateParamsParser = (
 	let assignmentsCode = "";
 
 	for (let i = 0; i < paramKeys.length; i++) {
-		const name = paramKeys[i];
+		const paramKey = paramKeys[i];
 
-		if (name === undefined) {
+		if (paramKey === undefined) {
 			continue;
 		}
 
 		const matchGroupIndex = matchOffset + 1 + i;
-		const keyLiteral = JSON.stringify(name);
+		const keyLiteral = JSON.stringify(paramKey);
 		const paramValueExpression =
-			restKeys.indexOf(name) !== -1 ? 'value.split("/")' : "value";
+			restKeys.indexOf(paramKey) !== -1 ? 'value.split("/")' : "value";
 
 		assignmentsCode += `
 				{
@@ -91,11 +91,11 @@ const generateParamsParser = (
  *   flow through a local `content` binding, stores cannot merge (there is no
  *   store to merge into), and the function returns a plain `response(content)`.
  */
-const generate = (
+const generateDispatcherBody = (
 	chain: EndpointChain,
 	index: number,
 	isSse: boolean,
-	parsed: Set<string>,
+	parsedKeys: Set<string>,
 	isNested: boolean,
 	needsAwait: boolean[],
 	isLinkAsync: boolean[],
@@ -108,7 +108,7 @@ const generate = (
 	const linkArgument = needsContext ? "context" : "undefined";
 	const routeArgument = needsContext ? "context" : "";
 	const contentTarget = needsContext ? "context.response.content" : "content";
-	const returnResponse = needsContext
+	const returnStatement = needsContext
 		? `return ${RESPONSE_CALL};`
 		: "return response(content);";
 
@@ -118,22 +118,22 @@ const generate = (
 
 				${contentTarget} = stream(handler(${routeArgument}));`;
 
-			return isNested ? body : `${body}\n\n${returnResponse}`;
+			return isNested ? body : `${body}\n\n${returnStatement}`;
 		}
 
 		const callCode = `${contentTarget} = ${isRouteAsync ? "await " : ""}handler(${routeArgument});`;
 
-		return isNested ? callCode : `${callCode}\n\n${returnResponse}`;
+		return isNested ? callCode : `${callCode}\n\n${returnStatement}`;
 	}
 
 	const link = chain[index];
 
 	if (!link) {
-		return generate(
+		return generateDispatcherBody(
 			chain,
 			index + 1,
 			isSse,
-			parsed,
+			parsedKeys,
 			isNested,
 			needsAwait,
 			isLinkAsync,
@@ -155,7 +155,7 @@ const generate = (
 
 		const block = `{
 			const next_${index} = ${isTailAsync ? "async " : ""}() => {
-				${generate(chain, index + 1, isSse, parsed, true, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}
+				${generateDispatcherBody(chain, index + 1, isSse, parsedKeys, true, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}
 			};
 
 			${callCode}
@@ -165,7 +165,7 @@ const generate = (
 			}
 		}`;
 
-		return isNested ? block : `${block}\n\n${returnResponse}`;
+		return isNested ? block : `${block}\n\n${returnStatement}`;
 	}
 
 	if (link.type === "STORE") {
@@ -175,7 +175,7 @@ const generate = (
 
 		const shortCircuit = isNested
 			? `${contentTarget} = returned_${index};\n\n\t\t\t\treturn;`
-			: `${contentTarget} = returned_${index};\n\n\t\t\t\t${returnResponse}`;
+			: `${contentTarget} = returned_${index};\n\n\t\t\t\t${returnStatement}`;
 
 		const mergeStore = needsContext
 			? `
@@ -193,16 +193,16 @@ const generate = (
 			}${mergeStore}
 		}
 
-		${generate(chain, index + 1, isSse, parsed, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}`;
+		${generateDispatcherBody(chain, index + 1, isSse, parsedKeys, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}`;
 	}
 
 	if (link.type === "VALIDATOR") {
 		if (!hasValidator) {
-			return generate(
+			return generateDispatcherBody(
 				chain,
 				index + 1,
 				isSse,
-				parsed,
+				parsedKeys,
 				isNested,
 				needsAwait,
 				isLinkAsync,
@@ -225,8 +225,8 @@ const generate = (
 
 			let parserCode = "";
 
-			if (!parsed.has(key)) {
-				parsed.add(key);
+			if (!parsedKeys.has(key)) {
+				parsedKeys.add(key);
 
 				parserCode = parsers[key];
 			}
@@ -266,14 +266,14 @@ const generate = (
 			}
 		}
 
-		${generate(chain, index + 1, isSse, parsed, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}`;
+		${generateDispatcherBody(chain, index + 1, isSse, parsedKeys, isNested, needsAwait, isLinkAsync, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}`;
 	}
 
-	return generate(
+	return generateDispatcherBody(
 		chain,
 		index + 1,
 		isSse,
-		parsed,
+		parsedKeys,
 		isNested,
 		needsAwait,
 		isLinkAsync,
@@ -295,7 +295,7 @@ const generate = (
  *   middleware and store links call a handler directly).
  * - `needsAwait[i]` — whether anything from link `i` onward awaits, so the
  *   generator knows when a `next()` closure must itself be `async`. The extra
- *   `needsAwait[length]` slot seeds the tail (the route handler).
+ *   `needsAwait[chainLength]` slot seeds the tail (the route handler).
  *
  * Alongside them two whole-chain flags fold up:
  *
@@ -316,17 +316,17 @@ const analyzeChain = (
 	needsAwait: boolean[];
 	needsContext: boolean;
 } => {
-	const length = chain.length;
+	const chainLength = chain.length;
 
-	const isLinkAsync = new Array<boolean>(length);
-	const needsAwait = new Array<boolean>(length + 1);
+	const isLinkAsync = new Array<boolean>(chainLength);
+	const needsAwait = new Array<boolean>(chainLength + 1);
 
 	let isChainAsync = !isSse && isRouteAsync;
 	let needsContext = usesContext(handler);
 
-	needsAwait[length] = isChainAsync;
+	needsAwait[chainLength] = isChainAsync;
 
-	for (let i = length - 1; i >= 0; i--) {
+	for (let i = chainLength - 1; i >= 0; i--) {
 		const link = chain[i];
 
 		if (link) {
@@ -393,7 +393,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		? `\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n\n`
 		: "\nlet content;\n\n";
 
-	const body = generate(
+	const body = generateDispatcherBody(
 		chain,
 		0,
 		isSse,
