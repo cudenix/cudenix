@@ -21,7 +21,7 @@ const PARSERS = {
 	cookies: `context.request.cookies = parseCookies(request.headers.get("cookie") ?? "");`,
 	headers: "context.request.headers = request.headers.toJSON();",
 	query: "context.request.query = parseQuery(request.url);",
-};
+} satisfies Record<Exclude<keyof ValidatorRequest, "params">, string>;
 
 const generateParamsParser = (
 	paramKeys: string[],
@@ -43,8 +43,9 @@ const generateParamsParser = (
 
 		const matchGroupIndex = matchOffset + 1 + i;
 		const keyLiteral = JSON.stringify(paramKey);
-		const paramValueExpression =
-			restKeys.indexOf(paramKey) !== -1 ? 'value.split("/")' : "value";
+		const paramValueExpression = restKeys.includes(paramKey)
+			? 'value.split("/")'
+			: "value";
 
 		assignmentsCode += `
 				{
@@ -90,13 +91,15 @@ const generateParamsParser = (
  *   the `Context` is never allocated: links are called with `undefined`, results
  *   flow through a local `content` binding, stores cannot merge (there is no
  *   store to merge into), and the function returns a plain `response(content)`.
+ *
+ * The outer call fixes the chain-wide invariants and derives the shape strings
+ * once; the inner `emit(index, isNested)` walks the links front-to-back.
+ * `isNested` marks code emitted inside a middleware `next()` closure, where
+ * the dispatcher-level return is suppressed.
  */
 const generateDispatcherBody = (
 	chain: EndpointChain,
-	index: number,
 	isSse: boolean,
-	parsedKeys: Set<string>,
-	isNested: boolean,
 	awaitMap: boolean[],
 	asyncMap: boolean[],
 	isRouteAsync: boolean,
@@ -105,6 +108,8 @@ const generateDispatcherBody = (
 	isValidatorAsync: boolean,
 	needsContext: boolean,
 ): string => {
+	const parsedKeys = new Set<keyof ValidatorRequest>();
+
 	const linkArgument = needsContext ? "context" : "undefined";
 	const routeArgument = needsContext ? "context" : "";
 	const contentTarget = needsContext ? "context.response.content" : "content";
@@ -112,50 +117,34 @@ const generateDispatcherBody = (
 		? `return ${RESPONSE_CALL};`
 		: "return response(content);";
 
-	if (index >= chain.length) {
-		if (isSse) {
-			const body = `${needsContext ? "context" : "app"}.server.timeout(request, 0);
+	const terminate = (code: string, isNested: boolean): string =>
+		isNested ? code : `${code}\n\n${returnStatement}`;
+
+	const emit = (index: number, isNested: boolean): string => {
+		if (index >= chain.length) {
+			if (isSse) {
+				const body = `${needsContext ? "context" : "app"}.server.timeout(request, 0);
 
 				${contentTarget} = stream(handler(${routeArgument}));`;
 
-			return isNested ? body : `${body}\n\n${returnStatement}`;
+				return terminate(body, isNested);
+			}
+
+			const callCode = `${contentTarget} = ${isRouteAsync ? "await " : ""}handler(${routeArgument});`;
+
+			return terminate(callCode, isNested);
 		}
 
-		const callCode = `${contentTarget} = ${isRouteAsync ? "await " : ""}handler(${routeArgument});`;
+		const link = chain[index];
 
-		return isNested ? callCode : `${callCode}\n\n${returnStatement}`;
-	}
+		if (link?.type === "MIDDLEWARE") {
+			const isTailAsync = awaitMap[index + 1];
 
-	const link = chain[index];
+			const callCode = `const returned_${index} = ${asyncMap[index] || isTailAsync ? "await " : ""}chain[${index}].handler(${linkArgument}, next_${index});`;
 
-	if (!link) {
-		return generateDispatcherBody(
-			chain,
-			index + 1,
-			isSse,
-			parsedKeys,
-			isNested,
-			awaitMap,
-			asyncMap,
-			isRouteAsync,
-			parsers,
-			hasValidator,
-			isValidatorAsync,
-			needsContext,
-		);
-	}
-
-	if (link.type === "MIDDLEWARE") {
-		const isTailAsync = awaitMap[index + 1];
-
-		const callCode =
-			asyncMap[index] || isTailAsync
-				? `const returned_${index} = await chain[${index}].handler(${linkArgument}, next_${index});`
-				: `const returned_${index} = chain[${index}].handler(${linkArgument}, next_${index});`;
-
-		const block = `{
+			const block = `{
 			const next_${index} = ${isTailAsync ? "async " : ""}() => {
-				${generateDispatcherBody(chain, index + 1, isSse, parsedKeys, true, awaitMap, asyncMap, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}
+				${emit(index + 1, true)}
 			};
 
 			${callCode}
@@ -165,27 +154,23 @@ const generateDispatcherBody = (
 			}
 		}`;
 
-		return isNested ? block : `${block}\n\n${returnStatement}`;
-	}
+			return terminate(block, isNested);
+		}
 
-	if (link.type === "STORE") {
-		const callCode = asyncMap[index]
-			? `const returned_${index} = await chain[${index}].handler(${linkArgument});`
-			: `const returned_${index} = chain[${index}].handler(${linkArgument});`;
+		if (link?.type === "STORE") {
+			const callCode = `const returned_${index} = ${asyncMap[index] ? "await " : ""}chain[${index}].handler(${linkArgument});`;
 
-		const shortCircuit = isNested
-			? `${contentTarget} = returned_${index};\n\n\t\t\t\treturn;`
-			: `${contentTarget} = returned_${index};\n\n\t\t\t\t${returnStatement}`;
+			const shortCircuit = `${contentTarget} = returned_${index};\n\n\t\t\t\t${isNested ? "return;" : returnStatement}`;
 
-		const mergeStore = needsContext
-			? `
+			const mergeStore = needsContext
+				? `
 
 			if (returned_${index}) {
 				merge(context.store, returned_${index});
 			}`
-			: "";
+				: "";
 
-		return `{
+			return `{
 			${callCode}
 
 			if (returned_${index} instanceof Reply && !returned_${index}.success) {
@@ -193,47 +178,30 @@ const generateDispatcherBody = (
 			}${mergeStore}
 		}
 
-		${generateDispatcherBody(chain, index + 1, isSse, parsedKeys, isNested, awaitMap, asyncMap, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}`;
-	}
-
-	if (link.type === "VALIDATOR") {
-		if (!hasValidator) {
-			return generateDispatcherBody(
-				chain,
-				index + 1,
-				isSse,
-				parsedKeys,
-				isNested,
-				awaitMap,
-				asyncMap,
-				isRouteAsync,
-				parsers,
-				hasValidator,
-				isValidatorAsync,
-				needsContext,
-			);
+		${emit(index + 1, isNested)}`;
 		}
 
-		let validationsCode = "";
+		if (link?.type === "VALIDATOR" && hasValidator) {
+			let validationsCode = "";
 
-		for (let i = 0; i < link.keys.length; i++) {
-			const key = link.keys[i];
+			for (let i = 0; i < link.keys.length; i++) {
+				const key = link.keys[i];
 
-			if (!key) {
-				continue;
-			}
+				if (!key) {
+					continue;
+				}
 
-			let parserCode = "";
+				let parserCode = "";
 
-			if (!parsedKeys.has(key)) {
-				parsedKeys.add(key);
+				if (!parsedKeys.has(key)) {
+					parsedKeys.add(key);
 
-				parserCode = parsers[key];
-			}
+					parserCode = parsers[key];
+				}
 
-			const keyLiteral = JSON.stringify(key);
+				const keyLiteral = JSON.stringify(key);
 
-			const validationCode = `{
+				const validationCode = `{
 					const validated = ${isValidatorAsync ? "await " : ""}validator(
 						request_${index}[${keyLiteral}],
 						context.request[${keyLiteral}],
@@ -247,12 +215,12 @@ const generateDispatcherBody = (
 					}
 				}`;
 
-			validationsCode += parserCode
-				? `\n\n${parserCode}\n\n${validationCode}`
-				: `\n\n${validationCode}`;
-		}
+				validationsCode += parserCode
+					? `\n\n${parserCode}\n\n${validationCode}`
+					: `\n\n${validationCode}`;
+			}
 
-		return `{
+			return `{
 			const request_${index} = chain[${index}].request;
 
 			let errors_${index};
@@ -266,23 +234,13 @@ const generateDispatcherBody = (
 			}
 		}
 
-		${generateDispatcherBody(chain, index + 1, isSse, parsedKeys, isNested, awaitMap, asyncMap, isRouteAsync, parsers, hasValidator, isValidatorAsync, needsContext)}`;
-	}
+		${emit(index + 1, isNested)}`;
+		}
 
-	return generateDispatcherBody(
-		chain,
-		index + 1,
-		isSse,
-		parsedKeys,
-		isNested,
-		awaitMap,
-		asyncMap,
-		isRouteAsync,
-		parsers,
-		hasValidator,
-		isValidatorAsync,
-		needsContext,
-	);
+		return emit(index + 1, isNested);
+	};
+
+	return emit(0, false);
 };
 
 /**
@@ -357,6 +315,41 @@ const analyzeChain = (
 	return { asyncMap, awaitMap, isChainAsync, needsContext };
 };
 
+/**
+ * Shape of the factory `new Function` compiles. Its parameter names are the
+ * free identifiers of the generated dispatcher, and each parameter matches —
+ * position for position — the argument `jit` passes when invoking it (the
+ * `import()` type queries stand in for `typeof X` on the same-named
+ * parameters, which TypeScript rejects as self-references).
+ */
+type DispatcherFactory = (
+	app: Cudenix,
+	Context: typeof import("@/core/context").Context,
+	chain: EndpointChain,
+	response: typeof import("@/core/response").response,
+	Reply: typeof import("@/core/reply").Reply,
+	merge: typeof import("@/utils/objects/merge").merge,
+	Empty: typeof import("@/utils/objects/empty").Empty,
+	fail: typeof import("@/core/reply").fail,
+	stream: typeof import("@/core/sse").stream,
+	parseBody: typeof import("@/utils/bodies/parse-body").parseBody,
+	parseCookies: typeof import("@/utils/cookies/parse-cookies").parseCookies,
+	parseQuery: typeof import("@/utils/urls/parse-query").parseQuery,
+	validator: ValidatorPlugin | undefined,
+	handler: Endpoint["route"]["handler"],
+) => Dispatch;
+
+/**
+ * One compiled factory per distinct generated source. Two endpoints whose
+ * chains emit byte-identical dispatchers — the common case, since routes
+ * sharing a module's chain shape differ only in the values passed to the
+ * factory — reuse a single `new Function` compilation; every call still
+ * returns a fresh dispatcher bound to its own endpoint. Intentionally
+ * unbounded: growth is capped by the number of distinct endpoint shapes, and
+ * factories close over nothing.
+ */
+const factories = new Map<string, DispatcherFactory>();
+
 export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const chain = endpoint.chain;
 	const handler = endpoint.route.handler;
@@ -376,15 +369,12 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	);
 
 	const parsers: Record<keyof ValidatorRequest, string> = {
-		body: PARSERS.body,
-		cookies: PARSERS.cookies,
-		headers: PARSERS.headers,
+		...PARSERS,
 		params: generateParamsParser(
 			endpoint.paramKeys,
 			endpoint.matchOffset,
 			endpoint.restKeys,
 		),
-		query: PARSERS.query,
 	};
 
 	const prelude = needsContext
@@ -393,10 +383,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 
 	const body = generateDispatcherBody(
 		chain,
-		0,
 		isSse,
-		new Set(),
-		false,
 		awaitMap,
 		asyncMap,
 		isRouteAsync,
@@ -406,38 +393,31 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		needsContext,
 	);
 
-	const factory = new Function(
-		"app",
-		"Context",
-		"chain",
-		"response",
-		"Reply",
-		"merge",
-		"Empty",
-		"fail",
-		"stream",
-		"parseBody",
-		"parseCookies",
-		"parseQuery",
-		"validator",
-		"handler",
-		`return ${isChainAsync ? "async " : ""}function (request, match) {${prelude}${body}\n};`,
-	) as (
-		app: Cudenix,
-		context: typeof Context,
-		chain: EndpointChain,
-		responseBuilder: typeof response,
-		reply: typeof Reply,
-		mergeObjects: typeof merge,
-		empty: typeof Empty,
-		failReply: typeof fail,
-		isSseStream: typeof stream,
-		bodyParser: typeof parseBody,
-		cookieParser: typeof parseCookies,
-		queryParser: typeof parseQuery,
-		validatorPlugin: ValidatorPlugin | undefined,
-		routeHandler: Endpoint["route"]["handler"],
-	) => Dispatch;
+	const source = `return ${isChainAsync ? "async " : ""}function (request, match) {${prelude}${body}\n};`;
+
+	let factory = factories.get(source);
+
+	if (factory === undefined) {
+		factory = new Function(
+			"app",
+			"Context",
+			"chain",
+			"response",
+			"Reply",
+			"merge",
+			"Empty",
+			"fail",
+			"stream",
+			"parseBody",
+			"parseCookies",
+			"parseQuery",
+			"validator",
+			"handler",
+			source,
+		) as DispatcherFactory;
+
+		factories.set(source, factory);
+	}
 
 	return factory(
 		app,
