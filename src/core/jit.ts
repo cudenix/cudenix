@@ -375,8 +375,6 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		isValidatorAsync,
 	);
 
-	const asyncKeyword = isChainAsync ? "async " : "";
-
 	const parsers: Record<keyof ValidatorRequest, string> = {
 		body: PARSERS.body,
 		cookies: PARSERS.cookies,
@@ -423,7 +421,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 		"parseQuery",
 		"validator",
 		"handler",
-		`return ${asyncKeyword}function (request, match) {${prelude}${body}\n};`,
+		`return ${isChainAsync ? "async " : ""}function (request, match) {${prelude}${body}\n};`,
 	) as (
 		app: Cudenix,
 		context: typeof Context,
