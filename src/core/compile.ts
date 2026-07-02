@@ -26,7 +26,37 @@ interface FlattenInherited {
 
 /**
  * Walk a module subtree, collecting endpoints into `endpoints` (keyed by HTTP
- * method) and mounts into `mounts`.
+ * method) and mounts into `mounts`, and return the subtree's outward-facing
+ * `{ chain, path, start }`:
+ *
+ * - `chain` — the accumulated {@link EndpointChain}: the inherited links plus
+ *   this module's own middlewares/stores/validators, plus any bubbled up from
+ *   a `use`d MODULE.
+ * - `path` — the module's fully composed prefix, forwarded so later siblings
+ *   inherit a `use`d module's prefix.
+ * - `start` — `inherited.chain.length`; the caller grafts on only
+ *   `chain[start..]`, the links this subtree actually added.
+ *
+ * A MODULE link bubbles its new links and composed path back into the parent;
+ * a GROUP link is isolated — its inherited prefix and chain snapshot are baked
+ * into the module handed to the group handler, and the recursion starts from
+ * empty inherited state, so nothing a group adds leaks to its siblings.
+ *
+ * @example
+ * ```typescript
+ * const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
+ *
+ * const { path, start } = flatten(
+ *   endpoints,
+ *   [],
+ *   new Module({ prefix: "/v1" }).route("GET", "/a", () => ok("v1")),
+ *   { chain: [], path: "" },
+ * );
+ *
+ * path; // "/v1"
+ * start; // 0
+ * endpoints.GET[0].path; // "/v1/a"
+ * ```
  */
 const flatten = (
 	endpoints: Record<HttpMethod, Endpoint[]>,
@@ -40,8 +70,14 @@ const flatten = (
 	const accumulatedChain = inheritedChain.slice();
 	const moduleChain = module.chain;
 
-	let path = module.prefix;
-	let pathPrefix: "" | `/${string}` = path === "/" ? "" : path;
+	// Path joins follow one rule everywhere below: a segment equal to "/"
+	// contributes "" (so joins never produce a double slash), and a join that
+	// reduces to "" re-expands to "/" via the `|| "/"` tails.
+	const ownPrefix: "" | `/${string}` =
+		module.prefix === "/" ? "" : module.prefix;
+
+	let composedPath = module.prefix;
+	let pathPrefix = ownPrefix;
 	let cachedChain: EndpointChain | undefined;
 
 	for (let i = 0; i < moduleChain.length; i++) {
@@ -91,8 +127,8 @@ const flatten = (
 			}
 
 			if (compiled.path !== "/") {
-				path = `${pathPrefix}${compiled.path}`;
-				pathPrefix = path === "/" ? "" : path;
+				composedPath = `${pathPrefix}${compiled.path}`;
+				pathPrefix = composedPath === "/" ? "" : composedPath;
 			}
 
 			continue;
@@ -102,7 +138,7 @@ const flatten = (
 			mounts.push({
 				fetch: link.fetch,
 				path:
-					`${inheritedPath}${module.prefix === "/" ? "" : module.prefix}${link.path === "/" ? "" : link.path}` ||
+					`${inheritedPath}${ownPrefix}${link.path === "/" ? "" : link.path}` ||
 					"/",
 			});
 
@@ -142,13 +178,18 @@ const flatten = (
 		});
 	}
 
-	return { chain: accumulatedChain, path, start: inheritedLength };
+	return {
+		chain: accumulatedChain,
+		path: composedPath,
+		start: inheritedLength,
+	};
 };
 
 /**
  * Compile a {@link Cudenix} app's module tree into its runtime routing tables:
  * `app.methods`, `app.routes`, `app.mounts` (prefixed mounts, longest prefix
- * first), and `app.rootMount` (the first `"/"` mount, matched last).
+ * first — only set when a non-`"/"` mount exists), and `app.rootMount` (the
+ * first `"/"` mount, tried after every prefixed mount).
  *
  * @example
  * ```typescript
@@ -161,8 +202,8 @@ const flatten = (
  * compile(a);
  *
  * a.methods.GET; // { endpoints: [...], regexp: /.../, table: [...] }
- * a.routes["/a"]; // { GET: (request) => ... } — dispatch handler
- * a.routes["/b"]; // { GET: Response } — pre-built static response
+ * a.routes["/a"]; // { GET: (request) => ... } — non-static: a dispatch closure
+ * a.routes["/b"]; // { GET: Response } — static value: a pre-built Response
  * ```
  */
 export const compile = (app: Cudenix) => {
@@ -195,7 +236,6 @@ export const compile = (app: Cudenix) => {
 				continue;
 			}
 
-			const endpointOffset = matchOffset;
 			const isStatic =
 				methodEndpoint.route.static &&
 				methodEndpoint.chain.length === 0;
@@ -203,7 +243,7 @@ export const compile = (app: Cudenix) => {
 
 			const { restKeys, paramKeys, pattern } = pathToRegexp(path);
 
-			methodEndpoint.matchOffset = endpointOffset;
+			methodEndpoint.matchOffset = matchOffset;
 			methodEndpoint.paramKeys = paramKeys;
 			methodEndpoint.restKeys = restKeys;
 
@@ -217,11 +257,12 @@ export const compile = (app: Cudenix) => {
 				methodEndpoint.dispatch = jit(app, methodEndpoint);
 			}
 
-			matchOffset += 1 + paramKeys.length;
-
-			regexpPatterns.push(pattern);
 			regexpEndpoints.push(methodEndpoint);
-			regexpTable[endpointOffset] = methodEndpoint;
+			regexpPatterns.push(pattern);
+
+			regexpTable[matchOffset] = methodEndpoint;
+
+			matchOffset += 1 + paramKeys.length;
 
 			if (path.indexOf("?") === -1 && path.indexOf("...") === -1) {
 				let pathRoutes = routes[path];
