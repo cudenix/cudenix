@@ -11,8 +11,8 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 
 /**
- * Shared frozen placeholder for an endpoint's `paramKeys`/`restKeys` until
- * {@link compile} swaps in the real keys.
+ * Frozen placeholder for `paramKeys`/`restKeys` until {@link compile} swaps
+ * in the real keys.
  */
 const EMPTY_KEYS = Object.freeze([]) as unknown as string[];
 
@@ -25,36 +25,21 @@ interface FlattenInherited {
 }
 
 /**
- * Walk a module subtree, collecting endpoints into `endpoints` (keyed by HTTP
- * method) and mounts into `mounts`, and return the subtree's outward-facing
- * `{ chain, path, start }`:
- *
- * - `chain` — the accumulated {@link EndpointChain}: the inherited links plus
- *   this module's own middlewares/stores/validators, plus any bubbled up from
- *   a `use`d MODULE.
- * - `path` — the module's fully composed prefix, forwarded so later siblings
- *   inherit a `use`d module's prefix.
- * - `start` — `inherited.chain.length`; the caller grafts on only
- *   `chain[start..]`, the links this subtree actually added.
- *
- * A MODULE link bubbles its new links and composed path back into the parent;
- * a GROUP link is isolated — its inherited prefix and chain snapshot are baked
- * into the module handed to the group handler, and the recursion starts from
- * empty inherited state, so nothing a group adds leaks to its siblings.
+ * Walk a module subtree, collecting endpoints (keyed by HTTP method) and
+ * mounts, and return its outward-facing `{ chain, path, start }` — the caller
+ * grafts on only `chain[start..]`, the links this subtree actually added.
  *
  * @example
  * ```typescript
  * const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
  *
- * const { path, start } = flatten(
+ * flatten(
  *   endpoints,
  *   [],
  *   new Module({ prefix: "/v1" }).route("GET", "/a", () => ok("v1")),
  *   { chain: [], path: "" },
  * );
  *
- * path; // "/v1"
- * start; // 0
  * endpoints.GET[0].path; // "/v1/a"
  * ```
  */
@@ -69,10 +54,6 @@ const flatten = (
 	const inheritedPath = inherited.path;
 	const accumulatedChain = inheritedChain.slice();
 	const moduleChain = module.chain;
-
-	// Path joins follow one rule everywhere below: a segment equal to "/"
-	// contributes "" (so joins never produce a double slash), and a join that
-	// reduces to "" re-expands to "/" via the `|| "/"` tails.
 	const ownPrefix: "" | `/${string}` =
 		module.prefix === "/" ? "" : module.prefix;
 
@@ -187,23 +168,15 @@ const flatten = (
 
 /**
  * Compile a {@link Cudenix} app's module tree into its runtime routing tables:
- * `app.methods`, `app.routes`, `app.mounts` (prefixed mounts, longest prefix
- * first — only set when a non-`"/"` mount exists), and `app.rootMount` (the
- * first `"/"` mount, tried after every prefixed mount).
+ * `app.methods`, `app.routes`, `app.mounts`, and `app.rootMount`.
  *
  * @example
  * ```typescript
- * const a = new Cudenix(
- *   new Module()
- *     .route("GET", "/a", () => ok("v1"))
- *     .route("GET", "/b", ok("v2")),
- * );
+ * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
  *
  * compile(a);
  *
- * a.methods.GET; // { endpoints: [...], regexp: /.../, table: [...] }
- * a.routes["/a"]; // { GET: (request) => ... } — non-static: a dispatch closure
- * a.routes["/b"]; // { GET: Response } — static value: a pre-built Response
+ * a.routes["/a"]; // { GET: (request) => ... }
  * ```
  */
 export const compile = (app: Cudenix) => {
