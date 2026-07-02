@@ -11,6 +11,9 @@ import { Empty } from "@/utils/objects/empty";
 import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
+/**
+ * Shared 404 returned by reference on every miss — never cloned.
+ */
 const NOT_FOUND = new Response(undefined, { status: 404 });
 
 /**
@@ -32,7 +35,7 @@ export type EndpointChain = (AnyMiddleware | AnyStore | AnyValidator)[];
  * const a: Endpoint = {
  *   chain: [],
  *   dispatch: staticDispatch,
- *   matchOffset: 3,
+ *   matchOffset: 1,
  *   paramKeys: [],
  *   path: "/a",
  *   response: new Response("v1"),
@@ -60,23 +63,28 @@ export interface Endpoint {
 }
 
 /**
- * Per-method routing table: the {@link Endpoint}s for one HTTP method, their
- * `matchOffset`s in an index-aligned `offsets` array, and the merged `regexp`
- * matched against the request URL.
+ * Per-method routing table: the {@link Endpoint}s for one HTTP method, the
+ * merged `regexp` matched against the request URL, and a sparse `table`
+ * mapping each endpoint's marker-group offset in a match result back to its
+ * endpoint.
  *
  * @example
  * ```typescript
+ * const table: Endpoint[] = [];
+ *
+ * table[1] = endpoint;
+ *
  * const a: MethodData = {
  *   endpoints: [endpoint],
- *   offsets: [3],
- *   regexp: /^(https?:\/\/)[^\s\/]+(()\/\x61)(?![^?#])/,
+ *   regexp: /^(?:https?:\/\/)[^\s\/]+(?:()\/\x61)(?![^?#])/,
+ *   table,
  * };
  * ```
  */
 export interface MethodData {
 	endpoints: Endpoint[];
-	offsets: number[];
 	regexp: RegExp;
+	table: Endpoint[];
 }
 
 /**
@@ -90,7 +98,22 @@ export interface MethodData {
  * };
  * ```
  */
-export type Plugin = (...options: any[]) => void;
+export type Plugin = (this: Cudenix, ...options: any[]) => void;
+
+/**
+ * Options accepted by `.listen()` — every `Bun.serve` option except the ones
+ * the app itself provides (`fetch`, `routes`) or does not support (`unix`,
+ * `websocket`).
+ *
+ * @example
+ * ```typescript
+ * const a: ListenOptions = { port: 3000 };
+ * ```
+ */
+export type ListenOptions = Omit<
+	Extract<Bun.Serve.Options<unknown>, { websocket?: never }>,
+	"fetch" | "routes" | "unix"
+>;
 
 /**
  * Public shape of a Cudenix application instance.
@@ -107,16 +130,12 @@ export type Plugin = (...options: any[]) => void;
 export interface Cudenix {
 	compile(): void;
 	fetch(request: Request): MaybePromise<Response>;
-	listen(
-		options?: Omit<
-			Extract<Bun.Serve.Options<unknown>, { websocket?: never }>,
-			"fetch" | "unix"
-		>,
-	): Omit<Cudenix, "listen">;
+	listen(options?: ListenOptions): Omit<Cudenix, "listen">;
 	memory: Record<PropertyKey, unknown>;
 	methods: Record<HttpMethod, MethodData>;
 	mounts?: CompiledMount[];
 	plugins(plugins: Plugin[]): Cudenix;
+	rootMount?: CompiledMount;
 	routes: Record<string, Bun.Serve.Routes<unknown, string>>;
 	server?: Bun.Server<unknown>;
 }
@@ -158,7 +177,9 @@ export const Cudenix = function (this: Cudenix, module: AnyModule) {
 } as unknown as CudenixConstructor;
 
 /**
- * Compile the app so it can serve requests.
+ * Compile the app so it can serve requests. Compiling consumes
+ * `memory.module` and `memory.plugins`, so only the first call does any
+ * work — later calls (including the one `listen` always makes) are no-ops.
  *
  * @example
  * ```typescript
@@ -205,11 +226,11 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 		const match = methodData.regexp.exec(request.url);
 
 		if (match) {
-			const offsets = methodData.offsets;
+			const table = methodData.table;
 
-			for (let i = 0; i < offsets.length; i++) {
-				if (match[offsets[i]!] !== undefined) {
-					return methodData.endpoints[i]!.dispatch(request, match);
+			for (let offset = 1; offset < match.length; offset++) {
+				if (match[offset] !== undefined) {
+					return table[offset]!.dispatch(request, match);
 				}
 			}
 		}
@@ -224,10 +245,6 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 		for (let i = 0; i < mounts.length; i++) {
 			const mount = mounts[i]!;
 			const prefix = mount.path;
-
-			if (prefix === "/") {
-				return mount.fetch(request);
-			}
 
 			if (url.startsWith(prefix, pathStart)) {
 				const afterPrefix = pathStart + prefix.length;
@@ -261,7 +278,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 		}
 	}
 
-	return NOT_FOUND;
+	return this.rootMount?.fetch(request) ?? NOT_FOUND;
 };
 
 /**
@@ -276,13 +293,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
  * a.server?.port; // 3000
  * ```
  */
-Cudenix.prototype.listen = function (
-	this: Cudenix,
-	options?: Omit<
-		Extract<Bun.Serve.Options<unknown>, { websocket?: never }>,
-		"fetch" | "unix"
-	>,
-) {
+Cudenix.prototype.listen = function (this: Cudenix, options?: ListenOptions) {
 	this.compile();
 
 	this.server = Bun.serve({

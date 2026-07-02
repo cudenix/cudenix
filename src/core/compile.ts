@@ -147,7 +147,8 @@ const flatten = (
 
 /**
  * Compile a {@link Cudenix} app's module tree into its runtime routing tables:
- * `app.methods`, `app.routes`, and `app.mounts`.
+ * `app.methods`, `app.routes`, `app.mounts` (prefixed mounts, longest prefix
+ * first), and `app.rootMount` (the first `"/"` mount, matched last).
  *
  * @example
  * ```typescript
@@ -159,7 +160,7 @@ const flatten = (
  *
  * compile(a);
  *
- * a.methods.GET; // { endpoints: [...], offsets: [...], regexp: /.../ }
+ * a.methods.GET; // { endpoints: [...], regexp: /.../, table: [...] }
  * a.routes["/a"]; // { GET: (request) => ... } — dispatch handler
  * a.routes["/b"]; // { GET: Response } — pre-built static response
  * ```
@@ -182,10 +183,10 @@ export const compile = (app: Cudenix) => {
 		}
 
 		const regexpEndpoints: Endpoint[] = [];
-		const regexpOffsets: number[] = [];
 		const regexpPatterns: string[] = [];
+		const regexpTable: Endpoint[] = [];
 
-		let matchOffset = 3;
+		let matchOffset = 1;
 
 		for (let i = 0; i < methodEndpoints.length; i++) {
 			const methodEndpoint = methodEndpoints[i];
@@ -220,7 +221,7 @@ export const compile = (app: Cudenix) => {
 
 			regexpPatterns.push(pattern);
 			regexpEndpoints.push(methodEndpoint);
-			regexpOffsets.push(endpointOffset);
+			regexpTable[endpointOffset] = methodEndpoint;
 
 			if (path.indexOf("?") === -1 && path.indexOf("...") === -1) {
 				let pathRoutes = routes[path];
@@ -250,16 +251,32 @@ export const compile = (app: Cudenix) => {
 
 		app.methods[method] = {
 			endpoints: regexpEndpoints,
-			offsets: regexpOffsets,
 			regexp: new RegExp(
-				`^(https?:\\/\\/)[^\\s\\/]+(${regexpPatterns.join("|")})(?![^?#])`,
+				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${regexpPatterns.join("|")})(?![^?#])`,
 			),
+			table: regexpTable,
 		};
 	}
 
 	if (mounts.length > 0) {
-		mounts.sort((a, b) => b.path.length - a.path.length);
+		const prefixed: CompiledMount[] = [];
 
-		app.mounts = mounts;
+		for (let i = 0; i < mounts.length; i++) {
+			const mount = mounts[i]!;
+
+			if (mount.path === "/") {
+				app.rootMount ??= mount;
+
+				continue;
+			}
+
+			prefixed.push(mount);
+		}
+
+		if (prefixed.length > 0) {
+			prefixed.sort((a, b) => b.path.length - a.path.length);
+
+			app.mounts = prefixed;
+		}
 	}
 };
