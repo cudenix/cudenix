@@ -27,27 +27,18 @@ const NOT_FOUND = new Response(undefined, { status: 404 });
 export type EndpointChain = (AnyMiddleware | AnyStore | AnyValidator)[];
 
 /**
- * Compiled endpoint descriptor — one fully-resolved {@link AnyRoute} plus
- * everything needed to match a URL against it and run it.
+ * Compiled {@link AnyRoute} plus everything needed to match and run it.
  *
  * @example
  * ```typescript
  * const a: Endpoint = {
  *   chain: [],
- *   dispatch: staticDispatch,
+ *   dispatch,
  *   matchOffset: 1,
  *   paramKeys: [],
  *   path: "/a",
- *   response: new Response("v1"),
  *   restKeys: [],
- *   route: {
- *     method: "GET",
- *     path: "/a",
- *     handler: () => ok("v1"),
- *     sse: false,
- *     static: true,
- *     type: "ROUTE",
- *   },
+ *   route,
  * };
  * ```
  */
@@ -63,22 +54,12 @@ export interface Endpoint {
 }
 
 /**
- * Per-method routing table: the {@link Endpoint}s for one HTTP method, the
- * merged `regexp` matched against the request URL, and a sparse `table`
- * mapping each endpoint's marker-group offset in a match result back to its
- * endpoint.
+ * Per-method routing table: {@link Endpoint}s, their merged `regexp`, and a
+ * sparse `table` from marker-group offset to endpoint.
  *
  * @example
  * ```typescript
- * const table: Endpoint[] = [];
- *
- * table[1] = endpoint;
- *
- * const a: MethodData = {
- *   endpoints: [endpoint],
- *   regexp: /^(?:https?:\/\/)[^\s\/]+(?:()\/\x61)(?![^?#])/,
- *   table,
- * };
+ * const a: MethodData = { endpoints: [endpoint], regexp, table };
  * ```
  */
 export interface MethodData {
@@ -88,8 +69,7 @@ export interface MethodData {
 }
 
 /**
- * Setup hook registered through `.plugins()`, run once during `.compile()`
- * with `this` bound to the {@link Cudenix} app.
+ * Setup hook run once during `.compile()` with `this` bound to the app.
  *
  * @example
  * ```typescript
@@ -101,9 +81,8 @@ export interface MethodData {
 export type Plugin = (this: Cudenix, ...options: any[]) => void;
 
 /**
- * Options accepted by `.listen()` — every `Bun.serve` option except the ones
- * the app itself provides (`fetch`, `routes`) or does not support (`unix`,
- * `websocket`).
+ * Options accepted by `.listen()` — `Bun.serve` options minus `fetch`,
+ * `routes`, `unix`, and `websocket`.
  *
  * @example
  * ```typescript
@@ -121,10 +100,6 @@ export type ListenOptions = Omit<
  * @example
  * ```typescript
  * const a: Cudenix = new Cudenix(new Module());
- *
- * a.compile();
- *
- * a.fetch(new Request("http://localhost/a"));
  * ```
  */
 export interface Cudenix {
@@ -148,8 +123,6 @@ export interface Cudenix {
  * const Ctor: CudenixConstructor = Cudenix;
  *
  * const a = new Ctor(new Module());
- *
- * a.compile();
  * ```
  */
 export interface CudenixConstructor {
@@ -162,10 +135,6 @@ export interface CudenixConstructor {
  * @example
  * ```typescript
  * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
- *
- * a.compile();
- *
- * a.fetch(new Request("http://localhost/a"));
  * ```
  */
 export const Cudenix = function (this: Cudenix, module: AnyModule) {
@@ -177,17 +146,14 @@ export const Cudenix = function (this: Cudenix, module: AnyModule) {
 } as unknown as CudenixConstructor;
 
 /**
- * Compile the app so it can serve requests. Compiling consumes
- * `memory.module` and `memory.plugins`, so only the first call does any
- * work — later calls (including the one `listen` always makes) are no-ops.
+ * Compile the app so it can serve requests — only the first call does any
+ * work.
  *
  * @example
  * ```typescript
  * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
  *
  * a.compile();
- *
- * a.fetch(new Request("http://localhost/a"));
  * ```
  */
 Cudenix.prototype.compile = function (this: Cudenix) {
@@ -214,9 +180,7 @@ Cudenix.prototype.compile = function (this: Cudenix) {
  *
  * a.compile();
  *
- * const b = await a.fetch(new Request("http://localhost/a"));
- *
- * b.status; // 200
+ * (await a.fetch(new Request("http://localhost/a"))).status; // 200
  * ```
  */
 Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
@@ -288,9 +252,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
  * ```typescript
  * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
  *
- * a.listen({ port: 3000 });
- *
- * a.server?.port; // 3000
+ * a.listen({ port: 3000 }); // a.server?.port is now 3000
  * ```
  */
 Cudenix.prototype.listen = function (this: Cudenix, options?: ListenOptions) {
@@ -325,8 +287,6 @@ Cudenix.prototype.listen = function (this: Cudenix, options?: ListenOptions) {
  *     this.memory.validator = someValidator;
  *   },
  * ]);
- *
- * a.compile();
  * ```
  */
 Cudenix.prototype.plugins = function (this: Cudenix, plugins: Plugin[]) {
