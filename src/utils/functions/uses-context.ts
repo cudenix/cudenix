@@ -1,13 +1,9 @@
-/** Matches a function source declaring an empty parameter list. */
 const EMPTY_PARAMETERS = /^\s*(?:async\s+)?(?:function\b[^(]*)?\(\s*\)/;
 
-/** Memoized verdicts — the source scan is pure per (immutable) function. */
 const verdicts = new WeakMap<(...args: any[]) => unknown, boolean>();
 
 /**
  * Check whether `fn` can reach its first argument — the request `Context`.
- * Conservative: only returns `false` when the parameter is provably unreachable,
- * so a handler that does use the context is never starved of it.
  *
  * @example
  * ```typescript
