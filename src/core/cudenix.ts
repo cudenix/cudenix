@@ -154,6 +154,10 @@ export const Cudenix = function (this: Cudenix, module: AnyModule) {
  * ```
  */
 Cudenix.prototype.compile = function (this: Cudenix) {
+	if (!("module" in this.memory)) {
+		return;
+	}
+
 	if ("plugins" in this.memory) {
 		const plugins = this.memory.plugins as Plugin[];
 
