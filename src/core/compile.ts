@@ -10,10 +10,6 @@ import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 
-/**
- * Frozen placeholder for `paramKeys`/`restKeys` until {@link compile} swaps
- * in the real keys.
- */
 const EMPTY_KEYS = Object.freeze([]) as unknown as string[];
 
 /**
