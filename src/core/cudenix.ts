@@ -11,9 +11,6 @@ import { Empty } from "@/utils/objects/empty";
 import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
-/**
- * Shared 404 returned by reference on every miss — never cloned.
- */
 const NOT_FOUND = new Response(undefined, { status: 404 });
 
 /**
