@@ -76,6 +76,42 @@ describe("usage: app", () => {
 		});
 	});
 
+	describe("compile", () => {
+		it("should do work only on the first call", async () => {
+			const app = new Cudenix(
+				new Module().route("GET", "/a", () => ok("v1")),
+			);
+
+			app.compile();
+			app.compile();
+
+			const result = await app.fetch(new Request("http://localhost/a"));
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v1");
+		});
+
+		it("should serve through listen() after an explicit compile()", async () => {
+			const app = new Cudenix(
+				new Module().route("GET", "/a", () => ok("v1")),
+			);
+
+			app.compile();
+			app.listen({ port: 0 });
+
+			try {
+				const result = await fetch(
+					`http://localhost:${app.server!.port}/a`,
+				);
+
+				expect(result.status).toBe(200);
+				expect(await result.text()).toBe("v1");
+			} finally {
+				app.server?.stop(true);
+			}
+		});
+	});
+
 	describe("memory", () => {
 		it("should share memory across requests, unlike the per-request store", async () => {
 			using server = serveApp(

@@ -606,6 +606,61 @@ describe("usage: routing", () => {
 			expect(multi.status).toBe(200);
 			expect(await multi.text()).toBe("wild");
 		});
+
+		it("should prefer a static route over an earlier-registered param route identically through Bun's table and the regexp fallback", async () => {
+			using server = serveApp(
+				new Module()
+					.route("GET", "/a/:p1", () => ok("param"))
+					.route("GET", "/a/b", () => ok("static")),
+			);
+
+			const served = await server.fetch("/a/b");
+			const fallback = await server.app.fetch(
+				new Request(server.url("/a/b")),
+			);
+
+			expect(await served.text()).toBe("static");
+			expect(await fallback.text()).toBe("static");
+		});
+
+		it("should prefer a param route over an earlier-registered rest route identically through both dispatch paths", async () => {
+			using server = serveApp(
+				new Module()
+					.route("GET", "/a/...r1", () => ok("rest"))
+					.route("GET", "/a/:p1", () => ok("param")),
+			);
+
+			const served = await server.fetch("/a/1");
+			const fallback = await server.app.fetch(
+				new Request(server.url("/a/1")),
+			);
+
+			expect(await served.text()).toBe("param");
+			expect(await fallback.text()).toBe("param");
+		});
+
+		it("should order static, param, and wildcard routes by specificity through the regexp fallback", async () => {
+			using server = serveApp(
+				new Module()
+					.route("GET", "/a/*", () => ok("wild"))
+					.route("GET", "/a/:p1", () => ok("param"))
+					.route("GET", "/a/b", () => ok("static")),
+			);
+
+			const staticFallback = await server.app.fetch(
+				new Request(server.url("/a/b")),
+			);
+			const paramFallback = await server.app.fetch(
+				new Request(server.url("/a/1")),
+			);
+			const wildFallback = await server.app.fetch(
+				new Request(server.url("/a/1/2")),
+			);
+
+			expect(await staticFallback.text()).toBe("static");
+			expect(await paramFallback.text()).toBe("param");
+			expect(await wildFallback.text()).toBe("wild");
+		});
 	});
 
 	describe("prefixes", () => {

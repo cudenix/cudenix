@@ -37,8 +37,8 @@ export interface ServeAppOptions {
  * deployed app is reached, rather than the in-process `app.fetch()` shortcut
  * that only ever consults the regexp table.
  *
- * Listens on an ephemeral port (`port: 0`); compile is one-shot, so build one
- * server per test. Bind it with `using` to stop the server automatically.
+ * Listens on an ephemeral port (`port: 0`); build one server per test. Bind it
+ * with `using` to stop the server automatically.
  *
  * @param module - Root module compiled into the app's routes.
  * @param options - Optional plugins and `Bun.serve` overrides; see
