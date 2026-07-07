@@ -2,25 +2,39 @@ const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
 
+const STATIC_RANK = 0;
+const PARAM_RANK = 1;
+const WILDCARD_RANK = 2;
+const REST_RANK = 3;
+
 /**
- * Compile a route pattern into a regex source plus its parameter names.
+ * Compile a route pattern into a regex source plus its parameter names and one
+ * specificity rank per segment (literal, then param, then wildcard, then rest).
  *
  * @example
  * ```typescript
- * const { paramKeys, pattern } = pathToRegexp("/a/:p1");
+ * const { paramKeys, pattern, ranks } = pathToRegexp("/a/:p1");
  * const match = new RegExp(`^${pattern}$`).exec("/a/v1")!;
  *
  * paramKeys; // ["p1"]
+ * ranks; // [0, 1]
  * match[2]; // "v1"
  * ```
  */
 export const pathToRegexp = (path: string) => {
 	if (path === "/") {
-		return { paramKeys: [], pattern: String.raw`()\/`, restKeys: [] };
+		return {
+			paramKeys: [],
+			pattern: String.raw`()\/`,
+			ranks: [],
+			restKeys: [],
+		};
 	}
 
 	const length = path.length;
+	
 	const paramKeys: string[] = [];
+	const ranks: number[] = [];
 	const restKeys: string[] = [];
 
 	let areAllSegmentsOptional = true;
@@ -49,8 +63,12 @@ export const pathToRegexp = (path: string) => {
 		if (firstCharCode === 58) {
 			paramKeys.push(path.substring(i + 1, end));
 
+			ranks.push(PARAM_RANK);
+
 			segment = PARAM_CAPTURE;
 		} else if (firstCharCode === 42 && end - i === 1) {
+			ranks.push(WILDCARD_RANK);
+
 			segment = WILDCARD;
 		} else if (
 			firstCharCode === 46 &&
@@ -61,10 +79,14 @@ export const pathToRegexp = (path: string) => {
 
 			paramKeys.push(name);
 
+			ranks.push(REST_RANK);
+
 			restKeys.push(name);
 
 			segment = REST_CAPTURE;
 		} else {
+			ranks.push(STATIC_RANK);
+
 			segment = `\\/${RegExp.escape(path.substring(i, end))}`;
 		}
 
@@ -85,6 +107,7 @@ export const pathToRegexp = (path: string) => {
 			areAllSegmentsOptional && segments
 				? `()(?:${segments}|\\/)`
 				: `()${segments}`,
+		ranks,
 		restKeys,
 	};
 };

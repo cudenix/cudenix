@@ -558,4 +558,18 @@ describe("pathToRegexp", () => {
 			expect("/a".match(regex)?.[2]).toBeUndefined();
 		});
 	});
+
+	describe("ranks", () => {
+		it("should rank literal, param, wildcard, and rest segments in that order", () => {
+			expect(pathToRegexp("/a/:p1/*/...r1").ranks).toEqual([0, 1, 2, 3]);
+		});
+
+		it("should not change a segment's rank when it is optional", () => {
+			expect(pathToRegexp("/a?/:p1?/...r1?").ranks).toEqual([0, 1, 3]);
+		});
+
+		it("should return no ranks for the root path", () => {
+			expect(pathToRegexp("/").ranks).toEqual([]);
+		});
+	});
 });
