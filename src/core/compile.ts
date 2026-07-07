@@ -12,6 +12,42 @@ import type { HttpMethod } from "@/utils/types/http-method";
 
 const EMPTY_KEYS = Object.freeze([]) as unknown as string[];
 
+const PACKED_SEGMENTS = 22;
+
+const POW5 = Array.from(
+	{ length: PACKED_SEGMENTS + 1 },
+	(_, exponent) => 5 ** exponent,
+);
+
+const REGEXP_ONLY_KEY = Number.MAX_SAFE_INTEGER;
+
+/**
+ * Pack per-segment `ranks` into one comparable float: one base-5 digit per
+ * segment (`rank + 1`), left-aligned with a `0` tail — the first differing
+ * segment decides, and a path that ends sorts before one that continues.
+ */
+const packPrecedence = (ranks: number[]): number => {
+	const length = Math.min(ranks.length, PACKED_SEGMENTS);
+
+	let key = 0;
+
+	for (let i = 0; i < length; i++) {
+		key = key * 5 + ranks[i]! + 1;
+	}
+
+	return key * POW5[PACKED_SEGMENTS - length]!;
+};
+
+/**
+ * One endpoint's compiled pattern pieces, staged for the precedence sort.
+ */
+interface AnalyzedEndpoint {
+	endpoint: Endpoint;
+	key: number;
+	native: boolean;
+	pattern: string;
+}
+
 /**
  * The {@link EndpointChain} and path prefix inherited from a parent module.
  */
@@ -192,11 +228,7 @@ export const compile = (app: Cudenix) => {
 			continue;
 		}
 
-		const regexpEndpoints: Endpoint[] = [];
-		const regexpPatterns: string[] = [];
-		const regexpTable: Endpoint[] = [];
-
-		let matchOffset = 1;
+		const analyzedEndpoints: AnalyzedEndpoint[] = [];
 
 		for (let i = 0; i < methodEndpoints.length; i++) {
 			const methodEndpoint = methodEndpoints[i];
@@ -205,16 +237,47 @@ export const compile = (app: Cudenix) => {
 				continue;
 			}
 
+			const path = methodEndpoint.path;
+			const native =
+				path.indexOf("?") === -1 && path.indexOf("...") === -1;
+
+			const { paramKeys, pattern, ranks, restKeys } = pathToRegexp(path);
+
+			methodEndpoint.paramKeys = paramKeys;
+			methodEndpoint.restKeys = restKeys;
+
+			analyzedEndpoints.push({
+				endpoint: methodEndpoint,
+				key: native ? packPrecedence(ranks) : REGEXP_ONLY_KEY,
+				native,
+				pattern,
+			});
+		}
+
+		if (analyzedEndpoints.length === 0) {
+			continue;
+		}
+
+		analyzedEndpoints.sort(
+			(a: AnalyzedEndpoint, b: AnalyzedEndpoint) => a.key - b.key,
+		);
+
+		const regexpEndpoints: Endpoint[] = [];
+		const regexpPatterns: string[] = [];
+		const regexpTable: Endpoint[] = [];
+
+		let matchOffset = 1;
+
+		for (let i = 0; i < analyzedEndpoints.length; i++) {
+			const analyzedEndpoint = analyzedEndpoints[i]!;
+			const methodEndpoint = analyzedEndpoint.endpoint;
+
 			const isStatic =
 				methodEndpoint.route.static &&
 				methodEndpoint.chain.length === 0;
 			const path = methodEndpoint.path;
 
-			const { restKeys, paramKeys, pattern } = pathToRegexp(path);
-
 			methodEndpoint.matchOffset = matchOffset;
-			methodEndpoint.paramKeys = paramKeys;
-			methodEndpoint.restKeys = restKeys;
 
 			if (isStatic) {
 				methodEndpoint.response = response(
@@ -227,13 +290,13 @@ export const compile = (app: Cudenix) => {
 			}
 
 			regexpEndpoints.push(methodEndpoint);
-			regexpPatterns.push(pattern);
+			regexpPatterns.push(analyzedEndpoint.pattern);
 
 			regexpTable[matchOffset] = methodEndpoint;
 
-			matchOffset += 1 + paramKeys.length;
+			matchOffset += 1 + methodEndpoint.paramKeys.length;
 
-			if (path.indexOf("?") === -1 && path.indexOf("...") === -1) {
+			if (analyzedEndpoint.native) {
 				let pathRoutes = routes[path];
 
 				if (!pathRoutes) {
@@ -253,10 +316,6 @@ export const compile = (app: Cudenix) => {
 						methodEndpoint.dispatch(request);
 				}
 			}
-		}
-
-		if (regexpEndpoints.length === 0) {
-			continue;
 		}
 
 		app.methods[method] = {
