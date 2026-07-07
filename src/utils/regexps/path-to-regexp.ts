@@ -32,7 +32,7 @@ export const pathToRegexp = (path: string) => {
 	}
 
 	const length = path.length;
-	
+
 	const paramKeys: string[] = [];
 	const ranks: number[] = [];
 	const restKeys: string[] = [];
