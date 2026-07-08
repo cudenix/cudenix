@@ -273,7 +273,7 @@ const generateDispatcherBody = (
 	const emit = (index: number, isNested: boolean): string => {
 		if (index >= chain.length) {
 			if (isSse) {
-				const body = `${needsContext ? "context" : "app"}.server.timeout(request, 0);
+				const body = `${needsContext ? "context" : "app"}.server?.timeout(request, 0);
 
 				${contentTarget} = stream(handler(${routeArgument}));`;
 
