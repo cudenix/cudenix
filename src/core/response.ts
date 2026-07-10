@@ -159,9 +159,8 @@ export const processResponse = (response: ContextResponse): Response =>
 /**
  * Build the final `Response` from a {@link ContextResponse} `content` value,
  * then fold the staged `headers` (CORS etc.) and `cookies` onto it exactly once.
- * `headers` and `cookies` are omitted when nothing should apply them here: a
- * request-independent static response `compile` builds once with no context, or
- * a `BunRequest` whose `CookieMap` Bun's native router applies itself.
+ * `headers` and `cookies` are omitted only for a request-independent static
+ * response that `compile` builds once without a context.
  *
  * @example
  * ```typescript
