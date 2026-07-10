@@ -4,7 +4,7 @@
 		"declarationMap": true,
 		"forceConsistentCasingInFileNames": true,
 		"isolatedModules": true,
-		"lib": ["DOM", "DOM.Iterable", "ESNext"],
+		"lib": ["DOM", "ESNext"],
 		"module": "ESNext",
 		"moduleDetection": "force",
 		"moduleResolution": "Bundler",

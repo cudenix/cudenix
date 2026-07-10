@@ -1,5 +1,9 @@
 {
-	"compilerOptions": { "noEmit": true, "rootDir": ".." },
+	"compilerOptions": {
+		"noEmit": true,
+		"rootDir": "..",
+		"tsBuildInfoFile": "../tests.tsbuildinfo"
+	},
 	"extends": "../tsconfig.json",
 	"include": ["./**/*.ts*"]
 }
