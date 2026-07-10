@@ -7,6 +7,15 @@ type ReplacedKeys<U> = {
 }[keyof U];
 
 /**
+ * Resolve to the keys of `T` that are declared literally, excluding the ones
+ * that only exist through an index signature (`string`, `number`, `symbol`
+ * and template-literal patterns alike).
+ */
+type DeclaredKeys<T> = {
+	[K in keyof T]-?: NonNullable<unknown> extends Record<K, 1> ? never : K;
+}[keyof T];
+
+/**
  * Overlay `U` onto `T`.
  *
  * @example
@@ -28,11 +37,15 @@ export type Merge<T extends object, U extends object> = T extends unknown
 			} & {
 				[K in keyof U as K extends symbol
 					? never
-					: K extends keyof T
+					: K extends DeclaredKeys<T>
 						? K extends ReplacedKeys<U>
 							? K
 							: never
-						: K]: U[K];
+						: K]: K extends keyof T
+					? K extends ReplacedKeys<U>
+						? U[K]
+						: T[K] | U[K]
+					: U[K];
 			}
 		: never
 	: never;
