@@ -752,6 +752,28 @@ describe("usage: middlewares", () => {
 			expect(result.headers.getSetCookie()).toHaveLength(1);
 		});
 
+		it("should serialize a replacement cookie map identically through Bun and app.fetch", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.cookies = new Bun.CookieMap();
+					context.response.cookies.set("a", "v1");
+
+					return ok("v1");
+				}),
+			);
+
+			const served = await server.fetch("/a");
+			const fallback = await server.app.fetch(
+				new Request(server.url("/a")),
+			);
+
+			expect(served.headers.getSetCookie()).toEqual(
+				fallback.headers.getSetCookie(),
+			);
+			expect(served.headers.getSetCookie()).toHaveLength(1);
+			expect(served.headers.get("set-cookie")).toContain("a=v1");
+		});
+
 		it("should not double a cookie alongside a handler-returned raw Response", async () => {
 			using server = serveApp(
 				new Module().route("GET", "/a", (context) => {

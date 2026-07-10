@@ -226,18 +226,27 @@ describe("usage: routing", () => {
 				expect(get.status).toBe(404);
 			});
 
-			it("should throw on listen when a custom verb is declared on a static path", () => {
-				expect(() =>
-					serveApp(
-						new Module().route("PURGE", "/a", () => ok("purge")),
-					),
-				).toThrow(TypeError);
+			it("should serve a custom verb on a static path through the regexp fallback", async () => {
+				using server = serveApp(
+					new Module().route("PURGE", "/a", () => ok("purge")),
+				);
+
+				const result = await server.fetch("/a", { method: "PURGE" });
+
+				expect(result.status).toBe(200);
+				expect(await result.text()).toBe("purge");
+				expect(server.app.routes["/a"]).toBeUndefined();
 			});
 
-			it("should throw on listen when a lowercase method is declared on a static path", () => {
-				expect(() =>
-					serveApp(new Module().route("get", "/a", () => ok("get"))),
-				).toThrow(TypeError);
+			it("should keep a lowercase method out of Bun's table", async () => {
+				using server = serveApp(
+					new Module().route("get", "/a", () => ok("get")),
+				);
+
+				const result = await server.fetch("/a");
+
+				expect(result.status).toBe(404);
+				expect(server.app.routes["/a"]).toBeUndefined();
 			});
 
 			it("should never match a lowercase method declared on a regexp-only path", async () => {
@@ -339,16 +348,16 @@ describe("usage: routing", () => {
 			expect(withSegment.status).toBe(200);
 		});
 
-		it("should not expose URL params on the context yet (migration gap)", async () => {
+		it("should expose URL params on the context without a validator", async () => {
 			using server = serveApp(
 				new Module().route("GET", "/a/:p1", (context) =>
-					ok(typeof context.request.params),
+					ok(context.request.params),
 				),
 			);
 
 			const result = await server.fetch("/a/1");
 
-			expect(await result.text()).toBe("undefined");
+			expect(await result.json()).toEqual({ p1: "1" });
 		});
 	});
 

@@ -11,14 +11,12 @@ import { isAsync } from "@/utils/functions/is-async";
 import { usesContext } from "@/utils/functions/uses-context";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
+import { decodePathParam } from "@/utils/urls/decode-path-param";
 import { parseQuery } from "@/utils/urls/parse-query";
 
-/**
- * Full-context return expression; cookies are skipped on Bun, whose native
- * router applies them.
- */
+/** Full-context return expression. */
 const RESPONSE_CALL =
-	"response(context.response.content, isBun ? undefined : context.response.cookies, context.response.headers)";
+	"response(context.response.content, context.response.cookies, context.response.headers)";
 
 /**
  * Parse statement per request slot a validator can declare — except `params`,
@@ -65,11 +63,7 @@ const generateParamsParser = (
 					let value = match[${matchGroupIndex}];
 
 					if (value !== undefined) {
-						if (value.indexOf("%") !== -1) {
-							try {
-								value = decodeURIComponent(value);
-							} catch {}
-						}
+						value = decodePathParam(value);
 
 						params[${keyLiteral}] = ${paramValueExpression};
 					}
@@ -105,7 +99,7 @@ interface EndpointShape {
 	isValidatorAsync: boolean;
 	key: string;
 	needsContext: boolean;
-	validatesParams: boolean;
+	parsesParams: boolean;
 }
 
 /**
@@ -117,7 +111,7 @@ interface EndpointShape {
  * `a`/`s` + the JSON of its truthy keys, `_` for a position that emits nothing
  * — indices are embedded in identifiers, so interior `_` shift what follows
  * while trailing ones are dropped), and `P` + `matchOffset` + the JSON of
- * `paramKeys` + one rest bit per key when params are validated. JSON because
+ * `paramKeys` + one rest bit per key when params are parsed. JSON because
  * keys are user strings (`"a,b"` must not collide with `"a","b"`); the
  * handler, validator plugin, and chain stay out of the key — they are factory
  * arguments, never embedded in the source.
@@ -203,7 +197,10 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 		isRouteAsync ? "1" : "0"
 	}${tags.join("")}`;
 
-	if (validatesParams && endpoint.paramKeys.length > 0) {
+	const parsesParams =
+		needsContext && (validatesParams || endpoint.paramKeys.length > 0);
+
+	if (parsesParams && endpoint.paramKeys.length > 0) {
 		const paramKeys = endpoint.paramKeys;
 		const restKeys = endpoint.restKeys;
 
@@ -231,7 +228,7 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 		isValidatorAsync,
 		key,
 		needsContext,
-		validatesParams,
+		parsesParams,
 	};
 };
 
@@ -259,6 +256,10 @@ const generateDispatcherBody = (
 	} = shape;
 
 	const parsedKeys = new Set<keyof ValidatorRequest>();
+
+	if (shape.parsesParams) {
+		parsedKeys.add("params");
+	}
 
 	const linkArgument = needsContext ? "context" : "undefined";
 	const routeArgument = needsContext ? "context" : "";
@@ -411,6 +412,7 @@ type DispatcherFactory = (
 	parseBody: typeof import("@/utils/bodies/parse-body").parseBody,
 	parseCookies: typeof import("@/utils/cookies/parse-cookies").parseCookies,
 	parseQuery: typeof import("@/utils/urls/parse-query").parseQuery,
+	decodePathParam: typeof import("@/utils/urls/decode-path-param").decodePathParam,
 	validator: ValidatorPlugin | undefined,
 	handler: Endpoint["route"]["handler"],
 ) => Dispatch;
@@ -432,6 +434,7 @@ const FACTORY_PARAMETERS = [
 	"parseBody",
 	"parseCookies",
 	"parseQuery",
+	"decodePathParam",
 	"validator",
 	"handler",
 ] as const;
@@ -456,7 +459,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 	if (factory === undefined) {
 		const parsers: Record<keyof ValidatorRequest, string> = {
 			...PARSERS,
-			params: shape.validatesParams
+			params: shape.parsesParams
 				? generateParamsParser(
 						endpoint.paramKeys,
 						endpoint.matchOffset,
@@ -466,7 +469,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 		};
 
 		const prelude = shape.needsContext
-			? `\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n\n`
+			? `\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n${shape.parsesParams ? `\n${parsers.params}\n` : ""}\n`
 			: "\nlet content;\n\n";
 
 		const body = generateDispatcherBody(endpoint.chain, parsers, shape);
@@ -494,6 +497,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 		parseBody,
 		parseCookies,
 		parseQuery,
+		decodePathParam,
 		app.memory.validator as ValidatorPlugin | undefined,
 		endpoint.route.handler,
 	);

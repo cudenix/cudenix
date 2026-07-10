@@ -35,6 +35,7 @@ export interface Context<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
+	/** @deprecated Regexp matching is an internal routing detail. */
 	match?: RegExpExecArray;
 	memory: Cudenix["memory"];
 	request: { raw: Request } & Validators;
@@ -86,9 +87,8 @@ export const Context = function (
 	this: AnyContext,
 	app: Cudenix,
 	request: Request,
-	match?: RegExpExecArray,
+	_match?: RegExpExecArray,
 ) {
-	this.match = match;
 	this.memory = app.memory;
 	this.request = new Empty() as unknown as AnyContext["request"];
 	this.response = new Empty() as unknown as AnyContext["response"];
@@ -97,9 +97,8 @@ export const Context = function (
 
 	this.request.raw = request;
 
-	this.response.cookies =
-		"cookies" in request
-			? (request as Bun.BunRequest).cookies
-			: new Bun.CookieMap(request.headers.get("cookie") ?? undefined);
+	this.response.cookies = new Bun.CookieMap(
+		request.headers.get("cookie") ?? undefined,
+	);
 	this.response.headers = new Headers();
 } as unknown as ContextConstructor;

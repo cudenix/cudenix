@@ -12,30 +12,82 @@ import type { HttpMethod } from "@/utils/types/http-method";
 
 const EMPTY_KEYS = Object.freeze([]) as unknown as string[];
 
-const PACKED_SEGMENTS = 22;
-
-const POW5 = Array.from(
-	{ length: PACKED_SEGMENTS + 1 },
-	(_, exponent) => 5 ** exponent,
-);
-
-const REGEXP_ONLY_KEY = Number.MAX_SAFE_INTEGER;
+const BUN_METHODS = new Set([
+	"DELETE",
+	"GET",
+	"HEAD",
+	"OPTIONS",
+	"PATCH",
+	"POST",
+	"PUT",
+]);
 
 /**
- * Pack per-segment `ranks` into one comparable float: one base-5 digit per
- * segment (`rank + 1`), left-aligned with a `0` tail — the first differing
- * segment decides, and a path that ends sorts before one that continues.
+ * Whether Bun and {@link pathToRegexp} assign the same meaning to `path`.
+ * Anything outside this shared grammar stays exclusively on the regexp
+ * fallback, preventing Bun from widening, rejecting, or re-normalizing it.
  */
-const packPrecedence = (ranks: number[]): number => {
-	const length = Math.min(ranks.length, PACKED_SEGMENTS);
-
-	let key = 0;
-
-	for (let i = 0; i < length; i++) {
-		key = key * 5 + ranks[i]! + 1;
+const isBunNativeRoute = (
+	method: HttpMethod,
+	path: string,
+	paramKeys: string[],
+): boolean => {
+	if (!BUN_METHODS.has(method)) {
+		return false;
 	}
 
-	return key * POW5[PACKED_SEGMENTS - length]!;
+	if (path === "/") {
+		return true;
+	}
+
+	if (
+		path.length < 2 ||
+		path.charCodeAt(0) !== 47 ||
+		path.charCodeAt(path.length - 1) === 47 ||
+		path.indexOf("//") !== -1 ||
+		path.indexOf("?") !== -1 ||
+		path.indexOf("...") !== -1
+	) {
+		return false;
+	}
+
+	for (let i = 0; i < path.length; i++) {
+		if (path.charCodeAt(i) > 127) {
+			return false;
+		}
+	}
+
+	const uniqueParamKeys = new Set<string>();
+
+	for (let i = 0; i < paramKeys.length; i++) {
+		const paramKey = paramKeys[i];
+
+		if (!paramKey || uniqueParamKeys.has(paramKey)) {
+			return false;
+		}
+
+		uniqueParamKeys.add(paramKey);
+	}
+
+	let segmentStart = 1;
+
+	while (segmentStart < path.length) {
+		let segmentEnd = path.indexOf("/", segmentStart);
+
+		if (segmentEnd === -1) {
+			segmentEnd = path.length;
+		}
+
+		if (path.charCodeAt(segmentStart) === 42) {
+			return (
+				segmentEnd - segmentStart === 1 && segmentEnd === path.length
+			);
+		}
+
+		segmentStart = segmentEnd + 1;
+	}
+
+	return true;
 };
 
 /**
@@ -43,10 +95,37 @@ const packPrecedence = (ranks: number[]): number => {
  */
 interface AnalyzedEndpoint {
 	endpoint: Endpoint;
-	key: number;
 	native: boolean;
+	order: number;
 	pattern: string;
+	ranks: number[];
 }
+
+/** Bun's specificity ordering, with registration order as the final tie-break. */
+const compareAnalyzedEndpoints = (
+	a: AnalyzedEndpoint,
+	b: AnalyzedEndpoint,
+): number => {
+	if (a.native !== b.native) {
+		return a.native ? -1 : 1;
+	}
+
+	if (!a.native) {
+		return a.order - b.order;
+	}
+
+	const length = Math.min(a.ranks.length, b.ranks.length);
+
+	for (let i = 0; i < length; i++) {
+		const difference = (a.ranks[i] ?? 0) - (b.ranks[i] ?? 0);
+
+		if (difference !== 0) {
+			return difference;
+		}
+	}
+
+	return a.ranks.length - b.ranks.length || a.order - b.order;
+};
 
 /**
  * The {@link EndpointChain} and path prefix inherited from a parent module.
@@ -238,19 +317,18 @@ export const compile = (app: Cudenix) => {
 			}
 
 			const path = methodEndpoint.path;
-			const native =
-				path.indexOf("?") === -1 && path.indexOf("...") === -1;
-
 			const { paramKeys, pattern, ranks, restKeys } = pathToRegexp(path);
+			const native = isBunNativeRoute(method, path, paramKeys);
 
 			methodEndpoint.paramKeys = paramKeys;
 			methodEndpoint.restKeys = restKeys;
 
 			analyzedEndpoints.push({
 				endpoint: methodEndpoint,
-				key: native ? packPrecedence(ranks) : REGEXP_ONLY_KEY,
 				native,
+				order: i,
 				pattern,
+				ranks,
 			});
 		}
 
@@ -258,13 +336,12 @@ export const compile = (app: Cudenix) => {
 			continue;
 		}
 
-		analyzedEndpoints.sort(
-			(a: AnalyzedEndpoint, b: AnalyzedEndpoint) => a.key - b.key,
-		);
+		analyzedEndpoints.sort(compareAnalyzedEndpoints);
 
 		const regexpEndpoints: Endpoint[] = [];
 		const regexpPatterns: string[] = [];
 		const regexpTable: Endpoint[] = [];
+		const nativePatterns = new Set<string>();
 
 		let matchOffset = 1;
 
@@ -296,7 +373,12 @@ export const compile = (app: Cudenix) => {
 
 			matchOffset += 1 + methodEndpoint.paramKeys.length;
 
-			if (analyzedEndpoint.native) {
+			if (
+				analyzedEndpoint.native &&
+				!nativePatterns.has(analyzedEndpoint.pattern)
+			) {
+				nativePatterns.add(analyzedEndpoint.pattern);
+
 				let pathRoutes = routes[path];
 
 				if (!pathRoutes) {

@@ -32,6 +32,8 @@ const jitSource = (
 ): string => {
 	const app = new Cudenix(module);
 
+	app.memory.validator = echo;
+
 	app.compile();
 
 	return jit(app, app.methods.GET!.endpoints[0]!).toString();
@@ -72,9 +74,7 @@ describe("usage: jit", () => {
 
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
 
-			expect(jit(server.app, endpoint).toString()).toContain(
-				"this.route.handler",
-			);
+			expect(jit(server.app, endpoint).toString()).toContain("handler()");
 
 			const first = await server.fetch("/a");
 			const second = await server.fetch("/a");
@@ -337,16 +337,14 @@ describe("usage: jit", () => {
 			// An async handler is awaited from its declared signature alone.
 			const asyncSource = jit(asyncServer.app, asyncEndpoint).toString();
 
-			expect(asyncSource).toContain("await this.route.handler");
+			expect(asyncSource).toContain("await handler()");
 			expect(asyncSource.startsWith("async")).toBe(true);
 
 			// A plain handler is called bare — no await, and no runtime
 			// promise/thenable check — and the whole dispatcher is synchronous.
 			const syncSource = jit(syncServer.app, syncEndpoint).toString();
 
-			expect(syncSource).toContain(
-				"context.response.content = this.route.handler(context);",
-			);
+			expect(syncSource).toContain("content = handler();");
 			expect(syncSource).not.toContain("await");
 			expect(syncSource).not.toContain("then");
 			expect(syncSource.startsWith("async")).toBe(false);
@@ -600,14 +598,14 @@ describe("usage: jit", () => {
 			expect(source).toContain("parseQuery");
 		});
 
-		it("should emit parseParams for a params validator", () => {
+		it("should emit the endpoint-specific params decoder for a params validator", () => {
 			const source = jitSource(
 				new Module()
 					.validator({ request: { params: {} } })
 					.route("GET", "/a/:p1", () => ok("v1")),
 			);
 
-			expect(source).toContain("parseParams");
+			expect(source).toContain("decodePathParam");
 		});
 
 		it("should emit parseCookies for a cookies validator", () => {
