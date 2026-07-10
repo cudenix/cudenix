@@ -273,6 +273,14 @@ describe("ExtractUrlParams", () => {
 				NonNullable<unknown>
 			>();
 		});
+
+		it("should distribute the `never` input to `never`", () => {
+			expectTypeOf<ExtractUrlParams<never>>().toBeNever();
+		});
+
+		it("should not resolve the `any` input to `any`", () => {
+			expectTypeOf<ExtractUrlParams<any>>().not.toBeAny();
+		});
 	});
 
 	describe("non-prefix markers treated as literal", () => {
@@ -294,6 +302,29 @@ describe("ExtractUrlParams", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/:p1/:p1?">
 			>().branded.toEqualTypeOf<{ p1: string }>();
+		});
+
+		it("should intersect the value types for a name reused as named param and rest", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/:p1/...p1">
+			>().branded.toEqualTypeOf<{ p1: string & string[] }>();
+			expectTypeOf<ExtractUrlParams<"/:p1/...p1">["p1"]>().toEqualTypeOf<
+				string & string[]
+			>();
+		});
+	});
+
+	describe("explicit Accumulated seed", () => {
+		it("should merge extracted params into the provided seed record", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/a/:p1", { seed: string }>
+			>().branded.toEqualTypeOf<{ seed: string; p1: string }>();
+		});
+
+		it("should preserve the seed record for a literal-only path", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/a/b", { seed: string[] }>
+			>().branded.toEqualTypeOf<{ seed: string[] }>();
 		});
 	});
 

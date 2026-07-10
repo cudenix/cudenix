@@ -337,6 +337,12 @@ describe("AssignableTo", () => {
 		it("should resolve to false when a concrete type flows into `void`", () => {
 			expectTypeOf<AssignableTo<string, void>>().toEqualTypeOf<false>();
 		});
+
+		it("should resolve to false when `void` flows into `undefined`", () => {
+			expectTypeOf<
+				AssignableTo<void, undefined>
+			>().toEqualTypeOf<false>();
+		});
 	});
 
 	describe("unrelated shapes", () => {

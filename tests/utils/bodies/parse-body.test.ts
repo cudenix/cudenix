@@ -194,6 +194,35 @@ describe("parseBody", () => {
 
 			expect(result.a).toBe("v1");
 		});
+
+		it("should resolve to an empty dictionary for an empty urlencoded body", async () => {
+			const result = await parseBody(
+				request("", "application/x-www-form-urlencoded"),
+			);
+
+			expect(result).toBeInstanceOf(Empty);
+			expect(Object.keys(result as object)).toHaveLength(0);
+		});
+
+		it("should decode percent escapes and '+' in field names", async () => {
+			const result = (await parseBody(
+				request("a%20b=v1&c+d=v2", "application/x-www-form-urlencoded"),
+			)) as Record<string, unknown>;
+
+			expect(Object.hasOwn(result, "a b")).toBe(true);
+			expect(result["a b"]).toBe("v1");
+			expect(Object.hasOwn(result, "c d")).toBe(true);
+			expect(result["c d"]).toBe("v2");
+		});
+
+		it("should decode a percent-escaped unicode field name into its character", async () => {
+			const result = (await parseBody(
+				request("%F0%9F%99%82=v1", "application/x-www-form-urlencoded"),
+			)) as Record<string, unknown>;
+
+			expect(Object.keys(result)).toEqual(["🙂"]);
+			expect(result["🙂"]).toBe("v1");
+		});
 	});
 
 	describe("multipart form bodies", () => {
@@ -293,6 +322,13 @@ describe("parseBody", () => {
 				parseBody(request("v1", "multipart/form-data;")),
 			).rejects.toThrow();
 		});
+
+		it("should resolve to an empty dictionary for a multipart body with no entries", async () => {
+			const result = await parseBody(request(new FormData()));
+
+			expect(result).toBeInstanceOf(Empty);
+			expect(Object.keys(result as object)).toHaveLength(0);
+		});
 	});
 
 	describe("text and fallback bodies", () => {
@@ -384,6 +420,36 @@ describe("parseBody", () => {
 		it("should fall back to text for a content type shorter than every match window", async () => {
 			expect(await parseBody(request("v1", "a"))).toBe("v1");
 			expect(await parseBody(request("v1", "m"))).toBe("v1");
+		});
+
+		it("should fall back to text for a non-json type whose length equals the json match window", async () => {
+			const contentType = "application/abcd";
+
+			expect(contentType).toHaveLength("application/json".length);
+			expect(await parseBody(request("v1", contentType))).toBe("v1");
+		});
+
+		it("should fall back to text for a non-octet-stream type whose length equals the octet-stream match window", async () => {
+			const contentType = "application/vnd.ms-excel";
+
+			expect(contentType).toHaveLength("application/octet-stream".length);
+			expect(await parseBody(request("v1", contentType))).toBe("v1");
+		});
+
+		it("should fall back to text for a non-urlencoded type whose length equals the urlencoded match window", async () => {
+			const contentType = "application/x-www-form-urlencodeX";
+
+			expect(contentType).toHaveLength(
+				"application/x-www-form-urlencoded".length,
+			);
+			expect(await parseBody(request("a=v1", contentType))).toBe("a=v1");
+		});
+
+		it("should fall back to text for a non-form-data multipart type whose length equals the form-data match window", async () => {
+			const contentType = "multipart/form-dat0";
+
+			expect(contentType).toHaveLength("multipart/form-data".length);
+			expect(await parseBody(request("v1", contentType))).toBe("v1");
 		});
 	});
 

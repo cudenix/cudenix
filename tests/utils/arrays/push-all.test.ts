@@ -208,6 +208,19 @@ describe("pushAll", () => {
 		});
 	});
 
+	describe("maximum array length overflow", () => {
+		it("should throw a RangeError and leave the target unchanged when the combined length exceeds the max array length", () => {
+			const maxLength = 2 ** 32 - 2;
+			const target = new Array<number>(maxLength);
+
+			expect(() => pushAll(target, [1, 2, 3])).toThrow(RangeError);
+
+			expect(target).toHaveLength(maxLength);
+			expect(0 in target).toBe(false);
+			expect(maxLength - 1 in target).toBe(false);
+		});
+	});
+
 	describe("frozen and sealed targets", () => {
 		it("should throw a TypeError and leave a frozen target unchanged", () => {
 			const target = Object.freeze([1, 2]) as number[];

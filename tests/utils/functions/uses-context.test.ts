@@ -62,6 +62,12 @@ describe("usesContext", () => {
 				usesContext(((context: unknown) => context).bind(null)),
 			).toBe(true);
 		});
+
+		it("should return true for a Function-constructor function with a parameter", () => {
+			expect(
+				usesContext(asFn(new Function("context", "return context"))),
+			).toBe(true);
+		});
 	});
 
 	describe("functions that declare no parameters", () => {
@@ -104,6 +110,10 @@ describe("usesContext", () => {
 			}
 
 			expect(usesContext(gen)).toBe(false);
+		});
+
+		it("should return false for a paramless Function-constructor function, whose source has a newline between the parens", () => {
+			expect(usesContext(asFn(new Function("return 1")))).toBe(false);
 		});
 	});
 

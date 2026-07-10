@@ -290,6 +290,38 @@ describe("merge", () => {
 			).toBeUndefined();
 		});
 
+		it("should propagate a throwing source getter and keep keys copied before the throw", () => {
+			const source: Record<string, unknown> = {};
+
+			Object.defineProperty(source, "a", {
+				enumerable: true,
+				get() {
+					return 1;
+				},
+			});
+
+			Object.defineProperty(source, "boom", {
+				enumerable: true,
+				get() {
+					throw new Error("x");
+				},
+			});
+
+			Object.defineProperty(source, "c", {
+				enumerable: true,
+				get() {
+					return 3;
+				},
+			});
+
+			const target: Record<string, unknown> = {};
+
+			expect(() => merge(target, source)).toThrow("x");
+			expect(target).toEqual({ a: 1 });
+			expect("boom" in target).toBe(false);
+			expect("c" in target).toBe(false);
+		});
+
 		it("should invoke target's own setter when the key is overwritten", () => {
 			let captured: unknown;
 

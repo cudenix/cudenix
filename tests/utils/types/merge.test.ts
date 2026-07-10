@@ -279,6 +279,23 @@ describe("Merge", () => {
 		});
 	});
 
+	describe("any operands", () => {
+		// Documents the widening hazard behind `Merge<Stores, ...>` in
+		// `src/core/module.ts`: an `any` operand does not collapse the result
+		// to `any`, but grafts on a string index signature.
+		it("should widen existing values and add an index signature when the second operand is `any`", () => {
+			expectTypeOf<Merge<{ a: 1 }, any>>().branded.toEqualTypeOf<
+				{ a: any } & { [x: string]: any }
+			>();
+		});
+
+		it("should add an index signature while keeping the second operand's declarations when the first operand is `any`", () => {
+			expectTypeOf<Merge<any, { a: 1 }>>().branded.toEqualTypeOf<
+				{ [x: string]: any } & { a: 1 }
+			>();
+		});
+	});
+
 	describe("optional modifier", () => {
 		it("should union an optional override with the base value instead of replacing it", () => {
 			interface A {
@@ -560,6 +577,41 @@ describe("Merge", () => {
 			}
 
 			expectTypeOf<Merge<A, C>["id"]>().toEqualTypeOf<string>();
+		});
+	});
+
+	describe("template-literal index signatures", () => {
+		it("should replace a key matched only by the first operand's template pattern", () => {
+			interface A {
+				[k: `x-${string}`]: number;
+			}
+			interface B {
+				"x-a": string;
+			}
+
+			expectTypeOf<Merge<A, B>["x-a"]>().toEqualTypeOf<string>();
+		});
+
+		it("should keep the first operand's template pattern reachable for non-overridden keys", () => {
+			interface A {
+				[k: `x-${string}`]: number;
+			}
+			interface B {
+				"x-a": string;
+			}
+
+			expectTypeOf<Merge<A, B>["x-b"]>().toEqualTypeOf<number>();
+		});
+
+		it("should union a declared key with a template pattern contributed by the second operand", () => {
+			interface A {
+				"x-a": number;
+			}
+			interface B {
+				[k: `x-${string}`]: string;
+			}
+
+			expectTypeOf<Merge<A, B>["x-a"]>().toEqualTypeOf<number | string>();
 		});
 	});
 

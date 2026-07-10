@@ -226,6 +226,12 @@ describe("ExtractContent", () => {
 
 			expectTypeOf<ExtractContent<typeof A>>().toEqualTypeOf<typeof A>();
 		});
+
+		it("should resolve a generic factory to `unknown` because the type parameter collapses to its default", () => {
+			type A = <T>(x: T) => T;
+
+			expectTypeOf<ExtractContent<A>>().toBeUnknown();
+		});
 	});
 
 	describe("top, bottom and exotic types", () => {

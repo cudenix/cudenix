@@ -61,6 +61,16 @@ describe("GeneratorSSE", () => {
 				GeneratorSSE<AnyOk>
 			>();
 		});
+
+		it("should reject an `Event` parameter that is not a `string`", () => {
+			// @ts-expect-error - `number` does not satisfy `Event extends string`
+			type _A = GeneratorSSE<AnyOk, number>;
+		});
+
+		it("should reject an `Event` parameter that is a number literal", () => {
+			// @ts-expect-error - `1` does not satisfy `Event extends string`
+			type _A = GeneratorSSE<AnyOk, 1>;
+		});
 	});
 
 	describe("`data` covariance", () => {
@@ -69,6 +79,25 @@ describe("GeneratorSSE", () => {
 			type B = GeneratorSSE<AnyOk>;
 
 			expectTypeOf<A>().toExtend<B>();
+		});
+	});
+
+	describe("union payload `AnyFail | AnyOk` (route frame contract)", () => {
+		type A = GeneratorSSE<AnyFail | AnyOk, string>;
+
+		it("should accept a frame carrying an `Ok` envelope", () => {
+			expectTypeOf<{
+				data: Ok<{ a: true }, 1>;
+				event: "v1";
+			}>().toExtend<A>();
+		});
+
+		it("should accept a frame carrying a `Fail` envelope", () => {
+			expectTypeOf<{ data: Fail<{ a: "v1" }, 1> }>().toExtend<A>();
+		});
+
+		it("should type `data` as the full `AnyFail | AnyOk` union", () => {
+			expectTypeOf<A["data"]>().toEqualTypeOf<AnyFail | AnyOk>();
 		});
 	});
 

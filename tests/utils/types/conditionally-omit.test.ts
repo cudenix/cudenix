@@ -271,6 +271,17 @@ describe("ConditionallyOmit", () => {
 			}>();
 		});
 
+		it("should drop a key whose value is mutually assignable but not syntactically identical to the marker", () => {
+			interface A {
+				a: { x: number } & { y: string };
+				b: boolean;
+			}
+
+			expectTypeOf<
+				ConditionallyOmit<A, { x: number; y: string }>
+			>().toEqualTypeOf<{ b: boolean }>();
+		});
+
 		it("should not drop an `unknown`-valued key under a narrow marker", () => {
 			interface A {
 				a: unknown;

@@ -67,6 +67,33 @@ describe("HttpMethod", () => {
 		});
 	});
 
+	describe("record keys", () => {
+		it("should survive a round-trip through `keyof Record` (mapping preserves the union)", () => {
+			expectTypeOf<
+				keyof Record<HttpMethod, unknown>
+			>().toEqualTypeOf<HttpMethod>();
+		});
+
+		it("should accept an arbitrary string as a `Record` key (callers index by `request.method`)", () => {
+			expectTypeOf<string>().toExtend<
+				keyof Record<HttpMethod, unknown>
+			>();
+		});
+
+		it("should surface `undefined` when a `Record` is indexed through the brand", () => {
+			const methods = {} as Record<HttpMethod, number>;
+			const method = "PURGE" as HttpMethod;
+
+			expectTypeOf(methods[method]).toEqualTypeOf<number | undefined>();
+		});
+
+		it("should keep a named verb as a required `Record` property", () => {
+			const methods = {} as Record<HttpMethod, number>;
+
+			expectTypeOf(methods.GET).toEqualTypeOf<number>();
+		});
+	});
+
 	describe("rejected assignments", () => {
 		it("should reject `number` as a subtype", () => {
 			expectTypeOf<1>().not.toExtend<HttpMethod>();

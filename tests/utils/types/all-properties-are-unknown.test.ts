@@ -156,6 +156,10 @@ describe("AllPropertiesAreUnknown", () => {
 				AllPropertiesAreUnknown<never>
 			>().toEqualTypeOf<true>();
 		});
+
+		it("should resolve to true for the degenerate `any` input", () => {
+			expectTypeOf<AllPropertiesAreUnknown<any>>().toEqualTypeOf<true>();
+		});
 	});
 
 	describe("mixed unknown and concrete properties", () => {

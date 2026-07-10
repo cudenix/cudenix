@@ -256,6 +256,20 @@ describe("parseParams", () => {
 		});
 	});
 
+	describe("duplicate parameter names", () => {
+		it("should let a later duplicate parameter name overwrite the earlier value", () => {
+			const result = parseParams(
+				exec("()/a/([^/]+)/([^/]+)", "/a/v1/v2"),
+				["p1", "p1"],
+				1,
+				[],
+			);
+
+			expect(result.p1).toBe("v2");
+			expect(Object.keys(result)).toEqual(["p1"]);
+		});
+	});
+
 	describe("unmatched optional captures", () => {
 		it("should skip a parameter whose capture is undefined", () => {
 			const result = parseParams(
@@ -291,6 +305,13 @@ describe("parseParams", () => {
 
 			expect("r1" in result).toBe(false);
 			expect(Object.keys(result)).toHaveLength(0);
+		});
+
+		it("should keep an empty capture as an empty-string value for a normal parameter", () => {
+			const result = parseParams(exec("()/a/(.*)", "/a/"), ["p1"], 1, []);
+
+			expect(Object.hasOwn(result, "p1")).toBe(true);
+			expect(result.p1).toBe("");
 		});
 
 		it("should skip a slot whose parameter name is undefined (sparse keys)", () => {

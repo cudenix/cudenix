@@ -261,6 +261,20 @@ describe("Empty", () => {
 		});
 	});
 
+	describe("string coercion", () => {
+		it("should throw TypeError on String() since no toString or Symbol.toPrimitive is inherited", () => {
+			const instance = new Empty();
+
+			expect(() => String(instance)).toThrow(TypeError);
+		});
+
+		it("should throw TypeError on template-literal interpolation", () => {
+			const instance = new Empty();
+
+			expect(() => `${instance}`).toThrow(TypeError);
+		});
+	});
+
 	describe("freezing and sealing instances", () => {
 		it("should reject further assignment after Object.freeze", () => {
 			const instance = new Empty();
@@ -418,6 +432,48 @@ describe("FrozenEmpty", () => {
 			expect(Object.seal(FrozenEmpty)).toBe(FrozenEmpty);
 			expect(Object.preventExtensions(FrozenEmpty)).toBe(FrozenEmpty);
 			expect(Object.isFrozen(FrozenEmpty)).toBe(true);
+		});
+	});
+
+	describe("pollution of the shared Empty.prototype", () => {
+		it("should leave Empty.prototype unfrozen and extensible", () => {
+			expect(Object.isFrozen(Empty.prototype)).toBe(false);
+			expect(Object.isExtensible(Empty.prototype)).toBe(true);
+		});
+
+		it("should surface string keys added to Empty.prototype as inherited, non-own keys while staying frozen", () => {
+			Empty.prototype.threshold = 9;
+
+			try {
+				expect("threshold" in FrozenEmpty).toBe(true);
+				expect(FrozenEmpty.threshold).toBe(9);
+				expect(Object.hasOwn(FrozenEmpty, "threshold")).toBe(false);
+				expect(Object.isFrozen(FrozenEmpty)).toBe(true);
+			} finally {
+				delete Empty.prototype.threshold;
+			}
+
+			expect("threshold" in FrozenEmpty).toBe(false);
+		});
+
+		it("should let keys added to Empty.prototype override destructuring defaults read through FrozenEmpty", () => {
+			const fn = ({
+				threshold = 1024,
+			}: {
+				threshold?: number;
+			} = FrozenEmpty) => threshold;
+
+			expect(fn()).toBe(1024);
+
+			Empty.prototype.threshold = 9;
+
+			try {
+				expect(fn()).toBe(9);
+			} finally {
+				delete Empty.prototype.threshold;
+			}
+
+			expect(fn()).toBe(1024);
 		});
 	});
 

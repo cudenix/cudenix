@@ -232,6 +232,14 @@ describe("RequiredKeys", () => {
 
 			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<number>();
 		});
+
+		it("should reduce a symbol index signature to its key type", () => {
+			interface A {
+				[key: symbol]: string;
+			}
+
+			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<symbol>();
+		});
 	});
 
 	describe("tuple sources", () => {
@@ -250,6 +258,31 @@ describe("RequiredKeys", () => {
 
 			expectTypeOf<Extract<RequiredKeys<A>, "1">>().toEqualTypeOf<"1">();
 			expectTypeOf<Extract<RequiredKeys<B>, "1">>().toBeNever();
+		});
+	});
+
+	describe("intersection of Record inputs", () => {
+		it("should resolve required and optional keys across an intersection of Records", () => {
+			type A = NonNullable<unknown> &
+				Record<"p1", string> &
+				Record<"p2", string | undefined> &
+				Record<"r1", string[]>;
+
+			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<"p1" | "r1">();
+		});
+
+		it("should resolve to `never` when the only intersected key is optional", () => {
+			type A = NonNullable<unknown> & Record<"p1", string | undefined>;
+
+			expectTypeOf<RequiredKeys<A>>().toBeNever();
+		});
+
+		it("should resolve to `never` when every intersected key is optional", () => {
+			type A = NonNullable<unknown> &
+				Record<"p1", string | undefined> &
+				Record<"p2", string | undefined>;
+
+			expectTypeOf<RequiredKeys<A>>().toBeNever();
 		});
 	});
 

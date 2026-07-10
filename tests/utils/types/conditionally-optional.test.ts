@@ -117,6 +117,18 @@ describe("ConditionallyOptional", () => {
 				c?: number | undefined;
 			}>();
 		});
+
+		it("should mark only `unknown`- and `any`-valued keys optional when the marker is `unknown`", () => {
+			interface A {
+				a: unknown;
+				b: string;
+				c: any;
+			}
+
+			expectTypeOf<
+				ConditionallyOptional<A, unknown>
+			>().branded.toEqualTypeOf<{ b: string; a?: unknown; c?: any }>();
+		});
 	});
 
 	describe("preservation of source key modifiers", () => {
@@ -267,6 +279,28 @@ describe("ConditionallyOptional", () => {
 			expectTypeOf<
 				ConditionallyOptional<A, any>
 			>().branded.toEqualTypeOf<{ a?: string; b?: number }>();
+		});
+	});
+
+	describe("union object inputs", () => {
+		it("should resolve a union input non-distributively to only its common keys", () => {
+			type A =
+				| { a: string; b: number | undefined }
+				| { a: string | undefined; c: boolean };
+
+			expectTypeOf<
+				keyof ConditionallyOptional<A, undefined>
+			>().toEqualTypeOf<"a">();
+		});
+
+		it("should relax the shared key to the union of its member value types", () => {
+			type A =
+				| { a: string; b: number | undefined }
+				| { a: string | undefined; c: boolean };
+
+			expectTypeOf<
+				ConditionallyOptional<A, undefined>
+			>().branded.toEqualTypeOf<{ a?: string | undefined }>();
 		});
 	});
 

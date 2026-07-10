@@ -41,6 +41,10 @@ describe("ExtendsType", () => {
 		it("should resolve to false when comparing `true` to `boolean`", () => {
 			expectTypeOf<ExtendsType<true, boolean>>().toEqualTypeOf<false>();
 		});
+
+		it("should resolve to false when comparing `boolean` to `true`", () => {
+			expectTypeOf<ExtendsType<boolean, true>>().toEqualTypeOf<false>();
+		});
 	});
 
 	describe("union types", () => {
@@ -90,6 +94,21 @@ describe("ExtendsType", () => {
 			expectTypeOf<
 				ExtendsType<{ a?: string }, { a: string }>
 			>().toEqualTypeOf<false>();
+		});
+
+		it("should resolve to false when a required property differs from an optional one", () => {
+			expectTypeOf<
+				ExtendsType<{ a: string }, { a?: string }>
+			>().toEqualTypeOf<false>();
+		});
+
+		it("should resolve to true when types differ only by a `readonly` property modifier", () => {
+			expectTypeOf<
+				ExtendsType<{ readonly a: string }, { a: string }>
+			>().toEqualTypeOf<true>();
+			expectTypeOf<
+				ExtendsType<{ a: string }, { readonly a: string }>
+			>().toEqualTypeOf<true>();
 		});
 
 		it("should resolve to true when comparing an intersection to its flattened form via mutual assignability", () => {
@@ -215,6 +234,14 @@ describe("ExtendsType", () => {
 
 		it("should resolve to false comparing `void` to a concrete type", () => {
 			expectTypeOf<ExtendsType<void, string>>().toEqualTypeOf<false>();
+		});
+
+		it("should resolve to false comparing `undefined` to `void`", () => {
+			expectTypeOf<ExtendsType<undefined, void>>().toEqualTypeOf<false>();
+		});
+
+		it("should resolve to false comparing `void` to `undefined`", () => {
+			expectTypeOf<ExtendsType<void, undefined>>().toEqualTypeOf<false>();
 		});
 
 		it("should resolve to false for `never` vs `unknown`", () => {

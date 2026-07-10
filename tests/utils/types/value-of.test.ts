@@ -253,5 +253,13 @@ describe("ValueOf", () => {
 
 			expectTypeOf<ValueOf<A>>().toBeNever();
 		});
+
+		it("should resolve to `any` for an `any` source", () => {
+			expectTypeOf<ValueOf<any>>().toBeAny();
+		});
+
+		it("should resolve to `never` for a `never` source", () => {
+			expectTypeOf<ValueOf<never>>().toBeNever();
+		});
 	});
 });

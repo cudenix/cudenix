@@ -145,6 +145,30 @@ describe("MergePaths", () => {
 				MergePaths<`/${string}/`, "/b">
 			>().toEqualTypeOf<`/${string}/b`>();
 		});
+
+		it("should strip a trailing slash from a non-literal path", () => {
+			expectTypeOf<
+				MergePaths<"/a", `/${string}/`>
+			>().toEqualTypeOf<`/a/${string}`>();
+		});
+
+		it("should join a non-literal prefix with a non-literal path", () => {
+			expectTypeOf<
+				MergePaths<`/${string}`, `/${string}`>
+			>().toEqualTypeOf<`/${string}/${string}`>();
+		});
+
+		it("should collapse a root prefix to the non-literal path itself", () => {
+			expectTypeOf<
+				MergePaths<"/", `/${string}`>
+			>().toEqualTypeOf<`/${string}`>();
+		});
+
+		it("should collapse a root path to the non-literal prefix itself", () => {
+			expectTypeOf<
+				MergePaths<`/${string}`, "/">
+			>().toEqualTypeOf<`/${string}`>();
+		});
 	});
 
 	describe("structural relations", () => {
@@ -177,6 +201,28 @@ describe("MergePaths", () => {
 				expectTypeOf<MergePaths<"/" | "/a", "/b">>().toEqualTypeOf<
 					"/b" | "/a/b"
 				>();
+			});
+		});
+
+		describe("degenerate inputs", () => {
+			it("should resolve to `never` when the prefix is `never`", () => {
+				expectTypeOf<MergePaths<never, "/b">>().toEqualTypeOf<never>();
+			});
+
+			it("should resolve to `never` when the path is `never`", () => {
+				expectTypeOf<MergePaths<"/a", never>>().toEqualTypeOf<never>();
+			});
+
+			it("should keep the literal path after an `any` prefix", () => {
+				expectTypeOf<
+					MergePaths<any, "/b">
+				>().toEqualTypeOf<`${any}/b`>();
+			});
+
+			it("should keep the literal prefix before an `any` path", () => {
+				expectTypeOf<
+					MergePaths<"/a", any>
+				>().toEqualTypeOf<`/a${any}`>();
 			});
 		});
 

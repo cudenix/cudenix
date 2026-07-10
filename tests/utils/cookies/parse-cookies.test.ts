@@ -253,6 +253,22 @@ describe("parseCookies", () => {
 			expect(result).toEqual({ a: "1", b: "2" });
 			expect(result[""]).toBeUndefined();
 		});
+
+		it("should drop a no-'=' entry ending in a bare ';' at the end of the header", () => {
+			const result = parseCookies("flag;");
+
+			expect(Object.keys(result)).toHaveLength(0);
+			expect("flag" in result).toBe(false);
+			expect("flag;" in result).toBe(false);
+		});
+
+		it("should drop a single-character no-'=' entry ending in a bare ';'", () => {
+			const result = parseCookies("a;");
+
+			expect(Object.keys(result)).toHaveLength(0);
+			expect("a" in result).toBe(false);
+			expect("a;" in result).toBe(false);
+		});
 	});
 
 	describe("empty / no-pair headers", () => {
@@ -280,6 +296,13 @@ describe("parseCookies", () => {
 			const result = parseCookies("; ");
 
 			expect(Object.keys(result)).toHaveLength(0);
+		});
+
+		it("should return an empty dictionary for a bare ';' header", () => {
+			const result = parseCookies(";");
+
+			expect(Object.keys(result)).toHaveLength(0);
+			expect(";" in result).toBe(false);
 		});
 
 		it("should return an empty dictionary for a whitespace-only header", () => {

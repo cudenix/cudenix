@@ -29,6 +29,31 @@ describe("StandardSchemaV1", () => {
 				StandardSchemaV1<unknown, string>
 			>();
 		});
+
+		it("should accept a concrete object whose `validate` is async", () => {
+			const a = {
+				"~standard": {
+					validate: async (value: unknown) => ({
+						value: value as string,
+					}),
+					vendor: "v1",
+					version: 1,
+				},
+			} as const;
+
+			expectTypeOf<typeof a>().toExtend<
+				StandardSchemaV1<unknown, string>
+			>();
+		});
+
+		it('should declare "~standard" as `readonly`', () => {
+			expectTypeOf<
+				Readonly<StandardSchemaV1<string, number>>
+			>().toEqualTypeOf<StandardSchemaV1<string, number>>();
+			expectTypeOf<
+				Readonly<StandardSchemaV1>
+			>().toEqualTypeOf<StandardSchemaV1>();
+		});
 	});
 
 	describe("`Props` member", () => {
@@ -63,6 +88,21 @@ describe("StandardSchemaV1", () => {
 			expectTypeOf<
 				Parameters<StandardSchemaV1.Props<string>["validate"]>[1]
 			>().toEqualTypeOf<StandardSchemaV1.Options | undefined>();
+		});
+
+		it("should allow calling `validate` without options", () => {
+			expectTypeOf<
+				Parameters<StandardSchemaV1.Props<string>["validate"]>["length"]
+			>().toEqualTypeOf<1 | 2>();
+
+			const validate: StandardSchemaV1.Props<string>["validate"] = (
+				value,
+			) => ({ value: value as string });
+
+			expectTypeOf(validate("x")).toEqualTypeOf<
+				| StandardSchemaV1.Result<string>
+				| Promise<StandardSchemaV1.Result<string>>
+			>();
 		});
 
 		it("should type `types` as optional `Types`", () => {
@@ -146,6 +186,15 @@ describe("StandardSchemaV1", () => {
 				StandardSchemaV1.FailureResult["issues"]
 			>().not.toExtend<StandardSchemaV1.Issue[]>();
 		});
+
+		it("should declare every member as `readonly`", () => {
+			expectTypeOf<
+				Readonly<StandardSchemaV1.SuccessResult<number>>
+			>().toEqualTypeOf<StandardSchemaV1.SuccessResult<number>>();
+			expectTypeOf<
+				Readonly<StandardSchemaV1.FailureResult>
+			>().toEqualTypeOf<StandardSchemaV1.FailureResult>();
+		});
 	});
 
 	describe("`Issue` shape", () => {
@@ -161,6 +210,24 @@ describe("StandardSchemaV1", () => {
 				| undefined
 			>();
 		});
+
+		it("should mark `path` as an optional property", () => {
+			expectTypeOf<Pick<StandardSchemaV1.Issue, "path">>().toEqualTypeOf<{
+				readonly path?:
+					| ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment>
+					| undefined;
+			}>();
+
+			expectTypeOf<{
+				message: string;
+			}>().toExtend<StandardSchemaV1.Issue>();
+		});
+
+		it("should declare every member as `readonly`", () => {
+			expectTypeOf<
+				Readonly<StandardSchemaV1.Issue>
+			>().toEqualTypeOf<StandardSchemaV1.Issue>();
+		});
 	});
 
 	describe("`PathSegment` shape", () => {
@@ -169,6 +236,12 @@ describe("StandardSchemaV1", () => {
 				StandardSchemaV1.PathSegment["key"]
 			>().toEqualTypeOf<PropertyKey>();
 		});
+
+		it("should declare every member as `readonly`", () => {
+			expectTypeOf<
+				Readonly<StandardSchemaV1.PathSegment>
+			>().toEqualTypeOf<StandardSchemaV1.PathSegment>();
+		});
 	});
 
 	describe("`Options` shape", () => {
@@ -176,6 +249,22 @@ describe("StandardSchemaV1", () => {
 			expectTypeOf<
 				StandardSchemaV1.Options["libraryOptions"]
 			>().toEqualTypeOf<Record<string, unknown> | undefined>();
+		});
+
+		it("should mark `libraryOptions` as an optional property", () => {
+			expectTypeOf<StandardSchemaV1.Options>().toEqualTypeOf<{
+				readonly libraryOptions?: Record<string, unknown> | undefined;
+			}>();
+
+			expectTypeOf<
+				Record<never, never>
+			>().toExtend<StandardSchemaV1.Options>();
+		});
+
+		it("should declare every member as `readonly`", () => {
+			expectTypeOf<
+				Readonly<StandardSchemaV1.Options>
+			>().toEqualTypeOf<StandardSchemaV1.Options>();
 		});
 	});
 
@@ -193,6 +282,15 @@ describe("StandardSchemaV1", () => {
 			expectTypeOf<StandardSchemaV1.Types<boolean>>().toEqualTypeOf<
 				StandardSchemaV1.Types<boolean, boolean>
 			>();
+		});
+
+		it("should declare every member as `readonly`", () => {
+			expectTypeOf<
+				Readonly<StandardSchemaV1.Types<string, number>>
+			>().toEqualTypeOf<StandardSchemaV1.Types<string, number>>();
+			expectTypeOf<
+				Readonly<StandardSchemaV1.Types>
+			>().toEqualTypeOf<StandardSchemaV1.Types>();
 		});
 	});
 });

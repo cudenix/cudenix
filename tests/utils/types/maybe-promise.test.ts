@@ -27,6 +27,26 @@ describe("MaybePromise", () => {
 		});
 	});
 
+	describe("function return position", () => {
+		it("should accept a synchronous handler returning the wrapped type", () => {
+			expectTypeOf<() => Response>().toExtend<
+				() => MaybePromise<Response>
+			>();
+		});
+
+		it("should accept an asynchronous handler resolving to the wrapped type", () => {
+			expectTypeOf<() => Promise<Response>>().toExtend<
+				() => MaybePromise<Response>
+			>();
+		});
+
+		it("should reject a handler resolving to an unrelated type", () => {
+			expectTypeOf<() => Promise<string>>().not.toExtend<
+				() => MaybePromise<Response>
+			>();
+		});
+	});
+
 	describe("structural relations", () => {
 		it("should resolve to `T | Promise<T>` (a union, not a nested promise)", () => {
 			expectTypeOf<MaybePromise<number>>().toEqualTypeOf<
@@ -36,6 +56,15 @@ describe("MaybePromise", () => {
 
 		it("should not collapse the union to its value type", () => {
 			expectTypeOf<MaybePromise<number>>().not.toEqualTypeOf<number>();
+		});
+
+		it("should not collapse a wrapped promise type", () => {
+			expectTypeOf<MaybePromise<Promise<number>>>().toEqualTypeOf<
+				Promise<number> | Promise<Promise<number>>
+			>();
+			expectTypeOf<MaybePromise<Promise<number>>>().not.toEqualTypeOf<
+				Promise<number>
+			>();
 		});
 	});
 

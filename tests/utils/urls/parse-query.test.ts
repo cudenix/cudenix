@@ -130,6 +130,12 @@ describe("parseQuery", () => {
 			expect(result["a+b"]).toBe("v1");
 		});
 
+		it("should decode percent-escapes exactly once (no double decode)", () => {
+			const result = parseQuery("/a?b=%252B");
+
+			expect(result.b).toBe("%2B");
+		});
+
 		it("should keep a '?' after the first one as literal data in a value", () => {
 			const result = parseQuery("/a?b=v?1");
 
@@ -295,6 +301,12 @@ describe("parseQuery", () => {
 			expect(result.c).toBe("v1");
 		});
 
+		it("should map a trailing 'b=' at the end of the URL to an empty string", () => {
+			const result = parseQuery("/a?b=");
+
+			expect(result).toEqual({ b: "" });
+		});
+
 		it("should handle a bare key followed by another pair", () => {
 			const result = parseQuery("/a?b&c=v1");
 
@@ -380,6 +392,13 @@ describe("parseQuery", () => {
 				[1, 2],
 				[3, 4],
 			]);
+		});
+
+		it("should collapse two independently repeated keys into separate arrays", () => {
+			const result = parseQuery("/a?b=1&b=2&c=3&c=4");
+
+			expect(result.b).toEqual(["1", "2"]);
+			expect(result.c).toEqual(["3", "4"]);
 		});
 
 		it("should collapse differently-encoded spellings of the same key into one array", () => {

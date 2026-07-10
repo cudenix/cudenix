@@ -359,6 +359,16 @@ describe("pathToRegexp", () => {
 			expect(match?.[2]).toBe("v1");
 			expect(match?.[3]).toBeUndefined();
 		});
+
+		it("should not match more segments than an all-optional path declares", () => {
+			const single = compile("/:p1?");
+
+			expect(single.regex.test("/v1/v2")).toBe(false);
+
+			const double = compile("/:p1?/:p2?");
+
+			expect(double.regex.test("/v1/v2/v3")).toBe(false);
+		});
 	});
 
 	describe("...name rest parameter", () => {
@@ -528,6 +538,12 @@ describe("pathToRegexp", () => {
 				expect(compiled.paramKeys).toEqual([]);
 				expect(match?.length).toBe(2);
 			});
+
+			it("should reject segments containing whitespace, '?', or '#'", () => {
+				expect(compiled.regex.test("/a/v 1")).toBe(false);
+				expect(compiled.regex.test("/a/v1?x")).toBe(false);
+				expect(compiled.regex.test("/a/v#1")).toBe(false);
+			});
 		});
 
 		it("should compile a bare '/*' catch-all that matches any non-empty path", () => {
@@ -575,6 +591,18 @@ describe("pathToRegexp", () => {
 			it("should match the bare prefix with a trailing slash, unlike '...name?'", () => {
 				expect(compiled.regex.test("/a/")).toBe(true);
 			});
+		});
+
+		it("should compile a bare '/*?' that matches the empty string, the root, and any path", () => {
+			const { paramKeys, regex, restKeys } = compile("/*?");
+
+			expect(paramKeys).toEqual([]);
+			expect(restKeys).toEqual([]);
+			expect(regex.test("")).toBe(true);
+			expect(regex.test("/")).toBe(true);
+			expect(regex.test("/v1")).toBe(true);
+			expect(regex.test("/v1/v2")).toBe(true);
+			expect("/v1".match(regex)?.length).toBe(2);
 		});
 	});
 
@@ -651,6 +679,11 @@ describe("pathToRegexp", () => {
 
 		it("should return no ranks for the root path", () => {
 			expect(pathToRegexp("/").ranks).toEqual([]);
+		});
+
+		it("should return no ranks for the empty path or a slashes-only path", () => {
+			expect(pathToRegexp("").ranks).toEqual([]);
+			expect(pathToRegexp("//").ranks).toEqual([]);
 		});
 
 		it("should rank optional empty literal segments as static", () => {
