@@ -91,6 +91,12 @@ describe("ExtendsType", () => {
 				ExtendsType<{ a?: string }, { a: string }>
 			>().toEqualTypeOf<false>();
 		});
+
+		it("should resolve to true when comparing an intersection to its flattened form via mutual assignability", () => {
+			expectTypeOf<
+				ExtendsType<{ a: 1 } & { b: 2 }, { a: 1; b: 2 }>
+			>().toEqualTypeOf<true>();
+		});
 	});
 
 	describe("array types", () => {

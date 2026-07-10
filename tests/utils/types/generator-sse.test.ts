@@ -55,6 +55,12 @@ describe("GeneratorSSE", () => {
 			// @ts-expect-error - `string` does not satisfy `AnyFail | AnyOk`
 			type _A = GeneratorSSE<string>;
 		});
+
+		it("should reject an `AnyFail` payload on the `Ok` direction", () => {
+			expectTypeOf<{ data: AnyFail }>().not.toExtend<
+				GeneratorSSE<AnyOk>
+			>();
+		});
 	});
 
 	describe("`data` covariance", () => {
@@ -172,15 +178,24 @@ describe("AnyGeneratorSSE", () => {
 		expectTypeOf<{ event: "v1" }>().not.toExtend<AnyGeneratorSSE>();
 	});
 
-	it("should accept a frame whose `data` is `AnyFail`", () => {
-		expectTypeOf<{ data: AnyFail }>().toExtend<AnyGeneratorSSE>();
+	it("should accept the framework's `AnyFail | AnyOk` instantiation as a subtype", () => {
+		expectTypeOf<
+			GeneratorSSE<AnyFail | AnyOk, string>
+		>().toExtend<AnyGeneratorSSE>();
 	});
 
-	it("should accept any string for the `event` channel", () => {
+	it("should reject an `id` that is not a `string`", () => {
 		expectTypeOf<{
 			data: AnyOk;
-			event: "v1";
-		}>().toExtend<AnyGeneratorSSE>();
+			id: number;
+		}>().not.toExtend<AnyGeneratorSSE>();
+	});
+
+	it("should reject a `retry` that is not a `number`", () => {
+		expectTypeOf<{
+			data: AnyOk;
+			retry: string;
+		}>().not.toExtend<AnyGeneratorSSE>();
 	});
 
 	it("should accept any concrete `GeneratorSSE<X, Y>` as a subtype", () => {

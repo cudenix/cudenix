@@ -101,6 +101,12 @@ describe("MaybeFunction", () => {
 				MaybeFunction<number | string>
 			>();
 		});
+
+		it("should wrap the union as a whole, not distribute over its members", () => {
+			expectTypeOf<MaybeFunction<1 | 2>>().not.toEqualTypeOf<
+				MaybeFunction<1> | MaybeFunction<2>
+			>();
+		});
 	});
 
 	describe("structural relations", () => {
@@ -110,28 +116,32 @@ describe("MaybeFunction", () => {
 			>();
 		});
 
-		it("should treat a bare value as assignable to MaybeFunction<T>", () => {
-			expectTypeOf<number>().toExtend<MaybeFunction<number>>();
-		});
-
-		it("should treat a sync factory as assignable to MaybeFunction<T>", () => {
-			expectTypeOf<() => number>().toExtend<MaybeFunction<number>>();
-		});
-
-		it("should treat an async factory as assignable to MaybeFunction<T>", () => {
-			expectTypeOf<() => Promise<number>>().toExtend<
-				MaybeFunction<number>
-			>();
-		});
-
-		it("should treat a mixed sync-or-async factory as assignable to MaybeFunction<T>", () => {
-			expectTypeOf<() => number | Promise<number>>().toExtend<
-				MaybeFunction<number>
-			>();
-		});
-
 		it("should not collapse the union to its value type", () => {
 			expectTypeOf<MaybeFunction<number>>().not.toEqualTypeOf<number>();
+		});
+	});
+
+	describe("degenerate wrapped types", () => {
+		it("should collapse to a factory returning `Promise<never>` when wrapping `never`", () => {
+			expectTypeOf<MaybeFunction<never>>().toEqualTypeOf<
+				() => Promise<never>
+			>();
+		});
+
+		it("should be absorbed into `any` when wrapping `any`", () => {
+			expectTypeOf<MaybeFunction<any>>().toBeAny();
+		});
+
+		it("should absorb the factory arm into `unknown` when wrapping `unknown`", () => {
+			expectTypeOf<MaybeFunction<unknown>>().toEqualTypeOf<unknown>();
+		});
+	});
+
+	describe("function-typed wrapped types", () => {
+		it("should make a factory-shaped value indistinguishable from the factory arm, so runtime `typeof` checks cannot tell them apart", () => {
+			expectTypeOf<() => number>().toExtend<
+				MaybeFunction<() => number>
+			>();
 		});
 	});
 

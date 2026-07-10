@@ -141,6 +141,18 @@ describe("parseQuery", () => {
 
 			expect(result["b?c"]).toBe("v1");
 		});
+
+		it("should decode '%26' and '%3D' into the value without splitting the pair", () => {
+			const result = parseQuery("/a?a=1%262%3D3");
+
+			expect(result).toEqual({ a: "1&2=3" });
+		});
+
+		it("should decode '%23' into the value without truncating at a fragment", () => {
+			const result = parseQuery("/a?a=1%232&b=2");
+
+			expect(result).toEqual({ a: "1#2", b: "2" });
+		});
 	});
 
 	describe("malformed percent-escapes", () => {
@@ -247,6 +259,26 @@ describe("parseQuery", () => {
 			expect(parseQuery("/a?b={").b).toBe("{");
 			expect(parseQuery("/a?b=[").b).toBe("[");
 		});
+
+		it("should turn '+' into a space inside a JSON string before parsing", () => {
+			const result = parseQuery('/a?b={"c":"1+2"}');
+
+			expect(result.b).toEqual({ c: "1 2" });
+		});
+
+		it("should preserve a literal '+' inside a JSON string when written as '%2B'", () => {
+			const result = parseQuery('/a?b={"c":"1%2B2"}');
+
+			expect(result.b).toEqual({ c: "1+2" });
+		});
+
+		it("should split a JSON value on a raw '&' (JSON values must be fully percent-encoded)", () => {
+			const result = parseQuery('/a?b={"a":"x&y"}');
+
+			expect(result.b).toBe('{"a":"x');
+			expect(result['y"}']).toBe("");
+			expect(Object.keys(result)).toEqual(["b", 'y"}']);
+		});
 	});
 
 	describe("keys without a value", () => {
@@ -273,6 +305,12 @@ describe("parseQuery", () => {
 			const result = parseQuery("/a?b=v1&b");
 
 			expect(result.b).toEqual(["v1", ""]);
+		});
+
+		it("should collapse an assigned repeat of a bare key into an array starting with an empty string", () => {
+			const result = parseQuery("/a?b&b=v1");
+
+			expect(result.b).toEqual(["", "v1"]);
 		});
 
 		it("should ignore a trailing '&' separator", () => {
@@ -342,6 +380,13 @@ describe("parseQuery", () => {
 				[1, 2],
 				[3, 4],
 			]);
+		});
+
+		it("should collapse differently-encoded spellings of the same key into one array", () => {
+			const result = parseQuery("/a?a%20b=1&a+b=2");
+
+			expect(result["a b"]).toEqual(["1", "2"]);
+			expect(Object.keys(result)).toEqual(["a b"]);
 		});
 	});
 
@@ -420,6 +465,7 @@ describe("parseQuery", () => {
 			const result = parseQuery('/a?b={"__proto__":{"polluted":1}}');
 
 			expect(Object.hasOwn(result, "b")).toBe(true);
+			expect(Object.hasOwn(result.b as object, "__proto__")).toBe(true);
 			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
 		});
 	});

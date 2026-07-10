@@ -137,6 +137,12 @@ describe("ExtractUrlParams", () => {
 				ExtractUrlParams<"/...r1/a/...r2">
 			>().branded.toEqualTypeOf<{ r1: string[]; r2: string[] }>();
 		});
+
+		it("should guard the rest element type against an `any[]` regression that branded equality cannot see", () => {
+			expectTypeOf<ExtractUrlParams<"/a/...r1">["r1"]>().toEqualTypeOf<
+				string[]
+			>();
+		});
 	});
 
 	describe("...name? optional rest parameter", () => {
@@ -156,6 +162,12 @@ describe("ExtractUrlParams", () => {
 			expectTypeOf<ExtractUrlParams<"...r1?">>().branded.toEqualTypeOf<{
 				r1: string[] | undefined;
 			}>();
+		});
+
+		it("should guard the optional rest element type against an `any[]` regression that branded equality cannot see", () => {
+			expectTypeOf<ExtractUrlParams<"/a/...r1?">["r1"]>().toEqualTypeOf<
+				string[] | undefined
+			>();
 		});
 	});
 
@@ -195,6 +207,15 @@ describe("ExtractUrlParams", () => {
 				p1: string | undefined;
 				r1: string[];
 			}>();
+		});
+
+		it("should guard both named and rest value types against an `any[]` regression that branded equality cannot see", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/a/:p1/b/...r1">["p1"]
+			>().toEqualTypeOf<string>();
+			expectTypeOf<
+				ExtractUrlParams<"/a/:p1/b/...r1">["r1"]
+			>().toEqualTypeOf<string[]>();
 		});
 	});
 

@@ -207,4 +207,28 @@ describe("pushAll", () => {
 			expect(arr).toHaveLength(6);
 		});
 	});
+
+	describe("frozen and sealed targets", () => {
+		it("should throw a TypeError and leave a frozen target unchanged", () => {
+			const target = Object.freeze([1, 2]) as number[];
+
+			expect(() => pushAll(target, [3, 4])).toThrow(TypeError);
+
+			expect(target).toEqual([1, 2]);
+			expect(target).toHaveLength(2);
+		});
+
+		it("should grow a sealed target's length before throwing a TypeError, leaving holes", () => {
+			const target = Object.seal([1, 2]);
+
+			expect(() => pushAll(target, [3, 4])).toThrow(TypeError);
+
+			expect(target).toHaveLength(4);
+			expect(Object.keys(target)).toEqual(["0", "1"]);
+			expect(2 in target).toBe(false);
+			expect(3 in target).toBe(false);
+			expect(target[0]).toBe(1);
+			expect(target[1]).toBe(2);
+		});
+	});
 });

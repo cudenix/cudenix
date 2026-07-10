@@ -111,6 +111,14 @@ describe("merge", () => {
 
 			expect(Object.keys(target)).toEqual(["a", "b", "c"]);
 		});
+
+		it("should surface integer-like keys first in the result (JS own-key ordering of the target, not merge behavior)", () => {
+			const target: Record<string, unknown> = { a: 1 };
+
+			merge(target, { "1": 2 });
+
+			expect(Object.keys(target)).toEqual(["1", "a"]);
+		});
 	});
 
 	describe("empty inputs", () => {
@@ -164,6 +172,32 @@ describe("merge", () => {
 			merge(target, source);
 
 			expect(target).toEqual({ a: "v1", b: "v2", c: "v3" });
+		});
+
+		it("should visit a shadowed inherited key once with the own value winning", () => {
+			let writes = 0;
+			let captured: unknown;
+
+			Object.defineProperty(target, "a", {
+				configurable: true,
+				enumerable: true,
+				get() {
+					return captured;
+				},
+				set(value: unknown) {
+					writes += 1;
+					captured = value;
+				},
+			});
+
+			const source = Object.create({ a: "proto" });
+
+			source.a = "own";
+
+			merge(target, source);
+
+			expect(writes).toBe(1);
+			expect(target.a).toBe("own");
 		});
 
 		it("should still copy own keys when source has a null prototype", () => {
@@ -297,6 +331,18 @@ describe("merge", () => {
 			expect("length" in target).toBe(false);
 		});
 
+		it("should skip holes in a sparse array source (for..in does not visit them)", () => {
+			const target: Record<PropertyKey, unknown> = {};
+			const source = [1, 2, 3];
+
+			delete source[1];
+
+			merge(target, source as unknown as Record<PropertyKey, unknown>);
+
+			expect(target).toEqual({ 0: 1, 2: 3 });
+			expect("1" in target).toBe(false);
+		});
+
 		it("should do nothing for primitive sources without enumerable keys", () => {
 			const target = { a: 1 };
 
@@ -399,6 +445,23 @@ describe("merge", () => {
 			expect(target.__proto__).toEqual({ a: "v1" });
 			expect(Object.getPrototypeOf(target)).toBe(Empty.prototype);
 			expect(target.a).toBeUndefined();
+		});
+
+		it("should store constructor as a benign own key without touching Object.prototype", () => {
+			const target: Record<string, unknown> = {};
+			const malicious = JSON.parse('{"constructor":{"a":1}}') as Record<
+				string,
+				unknown
+			>;
+
+			merge(target, malicious);
+
+			expect(Object.hasOwn(target, "constructor")).toBe(true);
+			expect(
+				Object.getOwnPropertyDescriptor(target, "constructor")?.value,
+			).toEqual({ a: 1 });
+			expect(Object.prototype.constructor).toBe(Object);
+			expect(({} as Record<string, unknown>).a).toBeUndefined();
 		});
 	});
 });

@@ -72,6 +72,15 @@ describe("StandardSchemaV1", () => {
 				StandardSchemaV1.Types<string, number> | undefined
 			>();
 		});
+
+		it("should declare every member as `readonly`", () => {
+			expectTypeOf<
+				Readonly<StandardSchemaV1.Props<string, number>>
+			>().toEqualTypeOf<StandardSchemaV1.Props<string, number>>();
+			expectTypeOf<
+				Readonly<StandardSchemaV1.Props>
+			>().toEqualTypeOf<StandardSchemaV1.Props>();
+		});
 	});
 
 	describe("default type parameter", () => {
@@ -91,6 +100,12 @@ describe("StandardSchemaV1", () => {
 			expectTypeOf<StandardSchemaV1>().toEqualTypeOf<
 				StandardSchemaV1<unknown, unknown>
 			>();
+		});
+
+		it("should let a parameterized schema extend the bare constraint", () => {
+			expectTypeOf<
+				StandardSchemaV1<string, number>
+			>().toExtend<StandardSchemaV1>();
 		});
 	});
 
@@ -120,10 +135,16 @@ describe("StandardSchemaV1", () => {
 			>().toEqualTypeOf<ReadonlyArray<StandardSchemaV1.Issue>>();
 		});
 
-		it("should reject a mutable `Issue[]` for `FailureResult.issues`", () => {
+		it("should keep a mutable `Issue[]` distinct from `FailureResult.issues`", () => {
 			expectTypeOf<StandardSchemaV1.Issue[]>().not.toEqualTypeOf<
 				StandardSchemaV1.FailureResult["issues"]
 			>();
+			expectTypeOf<StandardSchemaV1.Issue[]>().toExtend<
+				StandardSchemaV1.FailureResult["issues"]
+			>();
+			expectTypeOf<
+				StandardSchemaV1.FailureResult["issues"]
+			>().not.toExtend<StandardSchemaV1.Issue[]>();
 		});
 	});
 

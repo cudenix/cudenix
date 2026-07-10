@@ -78,6 +78,17 @@ describe("parseBody", () => {
 
 			expect(result).toEqual({ a: "v1" });
 		});
+
+		it("should reject with a SyntaxError when the json body is empty", async () => {
+			const emptyBodyRequest = request("", "application/json");
+
+			expect(emptyBodyRequest.headers.get("content-type")).toBe(
+				"application/json",
+			);
+			await expect(parseBody(emptyBodyRequest)).rejects.toThrow(
+				SyntaxError,
+			);
+		});
 	});
 
 	describe("octet-stream bodies", () => {
@@ -149,6 +160,14 @@ describe("parseBody", () => {
 			)) as Record<string, unknown>;
 
 			expect(result.a).toEqual(["v1", "v2", "v3"]);
+		});
+
+		it("should capture valueless keys as empty strings", async () => {
+			const result = (await parseBody(
+				request("a&b=", "application/x-www-form-urlencoded"),
+			)) as Record<string, unknown>;
+
+			expect(result).toEqual({ a: "", b: "" });
 		});
 
 		it("should decode percent escapes and '+' in field values", async () => {
@@ -241,6 +260,28 @@ describe("parseBody", () => {
 			expect(files[1]?.name).toBe("b.txt");
 		});
 
+		it("should collapse a repeated field mixing a string and a File into an array in first-seen order", async () => {
+			const formData = new FormData();
+
+			formData.append("a", "v1");
+			formData.append(
+				"a",
+				new File(["v2"], "a.txt", { type: "text/plain" }),
+			);
+
+			const result = (await parseBody(request(formData))) as Record<
+				string,
+				unknown
+			>;
+
+			const values = result.a as [string, File];
+
+			expect(values).toHaveLength(2);
+			expect(values[0]).toBe("v1");
+			expect(values[1]).toBeInstanceOf(File);
+			expect(values[1]?.name).toBe("a.txt");
+		});
+
 		it("should reject for 'multipart/form-data' without a boundary parameter", async () => {
 			await expect(
 				parseBody(request("v1", "multipart/form-data")),
@@ -259,6 +300,20 @@ describe("parseBody", () => {
 			const result = await parseBody(request("v1"));
 
 			expect(result).toBe("v1");
+		});
+
+		it("should resolve to an empty string for a bodyless request with no content type", async () => {
+			const bodylessRequest = new Request("https://a.b/c");
+
+			expect(bodylessRequest.headers.get("content-type")).toBeNull();
+			expect(await parseBody(bodylessRequest)).toBe("");
+		});
+
+		it("should read a byte body as text when no content type is set", async () => {
+			const byteBodyRequest = request(new Uint8Array([104, 105]));
+
+			expect(byteBodyRequest.headers.get("content-type")).toBeNull();
+			expect(await parseBody(byteBodyRequest)).toBe("hi");
 		});
 
 		it("should read the body as text for an unknown content type", async () => {
@@ -297,14 +352,6 @@ describe("parseBody", () => {
 			);
 
 			expect(result).toBe(JSON.stringify({ a: "v1" }));
-		});
-
-		it("should match an exact 'application/x-www-form-urlencoded' with no parameters", async () => {
-			const result = (await parseBody(
-				request("a=v1", "application/x-www-form-urlencoded"),
-			)) as Record<string, unknown>;
-
-			expect(result.a).toBe("v1");
 		});
 
 		it("should not treat a longer look-alike type as a urlencoded form", async () => {

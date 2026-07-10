@@ -207,6 +207,15 @@ describe("ExtractContent", () => {
 			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<string>();
 		});
 
+		it("should resolve to the return type of the LAST overload for an overloaded call signature", () => {
+			interface A {
+				(): string;
+				(a: number): number;
+			}
+
+			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<number>();
+		});
+
 		it("should pass the built-in `Function` type through unchanged because it does not match `(...args: any[]) => infer Return`", () => {
 			// biome-ignore lint/complexity/noBannedTypes: probing the built-in Function type is the point of the test
 			expectTypeOf<ExtractContent<Function>>().toEqualTypeOf<Function>();

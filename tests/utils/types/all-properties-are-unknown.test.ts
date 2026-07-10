@@ -39,6 +39,12 @@ describe("AllPropertiesAreUnknown", () => {
 
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
+
+		it("should resolve to true for an intersection of unknown-property shapes", () => {
+			type A = { a: unknown } & { b: unknown };
+
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
+		});
 	});
 
 	describe("index signatures", () => {
@@ -143,6 +149,12 @@ describe("AllPropertiesAreUnknown", () => {
 			class A {}
 
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
+		});
+
+		it("should resolve to a vacuous true for the degenerate `never` input", () => {
+			expectTypeOf<
+				AllPropertiesAreUnknown<never>
+			>().toEqualTypeOf<true>();
 		});
 	});
 

@@ -121,6 +121,30 @@ describe("MergePaths", () => {
 		it("should reduce a slashes-only path to root when the prefix is root", () => {
 			expectTypeOf<MergePaths<"/", "//">>().toEqualTypeOf<"/">();
 		});
+
+		it("should collapse a slashes-only prefix to root when the path is root - the only case a `//` prefix collapses", () => {
+			expectTypeOf<MergePaths<"//", "/">>().toEqualTypeOf<"/">();
+		});
+	});
+
+	describe("non-literal inputs", () => {
+		it("should join a non-literal prefix with a literal path", () => {
+			expectTypeOf<
+				MergePaths<`/${string}`, "/b">
+			>().toEqualTypeOf<`/${string}/b`>();
+		});
+
+		it("should join a literal prefix with a non-literal path", () => {
+			expectTypeOf<
+				MergePaths<"/a", `/${string}`>
+			>().toEqualTypeOf<`/a/${string}`>();
+		});
+
+		it("should strip a trailing slash from a non-literal prefix", () => {
+			expectTypeOf<
+				MergePaths<`/${string}/`, "/b">
+			>().toEqualTypeOf<`/${string}/b`>();
+		});
 	});
 
 	describe("structural relations", () => {

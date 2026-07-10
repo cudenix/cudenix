@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
+import { runInNewContext } from "node:vm";
 
 import { isGenerator } from "@/utils/functions/is-generator";
 
@@ -152,7 +153,10 @@ describe("isGenerator", () => {
 		});
 
 		it("should return false for an async function expression", () => {
-			const asyncFn = async () => 1;
+			// biome-ignore lint/complexity/useArrowFunction: Testing async function expressions
+			const asyncFn = async function () {
+				return 1;
+			};
 
 			expect(isGenerator(asyncFn)).toBe(false);
 		});
@@ -233,12 +237,37 @@ describe("isGenerator", () => {
 			expect(isGenerator(fn)).toBe(false);
 		});
 
+		it("should be fooled by an arrow function whose prototype was overridden to the generator function prototype", () => {
+			const fn = asFn(() => {});
+
+			Object.setPrototypeOf(
+				fn,
+				Object.getPrototypeOf(function* () {}),
+			);
+
+			expect(isGenerator(fn)).toBe(true);
+		});
+
 		it("should return false for a generator object instance (not the function)", () => {
 			function* gen() {
 				yield 1;
 			}
 
 			expect(isGenerator(asFn(gen()))).toBe(false);
+		});
+
+		it("should return false for an async generator object instance (not the function)", () => {
+			async function* gen() {
+				yield 1;
+			}
+
+			expect(isGenerator(asFn(gen()))).toBe(false);
+		});
+
+		it("should return false for a cross-realm generator function created via node:vm", () => {
+			const gen = asFn(runInNewContext("(function* () { yield 1; })"));
+
+			expect(isGenerator(gen)).toBe(false);
 		});
 	});
 

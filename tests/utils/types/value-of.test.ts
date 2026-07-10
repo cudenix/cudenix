@@ -221,6 +221,12 @@ describe("ValueOf", () => {
 
 			expectTypeOf<string>().toExtend<ValueOf<A>>();
 		});
+
+		it("should not equal the bare element union for a tuple because the length literal and array-method types leak in", () => {
+			type A = [string, "x"];
+
+			expectTypeOf<ValueOf<A>>().not.toEqualTypeOf<string | "x">();
+		});
 	});
 
 	describe("edge cases", () => {

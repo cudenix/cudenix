@@ -142,6 +142,60 @@ describe("usesContext", () => {
 
 			expect(usesContext(obj.method)).toBe(true);
 		});
+
+		it("should return true for the substring `arguments` inside a string literal", () => {
+			expect(usesContext(() => "arguments")).toBe(true);
+		});
+
+		it("should return true for the substring `arguments` inside an identifier", () => {
+			// A literal initializer would be constant-inlined by the transpiler,
+			// erasing the identifier from the function's source.
+			const argumentsTotal = Math.random();
+
+			expect(usesContext(() => argumentsTotal)).toBe(true);
+		});
+	});
+
+	describe("memoization", () => {
+		it("should cache the verdict by identity, ignoring a source patched between calls", () => {
+			const cached = () => 1;
+			const fresh = () => 1;
+			const spoofedSource = () => "function () { return arguments[0]; }";
+
+			expect(usesContext(cached)).toBe(false);
+
+			cached.toString = spoofedSource;
+			fresh.toString = spoofedSource;
+
+			expect(usesContext(cached)).toBe(false);
+			expect(usesContext(fresh)).toBe(true);
+		});
+	});
+
+	describe("non-function values", () => {
+		it("should throw a TypeError for a number primitive, which cannot be cached in the WeakMap", () => {
+			expect(() => usesContext(asFn(1))).toThrow(TypeError);
+		});
+
+		it("should throw a TypeError for a boolean primitive, which cannot be cached in the WeakMap", () => {
+			expect(() => usesContext(asFn(true))).toThrow(TypeError);
+		});
+
+		it("should throw a TypeError for an empty string, which cannot be cached in the WeakMap", () => {
+			expect(() => usesContext(asFn(""))).toThrow(TypeError);
+		});
+
+		it("should return true for a non-empty string, whose length short-circuits before the cache", () => {
+			expect(usesContext(asFn("v1"))).toBe(true);
+		});
+
+		it("should return true for a plain object, whose source is not recognized as empty", () => {
+			expect(usesContext(asFn({}))).toBe(true);
+		});
+
+		it("should return true for an array, whose source is not recognized as empty", () => {
+			expect(usesContext(asFn([]))).toBe(true);
+		});
 	});
 
 	describe("nullish inputs", () => {

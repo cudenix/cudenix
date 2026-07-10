@@ -34,14 +34,6 @@ describe("MaybePromise", () => {
 			>();
 		});
 
-		it("should treat a bare value as assignable", () => {
-			expectTypeOf<number>().toExtend<MaybePromise<number>>();
-		});
-
-		it("should treat a promise as assignable", () => {
-			expectTypeOf<Promise<number>>().toExtend<MaybePromise<number>>();
-		});
-
 		it("should not collapse the union to its value type", () => {
 			expectTypeOf<MaybePromise<number>>().not.toEqualTypeOf<number>();
 		});
@@ -119,6 +111,20 @@ describe("MaybePromise", () => {
 			expectTypeOf<
 				MaybePromise<void>
 			>().toEqualTypeOf<void | Promise<void>>();
+		});
+	});
+
+	describe("degenerate wrapped types", () => {
+		it("should collapse `never | Promise<never>` to `Promise<never>` when wrapping `never`", () => {
+			expectTypeOf<MaybePromise<never>>().toEqualTypeOf<Promise<never>>();
+		});
+
+		it("should be absorbed into `any` when wrapping `any`", () => {
+			expectTypeOf<MaybePromise<any>>().toBeAny();
+		});
+
+		it("should absorb `Promise<unknown>` into `unknown` when wrapping `unknown`", () => {
+			expectTypeOf<MaybePromise<unknown>>().toEqualTypeOf<unknown>();
 		});
 	});
 

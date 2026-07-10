@@ -267,6 +267,18 @@ describe("Merge", () => {
 		});
 	});
 
+	describe("never operands", () => {
+		// Documents the collapse hazard behind `Merge<Stores, ...>` in
+		// `src/core/module.ts`: a `never` operand erases the whole result.
+		it("should collapse to `never` when the second operand is `never`", () => {
+			expectTypeOf<Merge<{ a: 1 }, never>>().toBeNever();
+		});
+
+		it("should collapse to `never` when the first operand is `never`", () => {
+			expectTypeOf<Merge<never, { a: 1 }>>().toBeNever();
+		});
+	});
+
 	describe("optional modifier", () => {
 		it("should union an optional override with the base value instead of replacing it", () => {
 			interface A {
@@ -290,8 +302,10 @@ describe("Merge", () => {
 			}
 
 			expectTypeOf<
-				"a" extends keyof Merge<A, B> ? true : false
-			>().toEqualTypeOf<true>();
+				NonNullable<unknown> extends Pick<Merge<A, B>, "a">
+					? true
+					: false
+			>().toEqualTypeOf<false>();
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
 				a: string | undefined;
 			}>();
@@ -321,6 +335,19 @@ describe("Merge", () => {
 				b?: number;
 			}>();
 		});
+
+		it("should keep the `?` modifier when both operands declare the key optional", () => {
+			interface A {
+				a?: string;
+			}
+			interface B {
+				a?: number;
+			}
+
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				a?: string | number;
+			}>();
+		});
 	});
 
 	describe("readonly modifier", () => {
@@ -346,6 +373,19 @@ describe("Merge", () => {
 			}
 
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a: string }>();
+		});
+
+		it("should preserve the first operand's `readonly` when the override is optional", () => {
+			interface A {
+				readonly a: string;
+			}
+			interface B {
+				a?: number;
+			}
+
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				readonly a: string | number | undefined;
+			}>();
 		});
 	});
 
@@ -485,6 +525,41 @@ describe("Merge", () => {
 			expectTypeOf<Merge<A, B>["a"]>().toEqualTypeOf<
 				string | number | undefined
 			>();
+		});
+	});
+
+	describe("index-signature base with an optional concrete override", () => {
+		interface A {
+			[k: string]: number;
+		}
+		interface B {
+			id?: string;
+		}
+
+		type M = Merge<A, B>;
+
+		it("should keep the optional concrete key and union it with the index-signature value", () => {
+			expectTypeOf<M["id"]>().toEqualTypeOf<
+				string | number | undefined
+			>();
+		});
+
+		it("should keep `keyof` limited to the index signature's key types", () => {
+			expectTypeOf<keyof M>().toEqualTypeOf<string | number>();
+		});
+
+		it("should keep the surviving concrete key optional", () => {
+			expectTypeOf<
+				NonNullable<unknown> extends Pick<M, "id"> ? true : false
+			>().toEqualTypeOf<true>();
+		});
+
+		it("should still replace wholesale when the concrete key is required", () => {
+			interface C {
+				id: string;
+			}
+
+			expectTypeOf<Merge<A, C>["id"]>().toEqualTypeOf<string>();
 		});
 	});
 

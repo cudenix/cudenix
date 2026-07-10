@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import vm from "node:vm";
 
 import { isAsync } from "@/utils/functions/is-async";
 
@@ -230,6 +231,35 @@ describe("isAsync", () => {
 			expect(isAsync(asFn(promise))).toBe(false);
 
 			return promise;
+		});
+	});
+
+	describe("known limitations of the prototype-identity technique", () => {
+		it("should misclassify a re-prototyped arrow function as async (known limitation: prototype identity is spoofable)", () => {
+			const fn = asFn(() => {});
+
+			Object.setPrototypeOf(
+				fn,
+				Object.getPrototypeOf(async () => {}),
+			);
+
+			expect(isAsync(fn)).toBe(true);
+		});
+
+		it("should misclassify a non-callable object created with the async function prototype as async (known limitation: prototype identity)", () => {
+			const obj = asFn(
+				Object.create(Object.getPrototypeOf(async () => {})),
+			);
+
+			expect(isAsync(obj)).toBe(true);
+		});
+
+		it("should misclassify a cross-realm async function as non-async (known limitation: prototype identity is per realm)", () => {
+			const crossRealmAsync = asFn(
+				vm.runInNewContext("(async () => {})"),
+			);
+
+			expect(isAsync(crossRealmAsync)).toBe(false);
 		});
 	});
 

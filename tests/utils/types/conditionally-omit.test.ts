@@ -403,5 +403,16 @@ describe("ConditionallyOmit", () => {
 				b: string;
 			}>();
 		});
+
+		it("should drop an optional key when the marker matches its widened `| undefined` value type", () => {
+			interface A {
+				a?: string;
+				b: number;
+			}
+
+			expectTypeOf<
+				ConditionallyOmit<A, string | undefined>
+			>().toEqualTypeOf<{ b: number }>();
+		});
 	});
 });

@@ -64,6 +64,12 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/a/1")).toBe(false);
 		});
 
+		it("should match literal segments case-sensitively", () => {
+			const { regex } = compile("/a");
+
+			expect(regex.test("/A")).toBe(false);
+		});
+
 		it("should compile multiple literal segments", () => {
 			const { regex } = compile("/a/b/c");
 
@@ -113,6 +119,8 @@ describe("pathToRegexp", () => {
 				const { regex } = compile(path);
 
 				expect(regex.test(path)).toBe(true);
+				expect(regex.test("/aXb")).toBe(false);
+				expect(regex.test("/ab")).toBe(false);
 			}
 		});
 
@@ -137,6 +145,14 @@ describe("pathToRegexp", () => {
 
 			expect(regex.test("/a?b")).toBe(true);
 			expect(regex.test("/ab")).toBe(false);
+		});
+
+		it("should treat a ':' in the middle of a segment as a literal character", () => {
+			const { paramKeys, regex } = compile("/a:b");
+
+			expect(paramKeys).toEqual([]);
+			expect(regex.test("/a:b")).toBe(true);
+			expect(regex.test("/aXb")).toBe(false);
 		});
 
 		it("should match literal segments with non-ASCII characters", () => {
@@ -270,6 +286,12 @@ describe("pathToRegexp", () => {
 			expect(match?.[3]).toBe("v2");
 		});
 
+		it("should keep duplicate param names as separate paramKeys entries", () => {
+			const { paramKeys } = compile("/:a/:a");
+
+			expect(paramKeys).toEqual(["a", "a"]);
+		});
+
 		it("should support a ':' segment with no name (empty key)", () => {
 			const { paramKeys } = compile("/:");
 
@@ -323,6 +345,20 @@ describe("pathToRegexp", () => {
 
 			expect(regex.test("/")).toBe(false);
 		});
+
+		it("should match every arity of an all-optional multi-param path", () => {
+			const { regex } = compile("/:p1?/:p2?");
+
+			expect(regex.test("")).toBe(true);
+			expect(regex.test("/")).toBe(true);
+			expect(regex.test("/v1")).toBe(true);
+			expect(regex.test("/v1/v2")).toBe(true);
+
+			const match = "/v1".match(regex);
+
+			expect(match?.[2]).toBe("v1");
+			expect(match?.[3]).toBeUndefined();
+		});
 	});
 
 	describe("...name rest parameter", () => {
@@ -346,6 +382,10 @@ describe("pathToRegexp", () => {
 			it("should require at least one segment after the prefix", () => {
 				expect(compiled.regex.test("/a")).toBe(false);
 				expect(compiled.regex.test("/a/")).toBe(false);
+			});
+
+			it("should reject a trailing slash after the rest segments, unlike '*'", () => {
+				expect(compiled.regex.test("/a/v1/")).toBe(false);
 			});
 
 			it("should reject forbidden characters in rest segments", () => {
@@ -377,6 +417,17 @@ describe("pathToRegexp", () => {
 
 			expect(paramKeys).toEqual(["r1", "r2"]);
 			expect(restKeys).toEqual(["r1", "r2"]);
+		});
+
+		it("should distribute segments across multiple rest params around a literal", () => {
+			const { regex } = compile("/...r1/a/...r2");
+
+			const match = "/v1/v2/a/v3".match(regex);
+
+			expect(match).not.toBeNull();
+			expect(match?.[1]).toBe("");
+			expect(match?.[2]).toBe("v1/v2");
+			expect(match?.[3]).toBe("v3");
 		});
 
 		it("should support an empty rest name", () => {
@@ -411,6 +462,12 @@ describe("pathToRegexp", () => {
 			const missing = "/a".match(regex);
 
 			expect(missing?.[2]).toBeUndefined();
+		});
+
+		it("should reject the bare prefix with a trailing slash, unlike '*?'", () => {
+			const { regex } = compile("/a/...r1?");
+
+			expect(regex.test("/a/")).toBe(false);
 		});
 
 		it("should support an optional rest with no name", () => {
@@ -472,6 +529,26 @@ describe("pathToRegexp", () => {
 				expect(match?.length).toBe(2);
 			});
 		});
+
+		it("should compile a bare '/*' catch-all that matches any non-empty path", () => {
+			const { paramKeys, regex, restKeys } = compile("/*");
+
+			expect(paramKeys).toEqual([]);
+			expect(restKeys).toEqual([]);
+			expect(regex.test("/")).toBe(true);
+			expect(regex.test("/v1")).toBe(true);
+			expect(regex.test("/v1/v2")).toBe(true);
+			expect(regex.test("")).toBe(false);
+		});
+
+		it("should match '//a' but not '/a' when a literal follows the wildcard", () => {
+			const { regex } = compile("/*/a");
+
+			expect(regex.test("/v1/a")).toBe(true);
+			expect(regex.test("/a")).toBe(false);
+			// Reachable: new URL("http://x//a").pathname is "//a".
+			expect(regex.test("//a")).toBe(true);
+		});
 	});
 
 	describe("*? optional wildcard", () => {
@@ -493,6 +570,10 @@ describe("pathToRegexp", () => {
 			it("should not add extra capture groups whether the tail is present or absent", () => {
 				expect("/a/v1/v2".match(compiled.regex)?.length).toBe(2);
 				expect("/a".match(compiled.regex)?.length).toBe(2);
+			});
+
+			it("should match the bare prefix with a trailing slash, unlike '...name?'", () => {
+				expect(compiled.regex.test("/a/")).toBe(true);
 			});
 		});
 	});
@@ -570,6 +651,11 @@ describe("pathToRegexp", () => {
 
 		it("should return no ranks for the root path", () => {
 			expect(pathToRegexp("/").ranks).toEqual([]);
+		});
+
+		it("should rank optional empty literal segments as static", () => {
+			expect(pathToRegexp("/?").ranks).toEqual([0]);
+			expect(pathToRegexp("/a/?").ranks).toEqual([0, 0]);
 		});
 	});
 });

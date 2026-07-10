@@ -194,6 +194,51 @@ describe("pushAllFrom", () => {
 		});
 	});
 
+	describe("negative start (no lower-bound clamp)", () => {
+		it("should read out of bounds and materialize undefined entries before the source elements", () => {
+			const target: (number | undefined)[] = [0];
+
+			pushAllFrom(target, [1, 2], -2);
+
+			expect(target).toEqual([0, undefined, undefined, 1, 2]);
+			expect(target).toHaveLength(5);
+			expect(1 in target).toBe(true);
+			expect(2 in target).toBe(true);
+		});
+	});
+
+	describe("invalid start values", () => {
+		it("should throw a RangeError for a NaN start and leave the target intact", () => {
+			const target = [1, 2];
+
+			expect(() => pushAllFrom(target, [3, 4], Number.NaN)).toThrow(
+				RangeError,
+			);
+			expect(target).toEqual([1, 2]);
+			expect(target).toHaveLength(2);
+		});
+
+		it("should throw a RangeError for a fractional start and leave the target intact", () => {
+			const target = [0];
+
+			expect(() => pushAllFrom(target, [1, 2], 0.5)).toThrow(RangeError);
+			expect(target).toEqual([0]);
+			expect(target).toHaveLength(1);
+		});
+	});
+
+	describe("frozen target", () => {
+		it("should throw a TypeError for a frozen target and leave it intact", () => {
+			const target = [1, 2];
+
+			Object.freeze(target);
+
+			expect(() => pushAllFrom(target, [3, 4], 0)).toThrow(TypeError);
+			expect(target).toEqual([1, 2]);
+			expect(target).toHaveLength(2);
+		});
+	});
+
 	describe("sparse source", () => {
 		it("should materialize holes in the copied tail as undefined entries", () => {
 			const target: (number | undefined)[] = [0];

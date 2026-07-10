@@ -79,7 +79,29 @@ describe("parseCookies", () => {
 		it("should decode to the original value via decodeURIComponent at the call site", () => {
 			const result = parseCookies("a=a%20b");
 
+			expect(result.a).toBe("a%20b");
 			expect(decodeURIComponent(result.a!)).toBe("a b");
+		});
+
+		it("should preserve double-quoted values verbatim (no RFC 6265 quote stripping)", () => {
+			const result = parseCookies('a="v1"; b=2');
+
+			expect(result.a).toBe('"v1"');
+			expect(result.b).toBe("2");
+		});
+
+		it("should not trim whitespace around values", () => {
+			const result = parseCookies("a=v1 ; b=2");
+
+			expect(result.a).toBe("v1 ");
+			expect(result.b).toBe("2");
+		});
+
+		it("should keep a percent-encoded name raw (no URL-decoding of names)", () => {
+			const result = parseCookies("a%20b=1");
+
+			expect(result["a%20b"]).toBe("1");
+			expect("a b" in result).toBe(false);
 		});
 
 		it("should preserve whitespace inside values", () => {
@@ -146,6 +168,14 @@ describe("parseCookies", () => {
 			expect(result.a).toBe("v1;");
 		});
 
+		it("should merge two entries into one name on a bare ';' during the name scan", () => {
+			const result = parseCookies("a;b=c");
+
+			expect(result["a;b"]).toBe("c");
+			expect("a" in result).toBe(false);
+			expect("b" in result).toBe(false);
+		});
+
 		it("should leak the extra space into the name when the separator is doubled", () => {
 			const result = parseCookies("a=1;  b=2");
 
@@ -185,6 +215,13 @@ describe("parseCookies", () => {
 			expect(result.a).toBe("v1");
 			expect("flag" in result).toBe(false);
 			expect(Object.keys(result)).toEqual(["a"]);
+		});
+
+		it("should drop an empty-name entry when it is the only segment ('=v1')", () => {
+			const result = parseCookies("=v1");
+
+			expect(Object.keys(result)).toHaveLength(0);
+			expect(result[""]).toBeUndefined();
 		});
 
 		it("should drop entries with an empty name ('=value')", () => {
