@@ -283,9 +283,10 @@ const flatten = (
  * ```
  */
 export const compile = (app: Cudenix) => {
+	const routes = app.routes;
+
 	const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
 	const mounts: CompiledMount[] = [];
-	const routes = app.routes;
 
 	flatten(endpoints, mounts, app.memory.module as AnyModule, [], "");
 
@@ -296,8 +297,9 @@ export const compile = (app: Cudenix) => {
 			continue;
 		}
 
-		const analyzedEndpoints: AnalyzedEndpoint[] = [];
 		const isBunMethod = BUN_METHODS.has(method);
+
+		const analyzedEndpoints: AnalyzedEndpoint[] = [];
 
 		for (let i = 0; i < methodEndpoints.length; i++) {
 			const methodEndpoint = methodEndpoints[i];
@@ -336,9 +338,13 @@ export const compile = (app: Cudenix) => {
 		let matchOffset = 1;
 
 		for (let i = 0; i < analyzedEndpoints.length; i++) {
-			const analyzedEndpoint = analyzedEndpoints[i]!;
-			const methodEndpoint = analyzedEndpoint.endpoint;
+			const analyzedEndpoint = analyzedEndpoints[i];
 
+			if (!analyzedEndpoint) {
+				continue;
+			}
+
+			const methodEndpoint = analyzedEndpoint.endpoint;
 			const isStatic =
 				methodEndpoint.route.static &&
 				methodEndpoint.chain.length === 0;
