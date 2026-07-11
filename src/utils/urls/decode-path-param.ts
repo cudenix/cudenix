@@ -100,26 +100,45 @@ const decodeUtf8Bytes = (bytes: number[]) => {
  * Percent-decode a route parameter with Bun's U+FFFD replacement rules.
  */
 export const decodePathParam = (value: string) => {
-	if (value.indexOf("%") === -1) {
+	const firstPercentIndex = value.indexOf("%");
+
+	if (firstPercentIndex === -1) {
 		return value;
 	}
 
-	let bytes: number[] = [];
-	let decoded = "";
-	let i = 0;
+	const length = value.length;
 
-	const flushBytes = () => {
-		if (bytes.length === 0) {
-			return;
+	let lastPercentIndex = length;
+
+	if (length >= 32) {
+		if (value.charCodeAt(length - 1) === 37) {
+			lastPercentIndex = length - 1;
+		} else if (value.charCodeAt(length - 2) === 37) {
+			lastPercentIndex = length - 2;
+		} else if (value.charCodeAt(length - 3) === 37) {
+			lastPercentIndex = length - 3;
+		} else {
+			lastPercentIndex = value.lastIndexOf("%");
 		}
+	}
 
-		decoded += decodeUtf8Bytes(bytes);
-		bytes = [];
-	};
+	const bytes: number[] = [];
 
-	while (i < value.length) {
+	let decoded = value.substring(0, firstPercentIndex);
+	let i = firstPercentIndex;
+
+	while (i < length) {
 		if (value.charCodeAt(i) !== 37) {
-			flushBytes();
+			if (bytes.length > 0) {
+				decoded += decodeUtf8Bytes(bytes);
+				bytes.length = 0;
+			}
+
+			if (i > lastPercentIndex) {
+				decoded += value.substring(i);
+
+				break;
+			}
 
 			decoded += value[i];
 			i++;
@@ -127,8 +146,11 @@ export const decodePathParam = (value: string) => {
 			continue;
 		}
 
-		if (i + 2 >= value.length) {
-			flushBytes();
+		if (i + 2 >= length) {
+			if (bytes.length > 0) {
+				decoded += decodeUtf8Bytes(bytes);
+				bytes.length = 0;
+			}
 
 			decoded += "�";
 			i++;
@@ -140,7 +162,10 @@ export const decodePathParam = (value: string) => {
 		const lowNibble = hexCharCodeToValue(value.charCodeAt(i + 2));
 
 		if (highNibble === -1 || lowNibble === -1) {
-			flushBytes();
+			if (bytes.length > 0) {
+				decoded += decodeUtf8Bytes(bytes);
+				bytes.length = 0;
+			}
 
 			decoded += "�";
 			i += 3;
@@ -148,11 +173,25 @@ export const decodePathParam = (value: string) => {
 			continue;
 		}
 
-		bytes.push((highNibble << 4) | lowNibble);
+		const byte = (highNibble << 4) | lowNibble;
+
+		if (byte <= 127) {
+			if (bytes.length > 0) {
+				decoded += decodeUtf8Bytes(bytes);
+				bytes.length = 0;
+			}
+
+			decoded += String.fromCharCode(byte);
+		} else {
+			bytes.push(byte);
+		}
+
 		i += 3;
 	}
 
-	flushBytes();
+	if (bytes.length > 0) {
+		decoded += decodeUtf8Bytes(bytes);
+	}
 
 	return decoded;
 };

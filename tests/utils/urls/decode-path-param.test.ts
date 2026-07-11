@@ -76,4 +76,26 @@ describe("decodePathParam", () => {
 			expect(decodePathParam(encoded)).toBe(expected);
 		}
 	});
+
+	it("should decode dense ASCII escapes", () => {
+		expect(decodePathParam("%61".repeat(64))).toBe("a".repeat(64));
+	});
+
+	it("should preserve long literal runs around an escape", () => {
+		const prefix = "a".repeat(100);
+		const suffix = "b".repeat(100);
+
+		expect(decodePathParam(`${prefix}%20${suffix}`)).toBe(
+			`${prefix} ${suffix}`,
+		);
+	});
+
+	it("should preserve a long suffix after a malformed escape", () => {
+		const prefix = "a".repeat(100);
+		const suffix = "b".repeat(100);
+
+		expect(decodePathParam(`${prefix}%ZZ${suffix}`)).toBe(
+			`${prefix}�${suffix}`,
+		);
+	});
 });
