@@ -268,8 +268,6 @@ describe("Merge", () => {
 	});
 
 	describe("never operands", () => {
-		// Documents the collapse hazard behind `Merge<Stores, ...>` in
-		// `src/core/module.ts`: a `never` operand erases the whole result.
 		it("should collapse to `never` when the second operand is `never`", () => {
 			expectTypeOf<Merge<{ a: 1 }, never>>().toBeNever();
 		});
@@ -280,9 +278,6 @@ describe("Merge", () => {
 	});
 
 	describe("any operands", () => {
-		// Documents the widening hazard behind `Merge<Stores, ...>` in
-		// `src/core/module.ts`: an `any` operand does not collapse the result
-		// to `any`, but grafts on a string index signature.
 		it("should widen existing values and add an index signature when the second operand is `any`", () => {
 			expectTypeOf<Merge<{ a: 1 }, any>>().branded.toEqualTypeOf<
 				{ a: any } & { [x: string]: any }

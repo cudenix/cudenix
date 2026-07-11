@@ -158,8 +158,6 @@ describe("usesContext", () => {
 		});
 
 		it("should return true for the substring `arguments` inside an identifier", () => {
-			// A literal initializer would be constant-inlined by the transpiler,
-			// erasing the identifier from the function's source.
 			const argumentsTotal = Math.random();
 
 			expect(usesContext(() => argumentsTotal)).toBe(true);

@@ -15,18 +15,11 @@ const withValidator = (validate: ValidatorPlugin): Plugin =>
 		this.memory.validator = validate;
 	};
 
-/**
- * A validator plugin that echoes whatever input it is handed straight back as
- * its parsed output — so a test can read the value the slot was parsed into.
- */
 const echo: ValidatorPlugin = (_schema, input) => ({
 	content: input,
 	success: true,
 });
 
-/**
- * The generated source of the first `GET` endpoint's compiled dispatcher.
- */
 const jitSource = (
 	module: ConstructorParameters<typeof Cudenix>[0],
 ): string => {
@@ -50,8 +43,6 @@ describe("usage: jit", () => {
 
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
 
-			// A chained route is JIT-compiled up front — neither the static fast
-			// path nor a placeholder swapped on the first request.
 			const compiled = endpoint.dispatch;
 
 			expect(compiled).not.toBe(staticDispatch);
@@ -268,10 +259,8 @@ describe("usage: jit", () => {
 			expect(endpoint.dispatch).toBe(staticDispatch);
 			expect(endpoint.response).toBeInstanceOf(Response);
 
-			// Bun's router serves the precomputed Response natively...
 			const native = await server.fetch("/b");
 
-			// ...and the in-process app.fetch path reuses it via staticDispatch.
 			const inProcess = await server.app.fetch(
 				new Request(server.url("/b")),
 			);
@@ -292,8 +281,6 @@ describe("usage: jit", () => {
 
 			expect(endpoint.dispatch).toBe(staticDispatch);
 
-			// A wildcard path is not tabled by Bun, so the server falls back to
-			// cudenix.fetch -> staticDispatch.
 			const first = await server.fetch("/b/x/y");
 			const second = await server.fetch("/b/x/y");
 
@@ -334,14 +321,11 @@ describe("usage: jit", () => {
 			const asyncEndpoint = asyncServer.app.methods.GET!.endpoints[0]!;
 			const syncEndpoint = syncServer.app.methods.GET!.endpoints[0]!;
 
-			// An async handler is awaited from its declared signature alone.
 			const asyncSource = jit(asyncServer.app, asyncEndpoint).toString();
 
 			expect(asyncSource).toContain("await handler()");
 			expect(asyncSource.startsWith("async")).toBe(true);
 
-			// A plain handler is called bare — no await, and no runtime
-			// promise/thenable check — and the whole dispatcher is synchronous.
 			const syncSource = jit(syncServer.app, syncEndpoint).toString();
 
 			expect(syncSource).toContain("content = handler();");
@@ -385,8 +369,6 @@ describe("usage: jit", () => {
 
 			const first = await server.fetch("/a");
 
-			// No handler is async, so the compiled dispatcher is itself
-			// synchronous — it never allocates a promise — and never swaps.
 			expect(endpoint.dispatch).toBe(compiled);
 			expect(isAsync(endpoint.dispatch)).toBe(false);
 
@@ -408,9 +390,6 @@ describe("usage: jit", () => {
 					.route("GET", "/a", (context) => ok(context.store.a)),
 			);
 
-			// The compiled sync dispatcher runs on every request — no warm-up
-			// walk — so app.fetch hands back a Response synchronously rather than
-			// a promise, identically on every request.
 			const first = server.app.fetch(new Request(server.url("/a")));
 
 			expect(first).toBeInstanceOf(Response);
@@ -451,9 +430,6 @@ describe("usage: jit", () => {
 
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
 
-			// A plain middleware that only forwards through next() needs no
-			// async: next is a sync closure here (the tail never awaits), so the
-			// whole dispatcher stays synchronous.
 			const denied = await server.fetch("/a");
 
 			expect(isAsync(endpoint.dispatch)).toBe(false);
@@ -470,11 +446,6 @@ describe("usage: jit", () => {
 		});
 
 		it("should await a bound async route handler whose source text is not 'async'", async () => {
-			// `bind` returns an exotic function whose source is
-			// "function () { [native code] }" — it does not start with "async" —
-			// yet it still always returns a promise. The prototype fallback keeps
-			// it awaited, so its result is resolved rather than leaked as a
-			// dangling promise on response.content.
 			const handler = (async () => ok("v1")).bind(null);
 
 			using server = serveApp(new Module().route("GET", "/a", handler));

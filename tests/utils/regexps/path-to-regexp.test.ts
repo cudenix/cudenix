@@ -603,7 +603,6 @@ describe("pathToRegexp", () => {
 
 			expect(regex.test("/v1/a")).toBe(true);
 			expect(regex.test("/a")).toBe(false);
-			// Reachable: new URL("http://x//a").pathname is "//a".
 			expect(regex.test("//a")).toBe(true);
 		});
 	});

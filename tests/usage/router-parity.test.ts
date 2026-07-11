@@ -10,11 +10,6 @@ interface ParityResult {
 	serverFallbackCalls: number;
 }
 
-/**
- * Run the same request through the live Bun server and through Cudenix's
- * original `app.fetch`. A temporary spy proves whether the live request used
- * Bun's native table or fell through to the Cudenix matcher.
- */
 const compareRouters = async (
 	server: ServedApp,
 	path: `/${string}`,
