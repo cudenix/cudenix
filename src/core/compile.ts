@@ -22,7 +22,7 @@ const BUN_METHODS = new Set([
 ]);
 
 /**
- * Whether Bun and {@link pathToRegexp} assign the same meaning to `path`.
+ * Checks whether a path is compatible with Bun's native route semantics.
  */
 const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 	if (path === "/") {
@@ -99,7 +99,7 @@ const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 };
 
 /**
- * One endpoint's compiled pattern pieces, staged for the precedence sort.
+ * Describes a compiled endpoint prepared for route ordering.
  */
 interface AnalyzedEndpoint {
 	endpoint: Endpoint;
@@ -110,7 +110,7 @@ interface AnalyzedEndpoint {
 }
 
 /**
- * Bun's specificity ordering, with registration order as the final tie-break.
+ * Orders analyzed endpoints using Bun's route specificity rules.
  */
 const compareAnalyzedEndpoints = (a: AnalyzedEndpoint, b: AnalyzedEndpoint) => {
 	if (a.native !== b.native) {
@@ -135,9 +135,7 @@ const compareAnalyzedEndpoints = (a: AnalyzedEndpoint, b: AnalyzedEndpoint) => {
 };
 
 /**
- * Walk a module subtree, collecting endpoints (keyed by HTTP method) and
- * mounts, optionally reusing `inheritedChain` for links that bubble out of a
- * used module, and return the subtree's outward-facing path prefix.
+ * Collects routes and mounts from a module tree for compilation.
  *
  * @example
  * ```typescript
@@ -273,8 +271,7 @@ const flatten = (
 };
 
 /**
- * Compile a {@link Cudenix} app's module tree into its runtime routing tables:
- * `app.methods`, `app.routes`, `app.mounts`, and `app.rootMount`.
+ * Builds a {@link Cudenix} application's routing data from its module tree.
  *
  * @example
  * ```typescript

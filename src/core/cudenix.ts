@@ -14,7 +14,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 const NOT_FOUND = new Response(undefined, { status: 404 });
 
 /**
- * Flattened list of middlewares, stores, and validators for a single {@link Endpoint}.
+ * Groups the processing components applied to an {@link Endpoint}.
  *
  * @example
  * ```typescript
@@ -24,7 +24,7 @@ const NOT_FOUND = new Response(undefined, { status: 404 });
 export type EndpointChain = (AnyMiddleware | AnyStore | AnyValidator)[];
 
 /**
- * Compiled {@link AnyRoute} plus everything needed to match and run it.
+ * Describes a compiled route used for request matching and dispatch.
  *
  * @example
  * ```typescript
@@ -51,8 +51,7 @@ export interface Endpoint {
 }
 
 /**
- * Per-method routing table: {@link Endpoint}s, their merged `regexp`, and a
- * sparse `table` from marker-group offset to endpoint.
+ * Stores compiled routing data for an HTTP method.
  *
  * @example
  * ```typescript
@@ -66,7 +65,7 @@ export interface MethodData {
 }
 
 /**
- * Setup hook run once during `.compile()` with `this` bound to the app.
+ * Defines a setup hook that runs while compiling an app.
  *
  * @example
  * ```typescript
@@ -78,8 +77,7 @@ export interface MethodData {
 export type Plugin = (this: Cudenix, ...options: any[]) => void;
 
 /**
- * Options accepted by `.listen()` — `Bun.serve` options minus `fetch`,
- * `routes`, `unix`, and `websocket`.
+ * Defines the options accepted when starting the application server.
  *
  * @example
  * ```typescript
@@ -92,7 +90,7 @@ export type ListenOptions = Omit<
 >;
 
 /**
- * Public shape of a Cudenix application instance.
+ * Defines the public API of a Cudenix application.
  *
  * @example
  * ```typescript
@@ -113,7 +111,7 @@ export interface Cudenix {
 }
 
 /**
- * Constructor signature of {@link Cudenix}.
+ * Defines the constructor for creating a {@link Cudenix} application.
  *
  * @example
  * ```typescript
@@ -127,7 +125,7 @@ export interface CudenixConstructor {
 }
 
 /**
- * Construct a {@link Cudenix} app around a root {@link AnyModule}.
+ * Creates a {@link Cudenix} application from a root {@link AnyModule}.
  *
  * @example
  * ```typescript
@@ -143,8 +141,7 @@ export const Cudenix = function (this: Cudenix, module: AnyModule) {
 } as unknown as CudenixConstructor;
 
 /**
- * Compile the app so it can serve requests — only the first call does any
- * work.
+ * Compiles the application for request handling.
  *
  * @example
  * ```typescript
@@ -173,7 +170,7 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 };
 
 /**
- * Resolve a request to a `Response`.
+ * Routes an incoming request through the application.
  *
  * @example
  * ```typescript
@@ -247,7 +244,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 };
 
 /**
- * Compile the app and start serving it through `Bun.serve`.
+ * Compiles and starts the application server.
  *
  * @example
  * ```typescript
@@ -277,7 +274,7 @@ Cudenix.prototype.listen = function (this: Cudenix, options?: ListenOptions) {
 };
 
 /**
- * Register {@link Plugin} setup hooks to run during the next `.compile()`.
+ * Registers {@link Plugin} setup hooks for application compilation.
  *
  * @example
  * ```typescript

@@ -1,7 +1,7 @@
 import type { AnyFail, AnyOk } from "@/core/reply";
 
 /**
- * Describe the shape of one frame yielded by a generator handler targeting `text/event-stream`.
+ * Describes an SSE event yielded by a generator handler.
  *
  * @example
  * ```typescript
@@ -20,8 +20,7 @@ export interface GeneratorSSE<
 }
 
 /**
- * Resolve to any {@link GeneratorSSE} regardless of its payload or event-name
- * type parameters.
+ * Represents a generator SSE event without type constraints.
  *
  * @example
  * ```typescript

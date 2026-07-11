@@ -1,7 +1,7 @@
 import { Empty } from "@/utils/objects/empty";
 
 /**
- * Read and parse a `Request` body by its `Content-Type`.
+ * Parses a request body according to its content type.
  *
  * @example
  * ```typescript

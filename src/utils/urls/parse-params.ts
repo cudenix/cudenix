@@ -1,7 +1,7 @@
 import { Empty } from "@/utils/objects/empty";
 
 /**
- * Read named path parameters from a route match into a dictionary keyed by name.
+ * Extracts named parameters from a route match.
  *
  * @example
  * ```typescript

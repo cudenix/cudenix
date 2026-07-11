@@ -1,5 +1,5 @@
 /**
- * Resolve to a union of the common HTTP verbs and any other string.
+ * Represents HTTP method names.
  *
  * @example
  * ```typescript

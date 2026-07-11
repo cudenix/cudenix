@@ -1,5 +1,5 @@
 /**
- * Return a new array with `item` appended, leaving `array` untouched.
+ * Creates an array copy with an additional item.
  *
  * @example
  * ```typescript

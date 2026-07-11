@@ -1,6 +1,5 @@
 /**
- * Resolve to the keys of `T` that are required (not optional and not
- * `undefined`).
+ * Identifies required properties in an object type.
  *
  * @example
  * ```typescript

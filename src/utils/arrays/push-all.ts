@@ -1,5 +1,5 @@
 /**
- * Append every element of `source` onto the end of `target`, in place.
+ * Appends all source items to a target array.
  *
  * @example
  * ```typescript

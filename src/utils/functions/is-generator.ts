@@ -4,7 +4,7 @@ const ASYNC_GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(
 );
 
 /**
- * Check whether `fn` is a generator function — `function*` or `async function*`.
+ * Detects generator functions.
  *
  * @example
  * ```typescript

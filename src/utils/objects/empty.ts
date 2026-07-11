@@ -1,6 +1,5 @@
 /**
- * Create a fresh dictionary backed by a shared null-prototype, so it inherits
- * no `Object.prototype` members.
+ * Creates prototype-free dictionary objects.
  *
  * @example
  * ```typescript
@@ -18,8 +17,7 @@ export const Empty = function Empty() {} as unknown as new () => Record<
 Empty.prototype = Object.create(null);
 
 /**
- * Provide a shared, frozen empty dictionary — a read-only default for optional
- * options objects. Built on {@link Empty}.
+ * Provides a reusable immutable empty dictionary.
  *
  * @example
  * ```typescript

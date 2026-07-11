@@ -3,7 +3,7 @@ const EMPTY_PARAMETERS = /^\s*(?:async\s+)?(?:function\b[^(]*)?\(\s*\)/;
 const verdicts = new WeakMap<(...args: any[]) => unknown, boolean>();
 
 /**
- * Check whether `fn` can reach its first argument — the request `Context`.
+ * Detects whether a function accesses the request context.
  *
  * @example
  * ```typescript

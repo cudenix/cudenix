@@ -1,22 +1,19 @@
 /**
- * Resolve to the keys of `U` that are certainly present. Only these replace
- * the base declaration wholesale.
+ * Identifies properties replaced during a type merge.
  */
 type ReplacedKeys<U> = {
 	[K in keyof U]-?: NonNullable<unknown> extends Pick<U, K> ? never : K;
 }[keyof U];
 
 /**
- * Resolve to the keys of `T` that are declared literally, excluding the ones
- * that only exist through an index signature (`string`, `number`, `symbol`
- * and template-literal patterns alike).
+ * Identifies explicitly declared properties in a type.
  */
 type DeclaredKeys<T> = {
 	[K in keyof T]-?: NonNullable<unknown> extends Record<K, 1> ? never : K;
 }[keyof T];
 
 /**
- * Overlay `U` onto `T`.
+ * Combines two object types by overlaying one onto the other.
  *
  * @example
  * ```typescript

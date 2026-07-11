@@ -1,5 +1,5 @@
 /**
- * Decode a single hexadecimal character code to its numeric value.
+ * Converts a hexadecimal character code to a number.
  */
 const hexCharCodeToValue = (charCode: number) => {
 	if (charCode >= 48 && charCode <= 57) {
@@ -14,7 +14,7 @@ const hexCharCodeToValue = (charCode: number) => {
 };
 
 /**
- * Decode UTF-8 bytes using Bun's malformed-sequence grouping.
+ * Decodes a UTF-8 byte sequence.
  */
 const decodeUtf8Bytes = (bytes: number[]) => {
 	let decoded = "";
@@ -97,7 +97,7 @@ const decodeUtf8Bytes = (bytes: number[]) => {
 };
 
 /**
- * Percent-decode a route parameter with Bun's U+FFFD replacement rules.
+ * Decodes a percent-encoded route parameter.
  */
 export const decodePathParam = (value: string) => {
 	const firstPercentIndex = value.indexOf("%");

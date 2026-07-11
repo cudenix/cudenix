@@ -1,5 +1,5 @@
 /**
- * Resolve to `true` when `T` and `U` are mutually assignable, else `false`.
+ * Checks whether two types are mutually assignable.
  *
  * @example
  * ```typescript

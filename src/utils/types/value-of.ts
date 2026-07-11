@@ -1,5 +1,5 @@
 /**
- * Resolve to a union of every value type in `T`.
+ * Collects the property value types of an object.
  *
  * @example
  * ```typescript

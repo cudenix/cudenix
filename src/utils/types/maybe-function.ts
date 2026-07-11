@@ -1,5 +1,5 @@
 /**
- * Resolve to a union of `T` and a zero-argument factory returning `T | Promise<T>`.
+ * Represents a value or a factory that produces it.
  *
  * @example
  * ```typescript

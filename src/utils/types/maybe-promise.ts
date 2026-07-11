@@ -1,5 +1,5 @@
 /**
- * Resolve to a union of `T` and `Promise<T>`.
+ * Represents a synchronous or asynchronous value.
  *
  * @example
  * ```typescript

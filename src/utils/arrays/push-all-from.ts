@@ -1,8 +1,5 @@
-import type { pushAll } from "@/utils/arrays/push-all";
-
 /**
- * Like {@link pushAll}, but appends only `source[start..]` — grafts on an
- * array's tail with no intermediate `slice`.
+ * Appends a source array segment to a target array.
  *
  * @example
  * ```typescript

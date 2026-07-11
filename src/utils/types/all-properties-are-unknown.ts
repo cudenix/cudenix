@@ -1,5 +1,5 @@
 /**
- * Resolve to `true` when every property of `T` is typed `unknown`, else `false`.
+ * Checks whether every property in an object type is unknown.
  *
  * @example
  * ```typescript

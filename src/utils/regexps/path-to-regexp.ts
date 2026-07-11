@@ -10,8 +10,7 @@ const WILDCARD_RANK = 2;
 const REST_RANK = 3;
 
 /**
- * Compile a route pattern into a regex source plus its parameter names and one
- * specificity rank per segment (literal, then param, then wildcard, then rest).
+ * Compiles a route pattern for matching and parameter extraction.
  *
  * @example
  * ```typescript

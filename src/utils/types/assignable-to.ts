@@ -1,7 +1,5 @@
 /**
- * Resolve to `true` when `T` is assignable to `U`, else `false`. Only the
- * `T → U` direction is checked; for mutual assignability use
- * {@link ExtendsType}.
+ * Checks whether one type is assignable to another.
  *
  * @example
  * ```typescript

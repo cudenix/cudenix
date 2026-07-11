@@ -1,6 +1,5 @@
 /**
- * Resolve to a dictionary of the named parameters declared by the route
- * literal `Path`.
+ * Extracts named parameters from a route path type.
  *
  * @example
  * ```typescript

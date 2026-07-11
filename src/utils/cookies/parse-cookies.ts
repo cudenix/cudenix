@@ -1,7 +1,7 @@
 import { Empty } from "@/utils/objects/empty";
 
 /**
- * Parse a `Cookie` request header into a dictionary keyed by cookie name.
+ * Parses cookies from a `Cookie` request header.
  *
  * @example
  * ```typescript

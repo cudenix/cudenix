@@ -1,5 +1,5 @@
 /**
- * Merge `source` into `target` in place, overwriting existing keys.
+ * Merges source properties into a target object.
  *
  * @example
  * ```typescript

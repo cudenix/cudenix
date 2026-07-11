@@ -1,5 +1,5 @@
 /**
- * Make every key of `T` whose value type accepts `U` optional (`?`).
+ * Marks properties compatible with a given type as optional.
  *
  * @example
  * ```typescript

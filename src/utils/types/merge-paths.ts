@@ -1,5 +1,5 @@
 /**
- * Strip a single trailing `/` from `Type`, leaving `"/"` itself untouched.
+ * Normalizes a path type by removing its trailing slash.
  */
 type RemoveTrailingSlash<Type extends string> = Type extends "/"
 	? Type
@@ -8,7 +8,7 @@ type RemoveTrailingSlash<Type extends string> = Type extends "/"
 		: Type;
 
 /**
- * Join `Prefix` and `Path` into one path literal.
+ * Joins prefix and path literals into a single path type.
  *
  * @example
  * ```typescript

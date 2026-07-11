@@ -1,12 +1,12 @@
 /**
- * Resolve to a union of keys in `T` whose value type is mutually assignable with `U`.
+ * Identifies properties whose value type matches another type.
  */
 type OmitKeys<T extends object, U> = {
 	[K in keyof T]: [T[K], U] extends [U, T[K]] ? K : never;
 }[keyof T];
 
 /**
- * Remove every key from `T` whose value type is mutually assignable with `U`.
+ * Removes properties that match a given value type.
  *
  * @example
  * ```typescript

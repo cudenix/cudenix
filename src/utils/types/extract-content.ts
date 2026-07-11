@@ -1,5 +1,5 @@
 /**
- * Resolve to the value `T` produces, awaiting a factory's return.
+ * Extracts content from a value or factory type.
  *
  * @example
  * ```typescript

@@ -1,7 +1,7 @@
 const ASYNC_FUNCTION_PROTOTYPE = Object.getPrototypeOf(async () => {});
 
 /**
- * Check whether `fn` is an `async function` — excluding `async function*`.
+ * Detects asynchronous functions.
  *
  * @example
  * ```typescript
