@@ -24,14 +24,12 @@ const BUN_METHODS = new Set([
 
 /**
  * Whether Bun and {@link pathToRegexp} assign the same meaning to `path`.
- * Anything outside this shared grammar stays exclusively on the regexp
- * fallback, preventing Bun from widening, rejecting, or re-normalizing it.
  */
 const isBunNativeRoute = (
 	method: HttpMethod,
 	path: string,
 	paramKeys: string[],
-): boolean => {
+) => {
 	if (!BUN_METHODS.has(method)) {
 		return false;
 	}
@@ -101,11 +99,10 @@ interface AnalyzedEndpoint {
 	ranks: number[];
 }
 
-/** Bun's specificity ordering, with registration order as the final tie-break. */
-const compareAnalyzedEndpoints = (
-	a: AnalyzedEndpoint,
-	b: AnalyzedEndpoint,
-): number => {
+/**
+ * Bun's specificity ordering, with registration order as the final tie-break.
+ */
+const compareAnalyzedEndpoints = (a: AnalyzedEndpoint, b: AnalyzedEndpoint) => {
 	if (a.native !== b.native) {
 		return a.native ? -1 : 1;
 	}
