@@ -532,6 +532,268 @@ describe("usage: jit", () => {
 		});
 	});
 
+	describe("validator-only fast path", () => {
+		it("should validate without allocating Context when no user handler consumes it", () => {
+			const source = jitSource(
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			expect(source).toContain("validatedRequest");
+			expect(source).not.toContain("new Context");
+			expect(source).toContain("handler()");
+		});
+
+		it("should keep local and full-context validator factories separate", () => {
+			const local = jitSource(
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => ok("v1")),
+			);
+			const full = jitSource(
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", (context) => ok(context.request.query)),
+			);
+
+			expect(local).toContain("validatedRequest");
+			expect(local).not.toContain("new Context");
+			expect(full).toContain("new Context");
+			expect(full).not.toContain("validatedRequest");
+		});
+
+		it("should pass a transformed slot from one validator to the next", async () => {
+			const inputs: unknown[] = [];
+			let calls = 0;
+			const validate: ValidatorPlugin = (_schema, input) => {
+				inputs.push(input);
+				calls++;
+
+				return { content: { step: calls }, success: true };
+			};
+
+			const app = new Cudenix(
+				new Module()
+					.validator({ request: { query: {} } })
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			app.memory.validator = validate;
+			app.compile();
+
+			const result = await app.fetch(
+				new Request("http://localhost/a?value=first"),
+			);
+
+			expect(await result.text()).toBe("v1");
+			expect(inputs).toEqual([{ value: "first" }, { step: 1 }]);
+		});
+
+		it("should keep an async validator and its 422 short-circuit semantics", async () => {
+			let ran = 0;
+
+			const app = new Cudenix(
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => {
+						ran++;
+
+						return ok("v1");
+					}),
+			);
+
+			app.memory.validator = async () => ({
+				content: ["bad"],
+				success: false,
+			});
+
+			app.compile();
+
+			const pending = app.fetch(new Request("http://localhost/a?v=1"));
+
+			expect(pending).toBeInstanceOf(Promise);
+
+			const result = await pending;
+
+			expect(result.status).toBe(422);
+			expect(await result.json()).toEqual({ query: ["bad"] });
+			expect(ran).toBe(0);
+		});
+
+		it("should parse an asynchronous body slot without constructing Context", async () => {
+			let input: unknown;
+			const validate: ValidatorPlugin = (_schema, value) => {
+				input = value;
+
+				return { content: value, success: true };
+			};
+			const app = new Cudenix(
+				new Module()
+					.validator({ request: { body: {} } })
+					.route("POST", "/a", () => ok("v1")),
+			);
+
+			app.memory.validator = validate;
+			app.compile();
+
+			const endpoint = app.methods.POST!.endpoints[0]!;
+			const pending = app.fetch(
+				new Request("http://localhost/a", {
+					body: JSON.stringify({ value: "body" }),
+					headers: { "content-type": "application/json" },
+					method: "POST",
+				}),
+			);
+
+			expect(endpoint.dispatch.toString()).not.toContain("new Context");
+			expect(pending).toBeInstanceOf(Promise);
+			expect(await (await pending).text()).toBe("v1");
+			expect(input).toEqual({ value: "body" });
+		});
+
+		it("should parse cookies and headers into lean validation state", async () => {
+			const inputs = new Map<string, unknown>();
+			const validate: ValidatorPlugin = (_schema, input, slot) => {
+				inputs.set(slot, input);
+
+				return { content: input, success: true };
+			};
+			const app = new Cudenix(
+				new Module()
+					.validator({ request: { cookies: {}, headers: {} } })
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			app.memory.validator = validate;
+			app.compile();
+
+			const result = await app.fetch(
+				new Request("http://localhost/a", {
+					headers: { cookie: "a=v1; b=v2", "x-test": "yes" },
+				}),
+			);
+
+			expect(await result.text()).toBe("v1");
+			expect(inputs.get("cookies")).toEqual({ a: "v1", b: "v2" });
+			expect(inputs.get("headers")).toMatchObject({
+				cookie: "a=v1; b=v2",
+				"x-test": "yes",
+			});
+		});
+
+		it("should stream SSE after validation without retaining a full Context", async () => {
+			using server = serveApp(
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/events", function* () {
+						yield { data: ok("v1") };
+					}),
+				{ plugins: [withValidator(echo)] },
+			);
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+			const source = endpoint.dispatch.toString();
+			const result = await server.fetch("/events?v=1");
+
+			expect(source).toContain("const server = app.server");
+			expect(source).not.toContain("new Context");
+			expect(await result.text()).toBe('data: "v1"\n\n');
+		});
+
+		it("should parse params identically through native and regexp dispatch", async () => {
+			const inputs: unknown[] = [];
+
+			using server = serveApp(
+				new Module()
+					.validator({ request: { params: {} } })
+					.route("GET", "/users/:id", () => ok("v1")),
+				{
+					plugins: [
+						withValidator((_schema, input) => {
+							inputs.push(input);
+
+							return { content: input, success: true };
+						}),
+					],
+				},
+			);
+
+			const native = await server.fetch("/users/42");
+			const fallback = await server.app.fetch(
+				new Request(server.url("/users/42")),
+			);
+
+			expect(await native.text()).toBe("v1");
+			expect(await fallback.text()).toBe("v1");
+			expect(inputs).toEqual([{ id: "42" }, { id: "42" }]);
+		});
+
+		it("should preserve store merge side effects without exposing the store", async () => {
+			let reads = 0;
+			const value = {} as Record<string, unknown>;
+
+			Object.defineProperty(value, "observed", {
+				enumerable: true,
+				get() {
+					reads++;
+
+					return true;
+				},
+			});
+
+			const app = new Cudenix(
+				new Module()
+					.store(() => value)
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			app.memory.validator = echo;
+			app.compile();
+
+			const result = await app.fetch(
+				new Request("http://localhost/a?v=1"),
+			);
+
+			expect(await result.text()).toBe("v1");
+			expect(reads).toBe(1);
+		});
+
+		it("should keep a store failure ahead of validation as a short circuit", async () => {
+			let validated = 0;
+			let ran = 0;
+
+			const app = new Cudenix(
+				new Module()
+					.store(() => fail("denied", { status: 401 }))
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => {
+						ran++;
+
+						return ok("v1");
+					}),
+			);
+
+			app.memory.validator = () => {
+				validated++;
+
+				return { content: {}, success: true };
+			};
+
+			app.compile();
+
+			const result = await app.fetch(
+				new Request("http://localhost/a?v=1"),
+			);
+
+			expect(result.status).toBe(401);
+			expect(validated).toBe(0);
+			expect(ran).toBe(0);
+		});
+	});
+
 	describe("request slot parsing", () => {
 		it("should emit a parse call only for the slot a validator declares", () => {
 			const source = jitSource(
