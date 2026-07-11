@@ -5,7 +5,6 @@ import { type AnyModule, Module } from "@/core/module";
 import type { CompiledMount } from "@/core/mount";
 import { response } from "@/core/response";
 import { cloneAppend } from "@/utils/arrays/clone-append";
-import { pushAllFrom } from "@/utils/arrays/push-all-from";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
@@ -25,39 +24,68 @@ const BUN_METHODS = new Set([
 /**
  * Whether Bun and {@link pathToRegexp} assign the same meaning to `path`.
  */
-const isBunNativeRoute = (
-	method: HttpMethod,
-	path: string,
-	paramKeys: string[],
-) => {
-	if (!BUN_METHODS.has(method)) {
-		return false;
-	}
-
+const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 	if (path === "/") {
 		return true;
 	}
 
+	const length = path.length;
+
 	if (
-		path.length < 2 ||
+		length < 2 ||
 		path.charCodeAt(0) !== 47 ||
-		path.charCodeAt(path.length - 1) === 47 ||
-		path.indexOf("//") !== -1 ||
-		path.indexOf("?") !== -1 ||
-		path.indexOf("...") !== -1
+		path.charCodeAt(length - 1) === 47
 	) {
 		return false;
 	}
 
-	for (let i = 0; i < path.length; i++) {
-		if (path.charCodeAt(i) > 127) {
+	let segmentStart = 1;
+
+	for (let i = 1; i < length; i++) {
+		const charCode = path.charCodeAt(i);
+
+		if (charCode > 127 || charCode === 63) {
+			return false;
+		}
+
+		if (charCode === 47) {
+			if (i === segmentStart || path.charCodeAt(segmentStart) === 42) {
+				return false;
+			}
+
+			segmentStart = i + 1;
+		} else if (
+			charCode === 46 &&
+			path.charCodeAt(i + 1) === 46 &&
+			path.charCodeAt(i + 2) === 46
+		) {
 			return false;
 		}
 	}
 
-	const uniqueParamKeys = new Set<string>();
+	if (path.charCodeAt(segmentStart) === 42 && length - segmentStart !== 1) {
+		return false;
+	}
 
-	for (let i = 0; i < paramKeys.length; i++) {
+	const paramCount = paramKeys.length;
+
+	if (paramCount === 0) {
+		return true;
+	}
+
+	const firstParamKey = paramKeys[0];
+
+	if (!firstParamKey) {
+		return false;
+	}
+
+	if (paramCount === 1) {
+		return true;
+	}
+
+	const uniqueParamKeys = new Set<string>([firstParamKey]);
+
+	for (let i = 1; i < paramCount; i++) {
 		const paramKey = paramKeys[i];
 
 		if (!paramKey || uniqueParamKeys.has(paramKey)) {
@@ -65,24 +93,6 @@ const isBunNativeRoute = (
 		}
 
 		uniqueParamKeys.add(paramKey);
-	}
-
-	let segmentStart = 1;
-
-	while (segmentStart < path.length) {
-		let segmentEnd = path.indexOf("/", segmentStart);
-
-		if (segmentEnd === -1) {
-			segmentEnd = path.length;
-		}
-
-		if (path.charCodeAt(segmentStart) === 42) {
-			return (
-				segmentEnd - segmentStart === 1 && segmentEnd === path.length
-			);
-		}
-
-		segmentStart = segmentEnd + 1;
 	}
 
 	return true;
@@ -125,17 +135,9 @@ const compareAnalyzedEndpoints = (a: AnalyzedEndpoint, b: AnalyzedEndpoint) => {
 };
 
 /**
- * The {@link EndpointChain} and path prefix inherited from a parent module.
- */
-interface FlattenInherited {
-	chain: EndpointChain;
-	path: string;
-}
-
-/**
  * Walk a module subtree, collecting endpoints (keyed by HTTP method) and
- * mounts, and return its outward-facing `{ chain, path, start }` — the caller
- * grafts on only `chain[start..]`, the links this subtree actually added.
+ * mounts, optionally reusing `inheritedChain` for links that bubble out of a
+ * used module, and return the subtree's outward-facing path prefix.
  *
  * @example
  * ```typescript
@@ -145,7 +147,8 @@ interface FlattenInherited {
  *   endpoints,
  *   [],
  *   new Module({ prefix: "/v1" }).route("GET", "/a", () => ok("v1")),
- *   { chain: [], path: "" },
+ *   [],
+ *   "",
  * );
  *
  * endpoints.GET[0].path; // "/v1/a"
@@ -155,12 +158,13 @@ const flatten = (
 	endpoints: Record<HttpMethod, Endpoint[]>,
 	mounts: CompiledMount[],
 	module: AnyModule,
-	inherited: FlattenInherited,
+	inheritedChain: EndpointChain,
+	inheritedPath: string,
+	reuseChain = false,
 ) => {
-	const inheritedChain = inherited.chain;
-	const inheritedLength = inheritedChain.length;
-	const inheritedPath = inherited.path;
-	const accumulatedChain = inheritedChain.slice();
+	const accumulatedChain = reuseChain
+		? inheritedChain
+		: inheritedChain.slice();
 	const moduleChain = module.chain;
 	const ownPrefix: "" | `/${string}` =
 		module.prefix === "/" ? "" : module.prefix;
@@ -185,10 +189,7 @@ const flatten = (
 
 			groupModule.chain = accumulatedChain.slice();
 
-			flatten(endpoints, mounts, link.handler(groupModule), {
-				chain: [],
-				path: "",
-			});
+			flatten(endpoints, mounts, link.handler(groupModule), [], "");
 
 			continue;
 		}
@@ -202,21 +203,22 @@ const flatten = (
 		}
 
 		if (type === "MODULE") {
-			const compiled = flatten(endpoints, mounts, link, {
-				chain: accumulatedChain,
-				path: `${inheritedPath}${pathPrefix}`,
-			});
-
 			const beforeLength = accumulatedChain.length;
-
-			pushAllFrom(accumulatedChain, compiled.chain, compiled.start);
+			const compiledPath = flatten(
+				endpoints,
+				mounts,
+				link,
+				accumulatedChain,
+				`${inheritedPath}${pathPrefix}`,
+				true,
+			);
 
 			if (accumulatedChain.length !== beforeLength) {
 				cachedChain = undefined;
 			}
 
-			if (compiled.path !== "/") {
-				composedPath = `${pathPrefix}${compiled.path}`;
+			if (compiledPath !== "/") {
+				composedPath = `${pathPrefix}${compiledPath}`;
 				pathPrefix = composedPath === "/" ? "" : composedPath;
 			}
 
@@ -267,11 +269,7 @@ const flatten = (
 		});
 	}
 
-	return {
-		chain: accumulatedChain,
-		path: composedPath,
-		start: inheritedLength,
-	};
+	return composedPath;
 };
 
 /**
@@ -292,10 +290,7 @@ export const compile = (app: Cudenix) => {
 	const mounts: CompiledMount[] = [];
 	const routes = app.routes;
 
-	flatten(endpoints, mounts, app.memory.module as AnyModule, {
-		chain: [],
-		path: "",
-	});
+	flatten(endpoints, mounts, app.memory.module as AnyModule, [], "");
 
 	for (const method in endpoints) {
 		const methodEndpoints = endpoints[method];
@@ -305,6 +300,7 @@ export const compile = (app: Cudenix) => {
 		}
 
 		const analyzedEndpoints: AnalyzedEndpoint[] = [];
+		const isBunMethod = BUN_METHODS.has(method);
 
 		for (let i = 0; i < methodEndpoints.length; i++) {
 			const methodEndpoint = methodEndpoints[i];
@@ -315,7 +311,7 @@ export const compile = (app: Cudenix) => {
 
 			const path = methodEndpoint.path;
 			const { paramKeys, pattern, ranks, restKeys } = pathToRegexp(path);
-			const native = isBunNativeRoute(method, path, paramKeys);
+			const native = isBunMethod && isBunNativeRoute(path, paramKeys);
 
 			methodEndpoint.paramKeys = paramKeys;
 			methodEndpoint.restKeys = restKeys;
