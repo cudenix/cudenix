@@ -2,6 +2,8 @@ const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
 
+const REGEXP_SYNTAX = /[\\^$.*+?()[\]{}|]/g;
+
 const STATIC_RANK = 0;
 const PARAM_RANK = 1;
 const WILDCARD_RANK = 2;
@@ -87,7 +89,7 @@ export const pathToRegexp = (path: string) => {
 		} else {
 			ranks.push(STATIC_RANK);
 
-			segment = `\\/${RegExp.escape(path.substring(i, end))}`;
+			segment = `\\/${path.substring(i, end).replace(REGEXP_SYNTAX, "\\$&")}`;
 		}
 
 		if (isOptional) {

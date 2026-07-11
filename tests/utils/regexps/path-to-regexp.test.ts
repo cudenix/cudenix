@@ -111,7 +111,19 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should escape additional regex-special characters in literals", () => {
-			const symbols = ["(", ")", "[", "]", "{", "}", "^", "+", "|", "$"];
+			const symbols = [
+				"(",
+				")",
+				"[",
+				"]",
+				"{",
+				"}",
+				"^",
+				"+",
+				"|",
+				"$",
+				"\\",
+			];
 
 			for (let i = 0; i < symbols.length; i++) {
 				const path = `/a${symbols[i]}b`;
@@ -121,6 +133,28 @@ describe("pathToRegexp", () => {
 				expect(regex.test(path)).toBe(true);
 				expect(regex.test("/aXb")).toBe(false);
 				expect(regex.test("/ab")).toBe(false);
+			}
+		});
+
+		it("should keep constructor-safe punctuation and whitespace literal", () => {
+			const segments = [
+				"1abc",
+				"a-b",
+				"a,b",
+				"hash#tag",
+				"space here",
+				"line\nbreak",
+				"carriage\rreturn",
+				"null\u0000byte",
+				"separator\u2028line",
+			];
+
+			for (let i = 0; i < segments.length; i++) {
+				const path = `/${segments[i]}`;
+				const { regex } = compile(path);
+
+				expect(regex.test(path)).toBe(true);
+				expect(regex.test(`${path}x`)).toBe(false);
 			}
 		});
 
@@ -438,6 +472,13 @@ describe("pathToRegexp", () => {
 			expect(match?.[1]).toBe("");
 			expect(match?.[2]).toBe("v1/v2");
 			expect(match?.[3]).toBe("v3");
+		});
+
+		it("should preserve capture distribution across three rest params", () => {
+			const { regex } = compile("/...r1/a/...r2/b/...r3");
+			const match = "/v1/v2/a/v3/v4/b/v5/v6".match(regex);
+
+			expect(match?.slice(2)).toEqual(["v1/v2", "v3/v4", "v5/v6"]);
 		});
 
 		it("should support an empty rest name", () => {
