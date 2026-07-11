@@ -1,5 +1,10 @@
-import type { Cudenix, Endpoint, EndpointChain } from "@/core/cudenix";
-import { staticDispatch } from "@/core/dispatch";
+import type {
+	Cudenix,
+	Endpoint,
+	EndpointChain,
+	MethodData,
+} from "@/core/cudenix";
+import { type Dispatch, staticDispatch } from "@/core/dispatch";
 import { jit } from "@/core/jit";
 import { type AnyModule, Module } from "@/core/module";
 import type { CompiledMount } from "@/core/mount";
@@ -20,6 +25,52 @@ const BUN_METHODS = new Set([
 	"POST",
 	"PUT",
 ]);
+
+type MethodDispatch = (
+	request: Request,
+	match: RegExpExecArray,
+) => ReturnType<Dispatch>;
+
+type MethodDispatchFactory = (table: Endpoint[]) => MethodDispatch;
+
+/**
+ * Stores fallback route resolver factories by their capture layout.
+ */
+const methodDispatchFactories = new Map<string, MethodDispatchFactory>();
+
+/**
+ * Associates compiled method data with its unrolled fallback resolver without
+ * changing the hot object's property layout.
+ */
+export const methodDispatchers = new WeakMap<MethodData, MethodDispatch>();
+
+/**
+ * Builds an unrolled resolver for the endpoint capture groups after the first.
+ */
+const compileMethodDispatch = (endpoints: Endpoint[], table: Endpoint[]) => {
+	let dispatchCode = "";
+	let key = "";
+
+	for (let i = 1; i < endpoints.length; i++) {
+		const offset = endpoints[i]!.matchOffset;
+
+		key += `${offset},`;
+		dispatchCode += `if (match[${offset}] !== undefined) return table[${offset}].dispatch(request, match);\n`;
+	}
+
+	let factory = methodDispatchFactories.get(key);
+
+	if (!factory) {
+		factory = new Function(
+			"table",
+			`return function (request, match) {\n${dispatchCode}};`,
+		) as MethodDispatchFactory;
+
+		methodDispatchFactories.set(key, factory);
+	}
+
+	return factory(table);
+};
 
 /**
  * Checks whether a path is compatible with Bun's native route semantics.
@@ -396,13 +447,20 @@ export const compile = (app: Cudenix) => {
 			}
 		}
 
-		app.methods[method] = {
+		const methodData: MethodData = {
 			endpoints: regexpEndpoints,
 			regexp: new RegExp(
 				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${regexpPatterns.join("|")})(?![^?#])`,
 			),
 			table: regexpTable,
 		};
+
+		methodDispatchers.set(
+			methodData,
+			compileMethodDispatch(regexpEndpoints, regexpTable),
+		);
+
+		app.methods[method] = methodData;
 	}
 
 	if (mounts.length > 0) {

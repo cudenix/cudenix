@@ -1,4 +1,4 @@
-import { compile } from "@/core/compile";
+import { compile, methodDispatchers } from "@/core/compile";
 import type { Dispatch } from "@/core/dispatch";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
@@ -190,7 +190,17 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 		if (match) {
 			const table = methodData.table;
 
-			for (let offset = 1; offset < match.length; offset++) {
+			if (match[1] !== undefined) {
+				return table[1]!.dispatch(request, match);
+			}
+
+			const methodDispatch = methodDispatchers.get(methodData);
+
+			if (methodDispatch) {
+				return methodDispatch(request, match);
+			}
+
+			for (let offset = 2; offset < match.length; offset++) {
 				if (match[offset] !== undefined) {
 					return table[offset]!.dispatch(request, match);
 				}
