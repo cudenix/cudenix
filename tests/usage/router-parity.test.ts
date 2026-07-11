@@ -184,6 +184,31 @@ describe("usage: router parity", () => {
 			expect(duplicate.serverFallbackCalls).toBe(1);
 		});
 
+		it("should resolve early, middle, and late hits in a large fallback table", async () => {
+			const module = new Module();
+
+			for (let i = 0; i < 64; i++) {
+				module.route(
+					"GET",
+					`/fallback/${i}/:value/:value` as `/${string}`,
+					ok(String(i)),
+				);
+			}
+
+			using server = serveApp(module);
+
+			for (const index of [0, 31, 63]) {
+				const result = await compareRouters(
+					server,
+					`/fallback/${index}/a/b`,
+				);
+
+				expectSameResult(result);
+				expect(result.native.body).toBe(String(index));
+				expect(result.serverFallbackCalls).toBe(1);
+			}
+		});
+
 		it("should resolve optional, rest, empty-name, and non-terminal wildcard syntax identically", async () => {
 			using server = serveApp(
 				new Module()
