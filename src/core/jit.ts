@@ -14,33 +14,23 @@ import { merge } from "@/utils/objects/merge";
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 import { parseQuery } from "@/utils/urls/parse-query";
 
-/** Full-context return expression. */
+/**
+ * Defines the response call used by full-context dispatchers.
+ */
 const RESPONSE_CALL =
 	"response(context.response.content, context.response.cookies, context.response.headers)";
 
 /**
- * Parse statement per request slot a validator can declare — except `params`,
- * whose parser is endpoint-specific ({@link generateParamsParser}).
- */
-const PARSERS = {
-	body: "context.request.body = await parseBody(request);",
-	cookies: `context.request.cookies = parseCookies(request.headers.get("cookie") ?? "");`,
-	headers: "context.request.headers = request.headers.toJSON();",
-	query: "context.request.query = parseQuery(request.url);",
-} satisfies Record<Exclude<keyof ValidatorRequest, "params">, string>;
-
-/**
- * Emit the `context.request.params` parse statement: Bun's router hands the
- * params prebuilt; the regexp fallback decodes them from `match`, whose groups
- * start at `matchOffset + 1`. Keys in `restKeys` split into path parts.
+ * Generates the path parameter parser for a dispatcher.
  */
 const generateParamsParser = (
 	paramKeys: string[],
 	matchOffset: number,
 	restKeys: string[],
+	target: string,
 ): string => {
 	if (paramKeys.length === 0) {
-		return "context.request.params = isBun ? request.params : new Empty();";
+		return `${target} = isBun ? request.params : new Empty();`;
 	}
 
 	let assignmentsCode = "";
@@ -81,17 +71,16 @@ const generateParamsParser = (
 				}
 			}
 
-			context.request.params = params;`;
+			${target} = params;`;
 };
 
 /**
- * Shape {@link analyzeEndpoint} resolves for one endpoint: the async/context
- * flags, the per-link `asyncMap`/`awaitMap` (whose extra tail slot seeds the
- * route handler), and the {@link factories} cache `key`.
+ * Describes the shape used to generate an endpoint dispatcher.
  */
 interface EndpointShape {
 	asyncMap: boolean[];
 	awaitMap: boolean[];
+	hasValidationState: boolean;
 	hasValidator: boolean;
 	isChainAsync: boolean;
 	isRouteAsync: boolean;
@@ -99,22 +88,12 @@ interface EndpointShape {
 	isValidatorAsync: boolean;
 	key: string;
 	needsContext: boolean;
+	needsStoreState: boolean;
 	parsesParams: boolean;
 }
 
 /**
- * Walk the chain back-to-front and distill the dispatcher's shape, plus `key`
- * — a compact encoding of exactly the inputs that determine the generated
- * source, so endpoints share a factory iff their dispatchers would be
- * byte-identical: three flag bits (`needsContext`, `isSse`, `isRouteAsync`),
- * one tag per chain position (`M` + two await bits, `S` + one async bit, `V` +
- * `a`/`s` + the JSON of its truthy keys, `_` for a position that emits nothing
- * — indices are embedded in identifiers, so interior `_` shift what follows
- * while trailing ones are dropped), and `P` + `matchOffset` + the JSON of
- * `paramKeys` + one rest bit per key when params are parsed. JSON because
- * keys are user strings (`"a,b"` must not collide with `"a","b"`); the
- * handler, validator plugin, and chain stay out of the key — they are factory
- * arguments, never embedded in the source.
+ * Analyzes an endpoint for dispatcher generation.
  */
 const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 	const chain = endpoint.chain;
@@ -133,6 +112,8 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 
 	let isChainAsync = isRouteAsync;
 	let needsContext = usesContext(handler);
+	let hasStore = false;
+	let hasValidationState = false;
 	let validatesParams = false;
 	let emitsBelow = false;
 
@@ -143,6 +124,10 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 
 		if (link?.type === "MIDDLEWARE" || link?.type === "STORE") {
 			const isHandlerAsync = isAsync(link.handler);
+
+			if (link.type === "STORE") {
+				hasStore = true;
+			}
 
 			asyncMap[i] = isHandlerAsync;
 
@@ -160,6 +145,8 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 			emitsBelow = true;
 		} else if (link?.type === "VALIDATOR" && hasValidator) {
 			const keys: string[] = [];
+
+			hasValidationState = true;
 
 			for (let j = 0; j < link.keys.length; j++) {
 				const key = link.keys[j];
@@ -181,8 +168,6 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 				isChainAsync = true;
 			}
 
-			needsContext = true;
-
 			tags[i] = `${validatorTag}${JSON.stringify(keys)}`;
 
 			emitsBelow = true;
@@ -193,12 +178,13 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 		awaitMap[i] = isChainAsync;
 	}
 
-	let key = `${needsContext ? "1" : "0"}${isSse ? "1" : "0"}${
-		isRouteAsync ? "1" : "0"
-	}${tags.join("")}`;
+	let key = `${needsContext ? "1" : "0"}${hasValidationState ? "1" : "0"}${
+		isSse ? "1" : "0"
+	}${isRouteAsync ? "1" : "0"}${tags.join("")}`;
 
 	const parsesParams =
-		needsContext && (validatesParams || endpoint.paramKeys.length > 0);
+		validatesParams || (needsContext && endpoint.paramKeys.length > 0);
+	const needsStoreState = hasValidationState && hasStore && !needsContext;
 
 	if (parsesParams && endpoint.paramKeys.length > 0) {
 		const paramKeys = endpoint.paramKeys;
@@ -221,6 +207,7 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 	return {
 		asyncMap,
 		awaitMap,
+		hasValidationState,
 		hasValidator,
 		isChainAsync,
 		isRouteAsync,
@@ -228,17 +215,13 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 		isValidatorAsync,
 		key,
 		needsContext,
+		needsStoreState,
 		parsesParams,
 	};
 };
 
 /**
- * Emit the dispatcher body: `emit(index, isNested)` walks the links
- * front-to-back, with `isNested` marking code inside a middleware `next()`
- * closure, where the dispatcher-level return is suppressed. Under
- * `shape.needsContext` results flow through `context.response.content` into
- * the full {@link RESPONSE_CALL}; without it no `Context` is ever allocated —
- * links receive `undefined` and results flow through a local `content`.
+ * Generates the request dispatcher body for an endpoint chain.
  */
 const generateDispatcherBody = (
 	chain: EndpointChain,
@@ -249,10 +232,12 @@ const generateDispatcherBody = (
 		asyncMap,
 		awaitMap,
 		hasValidator,
+		hasValidationState,
 		isRouteAsync,
 		isSse,
 		isValidatorAsync,
 		needsContext,
+		needsStoreState,
 	} = shape;
 
 	const parsedKeys = new Set<keyof ValidatorRequest>();
@@ -263,6 +248,7 @@ const generateDispatcherBody = (
 
 	const linkArgument = needsContext ? "context" : "undefined";
 	const routeArgument = needsContext ? "context" : "";
+	const requestTarget = needsContext ? "context.request" : "validatedRequest";
 	const contentTarget = needsContext ? "context.response.content" : "content";
 	const returnStatement = needsContext
 		? `return ${RESPONSE_CALL};`
@@ -274,7 +260,12 @@ const generateDispatcherBody = (
 	const emit = (index: number, isNested: boolean): string => {
 		if (index >= chain.length) {
 			if (isSse) {
-				const body = `${needsContext ? "context" : "app"}.server?.timeout(request, 0);
+				const serverTarget = needsContext
+					? "context.server"
+					: hasValidationState
+						? "server"
+						: "app.server";
+				const body = `${serverTarget}?.timeout(request, 0);
 
 				${contentTarget} = stream(handler(${routeArgument}));`;
 
@@ -312,11 +303,16 @@ const generateDispatcherBody = (
 
 			const shortCircuit = `${contentTarget} = returned_${index};\n\n\t\t\t\t${isNested ? "return;" : returnStatement}`;
 
-			const mergeStore = needsContext
+			const storeTarget = needsContext
+				? "context.store"
+				: needsStoreState
+					? "validatedStore"
+					: "";
+			const mergeStore = storeTarget
 				? `
 
 			if (returned_${index}) {
-				merge(context.store, returned_${index});
+				merge(${storeTarget}, returned_${index});
 			}`
 				: "";
 
@@ -354,12 +350,12 @@ const generateDispatcherBody = (
 				const validationCode = `{
 					const validated = ${isValidatorAsync ? "await " : ""}validator(
 						request_${index}[${keyLiteral}],
-						context.request[${keyLiteral}],
+						${requestTarget}[${keyLiteral}],
 						${keyLiteral},
 					);
 
 					if (validated.success) {
-						context.request[${keyLiteral}] = validated.content;
+						${requestTarget}[${keyLiteral}] = validated.content;
 					} else {
 						(errors_${index} ??= new Empty())[${keyLiteral}] = validated.content;
 					}
@@ -394,10 +390,7 @@ const generateDispatcherBody = (
 };
 
 /**
- * Shape of the factory `new Function` compiles: its parameters are the free
- * identifiers of the generated dispatcher, matching {@link FACTORY_PARAMETERS}
- * position for position (the `import()` type queries avoid self-referencing
- * `typeof` on same-named parameters).
+ * Defines a compiled dispatcher factory.
  */
 type DispatcherFactory = (
 	app: Cudenix,
@@ -418,8 +411,7 @@ type DispatcherFactory = (
 ) => Dispatch;
 
 /**
- * Parameter names of {@link DispatcherFactory}, kept as one list so the
- * compiled names cannot drift from the type.
+ * Defines the parameters injected into dispatcher factories.
  */
 const FACTORY_PARAMETERS = [
 	"app",
@@ -440,16 +432,12 @@ const FACTORY_PARAMETERS = [
 ] as const;
 
 /**
- * One compiled factory per distinct dispatcher shape, keyed by
- * {@link EndpointShape}'s `key`; every call still returns a fresh dispatcher.
- * Intentionally unbounded — growth is capped by the number of distinct shapes.
+ * Stores compiled dispatcher factories by endpoint shape.
  */
 const factories = new Map<string, DispatcherFactory>();
 
 /**
- * Compile (or reuse) the specialized {@link Dispatch} for one endpoint — on a
- * {@link factories} hit the source is never regenerated; only a new shape pays
- * for source generation and `new Function`.
+ * Compiles an endpoint into a request dispatcher.
  */
 export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 	const shape = analyzeEndpoint(app, endpoint);
@@ -457,20 +445,54 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 	let factory = factories.get(shape.key);
 
 	if (factory === undefined) {
+		const requestTarget = shape.needsContext
+			? "context.request"
+			: "validatedRequest";
 		const parsers: Record<keyof ValidatorRequest, string> = {
-			...PARSERS,
+			body: `${requestTarget}.body = await parseBody(request);`,
+			cookies: `${requestTarget}.cookies = parseCookies(request.headers.get("cookie") ?? "");`,
+			headers: `${requestTarget}.headers = request.headers.toJSON();`,
 			params: shape.parsesParams
 				? generateParamsParser(
 						endpoint.paramKeys,
 						endpoint.matchOffset,
 						endpoint.restKeys,
+						`${requestTarget}.params`,
 					)
 				: "",
+			query: `${requestTarget}.query = parseQuery(request.url);`,
 		};
+		const bunDetection = 'const isBun = "cookies" in request;';
+		const preludeStatements = shape.needsContext
+			? [
+					"const context = new Context(app, request, match);",
+					bunDetection,
+				]
+			: ["let content;"];
 
-		const prelude = shape.needsContext
-			? `\nconst context = new Context(app, request, match);\nconst isBun = "cookies" in request;\n${shape.parsesParams ? `\n${parsers.params}\n` : ""}\n`
-			: "\nlet content;\n\n";
+		if (!shape.needsContext) {
+			if (shape.isSse && shape.hasValidationState) {
+				preludeStatements.push("const server = app.server;");
+			}
+
+			if (shape.hasValidationState) {
+				preludeStatements.push("const validatedRequest = new Empty();");
+			}
+
+			if (shape.needsStoreState) {
+				preludeStatements.push("const validatedStore = new Empty();");
+			}
+
+			if (shape.parsesParams) {
+				preludeStatements.push(bunDetection);
+			}
+		}
+
+		if (shape.parsesParams) {
+			preludeStatements.push(parsers.params);
+		}
+
+		const prelude = `\n${preludeStatements.join("\n\n")}\n\n`;
 
 		const body = generateDispatcherBody(endpoint.chain, parsers, shape);
 
