@@ -242,7 +242,7 @@ const generateDispatcherBody = (
 
 	const parsedKeys = new Set<keyof ValidatorRequest>();
 
-	if (shape.parsesParams) {
+	if (needsContext && shape.parsesParams) {
 		parsedKeys.add("params");
 	}
 
@@ -448,26 +448,23 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 		const requestTarget = shape.needsContext
 			? "context.request"
 			: "validatedRequest";
+		const bunDetection = 'const isBun = "cookies" in request;';
 		const parsers: Record<keyof ValidatorRequest, string> = {
 			body: `${requestTarget}.body = await parseBody(request);`,
 			cookies: `${requestTarget}.cookies = parseCookies(request.headers.get("cookie") ?? "");`,
 			headers: `${requestTarget}.headers = request.headers.toJSON();`,
 			params: shape.parsesParams
-				? generateParamsParser(
+				? `${bunDetection}\n\n${generateParamsParser(
 						endpoint.paramKeys,
 						endpoint.matchOffset,
 						endpoint.restKeys,
 						`${requestTarget}.params`,
-					)
+					)}`
 				: "",
 			query: `${requestTarget}.query = parseQuery(request.url);`,
 		};
-		const bunDetection = 'const isBun = "cookies" in request;';
 		const preludeStatements = shape.needsContext
-			? [
-					"const context = new Context(app, request, match);",
-					bunDetection,
-				]
+			? ["const context = new Context(app, request, match);"]
 			: ["let content;"];
 
 		if (!shape.needsContext) {
@@ -482,13 +479,9 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 			if (shape.needsStoreState) {
 				preludeStatements.push("const validatedStore = new Empty();");
 			}
-
-			if (shape.parsesParams) {
-				preludeStatements.push(bunDetection);
-			}
 		}
 
-		if (shape.parsesParams) {
+		if (shape.needsContext && shape.parsesParams) {
 			preludeStatements.push(parsers.params);
 		}
 
