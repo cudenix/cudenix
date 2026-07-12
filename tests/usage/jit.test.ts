@@ -563,6 +563,33 @@ describe("usage: jit", () => {
 			expect(full).not.toContain("validatedRequest");
 		});
 
+		it("should omit Bun request detection when an endpoint has no params", () => {
+			const source = jitSource(
+				new Module()
+					.store(() => ({ a: "v1" }))
+					.route("GET", "/a", (context) => ok(context.store.a)),
+			);
+
+			expect(source).toContain("new Context");
+			expect(source).not.toContain('"cookies" in request');
+		});
+
+		it("should parse lean params only after preceding stores succeed", () => {
+			const source = jitSource(
+				new Module()
+					.store(() => ({ a: "v1" }))
+					.validator({ request: { params: {} } })
+					.route("GET", "/a/:id", () => ok("v1")),
+			);
+
+			expect(
+				source.indexOf("chain[0].handler(undefined)"),
+			).toBeGreaterThan(-1);
+			expect(
+				source.indexOf('const isBun = "cookies" in request'),
+			).toBeGreaterThan(source.indexOf("chain[0].handler(undefined)"));
+		});
+
 		it("should pass a transformed slot from one validator to the next", async () => {
 			const inputs: unknown[] = [];
 			let calls = 0;
