@@ -5,7 +5,7 @@ import { usesContext } from "@/utils/functions/uses-context";
 const asFn = (value: unknown) => value as (...args: any[]) => unknown;
 
 describe("usesContext", () => {
-	describe("functions that declare a parameter", () => {
+	describe("functions that use the first parameter", () => {
 		it("should return true for an arrow with one parameter", () => {
 			expect(usesContext((context) => context)).toBe(true);
 		});
@@ -70,6 +70,68 @@ describe("usesContext", () => {
 		});
 	});
 
+	describe("functions with an unused simple first parameter", () => {
+		it("should return false for an unused arrow parameter", () => {
+			expect(usesContext((_context) => 1)).toBe(false);
+		});
+
+		it("should return false when only a middleware's next parameter is used", () => {
+			expect(usesContext((_context, next) => next())).toBe(false);
+		});
+
+		it("should not depend on an underscore naming convention", () => {
+			// biome-ignore lint/correctness/noUnusedFunctionParameters: Testing the unused parameter name
+			const fn = (context: unknown, next: () => unknown) => next();
+
+			expect(usesContext(fn)).toBe(false);
+		});
+
+		it("should return false for an unused function-expression parameter", () => {
+			// biome-ignore lint/complexity/useArrowFunction: Testing function expressions
+			const fn = function (_context: unknown, next: () => unknown) {
+				return next();
+			};
+
+			expect(usesContext(fn)).toBe(false);
+		});
+
+		it("should return false for an unused method parameter", () => {
+			const obj = {
+				method(_context: unknown, next: () => unknown) {
+					return next();
+				},
+			};
+
+			expect(usesContext(obj.method)).toBe(false);
+		});
+
+		it("should return false for an unused generator parameter", () => {
+			function* gen(_context: unknown) {
+				yield 1;
+			}
+
+			expect(usesContext(gen)).toBe(false);
+		});
+
+		it("should return false for an unused Function-constructor parameter", () => {
+			expect(
+				usesContext(asFn(new Function("_context", "return 1"))),
+			).toBe(false);
+		});
+
+		it("should not confuse a longer identifier for the parameter", () => {
+			const _contextual = 1;
+
+			expect(usesContext((_context) => _contextual)).toBe(false);
+		});
+
+		it("should detect a first parameter used by a later default", () => {
+			expect(
+				usesContext((context: unknown, next = () => context) => next()),
+			).toBe(true);
+		});
+	});
+
 	describe("functions that declare no parameters", () => {
 		it("should return false for an arrow with no parameters", () => {
 			expect(usesContext(() => 1)).toBe(false);
@@ -115,6 +177,16 @@ describe("usesContext", () => {
 		it("should return false for a paramless Function-constructor function, whose source has a newline between the parens", () => {
 			expect(usesContext(asFn(new Function("return 1")))).toBe(false);
 		});
+
+		it("should return false for a paramless method shorthand", () => {
+			const obj = {
+				method() {
+					return 1;
+				},
+			};
+
+			expect(usesContext(obj.method)).toBe(false);
+		});
 	});
 
 	describe("conservative fallbacks", () => {
@@ -124,6 +196,16 @@ describe("usesContext", () => {
 
 		it("should return true for a defaulted first parameter, whose length is zero", () => {
 			expect(usesContext((context = {}) => context)).toBe(true);
+		});
+
+		it("should return true for an unused defaulted first parameter", () => {
+			expect(usesContext((_context = {}, next) => next())).toBe(true);
+		});
+
+		it("should return true for unused destructuring of the first parameter", () => {
+			expect(usesContext(({ request: _request }, next) => next())).toBe(
+				true,
+			);
 		});
 
 		it("should return true for a function reaching the argument through `arguments`", () => {
@@ -143,16 +225,6 @@ describe("usesContext", () => {
 			expect(usesContext((() => 1).bind(null))).toBe(true);
 		});
 
-		it("should return true for a paramless method shorthand, whose source is not recognized as empty", () => {
-			const obj = {
-				method() {
-					return 1;
-				},
-			};
-
-			expect(usesContext(obj.method)).toBe(true);
-		});
-
 		it("should return true for the substring `arguments` inside a string literal", () => {
 			expect(usesContext(() => "arguments")).toBe(true);
 		});
@@ -161,6 +233,20 @@ describe("usesContext", () => {
 			const argumentsTotal = Math.random();
 
 			expect(usesContext(() => argumentsTotal)).toBe(true);
+		});
+
+		it("should return true for dynamic access through eval", () => {
+			const fn = asFn(
+				new Function("context", 'return eval("arg" + "uments[0]")'),
+			);
+
+			expect(usesContext(fn)).toBe(true);
+		});
+
+		it("should return true for an escaped reference to the first parameter", () => {
+			const fn = asFn(new Function("context", "return cont\\u0065xt"));
+
+			expect(usesContext(fn)).toBe(true);
 		});
 	});
 
