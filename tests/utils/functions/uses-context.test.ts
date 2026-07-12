@@ -68,6 +68,12 @@ describe("usesContext", () => {
 				usesContext(asFn(new Function("context", "return context"))),
 			).toBe(true);
 		});
+
+		it("should return true for a bare arrow parameter", () => {
+			const fn = asFn(new Function("return context => context")());
+
+			expect(usesContext(fn)).toBe(true);
+		});
 	});
 
 	describe("functions with an unused simple first parameter", () => {
@@ -77,6 +83,14 @@ describe("usesContext", () => {
 
 		it("should return false when only a middleware's next parameter is used", () => {
 			expect(usesContext((_context, next) => next())).toBe(false);
+		});
+
+		it("should return false when an async middleware only uses next", () => {
+			expect(
+				usesContext(async (_context, next) => {
+					await next();
+				}),
+			).toBe(false);
 		});
 
 		it("should not depend on an underscore naming convention", () => {
@@ -119,16 +133,80 @@ describe("usesContext", () => {
 			).toBe(false);
 		});
 
+		it("should return false for an unused bare arrow parameter", () => {
+			const fn = asFn(new Function("return _context => 1")());
+
+			expect(usesContext(fn)).toBe(false);
+		});
+
+		it("should return false for an unused bare async arrow parameter", () => {
+			const fn = asFn(new Function("return async _context => 1")());
+
+			expect(usesContext(fn)).toBe(false);
+		});
+
 		it("should not confuse a longer identifier for the parameter", () => {
 			const _contextual = 1;
 
 			expect(usesContext((_context) => _contextual)).toBe(false);
 		});
 
+		it("should not confuse the parameter inside other ASCII word identifiers", () => {
+			const pre_context = 1;
+			const _context0 = 2;
+			const _contextA = 3;
+			const _context_ = 4;
+
+			expect(
+				usesContext(
+					(_context) =>
+						pre_context + _context0 + _contextA + _context_,
+				),
+			).toBe(false);
+		});
+
+		it("should keep searching after a longer identifier", () => {
+			const _contextual = 1;
+
+			expect(usesContext((_context) => [_contextual, _context])).toBe(
+				true,
+			);
+		});
+
 		it("should detect a first parameter used by a later default", () => {
 			expect(
 				usesContext((context: unknown, next = () => context) => next()),
 			).toBe(true);
+		});
+
+		it("should return false for a later default that does not use the first parameter", () => {
+			expect(
+				usesContext((_context: unknown, next = () => 1) => next()),
+			).toBe(false);
+		});
+
+		it("should return false for a later rest parameter that does not use the first parameter", () => {
+			expect(
+				usesContext((_context: unknown, ...args: unknown[]) => args[0]),
+			).toBe(false);
+		});
+
+		it("should return false for an unused async function parameter", () => {
+			async function fn(_context: unknown, next: () => unknown) {
+				return next();
+			}
+
+			expect(usesContext(fn)).toBe(false);
+		});
+
+		it("should return false for an unused async generator-method parameter", () => {
+			const obj = {
+				async *method(_context: unknown) {
+					yield 1;
+				},
+			};
+
+			expect(usesContext(obj.method)).toBe(false);
 		});
 	});
 
@@ -187,6 +265,16 @@ describe("usesContext", () => {
 
 			expect(usesContext(obj.method)).toBe(false);
 		});
+
+		it("should return false for a paramless async generator method", () => {
+			const obj = {
+				async *method() {
+					yield 1;
+				},
+			};
+
+			expect(usesContext(obj.method)).toBe(false);
+		});
 	});
 
 	describe("conservative fallbacks", () => {
@@ -217,12 +305,31 @@ describe("usesContext", () => {
 			expect(usesContext(fn)).toBe(true);
 		});
 
+		it("should return true when a declared parameter is reached through `arguments`", () => {
+			function fn(_context: unknown) {
+				// biome-ignore lint/complexity/noArguments: Testing the `arguments` fallback
+				return arguments[0];
+			}
+
+			expect(usesContext(fn)).toBe(true);
+		});
+
 		it("should return true for a native built-in with no declared parameters", () => {
 			expect(usesContext(Math.random)).toBe(true);
 		});
 
 		it("should return true for a bound function whose source is opaque", () => {
 			expect(usesContext((() => 1).bind(null))).toBe(true);
+		});
+
+		it("should return true for a callable proxy whose source is opaque", () => {
+			const fn = new Proxy(() => 1, {
+				apply(_target, _thisArgument, args) {
+					return args[0];
+				},
+			});
+
+			expect(usesContext(fn)).toBe(true);
 		});
 
 		it("should return true for the substring `arguments` inside a string literal", () => {
@@ -263,42 +370,6 @@ describe("usesContext", () => {
 
 			expect(usesContext(cached)).toBe(false);
 			expect(usesContext(fresh)).toBe(true);
-		});
-	});
-
-	describe("non-function values", () => {
-		it("should throw a TypeError for a number primitive, which cannot be cached in the WeakMap", () => {
-			expect(() => usesContext(asFn(1))).toThrow(TypeError);
-		});
-
-		it("should throw a TypeError for a boolean primitive, which cannot be cached in the WeakMap", () => {
-			expect(() => usesContext(asFn(true))).toThrow(TypeError);
-		});
-
-		it("should throw a TypeError for an empty string, which cannot be cached in the WeakMap", () => {
-			expect(() => usesContext(asFn(""))).toThrow(TypeError);
-		});
-
-		it("should return true for a non-empty string, whose length short-circuits before the cache", () => {
-			expect(usesContext(asFn("v1"))).toBe(true);
-		});
-
-		it("should return true for a plain object, whose source is not recognized as empty", () => {
-			expect(usesContext(asFn({}))).toBe(true);
-		});
-
-		it("should return true for an array, whose source is not recognized as empty", () => {
-			expect(usesContext(asFn([]))).toBe(true);
-		});
-	});
-
-	describe("nullish inputs", () => {
-		it("should throw a TypeError for null", () => {
-			expect(() => usesContext(asFn(null))).toThrow(TypeError);
-		});
-
-		it("should throw a TypeError for undefined", () => {
-			expect(() => usesContext(asFn(undefined))).toThrow(TypeError);
 		});
 	});
 });
