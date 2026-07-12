@@ -74,16 +74,40 @@ describe("usage: jit", () => {
 			const compiled = endpoint.dispatch;
 			const source = compiled.toString().replace(/\s+/g, " ");
 
-			expect(source).toBe(
-				"function (request) { return response(handler()); }",
-			);
-			expect(compiled.length).toBe(1);
+			expect(source).toBe("function () { return response(handler()); }");
+			expect(compiled.length).toBe(0);
 
 			const first = await app.fetch(new Request("http://localhost/a"));
 			const second = await app.fetch(new Request("http://localhost/a"));
 
 			expect(await first.text()).toBe("v1");
 			expect(await second.text()).toBe("v1");
+		});
+
+		it("should directly return an async, chainless, context-free route result", async () => {
+			const app = new Cudenix(
+				new Module().route("GET", "/a", async () => ok("v1")),
+			);
+
+			app.compile();
+
+			const endpoint = app.methods.GET?.endpoints[0];
+
+			if (endpoint === undefined) {
+				throw new Error("Expected a compiled GET endpoint");
+			}
+
+			const compiled = endpoint.dispatch;
+			const source = compiled.toString().replace(/\s+/g, " ");
+
+			expect(source).toBe(
+				"async function () { return response(await handler()); }",
+			);
+			expect(compiled.length).toBe(0);
+
+			const result = await app.fetch(new Request("http://localhost/a"));
+
+			expect(await result.text()).toBe("v1");
 		});
 
 		it("should isolate the direct factory from an ignored validator chain", () => {
@@ -403,7 +427,7 @@ describe("usage: jit", () => {
 
 			const asyncSource = jit(asyncServer.app, asyncEndpoint).toString();
 
-			expect(asyncSource).toContain("await handler()");
+			expect(asyncSource).toContain("return response(await handler());");
 			expect(asyncSource.startsWith("async")).toBe(true);
 
 			const syncSource = jit(syncServer.app, syncEndpoint).toString();

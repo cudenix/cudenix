@@ -83,7 +83,7 @@ interface EndpointShape {
 	hasValidationState: boolean;
 	hasValidator: boolean;
 	isChainAsync: boolean;
-	isDirectSync: boolean;
+	isDirectRoute: boolean;
 	isRouteAsync: boolean;
 	isSse: boolean;
 	isValidatorAsync: boolean;
@@ -186,10 +186,9 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 	const parsesParams =
 		validatesParams || (needsContext && endpoint.paramKeys.length > 0);
 	const needsStoreState = hasValidationState && hasStore && !needsContext;
-	const isDirectSync =
-		chainLength === 0 && !needsContext && !isSse && !isRouteAsync;
+	const isDirectRoute = chainLength === 0 && !needsContext && !isSse;
 
-	key += isDirectSync ? "D" : "G";
+	key += isDirectRoute ? "D" : "G";
 
 	if (parsesParams && endpoint.paramKeys.length > 0) {
 		const paramKeys = endpoint.paramKeys;
@@ -215,7 +214,7 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 		hasValidationState,
 		hasValidator,
 		isChainAsync,
-		isDirectSync,
+		isDirectRoute,
 		isRouteAsync,
 		isSse,
 		isValidatorAsync,
@@ -453,9 +452,9 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 	if (factory === undefined) {
 		let source: string;
 
-		if (shape.isDirectSync) {
-			source = `return function (request) {
-	return response(handler());
+		if (shape.isDirectRoute) {
+			source = `return ${shape.isRouteAsync ? "async " : ""}function () {
+	return response(${shape.isRouteAsync ? "await " : ""}handler());
 };`;
 		} else {
 			const requestTarget = shape.needsContext
