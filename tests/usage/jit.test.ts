@@ -58,20 +58,54 @@ describe("usage: jit", () => {
 			expect(await second.text()).toBe("v1");
 		});
 
-		it("should generate a body that calls the route handler", async () => {
-			using server = serveApp(
+		it("should directly return a sync, chainless, context-free route result", async () => {
+			const app = new Cudenix(
 				new Module().route("GET", "/a", () => ok("v1")),
 			);
 
-			const endpoint = server.app.methods.GET!.endpoints[0]!;
+			app.compile();
 
-			expect(jit(server.app, endpoint).toString()).toContain("handler()");
+			const endpoint = app.methods.GET?.endpoints[0];
 
-			const first = await server.fetch("/a");
-			const second = await server.fetch("/a");
+			if (endpoint === undefined) {
+				throw new Error("Expected a compiled GET endpoint");
+			}
+
+			const compiled = endpoint.dispatch;
+			const source = compiled.toString().replace(/\s+/g, " ");
+
+			expect(source).toBe(
+				"function (request) { return response(handler()); }",
+			);
+			expect(compiled.length).toBe(1);
+
+			const first = await app.fetch(new Request("http://localhost/a"));
+			const second = await app.fetch(new Request("http://localhost/a"));
 
 			expect(await first.text()).toBe("v1");
 			expect(await second.text()).toBe("v1");
+		});
+
+		it("should isolate the direct factory from an ignored validator chain", () => {
+			const directSource = jitSource(
+				new Module().route("GET", "/a", () => ok("v1")),
+			);
+			const app = new Cudenix(
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/b", () => ok("v2")),
+			);
+
+			app.compile();
+
+			const endpoint = app.methods.GET?.endpoints[0];
+
+			if (endpoint === undefined) {
+				throw new Error("Expected a compiled GET endpoint");
+			}
+
+			expect(directSource).toContain("return response(handler())");
+			expect(endpoint.dispatch.toString()).toContain("let content");
 		});
 	});
 
@@ -338,7 +372,7 @@ describe("usage: jit", () => {
 			expect(source).not.toContain("new Context");
 			expect(source).not.toContain("decodePathParam");
 			expect(source).not.toContain('"cookies" in request');
-			expect(source).toContain("content = handler()");
+			expect(source).toContain("return response(handler())");
 		});
 
 		it("should pass undefined to a store that ignores its context parameter", () => {
@@ -374,7 +408,7 @@ describe("usage: jit", () => {
 
 			const syncSource = jit(syncServer.app, syncEndpoint).toString();
 
-			expect(syncSource).toContain("content = handler();");
+			expect(syncSource).toContain("return response(handler());");
 			expect(syncSource).not.toContain("await");
 			expect(syncSource).not.toContain("then");
 			expect(syncSource.startsWith("async")).toBe(false);

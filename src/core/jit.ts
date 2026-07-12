@@ -83,6 +83,7 @@ interface EndpointShape {
 	hasValidationState: boolean;
 	hasValidator: boolean;
 	isChainAsync: boolean;
+	isDirectSync: boolean;
 	isRouteAsync: boolean;
 	isSse: boolean;
 	isValidatorAsync: boolean;
@@ -185,6 +186,10 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 	const parsesParams =
 		validatesParams || (needsContext && endpoint.paramKeys.length > 0);
 	const needsStoreState = hasValidationState && hasStore && !needsContext;
+	const isDirectSync =
+		chainLength === 0 && !needsContext && !isSse && !isRouteAsync;
+
+	key += isDirectSync ? "D" : "G";
 
 	if (parsesParams && endpoint.paramKeys.length > 0) {
 		const paramKeys = endpoint.paramKeys;
@@ -210,6 +215,7 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 		hasValidationState,
 		hasValidator,
 		isChainAsync,
+		isDirectSync,
 		isRouteAsync,
 		isSse,
 		isValidatorAsync,
@@ -445,51 +451,63 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 	let factory = factories.get(shape.key);
 
 	if (factory === undefined) {
-		const requestTarget = shape.needsContext
-			? "context.request"
-			: "validatedRequest";
-		const bunDetection = 'const isBun = "cookies" in request;';
-		const parsers: Record<keyof ValidatorRequest, string> = {
-			body: `${requestTarget}.body = await parseBody(request);`,
-			cookies: `${requestTarget}.cookies = parseCookies(request.headers.get("cookie") ?? "");`,
-			headers: `${requestTarget}.headers = request.headers.toJSON();`,
-			params: shape.parsesParams
-				? `${bunDetection}\n\n${generateParamsParser(
-						endpoint.paramKeys,
-						endpoint.matchOffset,
-						endpoint.restKeys,
-						`${requestTarget}.params`,
-					)}`
-				: "",
-			query: `${requestTarget}.query = parseQuery(request.url);`,
-		};
-		const preludeStatements = shape.needsContext
-			? ["const context = new Context(app, request, match);"]
-			: ["let content;"];
+		let source: string;
 
-		if (!shape.needsContext) {
-			if (shape.isSse && shape.hasValidationState) {
-				preludeStatements.push("const server = app.server;");
+		if (shape.isDirectSync) {
+			source = `return function (request) {
+	return response(handler());
+};`;
+		} else {
+			const requestTarget = shape.needsContext
+				? "context.request"
+				: "validatedRequest";
+			const bunDetection = 'const isBun = "cookies" in request;';
+			const parsers: Record<keyof ValidatorRequest, string> = {
+				body: `${requestTarget}.body = await parseBody(request);`,
+				cookies: `${requestTarget}.cookies = parseCookies(request.headers.get("cookie") ?? "");`,
+				headers: `${requestTarget}.headers = request.headers.toJSON();`,
+				params: shape.parsesParams
+					? `${bunDetection}\n\n${generateParamsParser(
+							endpoint.paramKeys,
+							endpoint.matchOffset,
+							endpoint.restKeys,
+							`${requestTarget}.params`,
+						)}`
+					: "",
+				query: `${requestTarget}.query = parseQuery(request.url);`,
+			};
+			const preludeStatements = shape.needsContext
+				? ["const context = new Context(app, request, match);"]
+				: ["let content;"];
+
+			if (!shape.needsContext) {
+				if (shape.isSse && shape.hasValidationState) {
+					preludeStatements.push("const server = app.server;");
+				}
+
+				if (shape.hasValidationState) {
+					preludeStatements.push(
+						"const validatedRequest = new Empty();",
+					);
+				}
+
+				if (shape.needsStoreState) {
+					preludeStatements.push(
+						"const validatedStore = new Empty();",
+					);
+				}
 			}
 
-			if (shape.hasValidationState) {
-				preludeStatements.push("const validatedRequest = new Empty();");
+			if (shape.needsContext && shape.parsesParams) {
+				preludeStatements.push(parsers.params);
 			}
 
-			if (shape.needsStoreState) {
-				preludeStatements.push("const validatedStore = new Empty();");
-			}
+			const prelude = `\n${preludeStatements.join("\n\n")}\n\n`;
+
+			const body = generateDispatcherBody(endpoint.chain, parsers, shape);
+
+			source = `return ${shape.isChainAsync ? "async " : ""}function (request, match) {${prelude}${body}\n};`;
 		}
-
-		if (shape.needsContext && shape.parsesParams) {
-			preludeStatements.push(parsers.params);
-		}
-
-		const prelude = `\n${preludeStatements.join("\n\n")}\n\n`;
-
-		const body = generateDispatcherBody(endpoint.chain, parsers, shape);
-
-		const source = `return ${shape.isChainAsync ? "async " : ""}function (request, match) {${prelude}${body}\n};`;
 
 		factory = new Function(
 			...FACTORY_PARAMETERS,
