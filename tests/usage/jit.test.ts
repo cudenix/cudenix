@@ -298,13 +298,59 @@ describe("usage: jit", () => {
 			);
 
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
+			const source = endpoint.dispatch.toString();
 
 			expect(endpoint.dispatch).not.toBe(staticDispatch);
 			expect(endpoint.response).toBeUndefined();
+			expect(source).not.toContain("new Context");
+			expect(source).toContain(
+				"await chain[0].handler(undefined, next_0)",
+			);
 
 			const result = await server.fetch("/b");
 
 			expect(await result.text()).toBe("v2");
+		});
+	});
+
+	describe("unused context fast path", () => {
+		it("should omit Context when a middleware only uses next", () => {
+			const source = jitSource(
+				new Module()
+					.middleware(async (_context, next) => {
+						await next();
+					})
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			expect(source).not.toContain("new Context");
+			expect(source).toContain(
+				"await chain[0].handler(undefined, next_0)",
+			);
+			expect(source).toContain("content = handler()");
+		});
+
+		it("should omit Context and params parsing when a route ignores its parameter", () => {
+			const source = jitSource(
+				new Module().route("GET", "/a/:id", (_context) => ok("v1")),
+			);
+
+			expect(source).not.toContain("new Context");
+			expect(source).not.toContain("decodePathParam");
+			expect(source).not.toContain('"cookies" in request');
+			expect(source).toContain("content = handler()");
+		});
+
+		it("should pass undefined to a store that ignores its context parameter", () => {
+			const source = jitSource(
+				new Module()
+					.store((_context) => ({ a: "v1" }))
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			expect(source).not.toContain("new Context");
+			expect(source).toContain("chain[0].handler(undefined)");
+			expect(source).toContain("content = handler()");
 		});
 	});
 
