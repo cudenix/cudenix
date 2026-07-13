@@ -9,15 +9,20 @@ const PARAM_RANK = 1;
 const WILDCARD_RANK = 2;
 const REST_RANK = 3;
 
+export const PARAM_FLAG_OPTIONAL = 1;
+export const PARAM_FLAG_REST = 2;
+
 /**
  * Compiles a route pattern for matching and parameter extraction.
  *
  * @example
  * ```typescript
- * const { paramKeys, pattern, ranks } = pathToRegexp("/a/:p1");
+ * const { paramFlags, paramKeys, pattern, ranks } =
+ *   pathToRegexp("/a/:p1");
  * const match = new RegExp(`^${pattern}$`).exec("/a/v1")!;
  *
  * paramKeys; // ["p1"]
+ * paramFlags; // [0]
  * ranks; // [0, 1]
  * match[2]; // "v1"
  * ```
@@ -25,6 +30,7 @@ const REST_RANK = 3;
 export const pathToRegexp = (path: string) => {
 	if (path === "/") {
 		return {
+			paramFlags: [],
 			paramKeys: [],
 			pattern: String.raw`()\/`,
 			ranks: [],
@@ -34,6 +40,7 @@ export const pathToRegexp = (path: string) => {
 
 	const length = path.length;
 
+	const paramFlags: number[] = [];
 	const paramKeys: string[] = [];
 	const ranks: number[] = [];
 	const restKeys: string[] = [];
@@ -62,6 +69,7 @@ export const pathToRegexp = (path: string) => {
 		let segment: string;
 
 		if (firstCharCode === 58) {
+			paramFlags.push(isOptional ? PARAM_FLAG_OPTIONAL : 0);
 			paramKeys.push(path.substring(i + 1, end));
 
 			ranks.push(PARAM_RANK);
@@ -78,6 +86,9 @@ export const pathToRegexp = (path: string) => {
 		) {
 			const name = path.substring(i + 3, end);
 
+			paramFlags.push(
+				PARAM_FLAG_REST | (isOptional ? PARAM_FLAG_OPTIONAL : 0),
+			);
 			paramKeys.push(name);
 
 			ranks.push(REST_RANK);
@@ -103,6 +114,7 @@ export const pathToRegexp = (path: string) => {
 	}
 
 	return {
+		paramFlags,
 		paramKeys,
 		pattern:
 			areAllSegmentsOptional && segments

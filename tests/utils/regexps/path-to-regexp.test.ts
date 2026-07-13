@@ -1,11 +1,21 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 
-import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
+import {
+	PARAM_FLAG_OPTIONAL,
+	PARAM_FLAG_REST,
+	pathToRegexp,
+} from "@/utils/regexps/path-to-regexp";
 
 const compile = (path: string) => {
-	const { paramKeys, pattern, restKeys } = pathToRegexp(path);
+	const { paramFlags, paramKeys, pattern, restKeys } = pathToRegexp(path);
 
-	return { paramKeys, pattern, regex: new RegExp(`^${pattern}$`), restKeys };
+	return {
+		paramFlags,
+		paramKeys,
+		pattern,
+		regex: new RegExp(`^${pattern}$`),
+		restKeys,
+	};
 };
 
 describe("pathToRegexp", () => {
@@ -729,6 +739,27 @@ describe("pathToRegexp", () => {
 		it("should rank optional empty literal segments as static", () => {
 			expect(pathToRegexp("/?").ranks).toEqual([0]);
 			expect(pathToRegexp("/a/?").ranks).toEqual([0, 0]);
+		});
+	});
+
+	describe("param flags", () => {
+		it("should align required and optional flags with duplicate names", () => {
+			const { paramFlags, paramKeys } = pathToRegexp(
+				"/:same/:same?/...same/...same?",
+			);
+
+			expect(paramKeys).toEqual(["same", "same", "same", "same"]);
+			expect(paramFlags).toEqual([
+				0,
+				PARAM_FLAG_OPTIONAL,
+				PARAM_FLAG_REST,
+				PARAM_FLAG_OPTIONAL | PARAM_FLAG_REST,
+			]);
+		});
+
+		it("should return no param flags when the path has no captures", () => {
+			expect(pathToRegexp("/").paramFlags).toEqual([]);
+			expect(pathToRegexp("/a/*").paramFlags).toEqual([]);
 		});
 	});
 });

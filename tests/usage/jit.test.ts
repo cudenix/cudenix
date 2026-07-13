@@ -1017,6 +1017,117 @@ describe("usage: jit", () => {
 			expect(source).toContain("if (!params)");
 			expect(source).not.toContain('"cookies" in request');
 			expect(source).toContain("decodePathParam");
+			expect(source).not.toContain("match !== undefined");
+			expect(source).not.toContain("value_0 !== undefined");
+		});
+
+		it("should guard only optional path parameter captures", () => {
+			const required = jitSource(
+				new Module().route("GET", "/a/:p1", (context) =>
+					ok(context.request.params),
+				),
+			);
+			const optional = jitSource(
+				new Module().route("GET", "/a/:p1?", (context) =>
+					ok(context.request.params),
+				),
+			);
+
+			expect(required).toContain("decodePathParam(match[2])");
+			expect(required).not.toContain("value_0 !== undefined");
+			expect(optional).toContain("const value_0 = match[2]");
+			expect(optional).toContain("value_0 !== undefined");
+		});
+
+		it("should conservatively guard captures without positional metadata", () => {
+			const app = new Cudenix(
+				new Module().route("GET", "/a/:p1", (context) =>
+					ok(context.request.params),
+				),
+			);
+
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+
+			delete endpoint.paramFlags;
+
+			const source = jit(app, endpoint).toString();
+
+			expect(source).toContain("const value_0 = match[2]");
+			expect(source).toContain("value_0 !== undefined");
+		});
+
+		it("should guard optional rest captures and specialize rest by position", () => {
+			const required = jitSource(
+				new Module().route("GET", "/a/...rest", (context) =>
+					ok(context.request.params),
+				),
+			);
+			const optional = jitSource(
+				new Module().route("GET", "/a/...rest?", (context) =>
+					ok(context.request.params),
+				),
+			);
+			const duplicate = jitSource(
+				new Module().route("GET", "/:same/...same", (context) =>
+					ok(context.request.params),
+				),
+			);
+
+			expect(required).toContain('decodePathParam(match[2]).split("/")');
+			expect(required).not.toContain("value_0 !== undefined");
+			expect(optional).toContain("value_0 !== undefined");
+			expect(optional).toContain('decodePathParam(value_0).split("/")');
+			expect(duplicate).toContain(
+				'params["same"] = decodePathParam(match[2]);',
+			);
+			expect(duplicate).toContain(
+				'params["same"] = decodePathParam(match[3]).split("/");',
+			);
+		});
+
+		it("should build Context without exposing the regexp match", () => {
+			const source = jitSource(
+				new Module().route("GET", "/a/:p1", (context) =>
+					ok(context.request.params),
+				),
+			);
+
+			expect(source).toContain("new Context(app, request)");
+			expect(source).not.toContain("new Context(app, request, match)");
+		});
+
+		it("should omit absent optional params through app.fetch", async () => {
+			const app = new Cudenix(
+				new Module()
+					.route("GET", "/named/:value?", (context) =>
+						ok(context.request.params),
+					)
+					.route("GET", "/rest/...values?", (context) =>
+						ok(context.request.params),
+					),
+			);
+
+			app.compile();
+
+			const namedMissing = await app.fetch(
+				new Request("http://localhost/named"),
+			);
+			const namedPresent = await app.fetch(
+				new Request("http://localhost/named/v1"),
+			);
+			const restMissing = await app.fetch(
+				new Request("http://localhost/rest"),
+			);
+			const restPresent = await app.fetch(
+				new Request("http://localhost/rest/v1/v2"),
+			);
+
+			expect(await namedMissing.json()).toEqual({});
+			expect(await namedPresent.json()).toEqual({ value: "v1" });
+			expect(await restMissing.json()).toEqual({});
+			expect(await restPresent.json()).toEqual({ values: ["v1", "v2"] });
 		});
 
 		it("should emit parseCookies for a cookies validator", () => {

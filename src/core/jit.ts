@@ -11,6 +11,10 @@ import { isAsync } from "@/utils/functions/is-async";
 import { usesContext } from "@/utils/functions/uses-context";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
+import {
+	PARAM_FLAG_OPTIONAL,
+	PARAM_FLAG_REST,
+} from "@/utils/regexps/path-to-regexp";
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 import { parseQuery } from "@/utils/urls/parse-query";
 
@@ -25,6 +29,7 @@ const RESPONSE_CALL =
  */
 const generateParamsParser = (
 	paramKeys: string[],
+	paramFlags: number[] | undefined,
 	matchOffset: number,
 	restKeys: string[],
 	target: string,
@@ -50,29 +55,38 @@ const generateParamsParser = (
 
 		const matchGroupIndex = matchOffset + 1 + i;
 		const keyLiteral = JSON.stringify(paramKey);
-		const paramValueExpression = restKeys.includes(paramKey)
-			? 'value.split("/")'
-			: "value";
+		const valueName = `value_${i}`;
+		const flags = paramFlags?.[i];
+		const isOptional =
+			flags === undefined || (flags & PARAM_FLAG_OPTIONAL) !== 0;
+		const isRest =
+			flags === undefined
+				? restKeys.includes(paramKey)
+				: (flags & PARAM_FLAG_REST) !== 0;
+		const valueExpression = isOptional
+			? valueName
+			: `match[${matchGroupIndex}]`;
+		const decodedValue = `decodePathParam(${valueExpression})`;
+		const paramValueExpression = isRest
+			? `${decodedValue}.split("/")`
+			: decodedValue;
 
-		assignmentsCode += `
-				{
-					let value = match[${matchGroupIndex}];
+		assignmentsCode += isOptional
+			? `
+				const ${valueName} = match[${matchGroupIndex}];
 
-					if (value !== undefined) {
-						value = decodePathParam(value);
-
-						params[${keyLiteral}] = ${paramValueExpression};
-					}
-				}`;
+				if (${valueName} !== undefined) {
+					params[${keyLiteral}] = ${paramValueExpression};
+				}`
+			: `
+				params[${keyLiteral}] = ${paramValueExpression};`;
 	}
 
+	// A matched dispatch without Bun params always comes from the regexp fallback.
 	return `let params = request.params;
 
 			if (!params) {
-				params = new Empty();
-
-				if (match !== undefined) {${assignmentsCode}
-				}
+				params = new Empty();${assignmentsCode}
 			}
 
 			${target} = params;`;
@@ -195,21 +209,29 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 	key += isDirectRoute ? "D" : "G";
 
 	if (parsesParams && endpoint.paramKeys.length > 0) {
+		const paramFlags = endpoint.paramFlags;
 		const paramKeys = endpoint.paramKeys;
 		const restKeys = endpoint.restKeys;
 
+		let optionalBits = "";
 		let restBits = "";
 
 		for (let i = 0; i < paramKeys.length; i++) {
 			const paramKey = paramKeys[i];
 
-			restBits +=
-				paramKey !== undefined && restKeys.includes(paramKey)
-					? "1"
-					: "0";
+			const flags = paramKey === undefined ? 0 : paramFlags?.[i];
+			const isOptional =
+				flags === undefined || (flags & PARAM_FLAG_OPTIONAL) !== 0;
+			const isRest =
+				flags === undefined
+					? paramKey !== undefined && restKeys.includes(paramKey)
+					: (flags & PARAM_FLAG_REST) !== 0;
+
+			optionalBits += isOptional ? "1" : "0";
+			restBits += isRest ? "1" : "0";
 		}
 
-		key += `P${endpoint.matchOffset}${JSON.stringify(paramKeys)}${restBits}`;
+		key += `P${endpoint.matchOffset}${JSON.stringify(paramKeys)}O${optionalBits}R${restBits}`;
 	}
 
 	return {
@@ -471,6 +493,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 				params: shape.parsesParams
 					? generateParamsParser(
 							endpoint.paramKeys,
+							endpoint.paramFlags,
 							endpoint.matchOffset,
 							endpoint.restKeys,
 							`${requestTarget}.params`,
@@ -479,7 +502,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 				query: `${requestTarget}.query = parseQuery(request.url);`,
 			};
 			const preludeStatements = shape.needsContext
-				? ["const context = new Context(app, request, match);"]
+				? ["const context = new Context(app, request);"]
 				: ["let content;"];
 
 			if (!shape.needsContext) {

@@ -69,7 +69,7 @@ export type AnyContext = Context<any, any>;
  * ```
  */
 export interface ContextConstructor {
-	new (app: Cudenix, request: Request, match?: RegExpExecArray): AnyContext;
+	new (app: Cudenix, request: Request): AnyContext;
 }
 
 /**
@@ -77,7 +77,7 @@ export interface ContextConstructor {
  *
  * @example
  * ```typescript
- * const a = new Context(app, request, match);
+ * const a = new Context(app, request);
  *
  * a.request.raw; // request
  * a.response.headers; // Headers {}
@@ -87,7 +87,6 @@ export const Context = function (
 	this: AnyContext,
 	app: Cudenix,
 	request: Request,
-	_match?: RegExpExecArray,
 ) {
 	this.memory = app.memory;
 	this.request = new Empty() as unknown as AnyContext["request"];

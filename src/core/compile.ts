@@ -15,6 +15,7 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 
 const EMPTY_KEYS = Object.freeze([]) as unknown as string[];
+const EMPTY_FLAGS = Object.freeze([]) as unknown as number[];
 
 const BUN_METHODS = new Set([
 	"DELETE",
@@ -309,6 +310,7 @@ const flatten = (
 			chain,
 			dispatch: staticDispatch,
 			matchOffset: 0,
+			paramFlags: EMPTY_FLAGS,
 			paramKeys: EMPTY_KEYS,
 			path:
 				`${inheritedPath}${pathPrefix}${link.path === "/" ? "" : link.path}` ||
@@ -360,9 +362,11 @@ export const compile = (app: Cudenix) => {
 			}
 
 			const path = methodEndpoint.path;
-			const { paramKeys, pattern, ranks, restKeys } = pathToRegexp(path);
+			const { paramFlags, paramKeys, pattern, ranks, restKeys } =
+				pathToRegexp(path);
 			const native = isBunMethod && isBunNativeRoute(path, paramKeys);
 
+			methodEndpoint.paramFlags = paramFlags;
 			methodEndpoint.paramKeys = paramKeys;
 			methodEndpoint.restKeys = restKeys;
 

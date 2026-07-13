@@ -32,6 +32,7 @@ export type EndpointChain = (AnyMiddleware | AnyStore | AnyValidator)[];
  *   chain: [],
  *   dispatch,
  *   matchOffset: 1,
+ *   paramFlags: [],
  *   paramKeys: [],
  *   path: "/a",
  *   restKeys: [],
@@ -43,6 +44,7 @@ export interface Endpoint {
 	chain: EndpointChain;
 	dispatch: Dispatch;
 	matchOffset: number;
+	paramFlags?: number[];
 	paramKeys: string[];
 	path: string;
 	response?: Response;
