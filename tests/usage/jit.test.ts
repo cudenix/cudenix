@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 import { Cudenix, type Plugin } from "@/core/cudenix";
 import { staticDispatch } from "@/core/dispatch";
-import { jit } from "@/core/jit";
+import { inspectJitFactoryDependencies, jit } from "@/core/jit";
 import { Module } from "@/core/module";
 import { fail, ok } from "@/core/reply";
 import type { ValidatorPlugin } from "@/core/validator";
@@ -42,8 +42,146 @@ const jitSource = (
 	return jit(app, app.methods.GET!.endpoints[0]!).toString();
 };
 
+const jitDependencies = (
+	module: ConstructorParameters<typeof Cudenix>[0],
+	validator?: ValidatorPlugin,
+) => {
+	const app = new Cudenix(module);
+
+	if (validator) {
+		app.memory.validator = validator;
+	}
+
+	app.compile();
+
+	return inspectJitFactoryDependencies(app, app.methods.GET!.endpoints[0]!);
+};
+
 describe("usage: jit", () => {
 	describe("compilation", () => {
+		it("should link only the dependencies emitted by each factory shape", () => {
+			expect(
+				jitDependencies(
+					new Module().route("GET", "/direct", () => ok("v1")),
+				),
+			).toEqual(["response", "handler"]);
+			expect(
+				jitDependencies(
+					new Module().route("GET", "/context", (context) =>
+						ok(context.memory),
+					),
+				),
+			).toEqual(["Context", "app", "response", "handler"]);
+			expect(
+				jitDependencies(
+					new Module()
+						.store(() => ({ ignored: true }))
+						.route("GET", "/store", () => ok("v1")),
+				),
+			).toEqual(["response", "chain", "Reply", "handler"]);
+			expect(
+				jitDependencies(
+					new Module()
+						.store(() => ({ value: "v1" }))
+						.route("GET", "/stored-context", (context) =>
+							ok(context.store.value),
+						),
+				),
+			).toEqual([
+				"Context",
+				"app",
+				"response",
+				"chain",
+				"merge",
+				"Reply",
+				"handler",
+			]);
+			expect(
+				jitDependencies(
+					new Module()
+						.validator({ request: { query: {} } })
+						.route("GET", "/query", () => ok("v1")),
+					echo,
+				),
+			).toEqual([
+				"response",
+				"parseQuery",
+				"validator",
+				"Empty",
+				"fail",
+				"chain",
+				"handler",
+			]);
+			expect(
+				jitDependencies(
+					new Module()
+						.validator({
+							request: { body: {}, cookies: {}, headers: {} },
+						})
+						.route("GET", "/request", () => ok("v1")),
+					echo,
+				),
+			).toEqual([
+				"response",
+				"parseBody",
+				"validator",
+				"Empty",
+				"parseCookies",
+				"fail",
+				"chain",
+				"handler",
+			]);
+			expect(
+				jitDependencies(
+					new Module()
+						.validator({ request: { params: {} } })
+						.route("GET", "/params/:id", () => ok("v1")),
+					echo,
+				),
+			).toEqual([
+				"response",
+				"Empty",
+				"decodePathParam",
+				"validator",
+				"fail",
+				"chain",
+				"handler",
+			]);
+			expect(
+				jitDependencies(
+					new Module().route("GET", "/sse", function* () {
+						yield { data: ok("v1") };
+					}),
+				),
+			).toEqual(["response", "handler", "app", "stream"]);
+		});
+
+		it("should bind endpoint values when reusing a factory shape", async () => {
+			const first = new Cudenix(
+				new Module()
+					.store(() => ({ value: "first" }))
+					.route("GET", "/a", (context) => ok(context.store.value)),
+			);
+			const second = new Cudenix(
+				new Module()
+					.store(() => ({ value: "second" }))
+					.route("GET", "/b", (context) => ok(context.store.value)),
+			);
+
+			first.compile();
+			second.compile();
+
+			const firstResponse = await first.fetch(
+				new Request("http://localhost/a"),
+			);
+			const secondResponse = await second.fetch(
+				new Request("http://localhost/b"),
+			);
+
+			expect(await firstResponse.text()).toBe("first");
+			expect(await secondResponse.text()).toBe("second");
+		});
+
 		it("should compile a dispatcher at compile time and keep it stable across requests", async () => {
 			using server = serveApp(
 				new Module()

@@ -18,12 +18,6 @@ import {
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 import { parseQuery } from "@/utils/urls/parse-query";
 
-/**
- * Defines the response call used by full-context dispatchers.
- */
-const RESPONSE_CALL =
-	"response(context.response.content,context.response.cookies,context.response.headers)";
-
 const VALIDATION_KEYS = [
 	"body",
 	"cookies",
@@ -31,6 +25,47 @@ const VALIDATION_KEYS = [
 	"params",
 	"query",
 ] as const satisfies readonly (keyof ValidatorRequest)[];
+
+interface FactoryDependencyValues {
+	app: Cudenix;
+	Context: typeof Context;
+	chain: EndpointChain;
+	decodePathParam: typeof decodePathParam;
+	Empty: typeof Empty;
+	fail: typeof fail;
+	handler: Endpoint["route"]["handler"];
+	merge: typeof merge;
+	parseBody: typeof parseBody;
+	parseCookies: typeof parseCookies;
+	parseQuery: typeof parseQuery;
+	Reply: typeof Reply;
+	response: typeof response;
+	stream: typeof stream;
+	validator: ValidatorPlugin | undefined;
+}
+
+export type FactoryDependencyName = keyof FactoryDependencyValues;
+
+type FactoryDependencyValue = FactoryDependencyValues[FactoryDependencyName];
+
+type LinkFactoryDependency = <Name extends FactoryDependencyName>(
+	name: Name,
+) => Name;
+
+const createDependencyLinker = () => {
+	const dependencies: FactoryDependencyName[] = [];
+	const linked = new Set<FactoryDependencyName>();
+	const link: LinkFactoryDependency = (name) => {
+		if (!linked.has(name)) {
+			linked.add(name);
+			dependencies.push(name);
+		}
+
+		return name;
+	};
+
+	return { dependencies, link };
+};
 
 /**
  * Returns the generated local name for a request validation slot.
@@ -83,10 +118,15 @@ const generateParamsParser = (
 	matchOffset: number,
 	restKeys: string[],
 	target: string,
+	link: LinkFactoryDependency,
 ): string => {
+	const EmptyName = link("Empty");
+
 	if (paramKeys.length === 0) {
-		return `let params=request.params;if(!params){params=new Empty()}${target}=params;`;
+		return `let params=request.params;if(!params){params=new ${EmptyName}()}${target}=params;`;
 	}
+
+	const decodePathParamName = link("decodePathParam");
 
 	let assignmentsCode = "";
 
@@ -110,7 +150,7 @@ const generateParamsParser = (
 		const valueExpression = isOptional
 			? valueName
 			: `match[${matchGroupIndex}]`;
-		const decodedValue = `decodePathParam(${valueExpression})`;
+		const decodedValue = `${decodePathParamName}(${valueExpression})`;
 		const paramValueExpression = isRest
 			? `${decodedValue}.split("/")`
 			: decodedValue;
@@ -121,7 +161,7 @@ const generateParamsParser = (
 	}
 
 	// A matched dispatch without Bun params always comes from the regexp fallback.
-	return `let params=request.params;if(!params){params=new Empty();${assignmentsCode}}${target}=params;`;
+	return `let params=request.params;if(!params){params=new ${EmptyName}();${assignmentsCode}}${target}=params;`;
 };
 
 /**
@@ -296,8 +336,9 @@ const analyzeEndpoint = (
  */
 const generateDispatcherBody = (
 	chain: EndpointChain,
-	parsers: Record<keyof ValidatorRequest, string>,
+	parsers: Record<keyof ValidatorRequest, () => string>,
 	shape: EndpointShape,
+	link: LinkFactoryDependency,
 ): string => {
 	const {
 		asyncMap,
@@ -318,9 +359,10 @@ const generateDispatcherBody = (
 	const linkArgument = needsContext ? "context" : "undefined";
 	const routeArgument = needsContext ? "context" : "";
 	const contentTarget = needsContext ? "context.response.content" : "content";
+	const responseName = link("response");
 	const returnStatement = needsContext
-		? `return ${RESPONSE_CALL};`
-		: "return response(content);";
+		? `return ${responseName}(context.response.content,context.response.cookies,context.response.headers);`
+		: `return ${responseName}(content);`;
 	const terminate = (code: string, isNested: boolean): string =>
 		isNested ? code : `${code}${returnStatement}`;
 	const slotTarget = (key: keyof ValidatorRequest): string =>
@@ -328,36 +370,38 @@ const generateDispatcherBody = (
 
 	const emit = (index: number, isNested: boolean): string => {
 		if (index >= chain.length) {
+			const handlerName = link("handler");
+
 			if (isSse) {
 				const serverTarget = needsContext
 					? "context.server"
 					: hasValidationState
 						? "server"
-						: "app.server";
+						: `${link("app")}.server`;
 
 				return terminate(
-					`${serverTarget}?.timeout(request,0);${contentTarget}=stream(handler(${routeArgument}));`,
+					`${serverTarget}?.timeout(request,0);${contentTarget}=${link("stream")}(${handlerName}(${routeArgument}));`,
 					isNested,
 				);
 			}
 
 			return terminate(
-				`${contentTarget}=${isRouteAsync ? "await " : ""}handler(${routeArgument});`,
+				`${contentTarget}=${isRouteAsync ? "await " : ""}${handlerName}(${routeArgument});`,
 				isNested,
 			);
 		}
 
-		const link = chain[index];
+		const chainLink = chain[index];
 
-		if (link?.type === "MIDDLEWARE") {
+		if (chainLink?.type === "MIDDLEWARE") {
 			const isTailAsync = awaitMap[index + 1];
-			const block = `{const next_${index}=${isTailAsync ? "async " : ""}()=>{${emit(index + 1, true)}};const returned_${index}=${awaitMap[index] ? "await " : ""}chain[${index}].handler(${linkArgument},next_${index});if(returned_${index}){${contentTarget}=returned_${index}}}`;
+			const block = `{const next_${index}=${isTailAsync ? "async " : ""}()=>{${emit(index + 1, true)}};const returned_${index}=${awaitMap[index] ? "await " : ""}${link("chain")}[${index}].handler(${linkArgument},next_${index});if(returned_${index}){${contentTarget}=returned_${index}}}`;
 
 			return terminate(block, isNested);
 		}
 
-		if (link?.type === "STORE") {
-			const call = `const returned_${index}=${asyncMap[index] ? "await " : ""}chain[${index}].handler(${linkArgument});`;
+		if (chainLink?.type === "STORE") {
+			const call = `const returned_${index}=${asyncMap[index] ? "await " : ""}${link("chain")}[${index}].handler(${linkArgument});`;
 			const shortCircuit = `${contentTarget}=returned_${index};${isNested ? "return;" : returnStatement}`;
 			const storeTarget = needsContext
 				? "context.store"
@@ -365,21 +409,21 @@ const generateDispatcherBody = (
 					? "validatedStore"
 					: "";
 			const mergeStore = storeTarget
-				? `if(returned_${index}){merge(${storeTarget},returned_${index})}`
+				? `if(returned_${index}){${link("merge")}(${storeTarget},returned_${index})}`
 				: "";
 
-			return `{${call}if(returned_${index} instanceof Reply&&!returned_${index}.success){${shortCircuit}}${mergeStore}}${emit(index + 1, isNested)}`;
+			return `{${call}if(returned_${index} instanceof ${link("Reply")}&&!returned_${index}.success){${shortCircuit}}${mergeStore}}${emit(index + 1, isNested)}`;
 		}
 
 		if (
-			link?.type === "VALIDATOR" &&
+			chainLink?.type === "VALIDATOR" &&
 			hasValidationState &&
-			hasValidationKeys(link.keys)
+			hasValidationKeys(chainLink.keys)
 		) {
 			const keys: (keyof ValidatorRequest)[] = [];
 
-			for (let i = 0; i < link.keys.length; i++) {
-				const key = link.keys[i];
+			for (let i = 0; i < chainLink.keys.length; i++) {
+				const key = chainLink.keys[i];
 
 				if (key) {
 					keys.push(key);
@@ -397,18 +441,15 @@ const generateDispatcherBody = (
 
 				if (!parsedKeys.has(key)) {
 					parsedKeys.add(key);
-					validations +=
-						key === "body"
-							? `${target}=await parseBody(request);`
-							: parsers[key];
+					validations += parsers[key]();
 				}
 
-				validations += `{const validated=${isValidatorAsync ? "await " : ""}validator(${requestTarget}.${key},${target},${keyLiteral});if(validated.success){${target}=validated.content}else{(${errorTarget}??=new Empty()).${key}=validated.content}}`;
+				validations += `{const validated=${isValidatorAsync ? "await " : ""}${link("validator")}(${requestTarget}.${key},${target},${keyLiteral});if(validated.success){${target}=validated.content}else{(${errorTarget}??=new ${link("Empty")}()).${key}=validated.content}}`;
 			}
 
-			const failure = `${contentTarget}=fail(${errorTarget},{status:422});${isNested ? "return;" : returnStatement}`;
+			const failure = `${contentTarget}=${link("fail")}(${errorTarget},{status:422});${isNested ? "return;" : returnStatement}`;
 
-			return `{const ${requestTarget}=chain[${index}].request;let ${errorTarget};${validations}if(${errorTarget}){${failure}}}${emit(index + 1, isNested)}`;
+			return `{const ${requestTarget}=${link("chain")}[${index}].request;let ${errorTarget};${validations}if(${errorTarget}){${failure}}}${emit(index + 1, isNested)}`;
 		}
 
 		return emit(index + 1, isNested);
@@ -420,44 +461,52 @@ const generateDispatcherBody = (
 /**
  * Defines a compiled dispatcher factory.
  */
-type DispatcherFactory = (
-	appValue: Cudenix,
-	ContextValue: typeof Context,
-	chainValue: EndpointChain,
-	responseValue: typeof response,
-	ReplyValue: typeof Reply,
-	mergeValue: typeof merge,
-	EmptyValue: typeof Empty,
-	failValue: typeof fail,
-	streamValue: typeof stream,
-	parseBodyValue: typeof parseBody,
-	parseCookiesValue: typeof parseCookies,
-	parseQueryValue: typeof parseQuery,
-	decodePathParamValue: typeof decodePathParam,
-	validatorValue: ValidatorPlugin | undefined,
-	handlerValue: Endpoint["route"]["handler"],
-) => Dispatch;
+type DispatcherFactory = (...values: FactoryDependencyValue[]) => Dispatch;
 
-/**
- * Canonicalizes the positional dependencies injected into generated factories.
- */
-const FACTORY_PARAMETERS = [
-	"app",
-	"Context",
-	"chain",
-	"response",
-	"Reply",
-	"merge",
-	"Empty",
-	"fail",
-	"stream",
-	"parseBody",
-	"parseCookies",
-	"parseQuery",
-	"decodePathParam",
-	"validator",
-	"handler",
-] as const;
+interface DispatcherFactoryEntry {
+	dependencies: FactoryDependencyName[];
+	factory: DispatcherFactory;
+}
+
+const resolveFactoryDependency = (
+	name: FactoryDependencyName,
+	app: Cudenix,
+	endpoint: Endpoint,
+	validator: ValidatorPlugin | undefined,
+): FactoryDependencyValue => {
+	switch (name) {
+		case "app":
+			return app;
+		case "Context":
+			return Context;
+		case "chain":
+			return endpoint.chain;
+		case "response":
+			return response;
+		case "Reply":
+			return Reply;
+		case "merge":
+			return merge;
+		case "Empty":
+			return Empty;
+		case "fail":
+			return fail;
+		case "stream":
+			return stream;
+		case "parseBody":
+			return parseBody;
+		case "parseCookies":
+			return parseCookies;
+		case "parseQuery":
+			return parseQuery;
+		case "decodePathParam":
+			return decodePathParam;
+		case "validator":
+			return validator;
+		case "handler":
+			return endpoint.route.handler;
+	}
+};
 
 type DirectSyncFactory = (
 	responseFn: typeof response,
@@ -481,10 +530,95 @@ const directAsyncFactory = new Function(
 	"return async function(){return response(await handler())}",
 ) as DirectAsyncFactory;
 
+const createDispatcherFactoryPlan = (
+	endpoint: Endpoint,
+	shape: EndpointShape,
+) => {
+	const { dependencies, link } = createDependencyLinker();
+	const slotTarget = (key: keyof ValidatorRequest) =>
+		shape.needsContext ? `context.request.${key}` : getValidatedLocal(key);
+	const parsers: Record<keyof ValidatorRequest, () => string> = {
+		body: () =>
+			`${slotTarget("body")}=await ${link("parseBody")}(request);`,
+		cookies: () =>
+			`${slotTarget("cookies")}=${link("parseCookies")}(request.headers.get("cookie")??"");`,
+		headers: () => `${slotTarget("headers")}=request.headers.toJSON();`,
+		params: () =>
+			shape.parsesParams
+				? generateParamsParser(
+						endpoint.paramKeys,
+						endpoint.paramFlags,
+						endpoint.matchOffset,
+						endpoint.restKeys,
+						slotTarget("params"),
+						link,
+					)
+				: "",
+		query: () =>
+			`${slotTarget("query")}=${link("parseQuery")}(request.url);`,
+	};
+	const preludeStatements = shape.needsContext
+		? [`const context=new ${link("Context")}(${link("app")},request);`]
+		: ["let content;"];
+
+	if (!shape.needsContext) {
+		if (shape.isSse && shape.hasValidationState) {
+			preludeStatements.push(`const server=${link("app")}.server;`);
+		}
+
+		if (shape.validationKeys.length > 0) {
+			preludeStatements.push(
+				`let ${shape.validationKeys.map(slotTarget).join(",")};`,
+			);
+		}
+
+		if (shape.needsStoreState) {
+			preludeStatements.push(
+				`const validatedStore=new ${link("Empty")}();`,
+			);
+		}
+	}
+
+	if (shape.needsContext && shape.parsesParams) {
+		preludeStatements.push(parsers.params());
+	}
+
+	const body = generateDispatcherBody(endpoint.chain, parsers, shape, link);
+	const source = `return ${shape.isChainAsync ? "async " : ""}function(request,match){${preludeStatements.join("")}${body}}`;
+
+	return { dependencies, source };
+};
+
+/**
+ * Returns the exact dependency names linked by a generated dispatcher factory.
+ *
+ * @internal
+ */
+export const inspectJitFactoryDependencies = (
+	app: Cudenix,
+	endpoint: Endpoint,
+): readonly FactoryDependencyName[] => {
+	const handler = endpoint.route.handler;
+	const validator = app.memory.validator as ValidatorPlugin | undefined;
+	const handlerUsesContext = usesContext(handler);
+
+	if (
+		!endpoint.route.sse &&
+		!handlerUsesContext &&
+		!hasEffectiveChain(endpoint.chain, validator !== undefined)
+	) {
+		return ["response", "handler"];
+	}
+
+	const shape = analyzeEndpoint(endpoint, validator, handlerUsesContext);
+
+	return createDispatcherFactoryPlan(endpoint, shape).dependencies;
+};
+
 /**
  * Stores compiled dispatcher factories by endpoint shape.
  */
-const factories = new Map<string, DispatcherFactory>();
+const factories = new Map<string, DispatcherFactoryEntry>();
 
 /**
  * Compiles an endpoint into a request dispatcher.
@@ -506,77 +640,35 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 
 	const shape = analyzeEndpoint(endpoint, validator, handlerUsesContext);
 
-	let factory = factories.get(shape.key);
+	let entry = factories.get(shape.key);
 
-	if (factory === undefined) {
-		const slotTarget = (key: keyof ValidatorRequest) =>
-			shape.needsContext
-				? `context.request.${key}`
-				: getValidatedLocal(key);
-		const parsers: Record<keyof ValidatorRequest, string> = {
-			body: "",
-			cookies: `${slotTarget("cookies")}=parseCookies(request.headers.get("cookie")??"");`,
-			headers: `${slotTarget("headers")}=request.headers.toJSON();`,
-			params: shape.parsesParams
-				? generateParamsParser(
-						endpoint.paramKeys,
-						endpoint.paramFlags,
-						endpoint.matchOffset,
-						endpoint.restKeys,
-						slotTarget("params"),
-					)
-				: "",
-			query: `${slotTarget("query")}=parseQuery(request.url);`,
-		};
-		const preludeStatements = shape.needsContext
-			? ["const context=new Context(app,request);"]
-			: ["let content;"];
-
-		if (!shape.needsContext) {
-			if (shape.isSse && shape.hasValidationState) {
-				preludeStatements.push("const server=app.server;");
-			}
-
-			if (shape.validationKeys.length > 0) {
-				preludeStatements.push(
-					`let ${shape.validationKeys.map(slotTarget).join(",")};`,
-				);
-			}
-
-			if (shape.needsStoreState) {
-				preludeStatements.push("const validatedStore=new Empty();");
-			}
-		}
-
-		if (shape.needsContext && shape.parsesParams) {
-			preludeStatements.push(parsers.params);
-		}
-
-		const body = generateDispatcherBody(endpoint.chain, parsers, shape);
-		const source = `return ${shape.isChainAsync ? "async " : ""}function(request,match){${preludeStatements.join("")}${body}}`;
-		factory = new Function(
-			...FACTORY_PARAMETERS,
-			source,
+	if (entry === undefined) {
+		const plan = createDispatcherFactoryPlan(endpoint, shape);
+		const factory = new Function(
+			...plan.dependencies,
+			plan.source,
 		) as DispatcherFactory;
 
-		factories.set(shape.key, factory);
+		entry = { dependencies: plan.dependencies, factory };
+		factories.set(shape.key, entry);
 	}
 
-	return factory(
-		app,
-		Context,
-		endpoint.chain,
-		response,
-		Reply,
-		merge,
-		Empty,
-		fail,
-		stream,
-		parseBody,
-		parseCookies,
-		parseQuery,
-		decodePathParam,
-		validator,
-		handler,
-	);
+	const values = new Array<FactoryDependencyValue>(entry.dependencies.length);
+
+	for (let i = 0; i < entry.dependencies.length; i++) {
+		const dependency = entry.dependencies[i];
+
+		if (dependency === undefined) {
+			continue;
+		}
+
+		values[i] = resolveFactoryDependency(
+			dependency,
+			app,
+			endpoint,
+			validator,
+		);
+	}
+
+	return entry.factory(...values);
 };
