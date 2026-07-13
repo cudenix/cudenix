@@ -30,7 +30,13 @@ const generateParamsParser = (
 	target: string,
 ): string => {
 	if (paramKeys.length === 0) {
-		return `${target} = isBun ? request.params : new Empty();`;
+		return `let params = request.params;
+
+			if (!params) {
+				params = new Empty();
+			}
+
+			${target} = params;`;
 	}
 
 	let assignmentsCode = "";
@@ -60,11 +66,9 @@ const generateParamsParser = (
 				}`;
 	}
 
-	return `let params;
+	return `let params = request.params;
 
-			if (isBun) {
-				params = request.params;
-			} else {
+			if (!params) {
 				params = new Empty();
 
 				if (match !== undefined) {${assignmentsCode}
@@ -460,18 +464,17 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 			const requestTarget = shape.needsContext
 				? "context.request"
 				: "validatedRequest";
-			const bunDetection = 'const isBun = "cookies" in request;';
 			const parsers: Record<keyof ValidatorRequest, string> = {
 				body: `${requestTarget}.body = await parseBody(request);`,
 				cookies: `${requestTarget}.cookies = parseCookies(request.headers.get("cookie") ?? "");`,
 				headers: `${requestTarget}.headers = request.headers.toJSON();`,
 				params: shape.parsesParams
-					? `${bunDetection}\n\n${generateParamsParser(
+					? generateParamsParser(
 							endpoint.paramKeys,
 							endpoint.matchOffset,
 							endpoint.restKeys,
 							`${requestTarget}.params`,
-						)}`
+						)
 					: "",
 				query: `${requestTarget}.query = parseQuery(request.url);`,
 			};

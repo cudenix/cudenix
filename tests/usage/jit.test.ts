@@ -395,7 +395,7 @@ describe("usage: jit", () => {
 
 			expect(source).not.toContain("new Context");
 			expect(source).not.toContain("decodePathParam");
-			expect(source).not.toContain('"cookies" in request');
+			expect(source).not.toContain("request.params");
 			expect(source).toContain("return response(handler())");
 		});
 
@@ -667,7 +667,7 @@ describe("usage: jit", () => {
 			expect(full).not.toContain("validatedRequest");
 		});
 
-		it("should omit Bun request detection when an endpoint has no params", () => {
+		it("should omit params detection when an endpoint has no params", () => {
 			const source = jitSource(
 				new Module()
 					.store(() => ({ a: "v1" }))
@@ -675,7 +675,7 @@ describe("usage: jit", () => {
 			);
 
 			expect(source).toContain("new Context");
-			expect(source).not.toContain('"cookies" in request');
+			expect(source).not.toContain("request.params");
 		});
 
 		it("should parse lean params only after preceding stores succeed", () => {
@@ -690,7 +690,7 @@ describe("usage: jit", () => {
 				source.indexOf("chain[0].handler(undefined)"),
 			).toBeGreaterThan(-1);
 			expect(
-				source.indexOf('const isBun = "cookies" in request'),
+				source.indexOf("let params = request.params"),
 			).toBeGreaterThan(source.indexOf("chain[0].handler(undefined)"));
 		});
 
@@ -861,6 +861,50 @@ describe("usage: jit", () => {
 			expect(inputs).toEqual([{ id: "42" }, { id: "42" }]);
 		});
 
+		it("should expose empty params when a route has no param keys", async () => {
+			const app = new Cudenix(
+				new Module()
+					.validator({ request: { params: {} } })
+					.route("GET", "/plain", (context) =>
+						ok(context.request.params),
+					),
+			);
+
+			app.memory.validator = echo;
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const nativeRequest = Object.assign(
+				new Request("http://localhost/plain"),
+				{ params: {} },
+			);
+			const native = await endpoint.dispatch(nativeRequest);
+			const fallback = await app.fetch(
+				new Request("http://localhost/plain"),
+			);
+
+			expect(await native.json()).toEqual({});
+			expect(await fallback.json()).toEqual({});
+		});
+
+		it("should prefer params already present on the request", async () => {
+			const app = new Cudenix(
+				new Module().route("GET", "/users/:id", (context) =>
+					ok(context.request.params.id),
+				),
+			);
+
+			app.compile();
+
+			const request = Object.assign(
+				new Request("http://localhost/users/from-url"),
+				{ params: { id: "from-request" } },
+			);
+			const result = await app.fetch(request);
+
+			expect(await result.text()).toBe("from-request");
+		});
+
 		it("should preserve store merge side effects without exposing the store", async () => {
 			let reads = 0;
 			const value = {} as Record<string, unknown>;
@@ -969,6 +1013,9 @@ describe("usage: jit", () => {
 					.route("GET", "/a/:p1", () => ok("v1")),
 			);
 
+			expect(source).toContain("let params = request.params");
+			expect(source).toContain("if (!params)");
+			expect(source).not.toContain('"cookies" in request');
 			expect(source).toContain("decodePathParam");
 		});
 
