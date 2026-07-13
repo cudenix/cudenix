@@ -39,80 +39,6 @@ const getValidatedLocal = (key: keyof ValidatorRequest) =>
 	`validated${key.charAt(0).toUpperCase()}${key.slice(1)}`;
 
 /**
- * Continues synchronously for plain values and promotes only actual thenables
- * to a promise chain.
- */
-const settle = <Value, Result>(
-	value: Value | PromiseLike<Value>,
-	next: (value: Value) => Result | Promise<Result>,
-): Result | Promise<Result> => {
-	if (
-		value === null ||
-		(typeof value !== "object" && typeof value !== "function")
-	) {
-		return next(value as Value);
-	}
-
-	let isNativePromise = false;
-
-	try {
-		isNativePromise = value instanceof Promise;
-	} catch {
-		// A Proxy may reject prototype inspection but still expose a valid
-		// structural `then`, so fall through to normal thenable detection.
-	}
-
-	if (isNativePromise) {
-		let pending: Promise<Value>;
-
-		try {
-			pending = Promise.resolve(value);
-		} catch (error) {
-			return Promise.reject(error);
-		}
-
-		try {
-			return Promise.prototype.then.call(
-				pending,
-				next,
-			) as Promise<Result>;
-		} catch (error) {
-			return Promise.reject(error);
-		}
-	}
-
-	let then: unknown;
-
-	try {
-		then = (value as { then?: unknown }).then;
-	} catch (error) {
-		return Promise.reject(error);
-	}
-
-	if (typeof then !== "function") {
-		return next(value as Value);
-	}
-
-	const call = then as (
-		this: unknown,
-		resolve: (value: Value | PromiseLike<Value>) => void,
-		reject: (reason?: unknown) => void,
-	) => unknown;
-
-	const pending = new Promise<Value>((resolve, reject) => {
-		queueMicrotask(() => {
-			try {
-				call.call(value, resolve, reject);
-			} catch (error) {
-				reject(error);
-			}
-		});
-	});
-
-	return Promise.prototype.then.call(pending, next) as Promise<Result>;
-};
-
-/**
  * Returns whether a validator link has at least one executable request slot.
  */
 const hasValidationKeys = (
@@ -202,10 +128,13 @@ const generateParamsParser = (
  * Describes the shape used to generate an endpoint dispatcher.
  */
 interface EndpointShape {
+	asyncMap: boolean[];
 	awaitMap: boolean[];
 	hasValidationState: boolean;
 	isChainAsync: boolean;
+	isRouteAsync: boolean;
 	isSse: boolean;
+	isValidatorAsync: boolean;
 	key: string;
 	needsContext: boolean;
 	needsStoreState: boolean;
@@ -230,6 +159,7 @@ const analyzeEndpoint = (
 	const isValidatorAsync = hasValidator && isAsync(validator);
 	const validatorTag = isValidatorAsync ? "Va" : "Vs";
 
+	const asyncMap = new Array<boolean>(chainLength).fill(false);
 	const awaitMap = new Array<boolean>(chainLength + 1).fill(false);
 	const tags = new Array<string>(chainLength).fill("");
 	const validationKeySet = new Set<keyof ValidatorRequest>();
@@ -252,6 +182,8 @@ const analyzeEndpoint = (
 			if (link.type === "STORE") {
 				hasStore = true;
 			}
+
+			asyncMap[i] = isHandlerAsync;
 
 			isChainAsync = isHandlerAsync || isChainAsync;
 
@@ -342,10 +274,13 @@ const analyzeEndpoint = (
 	}
 
 	return {
+		asyncMap,
 		awaitMap,
 		hasValidationState,
 		isChainAsync,
+		isRouteAsync,
 		isSse,
+		isValidatorAsync,
 		key,
 		needsContext,
 		needsStoreState,
@@ -365,9 +300,12 @@ const generateDispatcherBody = (
 	shape: EndpointShape,
 ): string => {
 	const {
+		asyncMap,
 		awaitMap,
 		hasValidationState,
+		isRouteAsync,
 		isSse,
+		isValidatorAsync,
 		needsContext,
 		needsStoreState,
 	} = shape;
@@ -380,12 +318,11 @@ const generateDispatcherBody = (
 	const linkArgument = needsContext ? "context" : "undefined";
 	const routeArgument = needsContext ? "context" : "";
 	const contentTarget = needsContext ? "context.response.content" : "content";
-	const finish = (isNested: boolean): string =>
-		isNested
-			? "return;"
-			: needsContext
-				? `return ${RESPONSE_CALL};`
-				: "return response(content);";
+	const returnStatement = needsContext
+		? `return ${RESPONSE_CALL};`
+		: "return response(content);";
+	const terminate = (code: string, isNested: boolean): string =>
+		isNested ? code : `${code}${returnStatement}`;
 	const slotTarget = (key: keyof ValidatorRequest): string =>
 		needsContext ? `context.request.${key}` : getValidatedLocal(key);
 
@@ -398,21 +335,30 @@ const generateDispatcherBody = (
 						? "server"
 						: "app.server";
 
-				return `${serverTarget}?.timeout(request,0);${contentTarget}=stream(handler(${routeArgument}));${finish(isNested)}`;
+				return terminate(
+					`${serverTarget}?.timeout(request,0);${contentTarget}=stream(handler(${routeArgument}));`,
+					isNested,
+				);
 			}
 
-			return `return settle(handler(${routeArgument}),returned=>{${contentTarget}=returned;${finish(isNested)}});`;
+			return terminate(
+				`${contentTarget}=${isRouteAsync ? "await " : ""}handler(${routeArgument});`,
+				isNested,
+			);
 		}
 
 		const link = chain[index];
 
 		if (link?.type === "MIDDLEWARE") {
 			const isTailAsync = awaitMap[index + 1];
+			const block = `{const next_${index}=${isTailAsync ? "async " : ""}()=>{${emit(index + 1, true)}};const returned_${index}=${awaitMap[index] ? "await " : ""}chain[${index}].handler(${linkArgument},next_${index});if(returned_${index}){${contentTarget}=returned_${index}}}`;
 
-			return `{const next_${index}=${isTailAsync ? "async " : ""}()=>{${emit(index + 1, true)}};return settle(chain[${index}].handler(${linkArgument},next_${index}),returned_${index}=>{if(returned_${index}){${contentTarget}=returned_${index}}${finish(isNested)}});}`;
+			return terminate(block, isNested);
 		}
 
 		if (link?.type === "STORE") {
+			const call = `const returned_${index}=${asyncMap[index] ? "await " : ""}chain[${index}].handler(${linkArgument});`;
+			const shortCircuit = `${contentTarget}=returned_${index};${isNested ? "return;" : returnStatement}`;
 			const storeTarget = needsContext
 				? "context.store"
 				: needsStoreState
@@ -422,7 +368,7 @@ const generateDispatcherBody = (
 				? `if(returned_${index}){merge(${storeTarget},returned_${index})}`
 				: "";
 
-			return `return settle(chain[${index}].handler(${linkArgument}),returned_${index}=>{if(returned_${index} instanceof Reply&&!returned_${index}.success){${contentTarget}=returned_${index};${finish(isNested)}}${mergeStore}${emit(index + 1, isNested)}});`;
+			return `{${call}if(returned_${index} instanceof Reply&&!returned_${index}.success){${shortCircuit}}${mergeStore}}${emit(index + 1, isNested)}`;
 		}
 
 		if (
@@ -442,36 +388,27 @@ const generateDispatcherBody = (
 
 			const errorTarget = `errors_${index}`;
 			const requestTarget = `request_${index}`;
+			let validations = "";
 
-			const emitValidation = (slotIndex: number): string => {
-				if (slotIndex >= keys.length) {
-					return `if(${errorTarget}){${contentTarget}=fail(${errorTarget},{status:422});${finish(isNested)}}${emit(index + 1, isNested)}`;
-				}
-
-				const key = keys[slotIndex] as keyof ValidatorRequest;
+			for (let i = 0; i < keys.length; i++) {
+				const key = keys[i]!;
 				const target = slotTarget(key);
 				const keyLiteral = JSON.stringify(key);
-				const needsParser = !parsedKeys.has(key);
 
-				if (needsParser) {
+				if (!parsedKeys.has(key)) {
 					parsedKeys.add(key);
+					validations +=
+						key === "body"
+							? `${target}=await parseBody(request);`
+							: parsers[key];
 				}
 
-				const nextValidation = emitValidation(slotIndex + 1);
-				const validate = `return settle(validator(${requestTarget}.${key},${target},${keyLiteral}),validated=>{if(validated.success){${target}=validated.content}else{(${errorTarget}??=new Empty()).${key}=validated.content}${nextValidation}});`;
+				validations += `{const validated=${isValidatorAsync ? "await " : ""}validator(${requestTarget}.${key},${target},${keyLiteral});if(validated.success){${target}=validated.content}else{(${errorTarget}??=new Empty()).${key}=validated.content}}`;
+			}
 
-				if (!needsParser) {
-					return validate;
-				}
+			const failure = `${contentTarget}=fail(${errorTarget},{status:422});${isNested ? "return;" : returnStatement}`;
 
-				if (key === "body") {
-					return `return settle(parseBody(request),parsedBody=>{${target}=parsedBody;${validate}});`;
-				}
-
-				return `${parsers[key]}${validate}`;
-			};
-
-			return `{const ${requestTarget}=chain[${index}].request;let ${errorTarget};${emitValidation(0)}}`;
+			return `{const ${requestTarget}=chain[${index}].request;let ${errorTarget};${validations}if(${errorTarget}){${failure}}}${emit(index + 1, isNested)}`;
 		}
 
 		return emit(index + 1, isNested);
@@ -488,7 +425,6 @@ type DispatcherFactory = (
 	ContextValue: typeof Context,
 	chainValue: EndpointChain,
 	responseValue: typeof response,
-	settleValue: typeof settle,
 	ReplyValue: typeof Reply,
 	mergeValue: typeof merge,
 	EmptyValue: typeof Empty,
@@ -510,7 +446,6 @@ const FACTORY_PARAMETERS = [
 	"Context",
 	"chain",
 	"response",
-	"settle",
 	"Reply",
 	"merge",
 	"Empty",
@@ -525,7 +460,6 @@ const FACTORY_PARAMETERS = [
 ] as const;
 
 type DirectSyncFactory = (
-	settleFn: typeof settle,
 	responseFn: typeof response,
 	handler: Endpoint["route"]["handler"],
 ) => Dispatch;
@@ -536,10 +470,9 @@ type DirectAsyncFactory = (
 ) => Dispatch;
 
 const directSyncFactory = new Function(
-	"settle",
 	"response",
 	"handler",
-	"return function(){return settle(handler(),response)}",
+	"return function(){return response(handler())}",
 ) as DirectSyncFactory;
 
 const directAsyncFactory = new Function(
@@ -568,7 +501,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 	) {
 		return isAsync(handler)
 			? directAsyncFactory(response, handler)
-			: directSyncFactory(settle, response, handler);
+			: directSyncFactory(response, handler);
 	}
 
 	const shape = analyzeEndpoint(endpoint, validator, handlerUsesContext);
@@ -634,7 +567,6 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 		Context,
 		endpoint.chain,
 		response,
-		settle,
 		Reply,
 		merge,
 		Empty,

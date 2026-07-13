@@ -234,14 +234,22 @@ describe("isAsync", () => {
 		});
 	});
 
-	describe("known limitations of the prototype-identity technique", () => {
-		it("should return false for a sync arrow function that returns a Promise (known limitation: callers such as the JIT will not await it)", () => {
+	describe("declaration-based async contract", () => {
+		it("should classify Promise-producing functions by their async declaration", () => {
+			const declaredAsync = async () => Promise.resolve(1);
+			const plain = () => Promise.resolve(1);
+
+			expect(isAsync(declaredAsync)).toBe(true);
+			expect(isAsync(plain)).toBe(false);
+		});
+
+		it("should return false for a plain arrow that returns a Promise", () => {
 			const fn = () => Promise.resolve(1);
 
 			expect(isAsync(fn)).toBe(false);
 		});
 
-		it("should return false for a sync function expression that returns a Promise (known limitation: callers such as the JIT will not await it)", () => {
+		it("should return false for a plain function expression that returns a Promise", () => {
 			// biome-ignore lint/complexity/useArrowFunction: Testing promise-returning sync function expressions
 			const fn = function () {
 				return Promise.resolve(1);
@@ -249,7 +257,9 @@ describe("isAsync", () => {
 
 			expect(isAsync(fn)).toBe(false);
 		});
+	});
 
+	describe("known limitations of the prototype-identity technique", () => {
 		it("should misclassify a re-prototyped arrow function as async (known limitation: prototype identity is spoofable)", () => {
 			const fn = asFn(() => {});
 

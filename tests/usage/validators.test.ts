@@ -1,9 +1,11 @@
 import { describe, expect, it } from "bun:test";
 
-import type { Cudenix, Plugin } from "@/core/cudenix";
+import { Cudenix, type Plugin } from "@/core/cudenix";
 import { Module } from "@/core/module";
 import { ok } from "@/core/reply";
 import type { ValidatorPlugin } from "@/core/validator";
+import { initializeStandardSchema } from "@/ecosystem/plugins/standard-schema";
+import { isAsync } from "@/utils/functions/is-async";
 
 import { serveApp } from "./helpers";
 
@@ -22,6 +24,25 @@ const reject =
 
 describe("usage: validators", () => {
 	describe("plugin contract", () => {
+		it("should install Standard Schema as an explicitly async validator", async () => {
+			const app = new Cudenix(new Module());
+
+			initializeStandardSchema().call(app);
+
+			const validator = app.memory.validator as ValidatorPlugin;
+			const schema = {
+				"~standard": {
+					validate: async (input: unknown) => ({ value: input }),
+				},
+			};
+
+			expect(isAsync(validator)).toBe(true);
+			expect(await validator(schema, "v1", "body")).toEqual({
+				content: "v1",
+				success: true,
+			});
+		});
+
 		it("should skip the validator step and run the route when no plugin is registered", async () => {
 			using server = serveApp(
 				new Module()

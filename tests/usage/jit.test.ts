@@ -22,13 +22,13 @@ const echo: ValidatorPlugin = (_schema, input) => ({
 
 const compactSource = (source: string): string => source.replace(/\s+/g, "");
 
-const deferred = <Value>(value: Value): Promise<Value> =>
-	({
-		// biome-ignore lint/suspicious/noThenProperty: Intentionally testing structural thenables
-		then(resolve: (resolved: Value) => unknown) {
-			queueMicrotask(() => resolve(value));
-		},
-	}) as unknown as Promise<Value>;
+const expectNoDynamicPromiseAdoption = (source: string) => {
+	const compact = compactSource(source);
+
+	expect(compact).not.toContain("settle(");
+	expect(compact).not.toContain("instanceofPromise");
+	expect(compact).not.toContain(".then(");
+};
 
 const jitSource = (
 	module: ConstructorParameters<typeof Cudenix>[0],
@@ -86,10 +86,11 @@ describe("usage: jit", () => {
 
 			expect(source).not.toContain("\n");
 			expect(compactSource(source)).toContain("function(){");
-			expect(compactSource(source)).toContain("handler()");
 			expect(compactSource(source)).toContain(
-				"settle(handler(),response)",
+				"returnresponse(handler())",
 			);
+			expect(source).not.toContain("Promise");
+			expect(source).not.toContain(".then(");
 			expect(compiled.length).toBe(0);
 
 			const first = await app.fetch(new Request("http://localhost/a"));
@@ -411,7 +412,7 @@ describe("usage: jit", () => {
 			expect(endpoint.response).toBeUndefined();
 			expect(source).not.toContain("new Context");
 			expect(compactSource(source)).toContain(
-				"settle(chain[0].handler(undefined,next_0)",
+				"awaitchain[0].handler(undefined,next_0)",
 			);
 
 			const result = await server.fetch("/b");
@@ -432,9 +433,9 @@ describe("usage: jit", () => {
 
 			expect(source).not.toContain("new Context");
 			expect(compactSource(source)).toContain(
-				"settle(chain[0].handler(undefined,next_0)",
+				"awaitchain[0].handler(undefined,next_0)",
 			);
-			expect(compactSource(source)).toContain("settle(handler()");
+			expect(compactSource(source)).toContain("content=handler()");
 		});
 
 		it("should omit Context and params parsing when a route ignores its parameter", () => {
@@ -445,9 +446,8 @@ describe("usage: jit", () => {
 			expect(source).not.toContain("new Context");
 			expect(source).not.toContain("decodePathParam");
 			expect(source).not.toContain("request.params");
-			expect(compactSource(source)).toContain("handler()");
 			expect(compactSource(source)).toContain(
-				"settle(handler(),response)",
+				"returnresponse(handler())",
 			);
 		});
 
@@ -460,7 +460,7 @@ describe("usage: jit", () => {
 
 			expect(source).not.toContain("new Context");
 			expect(source).toContain("chain[0].handler(undefined)");
-			expect(compactSource(source)).toContain("settle(handler()");
+			expect(compactSource(source)).toContain("content=handler()");
 		});
 	});
 
@@ -486,15 +486,95 @@ describe("usage: jit", () => {
 
 			const syncSource = jit(syncServer.app, syncEndpoint).toString();
 
-			expect(compactSource(syncSource)).toContain("handler()");
 			expect(compactSource(syncSource)).toContain(
-				"settle(handler(),response)",
+				"returnresponse(handler())",
 			);
 			expect(syncSource).not.toContain("await");
+			expect(syncSource).not.toContain("Promise");
+			expect(syncSource).not.toContain(".then(");
 			expect(syncSource.startsWith("async")).toBe(false);
 		});
 
-		it("should settle a store and middleware from their declared async signature", async () => {
+		it("should not adopt a Promise returned by a route without an async declaration", () => {
+			const handler = () => Promise.resolve(ok("unsupported"));
+			const app = new Cudenix(new Module().route("GET", "/a", handler));
+
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const source = jit(app, endpoint).toString();
+
+			expect(isAsync(handler)).toBe(false);
+			expect(isAsync(endpoint.dispatch)).toBe(false);
+			expect(compactSource(source)).toContain(
+				"returnresponse(handler())",
+			);
+			expect(source).not.toContain("await");
+			expectNoDynamicPromiseAdoption(source);
+		});
+
+		it("should classify Promise-producing chain callbacks only by their async declaration", () => {
+			const middleware = () => Promise.resolve(ok("unsupported"));
+			const store = () => Promise.resolve({ a: "unsupported" });
+			const validator: ValidatorPlugin = (_schema, input) =>
+				Promise.resolve({ content: input, success: true });
+			const app = new Cudenix(
+				new Module()
+					.middleware(middleware)
+					.store(store)
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", (context) => ok(context.store.a)),
+			);
+
+			app.memory.validator = validator;
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const source = jit(app, endpoint).toString();
+			const compact = compactSource(source);
+
+			expect(isAsync(middleware)).toBe(false);
+			expect(isAsync(store)).toBe(false);
+			expect(isAsync(validator)).toBe(false);
+			expect(isAsync(endpoint.dispatch)).toBe(false);
+			expect(compact).toContain("chain[0].handler(context,next_0)");
+			expect(compact).toContain("chain[1].handler(context)");
+			expect(compact).toContain("validator(");
+			expect(source).not.toContain("await");
+			expectNoDynamicPromiseAdoption(source);
+		});
+
+		it("should use awaitMap when a sync middleware returns an async next tail", async () => {
+			const middleware = (
+				_context: unknown,
+				next: () => void | Promise<void>,
+			) => next();
+			const app = new Cudenix(
+				new Module()
+					.middleware(middleware)
+					.store(async () => ({ a: "v1" }))
+					.route("GET", "/a", (context) => ok(context.store.a)),
+			);
+
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const source = jit(app, endpoint).toString();
+			const compact = compactSource(source);
+
+			expect(isAsync(middleware)).toBe(false);
+			expect(isAsync(endpoint.dispatch)).toBe(true);
+			expect(compact).toContain("constnext_0=async()=>");
+			expect(compact).toContain("awaitchain[0].handler(context,next_0)");
+			expect(compact).toContain("awaitchain[1].handler(context)");
+			expectNoDynamicPromiseAdoption(source);
+
+			const result = await app.fetch(new Request("http://localhost/a"));
+
+			expect(await result.text()).toBe("v1");
+		});
+
+		it("should await a store and middleware from their declared async signature", async () => {
 			using server = serveApp(
 				new Module()
 					.middleware(async (_, next) => {
@@ -508,11 +588,13 @@ describe("usage: jit", () => {
 			const source = jit(server.app, endpoint).toString();
 
 			expect(compactSource(source)).toContain(
-				"settle(chain[0].handler(context,next_0)",
+				"awaitchain[0].handler(context,next_0)",
 			);
 			expect(compactSource(source)).toContain(
-				"settle(chain[1].handler(context)",
+				"awaitchain[1].handler(context)",
 			);
+			expect(source).not.toContain("Promise");
+			expect(source).not.toContain(".then(");
 
 			const first = await server.fetch("/a");
 			const second = await server.fetch("/a");
@@ -693,347 +775,6 @@ describe("usage: jit", () => {
 
 			expect(await first.text()).toBe("async-body");
 			expect(await second.text()).toBe("async-body");
-		});
-	});
-
-	describe("dynamic thenables", () => {
-		it("should preserve synchronous route calls around a thenable result", async () => {
-			let calls = 0;
-			const app = new Cudenix(
-				new Module().route("GET", "/a", () => {
-					calls++;
-
-					const result = ok(calls === 2 ? "async" : `sync-${calls}`);
-
-					return calls === 2 ? deferred(result) : result;
-				}),
-			);
-
-			app.compile();
-
-			const first = app.fetch(new Request("http://localhost/a"));
-
-			expect(first).toBeInstanceOf(Response);
-			expect(await (first as Response).text()).toBe("sync-1");
-
-			const second = app.fetch(new Request("http://localhost/a"));
-
-			expect(second).toBeInstanceOf(Promise);
-			expect(await (await second).text()).toBe("async");
-
-			const third = app.fetch(new Request("http://localhost/a"));
-
-			expect(third).toBeInstanceOf(Response);
-			expect(await (third as Response).text()).toBe("sync-3");
-		});
-
-		it("should preserve synchronous store calls around a thenable result", async () => {
-			let calls = 0;
-			const app = new Cudenix(
-				new Module()
-					.store(() => {
-						calls++;
-
-						const result = {
-							value: calls === 2 ? "async" : `sync-${calls}`,
-						};
-
-						return calls === 2 ? deferred(result) : result;
-					})
-					.route("GET", "/a", (context) => ok(context.store.value)),
-			);
-
-			app.compile();
-
-			const first = app.fetch(new Request("http://localhost/a"));
-
-			expect(first).toBeInstanceOf(Response);
-			expect(await (first as Response).text()).toBe("sync-1");
-
-			const second = app.fetch(new Request("http://localhost/a"));
-
-			expect(second).toBeInstanceOf(Promise);
-			expect(await (await second).text()).toBe("async");
-
-			const third = app.fetch(new Request("http://localhost/a"));
-
-			expect(third).toBeInstanceOf(Response);
-			expect(await (third as Response).text()).toBe("sync-3");
-		});
-
-		it("should preserve synchronous middleware calls around a thenable result", async () => {
-			let calls = 0;
-			let routes = 0;
-			const app = new Cudenix(
-				new Module()
-					.middleware(() => {
-						calls++;
-
-						const result = ok(
-							calls === 2 ? "async" : `sync-${calls}`,
-						);
-
-						return calls === 2 ? deferred(result) : result;
-					})
-					.route("GET", "/a", () => {
-						routes++;
-
-						return ok("route");
-					}),
-			);
-
-			app.compile();
-
-			const first = app.fetch(new Request("http://localhost/a"));
-
-			expect(first).toBeInstanceOf(Response);
-			expect(await (first as Response).text()).toBe("sync-1");
-
-			const second = app.fetch(new Request("http://localhost/a"));
-
-			expect(second).toBeInstanceOf(Promise);
-			expect(await (await second).text()).toBe("async");
-
-			const third = app.fetch(new Request("http://localhost/a"));
-
-			expect(third).toBeInstanceOf(Response);
-			expect(await (third as Response).text()).toBe("sync-3");
-			expect(routes).toBe(0);
-		});
-
-		it("should preserve synchronous validator calls around a thenable result", async () => {
-			let calls = 0;
-			let routes = 0;
-			const validate: ValidatorPlugin = (_schema, input) => {
-				calls++;
-
-				if (calls === 2) {
-					return deferred({ content: ["bad"], success: false });
-				}
-
-				return { content: input, success: true };
-			};
-			const app = new Cudenix(
-				new Module()
-					.validator({ request: { query: {} } })
-					.route("GET", "/a", () => {
-						routes++;
-
-						return ok("route");
-					}),
-			);
-
-			app.memory.validator = validate;
-			app.compile();
-
-			const first = app.fetch(new Request("http://localhost/a?v=1"));
-
-			expect(first).toBeInstanceOf(Response);
-			expect(await (first as Response).text()).toBe("route");
-
-			const second = app.fetch(new Request("http://localhost/a?v=2"));
-
-			expect(second).toBeInstanceOf(Promise);
-
-			const failure = await second;
-
-			expect(failure.status).toBe(422);
-			expect(await failure.json()).toEqual({ query: ["bad"] });
-
-			const third = app.fetch(new Request("http://localhost/a?v=3"));
-
-			expect(third).toBeInstanceOf(Response);
-			expect(await (third as Response).text()).toBe("route");
-			expect(routes).toBe(2);
-		});
-
-		it("should propagate a structural thenable rejection", async () => {
-			const error = new Error("thenable rejected");
-			const rejected = {
-				// biome-ignore lint/suspicious/noThenProperty: Intentionally testing a rejected structural thenable
-				then(
-					_resolve: (value: ReturnType<typeof ok>) => unknown,
-					reject: (reason?: unknown) => unknown,
-				) {
-					queueMicrotask(() => reject(error));
-				},
-			} as unknown as Promise<ReturnType<typeof ok>>;
-			const app = new Cudenix(
-				new Module().route("GET", "/a", () => rejected),
-			);
-
-			app.compile();
-
-			const pending = app.fetch(new Request("http://localhost/a"));
-
-			expect(pending).toBeInstanceOf(Promise);
-			await expect(pending as Promise<Response>).rejects.toThrow(
-				"thenable rejected",
-			);
-		});
-
-		it("should reject when reading a then getter throws", async () => {
-			let reads = 0;
-			const error = new Error("then getter failed");
-			const result = {} as Promise<ReturnType<typeof ok>>;
-
-			// biome-ignore lint/suspicious/noThenProperty: Intentionally testing a throwing then getter
-			Object.defineProperty(result, "then", {
-				get() {
-					reads++;
-
-					throw error;
-				},
-			});
-
-			const app = new Cudenix(
-				new Module().route("GET", "/a", () => result),
-			);
-
-			app.compile();
-
-			const pending = app.fetch(new Request("http://localhost/a"));
-
-			expect(pending).toBeInstanceOf(Promise);
-			await expect(pending as Promise<Response>).rejects.toThrow(
-				"then getter failed",
-			);
-			expect(reads).toBe(1);
-		});
-
-		it("should use native promise state instead of an overridden then", async () => {
-			let reads = 0;
-			const result = Promise.resolve(ok("native"));
-
-			// A native Promise is awaited through its internal state, not an own
-			// `then` property that user code may replace.
-			// biome-ignore lint/suspicious/noThenProperty: Intentionally overriding an own then property
-			Object.defineProperty(result, "then", {
-				get() {
-					reads++;
-
-					throw new Error("overridden then must not run");
-				},
-			});
-
-			const app = new Cudenix(
-				new Module().route("GET", "/a", () => result),
-			);
-
-			app.compile();
-
-			const pending = app.fetch(new Request("http://localhost/a"));
-
-			expect(pending).toBeInstanceOf(Promise);
-			expect(await (await pending).text()).toBe("native");
-			expect(reads).toBe(0);
-		});
-
-		it("should adopt a proxied thenable when prototype inspection throws", async () => {
-			const result = new Proxy(
-				{
-					// biome-ignore lint/suspicious/noThenProperty: Intentionally testing a proxied structural thenable
-					then(resolve: (value: ReturnType<typeof ok>) => unknown) {
-						queueMicrotask(() => resolve(ok("proxied")));
-					},
-				},
-				{
-					getPrototypeOf() {
-						throw new Error("prototype inspection failed");
-					},
-				},
-			) as unknown as Promise<ReturnType<typeof ok>>;
-			const app = new Cudenix(
-				new Module().route("GET", "/a", () => result),
-			);
-
-			app.compile();
-
-			const pending = app.fetch(new Request("http://localhost/a"));
-
-			expect(pending).toBeInstanceOf(Promise);
-			expect(await (await pending).text()).toBe("proxied");
-		});
-
-		it("should reject a revoked thenable proxy asynchronously", async () => {
-			const revocable = Proxy.revocable(
-				Promise.resolve(ok("unused")),
-				{},
-			);
-
-			revocable.revoke();
-
-			const app = new Cudenix(
-				new Module().route("GET", "/a", () => revocable.proxy),
-			);
-
-			app.compile();
-
-			const pending = app.fetch(new Request("http://localhost/a"));
-
-			expect(pending).toBeInstanceOf(Promise);
-			await expect(pending as Promise<Response>).rejects.toThrow();
-		});
-
-		it("should preserve onion order when next becomes dynamically asynchronous", async () => {
-			const order: string[] = [];
-			let stores = 0;
-			const app = new Cudenix(
-				new Module()
-					.middleware((_context, next) => {
-						order.push("before");
-
-						const pending = next();
-
-						if (pending instanceof Promise) {
-							return pending.then(() => {
-								order.push("after");
-							});
-						}
-
-						order.push("after");
-					})
-					.store(() => {
-						stores++;
-						order.push("store");
-
-						const value = {
-							value: stores === 2 ? "async" : `sync-${stores}`,
-						};
-
-						return stores === 2 ? deferred(value) : value;
-					})
-					.route("GET", "/a", (context) => {
-						order.push("route");
-
-						return ok(context.store.value);
-					}),
-			);
-
-			app.compile();
-
-			const first = app.fetch(new Request("http://localhost/a"));
-
-			expect(first).toBeInstanceOf(Response);
-			expect(await (first as Response).text()).toBe("sync-1");
-			expect(order).toEqual(["before", "store", "route", "after"]);
-
-			order.length = 0;
-
-			const second = app.fetch(new Request("http://localhost/a"));
-
-			expect(second).toBeInstanceOf(Promise);
-			expect(order).toEqual(["before", "store"]);
-			expect(await (await second).text()).toBe("async");
-			expect(order).toEqual(["before", "store", "route", "after"]);
-
-			order.length = 0;
-
-			const third = app.fetch(new Request("http://localhost/a"));
-
-			expect(third).toBeInstanceOf(Response);
-			expect(await (third as Response).text()).toBe("sync-3");
-			expect(order).toEqual(["before", "store", "route", "after"]);
 		});
 	});
 
