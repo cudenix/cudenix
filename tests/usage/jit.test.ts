@@ -20,6 +20,16 @@ const echo: ValidatorPlugin = (_schema, input) => ({
 	success: true,
 });
 
+const compactSource = (source: string): string => source.replace(/\s+/g, "");
+
+const deferred = <Value>(value: Value): Promise<Value> =>
+	({
+		// biome-ignore lint/suspicious/noThenProperty: Intentionally testing structural thenables
+		then(resolve: (resolved: Value) => unknown) {
+			queueMicrotask(() => resolve(value));
+		},
+	}) as unknown as Promise<Value>;
+
 const jitSource = (
 	module: ConstructorParameters<typeof Cudenix>[0],
 ): string => {
@@ -72,9 +82,14 @@ describe("usage: jit", () => {
 			}
 
 			const compiled = endpoint.dispatch;
-			const source = compiled.toString().replace(/\s+/g, " ");
+			const source = compiled.toString();
 
-			expect(source).toBe("function () { return response(handler()); }");
+			expect(source).not.toContain("\n");
+			expect(compactSource(source)).toContain("function(){");
+			expect(compactSource(source)).toContain("handler()");
+			expect(compactSource(source)).toContain(
+				"settle(handler(),response)",
+			);
 			expect(compiled.length).toBe(0);
 
 			const first = await app.fetch(new Request("http://localhost/a"));
@@ -98,11 +113,12 @@ describe("usage: jit", () => {
 			}
 
 			const compiled = endpoint.dispatch;
-			const source = compiled.toString().replace(/\s+/g, " ");
+			const source = compiled.toString();
 
-			expect(source).toBe(
-				"async function () { return response(await handler()); }",
-			);
+			expect(source).not.toContain("\n");
+			expect(compactSource(source)).toContain("asyncfunction(){");
+			expect(compactSource(source)).toContain("awaithandler()");
+			expect(compactSource(source)).toContain("response(");
 			expect(compiled.length).toBe(0);
 
 			const result = await app.fetch(new Request("http://localhost/a"));
@@ -110,7 +126,7 @@ describe("usage: jit", () => {
 			expect(await result.text()).toBe("v1");
 		});
 
-		it("should isolate the direct factory from an ignored validator chain", () => {
+		it("should collapse an ignored validator chain into a direct dispatcher", async () => {
 			const directSource = jitSource(
 				new Module().route("GET", "/a", () => ok("v1")),
 			);
@@ -128,8 +144,41 @@ describe("usage: jit", () => {
 				throw new Error("Expected a compiled GET endpoint");
 			}
 
-			expect(directSource).toContain("return response(handler())");
-			expect(endpoint.dispatch.toString()).toContain("let content");
+			expect(compactSource(directSource)).toContain("handler()");
+			expect(endpoint.dispatch.length).toBe(0);
+			expect(endpoint.dispatch.toString()).not.toContain("let content");
+
+			const result = app.fetch(new Request("http://localhost/b"));
+
+			expect(result).toBeInstanceOf(Response);
+			expect(await (result as Response).text()).toBe("v2");
+		});
+
+		it("should collapse empty validators even when a plugin is installed", async () => {
+			let calls = 0;
+			const validate: ValidatorPlugin = (_schema, input) => {
+				calls++;
+
+				return { content: input, success: true };
+			};
+			const app = new Cudenix(
+				new Module()
+					.validator({ request: {} })
+					.validator({ request: {} })
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			app.memory.validator = validate;
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const result = app.fetch(new Request("http://localhost/a"));
+
+			expect(endpoint.dispatch.length).toBe(0);
+			expect(endpoint.dispatch.toString()).not.toContain("validator");
+			expect(result).toBeInstanceOf(Response);
+			expect(await (result as Response).text()).toBe("v1");
+			expect(calls).toBe(0);
 		});
 	});
 
@@ -361,8 +410,8 @@ describe("usage: jit", () => {
 			expect(endpoint.dispatch).not.toBe(staticDispatch);
 			expect(endpoint.response).toBeUndefined();
 			expect(source).not.toContain("new Context");
-			expect(source).toContain(
-				"await chain[0].handler(undefined, next_0)",
+			expect(compactSource(source)).toContain(
+				"settle(chain[0].handler(undefined,next_0)",
 			);
 
 			const result = await server.fetch("/b");
@@ -382,10 +431,10 @@ describe("usage: jit", () => {
 			);
 
 			expect(source).not.toContain("new Context");
-			expect(source).toContain(
-				"await chain[0].handler(undefined, next_0)",
+			expect(compactSource(source)).toContain(
+				"settle(chain[0].handler(undefined,next_0)",
 			);
-			expect(source).toContain("content = handler()");
+			expect(compactSource(source)).toContain("settle(handler()");
 		});
 
 		it("should omit Context and params parsing when a route ignores its parameter", () => {
@@ -396,7 +445,10 @@ describe("usage: jit", () => {
 			expect(source).not.toContain("new Context");
 			expect(source).not.toContain("decodePathParam");
 			expect(source).not.toContain("request.params");
-			expect(source).toContain("return response(handler())");
+			expect(compactSource(source)).toContain("handler()");
+			expect(compactSource(source)).toContain(
+				"settle(handler(),response)",
+			);
 		});
 
 		it("should pass undefined to a store that ignores its context parameter", () => {
@@ -408,7 +460,7 @@ describe("usage: jit", () => {
 
 			expect(source).not.toContain("new Context");
 			expect(source).toContain("chain[0].handler(undefined)");
-			expect(source).toContain("content = handler()");
+			expect(compactSource(source)).toContain("settle(handler()");
 		});
 	});
 
@@ -427,18 +479,22 @@ describe("usage: jit", () => {
 
 			const asyncSource = jit(asyncServer.app, asyncEndpoint).toString();
 
-			expect(asyncSource).toContain("return response(await handler());");
+			expect(compactSource(asyncSource)).toContain(
+				"response(awaithandler())",
+			);
 			expect(asyncSource.startsWith("async")).toBe(true);
 
 			const syncSource = jit(syncServer.app, syncEndpoint).toString();
 
-			expect(syncSource).toContain("return response(handler());");
+			expect(compactSource(syncSource)).toContain("handler()");
+			expect(compactSource(syncSource)).toContain(
+				"settle(handler(),response)",
+			);
 			expect(syncSource).not.toContain("await");
-			expect(syncSource).not.toContain("then");
 			expect(syncSource.startsWith("async")).toBe(false);
 		});
 
-		it("should await a store and middleware from their declared async signature", async () => {
+		it("should settle a store and middleware from their declared async signature", async () => {
 			using server = serveApp(
 				new Module()
 					.middleware(async (_, next) => {
@@ -451,8 +507,12 @@ describe("usage: jit", () => {
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
 			const source = jit(server.app, endpoint).toString();
 
-			expect(source).toContain("await chain[0].handler(context, next_0)");
-			expect(source).toContain("await chain[1].handler(context)");
+			expect(compactSource(source)).toContain(
+				"settle(chain[0].handler(context,next_0)",
+			);
+			expect(compactSource(source)).toContain(
+				"settle(chain[1].handler(context)",
+			);
 
 			const first = await server.fetch("/a");
 			const second = await server.fetch("/a");
@@ -636,15 +696,357 @@ describe("usage: jit", () => {
 		});
 	});
 
+	describe("dynamic thenables", () => {
+		it("should preserve synchronous route calls around a thenable result", async () => {
+			let calls = 0;
+			const app = new Cudenix(
+				new Module().route("GET", "/a", () => {
+					calls++;
+
+					const result = ok(calls === 2 ? "async" : `sync-${calls}`);
+
+					return calls === 2 ? deferred(result) : result;
+				}),
+			);
+
+			app.compile();
+
+			const first = app.fetch(new Request("http://localhost/a"));
+
+			expect(first).toBeInstanceOf(Response);
+			expect(await (first as Response).text()).toBe("sync-1");
+
+			const second = app.fetch(new Request("http://localhost/a"));
+
+			expect(second).toBeInstanceOf(Promise);
+			expect(await (await second).text()).toBe("async");
+
+			const third = app.fetch(new Request("http://localhost/a"));
+
+			expect(third).toBeInstanceOf(Response);
+			expect(await (third as Response).text()).toBe("sync-3");
+		});
+
+		it("should preserve synchronous store calls around a thenable result", async () => {
+			let calls = 0;
+			const app = new Cudenix(
+				new Module()
+					.store(() => {
+						calls++;
+
+						const result = {
+							value: calls === 2 ? "async" : `sync-${calls}`,
+						};
+
+						return calls === 2 ? deferred(result) : result;
+					})
+					.route("GET", "/a", (context) => ok(context.store.value)),
+			);
+
+			app.compile();
+
+			const first = app.fetch(new Request("http://localhost/a"));
+
+			expect(first).toBeInstanceOf(Response);
+			expect(await (first as Response).text()).toBe("sync-1");
+
+			const second = app.fetch(new Request("http://localhost/a"));
+
+			expect(second).toBeInstanceOf(Promise);
+			expect(await (await second).text()).toBe("async");
+
+			const third = app.fetch(new Request("http://localhost/a"));
+
+			expect(third).toBeInstanceOf(Response);
+			expect(await (third as Response).text()).toBe("sync-3");
+		});
+
+		it("should preserve synchronous middleware calls around a thenable result", async () => {
+			let calls = 0;
+			let routes = 0;
+			const app = new Cudenix(
+				new Module()
+					.middleware(() => {
+						calls++;
+
+						const result = ok(
+							calls === 2 ? "async" : `sync-${calls}`,
+						);
+
+						return calls === 2 ? deferred(result) : result;
+					})
+					.route("GET", "/a", () => {
+						routes++;
+
+						return ok("route");
+					}),
+			);
+
+			app.compile();
+
+			const first = app.fetch(new Request("http://localhost/a"));
+
+			expect(first).toBeInstanceOf(Response);
+			expect(await (first as Response).text()).toBe("sync-1");
+
+			const second = app.fetch(new Request("http://localhost/a"));
+
+			expect(second).toBeInstanceOf(Promise);
+			expect(await (await second).text()).toBe("async");
+
+			const third = app.fetch(new Request("http://localhost/a"));
+
+			expect(third).toBeInstanceOf(Response);
+			expect(await (third as Response).text()).toBe("sync-3");
+			expect(routes).toBe(0);
+		});
+
+		it("should preserve synchronous validator calls around a thenable result", async () => {
+			let calls = 0;
+			let routes = 0;
+			const validate: ValidatorPlugin = (_schema, input) => {
+				calls++;
+
+				if (calls === 2) {
+					return deferred({ content: ["bad"], success: false });
+				}
+
+				return { content: input, success: true };
+			};
+			const app = new Cudenix(
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => {
+						routes++;
+
+						return ok("route");
+					}),
+			);
+
+			app.memory.validator = validate;
+			app.compile();
+
+			const first = app.fetch(new Request("http://localhost/a?v=1"));
+
+			expect(first).toBeInstanceOf(Response);
+			expect(await (first as Response).text()).toBe("route");
+
+			const second = app.fetch(new Request("http://localhost/a?v=2"));
+
+			expect(second).toBeInstanceOf(Promise);
+
+			const failure = await second;
+
+			expect(failure.status).toBe(422);
+			expect(await failure.json()).toEqual({ query: ["bad"] });
+
+			const third = app.fetch(new Request("http://localhost/a?v=3"));
+
+			expect(third).toBeInstanceOf(Response);
+			expect(await (third as Response).text()).toBe("route");
+			expect(routes).toBe(2);
+		});
+
+		it("should propagate a structural thenable rejection", async () => {
+			const error = new Error("thenable rejected");
+			const rejected = {
+				// biome-ignore lint/suspicious/noThenProperty: Intentionally testing a rejected structural thenable
+				then(
+					_resolve: (value: ReturnType<typeof ok>) => unknown,
+					reject: (reason?: unknown) => unknown,
+				) {
+					queueMicrotask(() => reject(error));
+				},
+			} as unknown as Promise<ReturnType<typeof ok>>;
+			const app = new Cudenix(
+				new Module().route("GET", "/a", () => rejected),
+			);
+
+			app.compile();
+
+			const pending = app.fetch(new Request("http://localhost/a"));
+
+			expect(pending).toBeInstanceOf(Promise);
+			await expect(pending as Promise<Response>).rejects.toThrow(
+				"thenable rejected",
+			);
+		});
+
+		it("should reject when reading a then getter throws", async () => {
+			let reads = 0;
+			const error = new Error("then getter failed");
+			const result = {} as Promise<ReturnType<typeof ok>>;
+
+			// biome-ignore lint/suspicious/noThenProperty: Intentionally testing a throwing then getter
+			Object.defineProperty(result, "then", {
+				get() {
+					reads++;
+
+					throw error;
+				},
+			});
+
+			const app = new Cudenix(
+				new Module().route("GET", "/a", () => result),
+			);
+
+			app.compile();
+
+			const pending = app.fetch(new Request("http://localhost/a"));
+
+			expect(pending).toBeInstanceOf(Promise);
+			await expect(pending as Promise<Response>).rejects.toThrow(
+				"then getter failed",
+			);
+			expect(reads).toBe(1);
+		});
+
+		it("should use native promise state instead of an overridden then", async () => {
+			let reads = 0;
+			const result = Promise.resolve(ok("native"));
+
+			// A native Promise is awaited through its internal state, not an own
+			// `then` property that user code may replace.
+			// biome-ignore lint/suspicious/noThenProperty: Intentionally overriding an own then property
+			Object.defineProperty(result, "then", {
+				get() {
+					reads++;
+
+					throw new Error("overridden then must not run");
+				},
+			});
+
+			const app = new Cudenix(
+				new Module().route("GET", "/a", () => result),
+			);
+
+			app.compile();
+
+			const pending = app.fetch(new Request("http://localhost/a"));
+
+			expect(pending).toBeInstanceOf(Promise);
+			expect(await (await pending).text()).toBe("native");
+			expect(reads).toBe(0);
+		});
+
+		it("should adopt a proxied thenable when prototype inspection throws", async () => {
+			const result = new Proxy(
+				{
+					// biome-ignore lint/suspicious/noThenProperty: Intentionally testing a proxied structural thenable
+					then(resolve: (value: ReturnType<typeof ok>) => unknown) {
+						queueMicrotask(() => resolve(ok("proxied")));
+					},
+				},
+				{
+					getPrototypeOf() {
+						throw new Error("prototype inspection failed");
+					},
+				},
+			) as unknown as Promise<ReturnType<typeof ok>>;
+			const app = new Cudenix(
+				new Module().route("GET", "/a", () => result),
+			);
+
+			app.compile();
+
+			const pending = app.fetch(new Request("http://localhost/a"));
+
+			expect(pending).toBeInstanceOf(Promise);
+			expect(await (await pending).text()).toBe("proxied");
+		});
+
+		it("should reject a revoked thenable proxy asynchronously", async () => {
+			const revocable = Proxy.revocable(
+				Promise.resolve(ok("unused")),
+				{},
+			);
+
+			revocable.revoke();
+
+			const app = new Cudenix(
+				new Module().route("GET", "/a", () => revocable.proxy),
+			);
+
+			app.compile();
+
+			const pending = app.fetch(new Request("http://localhost/a"));
+
+			expect(pending).toBeInstanceOf(Promise);
+			await expect(pending as Promise<Response>).rejects.toThrow();
+		});
+
+		it("should preserve onion order when next becomes dynamically asynchronous", async () => {
+			const order: string[] = [];
+			let stores = 0;
+			const app = new Cudenix(
+				new Module()
+					.middleware((_context, next) => {
+						order.push("before");
+
+						const pending = next();
+
+						if (pending instanceof Promise) {
+							return pending.then(() => {
+								order.push("after");
+							});
+						}
+
+						order.push("after");
+					})
+					.store(() => {
+						stores++;
+						order.push("store");
+
+						const value = {
+							value: stores === 2 ? "async" : `sync-${stores}`,
+						};
+
+						return stores === 2 ? deferred(value) : value;
+					})
+					.route("GET", "/a", (context) => {
+						order.push("route");
+
+						return ok(context.store.value);
+					}),
+			);
+
+			app.compile();
+
+			const first = app.fetch(new Request("http://localhost/a"));
+
+			expect(first).toBeInstanceOf(Response);
+			expect(await (first as Response).text()).toBe("sync-1");
+			expect(order).toEqual(["before", "store", "route", "after"]);
+
+			order.length = 0;
+
+			const second = app.fetch(new Request("http://localhost/a"));
+
+			expect(second).toBeInstanceOf(Promise);
+			expect(order).toEqual(["before", "store"]);
+			expect(await (await second).text()).toBe("async");
+			expect(order).toEqual(["before", "store", "route", "after"]);
+
+			order.length = 0;
+
+			const third = app.fetch(new Request("http://localhost/a"));
+
+			expect(third).toBeInstanceOf(Response);
+			expect(await (third as Response).text()).toBe("sync-3");
+			expect(order).toEqual(["before", "store", "route", "after"]);
+		});
+	});
+
 	describe("validator-only fast path", () => {
-		it("should validate without allocating Context when no user handler consumes it", () => {
+		it("should validate through a slot local without allocating Context", () => {
 			const source = jitSource(
 				new Module()
 					.validator({ request: { query: {} } })
 					.route("GET", "/a", () => ok("v1")),
 			);
 
-			expect(source).toContain("validatedRequest");
+			expect(source).not.toContain("validatedRequest");
+			expect(source).toContain("validatedQuery");
 			expect(source).not.toContain("new Context");
 			expect(source).toContain("handler()");
 		});
@@ -661,10 +1063,30 @@ describe("usage: jit", () => {
 					.route("GET", "/a", (context) => ok(context.request.query)),
 			);
 
-			expect(local).toContain("validatedRequest");
+			expect(local).not.toContain("validatedRequest");
+			expect(local).toContain("validatedQuery");
 			expect(local).not.toContain("new Context");
 			expect(full).toContain("new Context");
 			expect(full).not.toContain("validatedRequest");
+			expect(full).not.toContain("validatedQuery");
+		});
+
+		it("should keep a body value in a lean slot local", () => {
+			const app = new Cudenix(
+				new Module()
+					.validator({ request: { body: {} } })
+					.route("POST", "/a", () => ok("v1")),
+			);
+
+			app.memory.validator = echo;
+			app.compile();
+
+			const source = app.methods.POST!.endpoints[0]!.dispatch.toString();
+
+			expect(source).not.toContain("validatedRequest");
+			expect(source).toContain("validatedBody");
+			expect(source).not.toContain("new Context");
+			expect(source).toContain("parseBody");
 		});
 
 		it("should omit params detection when an endpoint has no params", () => {
@@ -685,13 +1107,14 @@ describe("usage: jit", () => {
 					.validator({ request: { params: {} } })
 					.route("GET", "/a/:id", () => ok("v1")),
 			);
+			const compact = compactSource(source);
 
 			expect(
-				source.indexOf("chain[0].handler(undefined)"),
+				compact.indexOf("chain[0].handler(undefined)"),
 			).toBeGreaterThan(-1);
-			expect(
-				source.indexOf("let params = request.params"),
-			).toBeGreaterThan(source.indexOf("chain[0].handler(undefined)"));
+			expect(compact.indexOf("letparams=request.params")).toBeGreaterThan(
+				compact.indexOf("chain[0].handler(undefined)"),
+			);
 		});
 
 		it("should pass a transformed slot from one validator to the next", async () => {
@@ -714,12 +1137,53 @@ describe("usage: jit", () => {
 			app.memory.validator = validate;
 			app.compile();
 
+			const source = app.methods.GET!.endpoints[0]!.dispatch.toString();
+
 			const result = await app.fetch(
 				new Request("http://localhost/a?value=first"),
 			);
 
 			expect(await result.text()).toBe("v1");
 			expect(inputs).toEqual([{ value: "first" }, { step: 1 }]);
+			expect(source).not.toContain("validatedRequest");
+			expect(source).toContain("validatedQuery");
+			expect((source.match(/parseQuery/g) ?? []).length).toBe(1);
+		});
+
+		it("should pass a transformed lean slot into a failing validator", async () => {
+			const inputs: unknown[] = [];
+			let calls = 0;
+			let routes = 0;
+			const validate: ValidatorPlugin = (_schema, input) => {
+				inputs.push(input);
+				calls++;
+
+				return calls === 1
+					? { content: { step: 1 }, success: true }
+					: { content: ["bad"], success: false };
+			};
+			const app = new Cudenix(
+				new Module()
+					.validator({ request: { query: {} } })
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => {
+						routes++;
+
+						return ok("v1");
+					}),
+			);
+
+			app.memory.validator = validate;
+			app.compile();
+
+			const result = await app.fetch(
+				new Request("http://localhost/a?value=first"),
+			);
+
+			expect(result.status).toBe(422);
+			expect(await result.json()).toEqual({ query: ["bad"] });
+			expect(inputs).toEqual([{ value: "first" }, { step: 1 }]);
+			expect(routes).toBe(0);
 		});
 
 		it("should keep an async validator and its 422 short-circuit semantics", async () => {
@@ -828,7 +1292,7 @@ describe("usage: jit", () => {
 			const source = endpoint.dispatch.toString();
 			const result = await server.fetch("/events?v=1");
 
-			expect(source).toContain("const server = app.server");
+			expect(compactSource(source)).toContain("constserver=app.server");
 			expect(source).not.toContain("new Context");
 			expect(await result.text()).toBe('data: "v1"\n\n');
 		});
@@ -1013,12 +1477,12 @@ describe("usage: jit", () => {
 					.route("GET", "/a/:p1", () => ok("v1")),
 			);
 
-			expect(source).toContain("let params = request.params");
-			expect(source).toContain("if (!params)");
+			expect(compactSource(source)).toContain("letparams=request.params");
+			expect(compactSource(source)).toContain("if(!params)");
 			expect(source).not.toContain('"cookies" in request');
 			expect(source).toContain("decodePathParam");
-			expect(source).not.toContain("match !== undefined");
-			expect(source).not.toContain("value_0 !== undefined");
+			expect(compactSource(source)).not.toContain("match!==undefined");
+			expect(compactSource(source)).not.toContain("value_0!==undefined");
 		});
 
 		it("should guard only optional path parameter captures", () => {
@@ -1034,9 +1498,11 @@ describe("usage: jit", () => {
 			);
 
 			expect(required).toContain("decodePathParam(match[2])");
-			expect(required).not.toContain("value_0 !== undefined");
-			expect(optional).toContain("const value_0 = match[2]");
-			expect(optional).toContain("value_0 !== undefined");
+			expect(compactSource(required)).not.toContain(
+				"value_0!==undefined",
+			);
+			expect(compactSource(optional)).toContain("constvalue_0=match[2]");
+			expect(compactSource(optional)).toContain("value_0!==undefined");
 		});
 
 		it("should conservatively guard captures without positional metadata", () => {
@@ -1054,8 +1520,8 @@ describe("usage: jit", () => {
 
 			const source = jit(app, endpoint).toString();
 
-			expect(source).toContain("const value_0 = match[2]");
-			expect(source).toContain("value_0 !== undefined");
+			expect(compactSource(source)).toContain("constvalue_0=match[2]");
+			expect(compactSource(source)).toContain("value_0!==undefined");
 		});
 
 		it("should guard optional rest captures and specialize rest by position", () => {
@@ -1076,14 +1542,16 @@ describe("usage: jit", () => {
 			);
 
 			expect(required).toContain('decodePathParam(match[2]).split("/")');
-			expect(required).not.toContain("value_0 !== undefined");
-			expect(optional).toContain("value_0 !== undefined");
-			expect(optional).toContain('decodePathParam(value_0).split("/")');
-			expect(duplicate).toContain(
-				'params["same"] = decodePathParam(match[2]);',
+			expect(compactSource(required)).not.toContain(
+				"value_0!==undefined",
 			);
-			expect(duplicate).toContain(
-				'params["same"] = decodePathParam(match[3]).split("/");',
+			expect(compactSource(optional)).toContain("value_0!==undefined");
+			expect(optional).toContain('decodePathParam(value_0).split("/")');
+			expect(compactSource(duplicate)).toContain(
+				'params["same"]=decodePathParam(match[2])',
+			);
+			expect(compactSource(duplicate)).toContain(
+				'params["same"]=decodePathParam(match[3]).split("/")',
 			);
 		});
 
@@ -1094,8 +1562,10 @@ describe("usage: jit", () => {
 				),
 			);
 
-			expect(source).toContain("new Context(app, request)");
-			expect(source).not.toContain("new Context(app, request, match)");
+			expect(compactSource(source)).toContain("newContext(app,request)");
+			expect(compactSource(source)).not.toContain(
+				"newContext(app,request,match)",
+			);
 		});
 
 		it("should omit absent optional params through app.fetch", async () => {

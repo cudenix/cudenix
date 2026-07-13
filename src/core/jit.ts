@@ -22,7 +22,131 @@ import { parseQuery } from "@/utils/urls/parse-query";
  * Defines the response call used by full-context dispatchers.
  */
 const RESPONSE_CALL =
-	"response(context.response.content, context.response.cookies, context.response.headers)";
+	"response(context.response.content,context.response.cookies,context.response.headers)";
+
+const VALIDATION_KEYS = [
+	"body",
+	"cookies",
+	"headers",
+	"params",
+	"query",
+] as const satisfies readonly (keyof ValidatorRequest)[];
+
+/**
+ * Returns the generated local name for a request validation slot.
+ */
+const getValidatedLocal = (key: keyof ValidatorRequest) =>
+	`validated${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+
+/**
+ * Continues synchronously for plain values and promotes only actual thenables
+ * to a promise chain.
+ */
+const settle = <Value, Result>(
+	value: Value | PromiseLike<Value>,
+	next: (value: Value) => Result | Promise<Result>,
+): Result | Promise<Result> => {
+	if (
+		value === null ||
+		(typeof value !== "object" && typeof value !== "function")
+	) {
+		return next(value as Value);
+	}
+
+	let isNativePromise = false;
+
+	try {
+		isNativePromise = value instanceof Promise;
+	} catch {
+		// A Proxy may reject prototype inspection but still expose a valid
+		// structural `then`, so fall through to normal thenable detection.
+	}
+
+	if (isNativePromise) {
+		let pending: Promise<Value>;
+
+		try {
+			pending = Promise.resolve(value);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+
+		try {
+			return Promise.prototype.then.call(
+				pending,
+				next,
+			) as Promise<Result>;
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	let then: unknown;
+
+	try {
+		then = (value as { then?: unknown }).then;
+	} catch (error) {
+		return Promise.reject(error);
+	}
+
+	if (typeof then !== "function") {
+		return next(value as Value);
+	}
+
+	const call = then as (
+		this: unknown,
+		resolve: (value: Value | PromiseLike<Value>) => void,
+		reject: (reason?: unknown) => void,
+	) => unknown;
+
+	const pending = new Promise<Value>((resolve, reject) => {
+		queueMicrotask(() => {
+			try {
+				call.call(value, resolve, reject);
+			} catch (error) {
+				reject(error);
+			}
+		});
+	});
+
+	return Promise.prototype.then.call(pending, next) as Promise<Result>;
+};
+
+/**
+ * Returns whether a validator link has at least one executable request slot.
+ */
+const hasValidationKeys = (
+	keys: readonly (keyof ValidatorRequest | undefined)[],
+) => {
+	for (let i = 0; i < keys.length; i++) {
+		if (keys[i]) {
+			return true;
+		}
+	}
+
+	return false;
+};
+
+/**
+ * Returns whether an endpoint chain contains any link that executes.
+ */
+const hasEffectiveChain = (chain: EndpointChain, hasValidator: boolean) => {
+	for (let i = 0; i < chain.length; i++) {
+		const link = chain[i];
+
+		if (
+			link?.type === "MIDDLEWARE" ||
+			link?.type === "STORE" ||
+			(link?.type === "VALIDATOR" &&
+				hasValidator &&
+				hasValidationKeys(link.keys))
+		) {
+			return true;
+		}
+	}
+
+	return false;
+};
 
 /**
  * Generates the path parameter parser for a dispatcher.
@@ -35,13 +159,7 @@ const generateParamsParser = (
 	target: string,
 ): string => {
 	if (paramKeys.length === 0) {
-		return `let params = request.params;
-
-			if (!params) {
-				params = new Empty();
-			}
-
-			${target} = params;`;
+		return `let params=request.params;if(!params){params=new Empty()}${target}=params;`;
 	}
 
 	let assignmentsCode = "";
@@ -72,65 +190,52 @@ const generateParamsParser = (
 			: decodedValue;
 
 		assignmentsCode += isOptional
-			? `
-				const ${valueName} = match[${matchGroupIndex}];
-
-				if (${valueName} !== undefined) {
-					params[${keyLiteral}] = ${paramValueExpression};
-				}`
-			: `
-				params[${keyLiteral}] = ${paramValueExpression};`;
+			? `const ${valueName}=match[${matchGroupIndex}];if(${valueName}!==undefined){params[${keyLiteral}]=${paramValueExpression}}`
+			: `params[${keyLiteral}]=${paramValueExpression};`;
 	}
 
 	// A matched dispatch without Bun params always comes from the regexp fallback.
-	return `let params = request.params;
-
-			if (!params) {
-				params = new Empty();${assignmentsCode}
-			}
-
-			${target} = params;`;
+	return `let params=request.params;if(!params){params=new Empty();${assignmentsCode}}${target}=params;`;
 };
 
 /**
  * Describes the shape used to generate an endpoint dispatcher.
  */
 interface EndpointShape {
-	asyncMap: boolean[];
 	awaitMap: boolean[];
 	hasValidationState: boolean;
-	hasValidator: boolean;
 	isChainAsync: boolean;
-	isDirectRoute: boolean;
-	isRouteAsync: boolean;
 	isSse: boolean;
-	isValidatorAsync: boolean;
 	key: string;
 	needsContext: boolean;
 	needsStoreState: boolean;
 	parsesParams: boolean;
+	validationKeys: (keyof ValidatorRequest)[];
 }
 
 /**
  * Analyzes an endpoint for dispatcher generation.
  */
-const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
+const analyzeEndpoint = (
+	endpoint: Endpoint,
+	validator: ValidatorPlugin | undefined,
+	handlerUsesContext: boolean,
+): EndpointShape => {
 	const chain = endpoint.chain;
 	const chainLength = chain.length;
 	const handler = endpoint.route.handler;
 	const isSse = endpoint.route.sse;
 	const isRouteAsync = !isSse && isAsync(handler);
-	const validator = app.memory.validator as ValidatorPlugin | undefined;
 	const hasValidator = validator !== undefined;
 	const isValidatorAsync = hasValidator && isAsync(validator);
 	const validatorTag = isValidatorAsync ? "Va" : "Vs";
 
-	const asyncMap = new Array<boolean>(chainLength).fill(false);
 	const awaitMap = new Array<boolean>(chainLength + 1).fill(false);
 	const tags = new Array<string>(chainLength).fill("");
+	const validationKeySet = new Set<keyof ValidatorRequest>();
 
 	let isChainAsync = isRouteAsync;
-	let needsContext = usesContext(handler);
+	let needsContext = handlerUsesContext;
 	let hasStore = false;
 	let hasValidationState = false;
 	let validatesParams = false;
@@ -148,8 +253,6 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 				hasStore = true;
 			}
 
-			asyncMap[i] = isHandlerAsync;
-
 			isChainAsync = isHandlerAsync || isChainAsync;
 
 			if (!needsContext && usesContext(link.handler)) {
@@ -162,10 +265,12 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 					: `S${isHandlerAsync ? "1" : "0"}`;
 
 			emitsBelow = true;
-		} else if (link?.type === "VALIDATOR" && hasValidator) {
-			const keys: string[] = [];
-
-			hasValidationState = true;
+		} else if (
+			link?.type === "VALIDATOR" &&
+			hasValidator &&
+			hasValidationKeys(link.keys)
+		) {
+			const keys: (keyof ValidatorRequest)[] = [];
 
 			for (let j = 0; j < link.keys.length; j++) {
 				const key = link.keys[j];
@@ -175,6 +280,7 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 				}
 
 				keys.push(key);
+				validationKeySet.add(key);
 
 				if (key === "body") {
 					isChainAsync = true;
@@ -182,6 +288,8 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 					validatesParams = true;
 				}
 			}
+
+			hasValidationState = true;
 
 			if (isValidatorAsync) {
 				isChainAsync = true;
@@ -204,9 +312,8 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 	const parsesParams =
 		validatesParams || (needsContext && endpoint.paramKeys.length > 0);
 	const needsStoreState = hasValidationState && hasStore && !needsContext;
-	const isDirectRoute = chainLength === 0 && !needsContext && !isSse;
 
-	key += isDirectRoute ? "D" : "G";
+	key += "G";
 
 	if (parsesParams && endpoint.paramKeys.length > 0) {
 		const paramFlags = endpoint.paramFlags;
@@ -235,19 +342,17 @@ const analyzeEndpoint = (app: Cudenix, endpoint: Endpoint): EndpointShape => {
 	}
 
 	return {
-		asyncMap,
 		awaitMap,
 		hasValidationState,
-		hasValidator,
 		isChainAsync,
-		isDirectRoute,
-		isRouteAsync,
 		isSse,
-		isValidatorAsync,
 		key,
 		needsContext,
 		needsStoreState,
 		parsesParams,
+		validationKeys: VALIDATION_KEYS.filter((key) =>
+			validationKeySet.has(key),
+		),
 	};
 };
 
@@ -260,17 +365,12 @@ const generateDispatcherBody = (
 	shape: EndpointShape,
 ): string => {
 	const {
-		asyncMap,
 		awaitMap,
-		hasValidator,
 		hasValidationState,
-		isRouteAsync,
 		isSse,
-		isValidatorAsync,
 		needsContext,
 		needsStoreState,
 	} = shape;
-
 	const parsedKeys = new Set<keyof ValidatorRequest>();
 
 	if (needsContext && shape.parsesParams) {
@@ -279,14 +379,15 @@ const generateDispatcherBody = (
 
 	const linkArgument = needsContext ? "context" : "undefined";
 	const routeArgument = needsContext ? "context" : "";
-	const requestTarget = needsContext ? "context.request" : "validatedRequest";
 	const contentTarget = needsContext ? "context.response.content" : "content";
-	const returnStatement = needsContext
-		? `return ${RESPONSE_CALL};`
-		: "return response(content);";
-
-	const terminate = (code: string, isNested: boolean): string =>
-		isNested ? code : `${code}\n\n${returnStatement}`;
+	const finish = (isNested: boolean): string =>
+		isNested
+			? "return;"
+			: needsContext
+				? `return ${RESPONSE_CALL};`
+				: "return response(content);";
+	const slotTarget = (key: keyof ValidatorRequest): string =>
+		needsContext ? `context.request.${key}` : getValidatedLocal(key);
 
 	const emit = (index: number, isNested: boolean): string => {
 		if (index >= chain.length) {
@@ -296,122 +397,81 @@ const generateDispatcherBody = (
 					: hasValidationState
 						? "server"
 						: "app.server";
-				const body = `${serverTarget}?.timeout(request, 0);
 
-				${contentTarget} = stream(handler(${routeArgument}));`;
-
-				return terminate(body, isNested);
+				return `${serverTarget}?.timeout(request,0);${contentTarget}=stream(handler(${routeArgument}));${finish(isNested)}`;
 			}
 
-			const callCode = `${contentTarget} = ${isRouteAsync ? "await " : ""}handler(${routeArgument});`;
-
-			return terminate(callCode, isNested);
+			return `return settle(handler(${routeArgument}),returned=>{${contentTarget}=returned;${finish(isNested)}});`;
 		}
 
 		const link = chain[index];
 
 		if (link?.type === "MIDDLEWARE") {
 			const isTailAsync = awaitMap[index + 1];
-			const callCode = `const returned_${index} = ${awaitMap[index] ? "await " : ""}chain[${index}].handler(${linkArgument}, next_${index});`;
 
-			const block = `{
-			const next_${index} = ${isTailAsync ? "async " : ""}() => {
-				${emit(index + 1, true)}
-			};
-
-			${callCode}
-
-			if (returned_${index}) {
-				${contentTarget} = returned_${index};
-			}
-		}`;
-
-			return terminate(block, isNested);
+			return `{const next_${index}=${isTailAsync ? "async " : ""}()=>{${emit(index + 1, true)}};return settle(chain[${index}].handler(${linkArgument},next_${index}),returned_${index}=>{if(returned_${index}){${contentTarget}=returned_${index}}${finish(isNested)}});}`;
 		}
 
 		if (link?.type === "STORE") {
-			const callCode = `const returned_${index} = ${asyncMap[index] ? "await " : ""}chain[${index}].handler(${linkArgument});`;
-
-			const shortCircuit = `${contentTarget} = returned_${index};\n\n\t\t\t\t${isNested ? "return;" : returnStatement}`;
-
 			const storeTarget = needsContext
 				? "context.store"
 				: needsStoreState
 					? "validatedStore"
 					: "";
 			const mergeStore = storeTarget
-				? `
-
-			if (returned_${index}) {
-				merge(${storeTarget}, returned_${index});
-			}`
+				? `if(returned_${index}){merge(${storeTarget},returned_${index})}`
 				: "";
 
-			return `{
-			${callCode}
-
-			if (returned_${index} instanceof Reply && !returned_${index}.success) {
-				${shortCircuit}
-			}${mergeStore}
+			return `return settle(chain[${index}].handler(${linkArgument}),returned_${index}=>{if(returned_${index} instanceof Reply&&!returned_${index}.success){${contentTarget}=returned_${index};${finish(isNested)}}${mergeStore}${emit(index + 1, isNested)}});`;
 		}
 
-		${emit(index + 1, isNested)}`;
-		}
-
-		if (link?.type === "VALIDATOR" && hasValidator) {
-			let validationsCode = "";
+		if (
+			link?.type === "VALIDATOR" &&
+			hasValidationState &&
+			hasValidationKeys(link.keys)
+		) {
+			const keys: (keyof ValidatorRequest)[] = [];
 
 			for (let i = 0; i < link.keys.length; i++) {
 				const key = link.keys[i];
 
-				if (!key) {
-					continue;
+				if (key) {
+					keys.push(key);
+				}
+			}
+
+			const errorTarget = `errors_${index}`;
+			const requestTarget = `request_${index}`;
+
+			const emitValidation = (slotIndex: number): string => {
+				if (slotIndex >= keys.length) {
+					return `if(${errorTarget}){${contentTarget}=fail(${errorTarget},{status:422});${finish(isNested)}}${emit(index + 1, isNested)}`;
 				}
 
-				let parserCode = "";
-
-				if (!parsedKeys.has(key)) {
-					parsedKeys.add(key);
-
-					parserCode = parsers[key];
-				}
-
+				const key = keys[slotIndex] as keyof ValidatorRequest;
+				const target = slotTarget(key);
 				const keyLiteral = JSON.stringify(key);
+				const needsParser = !parsedKeys.has(key);
 
-				const validationCode = `{
-					const validated = ${isValidatorAsync ? "await " : ""}validator(
-						request_${index}[${keyLiteral}],
-						${requestTarget}[${keyLiteral}],
-						${keyLiteral},
-					);
+				if (needsParser) {
+					parsedKeys.add(key);
+				}
 
-					if (validated.success) {
-						${requestTarget}[${keyLiteral}] = validated.content;
-					} else {
-						(errors_${index} ??= new Empty())[${keyLiteral}] = validated.content;
-					}
-				}`;
+				const nextValidation = emitValidation(slotIndex + 1);
+				const validate = `return settle(validator(${requestTarget}.${key},${target},${keyLiteral}),validated=>{if(validated.success){${target}=validated.content}else{(${errorTarget}??=new Empty()).${key}=validated.content}${nextValidation}});`;
 
-				validationsCode += parserCode
-					? `\n\n${parserCode}\n\n${validationCode}`
-					: `\n\n${validationCode}`;
-			}
+				if (!needsParser) {
+					return validate;
+				}
 
-			return `{
-			const request_${index} = chain[${index}].request;
+				if (key === "body") {
+					return `return settle(parseBody(request),parsedBody=>{${target}=parsedBody;${validate}});`;
+				}
 
-			let errors_${index};
+				return `${parsers[key]}${validate}`;
+			};
 
-			${validationsCode}
-
-			if (errors_${index}) {
-				${contentTarget} = fail(errors_${index}, { status: 422 });
-
-				${isNested ? "return;" : returnStatement}
-			}
-		}
-
-		${emit(index + 1, isNested)}`;
+			return `{const ${requestTarget}=chain[${index}].request;let ${errorTarget};${emitValidation(0)}}`;
 		}
 
 		return emit(index + 1, isNested);
@@ -424,31 +484,33 @@ const generateDispatcherBody = (
  * Defines a compiled dispatcher factory.
  */
 type DispatcherFactory = (
-	app: Cudenix,
-	Context: typeof import("@/core/context").Context,
-	chain: EndpointChain,
-	response: typeof import("@/core/response").response,
-	Reply: typeof import("@/core/reply").Reply,
-	merge: typeof import("@/utils/objects/merge").merge,
-	Empty: typeof import("@/utils/objects/empty").Empty,
-	fail: typeof import("@/core/reply").fail,
-	stream: typeof import("@/core/sse").stream,
-	parseBody: typeof import("@/utils/bodies/parse-body").parseBody,
-	parseCookies: typeof import("@/utils/cookies/parse-cookies").parseCookies,
-	parseQuery: typeof import("@/utils/urls/parse-query").parseQuery,
-	decodePathParam: typeof import("@/utils/urls/decode-path-param").decodePathParam,
-	validator: ValidatorPlugin | undefined,
-	handler: Endpoint["route"]["handler"],
+	appValue: Cudenix,
+	ContextValue: typeof Context,
+	chainValue: EndpointChain,
+	responseValue: typeof response,
+	settleValue: typeof settle,
+	ReplyValue: typeof Reply,
+	mergeValue: typeof merge,
+	EmptyValue: typeof Empty,
+	failValue: typeof fail,
+	streamValue: typeof stream,
+	parseBodyValue: typeof parseBody,
+	parseCookiesValue: typeof parseCookies,
+	parseQueryValue: typeof parseQuery,
+	decodePathParamValue: typeof decodePathParam,
+	validatorValue: ValidatorPlugin | undefined,
+	handlerValue: Endpoint["route"]["handler"],
 ) => Dispatch;
 
 /**
- * Defines the parameters injected into dispatcher factories.
+ * Canonicalizes the positional dependencies injected into generated factories.
  */
 const FACTORY_PARAMETERS = [
 	"app",
 	"Context",
 	"chain",
 	"response",
+	"settle",
 	"Reply",
 	"merge",
 	"Empty",
@@ -462,6 +524,30 @@ const FACTORY_PARAMETERS = [
 	"handler",
 ] as const;
 
+type DirectSyncFactory = (
+	settleFn: typeof settle,
+	responseFn: typeof response,
+	handler: Endpoint["route"]["handler"],
+) => Dispatch;
+
+type DirectAsyncFactory = (
+	responseFn: typeof response,
+	handler: Endpoint["route"]["handler"],
+) => Dispatch;
+
+const directSyncFactory = new Function(
+	"settle",
+	"response",
+	"handler",
+	"return function(){return settle(handler(),response)}",
+) as DirectSyncFactory;
+
+const directAsyncFactory = new Function(
+	"response",
+	"handler",
+	"return async function(){return response(await handler())}",
+) as DirectAsyncFactory;
+
 /**
  * Stores compiled dispatcher factories by endpoint shape.
  */
@@ -471,69 +557,70 @@ const factories = new Map<string, DispatcherFactory>();
  * Compiles an endpoint into a request dispatcher.
  */
 export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
-	const shape = analyzeEndpoint(app, endpoint);
+	const handler = endpoint.route.handler;
+	const validator = app.memory.validator as ValidatorPlugin | undefined;
+	const handlerUsesContext = usesContext(handler);
+
+	if (
+		!endpoint.route.sse &&
+		!handlerUsesContext &&
+		!hasEffectiveChain(endpoint.chain, validator !== undefined)
+	) {
+		return isAsync(handler)
+			? directAsyncFactory(response, handler)
+			: directSyncFactory(settle, response, handler);
+	}
+
+	const shape = analyzeEndpoint(endpoint, validator, handlerUsesContext);
 
 	let factory = factories.get(shape.key);
 
 	if (factory === undefined) {
-		let source: string;
+		const slotTarget = (key: keyof ValidatorRequest) =>
+			shape.needsContext
+				? `context.request.${key}`
+				: getValidatedLocal(key);
+		const parsers: Record<keyof ValidatorRequest, string> = {
+			body: "",
+			cookies: `${slotTarget("cookies")}=parseCookies(request.headers.get("cookie")??"");`,
+			headers: `${slotTarget("headers")}=request.headers.toJSON();`,
+			params: shape.parsesParams
+				? generateParamsParser(
+						endpoint.paramKeys,
+						endpoint.paramFlags,
+						endpoint.matchOffset,
+						endpoint.restKeys,
+						slotTarget("params"),
+					)
+				: "",
+			query: `${slotTarget("query")}=parseQuery(request.url);`,
+		};
+		const preludeStatements = shape.needsContext
+			? ["const context=new Context(app,request);"]
+			: ["let content;"];
 
-		if (shape.isDirectRoute) {
-			source = `return ${shape.isRouteAsync ? "async " : ""}function () {
-	return response(${shape.isRouteAsync ? "await " : ""}handler());
-};`;
-		} else {
-			const requestTarget = shape.needsContext
-				? "context.request"
-				: "validatedRequest";
-			const parsers: Record<keyof ValidatorRequest, string> = {
-				body: `${requestTarget}.body = await parseBody(request);`,
-				cookies: `${requestTarget}.cookies = parseCookies(request.headers.get("cookie") ?? "");`,
-				headers: `${requestTarget}.headers = request.headers.toJSON();`,
-				params: shape.parsesParams
-					? generateParamsParser(
-							endpoint.paramKeys,
-							endpoint.paramFlags,
-							endpoint.matchOffset,
-							endpoint.restKeys,
-							`${requestTarget}.params`,
-						)
-					: "",
-				query: `${requestTarget}.query = parseQuery(request.url);`,
-			};
-			const preludeStatements = shape.needsContext
-				? ["const context = new Context(app, request);"]
-				: ["let content;"];
-
-			if (!shape.needsContext) {
-				if (shape.isSse && shape.hasValidationState) {
-					preludeStatements.push("const server = app.server;");
-				}
-
-				if (shape.hasValidationState) {
-					preludeStatements.push(
-						"const validatedRequest = new Empty();",
-					);
-				}
-
-				if (shape.needsStoreState) {
-					preludeStatements.push(
-						"const validatedStore = new Empty();",
-					);
-				}
+		if (!shape.needsContext) {
+			if (shape.isSse && shape.hasValidationState) {
+				preludeStatements.push("const server=app.server;");
 			}
 
-			if (shape.needsContext && shape.parsesParams) {
-				preludeStatements.push(parsers.params);
+			if (shape.validationKeys.length > 0) {
+				preludeStatements.push(
+					`let ${shape.validationKeys.map(slotTarget).join(",")};`,
+				);
 			}
 
-			const prelude = `\n${preludeStatements.join("\n\n")}\n\n`;
-
-			const body = generateDispatcherBody(endpoint.chain, parsers, shape);
-
-			source = `return ${shape.isChainAsync ? "async " : ""}function (request, match) {${prelude}${body}\n};`;
+			if (shape.needsStoreState) {
+				preludeStatements.push("const validatedStore=new Empty();");
+			}
 		}
 
+		if (shape.needsContext && shape.parsesParams) {
+			preludeStatements.push(parsers.params);
+		}
+
+		const body = generateDispatcherBody(endpoint.chain, parsers, shape);
+		const source = `return ${shape.isChainAsync ? "async " : ""}function(request,match){${preludeStatements.join("")}${body}}`;
 		factory = new Function(
 			...FACTORY_PARAMETERS,
 			source,
@@ -547,6 +634,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 		Context,
 		endpoint.chain,
 		response,
+		settle,
 		Reply,
 		merge,
 		Empty,
@@ -556,7 +644,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 		parseCookies,
 		parseQuery,
 		decodePathParam,
-		app.memory.validator as ValidatorPlugin | undefined,
-		endpoint.route.handler,
+		validator,
+		handler,
 	);
 };
