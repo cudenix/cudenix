@@ -177,6 +177,7 @@ interface EndpointShape {
 	isValidatorAsync: boolean;
 	key: string;
 	needsContext: boolean;
+	needsMatch: boolean;
 	needsStoreState: boolean;
 	parsesParams: boolean;
 	validationKeys: (keyof ValidatorRequest)[];
@@ -283,11 +284,12 @@ const analyzeEndpoint = (
 
 	const parsesParams =
 		validatesParams || (needsContext && endpoint.paramKeys.length > 0);
+	const needsMatch = parsesParams && endpoint.paramKeys.length > 0;
 	const needsStoreState = hasValidationState && hasStore && !needsContext;
 
 	key += "G";
 
-	if (parsesParams && endpoint.paramKeys.length > 0) {
+	if (needsMatch) {
 		const paramFlags = endpoint.paramFlags;
 		const paramKeys = endpoint.paramKeys;
 		const restKeys = endpoint.restKeys;
@@ -323,6 +325,7 @@ const analyzeEndpoint = (
 		isValidatorAsync,
 		key,
 		needsContext,
+		needsMatch,
 		needsStoreState,
 		parsesParams,
 		validationKeys: VALIDATION_KEYS.filter((key) =>
@@ -584,7 +587,8 @@ const createDispatcherFactoryPlan = (
 	}
 
 	const body = generateDispatcherBody(endpoint.chain, parsers, shape, link);
-	const source = `return ${shape.isChainAsync ? "async " : ""}function(request,match){${preludeStatements.join("")}${body}}`;
+	const parameters = shape.needsMatch ? "request,match" : "request";
+	const source = `return ${shape.isChainAsync ? "async " : ""}function(${parameters}){${preludeStatements.join("")}${body}}`;
 
 	return { dependencies, source };
 };

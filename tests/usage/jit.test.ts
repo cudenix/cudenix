@@ -593,10 +593,12 @@ describe("usage: jit", () => {
 			const source = jitSource(
 				new Module()
 					.store((_context) => ({ a: "v1" }))
-					.route("GET", "/a", () => ok("v1")),
+					.route("GET", "/a/:id", () => ok("v1")),
 			);
 
 			expect(source).not.toContain("new Context");
+			expect(compactSource(source)).toContain("function(request){");
+			expect(source).not.toContain("match");
 			expect(source).toContain("chain[0].handler(undefined)");
 			expect(compactSource(source)).toContain("content=handler()");
 		});
@@ -1199,6 +1201,9 @@ describe("usage: jit", () => {
 				new Request(server.url("/users/42")),
 			);
 
+			expect(server.app.methods.GET!.endpoints[0]!.dispatch.length).toBe(
+				2,
+			);
 			expect(await native.text()).toBe("v1");
 			expect(await fallback.text()).toBe("v1");
 			expect(inputs).toEqual([{ id: "42" }, { id: "42" }]);
@@ -1226,6 +1231,7 @@ describe("usage: jit", () => {
 				new Request("http://localhost/plain"),
 			);
 
+			expect(endpoint.dispatch.length).toBe(1);
 			expect(await native.json()).toEqual({});
 			expect(await fallback.json()).toEqual({});
 		});
@@ -1333,6 +1339,8 @@ describe("usage: jit", () => {
 					.route("GET", "/a", (context) => ok(context.store.a)),
 			);
 
+			expect(compactSource(source)).toContain("function(request){");
+			expect(source).not.toContain("match");
 			expect(source).not.toContain("parseBody");
 			expect(source).not.toContain("parseQuery");
 			expect(source).not.toContain("parseParams");
@@ -1356,6 +1364,7 @@ describe("usage: jit", () => {
 					.route("GET", "/a/:p1", () => ok("v1")),
 			);
 
+			expect(compactSource(source)).toContain("function(request,match){");
 			expect(compactSource(source)).toContain("letparams=request.params");
 			expect(compactSource(source)).toContain("if(!params)");
 			expect(source).not.toContain('"cookies" in request');
@@ -1445,6 +1454,18 @@ describe("usage: jit", () => {
 			expect(compactSource(source)).not.toContain(
 				"newContext(app,request,match)",
 			);
+		});
+
+		it("should omit match when params validation has no captures", () => {
+			const source = jitSource(
+				new Module()
+					.validator({ request: { params: {} } })
+					.route("GET", "/plain", () => ok("v1")),
+			);
+
+			expect(compactSource(source)).toContain("function(request){");
+			expect(source).not.toContain("match");
+			expect(compactSource(source)).toContain("letparams=request.params");
 		});
 
 		it("should omit absent optional params through app.fetch", async () => {
