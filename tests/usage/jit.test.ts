@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
+import type { AnyContext } from "@/core/context";
 import { Cudenix, type Plugin } from "@/core/cudenix";
 import { staticDispatch } from "@/core/dispatch";
 import { inspectJitFactoryDependencies, jit } from "@/core/jit";
@@ -21,6 +22,11 @@ const echo: ValidatorPlugin = (_schema, input) => ({
 });
 
 const compactSource = (source: string): string => source.replace(/\s+/g, "");
+
+const expectNoContextAllocation = (source: string) => {
+	expect(source).not.toContain("new Context");
+	expect(source).not.toContain("new LeanContext");
+};
 
 const expectNoDynamicPromiseAdoption = (source: string) => {
 	const compact = compactSource(source);
@@ -71,6 +77,15 @@ describe("usage: jit", () => {
 						ok(context.memory),
 					),
 				),
+			).toEqual(["LeanContext", "app", "response", "handler"]);
+			expect(
+				jitDependencies(
+					new Module().route("GET", "/metadata", (context) => {
+						context.response.headers.set("x-value", "v1");
+
+						return ok("v1");
+					}),
+				),
 			).toEqual(["Context", "app", "response", "handler"]);
 			expect(
 				jitDependencies(
@@ -88,7 +103,7 @@ describe("usage: jit", () => {
 						),
 				),
 			).toEqual([
-				"Context",
+				"LeanContext",
 				"app",
 				"response",
 				"chain",
@@ -548,7 +563,7 @@ describe("usage: jit", () => {
 
 			expect(endpoint.dispatch).not.toBe(staticDispatch);
 			expect(endpoint.response).toBeUndefined();
-			expect(source).not.toContain("new Context");
+			expectNoContextAllocation(source);
 			expect(compactSource(source)).toContain(
 				"awaitchain[0].handler(undefined,next_0)",
 			);
@@ -569,7 +584,7 @@ describe("usage: jit", () => {
 					.route("GET", "/a", () => ok("v1")),
 			);
 
-			expect(source).not.toContain("new Context");
+			expectNoContextAllocation(source);
 			expect(compactSource(source)).toContain(
 				"awaitchain[0].handler(undefined,next_0)",
 			);
@@ -581,7 +596,7 @@ describe("usage: jit", () => {
 				new Module().route("GET", "/a/:id", (_context) => ok("v1")),
 			);
 
-			expect(source).not.toContain("new Context");
+			expectNoContextAllocation(source);
 			expect(source).not.toContain("decodePathParam");
 			expect(source).not.toContain("request.params");
 			expect(compactSource(source)).toContain(
@@ -596,11 +611,102 @@ describe("usage: jit", () => {
 					.route("GET", "/a/:id", () => ok("v1")),
 			);
 
-			expect(source).not.toContain("new Context");
+			expectNoContextAllocation(source);
 			expect(compactSource(source)).toContain("function(request){");
 			expect(source).not.toContain("match");
 			expect(source).toContain("chain[0].handler(undefined)");
 			expect(compactSource(source)).toContain("content=handler()");
+		});
+	});
+
+	describe("response metadata specialization", () => {
+		it("should omit cookies and headers when handlers only use independent context fields", () => {
+			const source = jitSource(
+				new Module().route("GET", "/a", (context) =>
+					ok(
+						`${context.request.raw.method}:${String(context.memory)}`,
+					),
+				),
+			);
+			const compact = compactSource(source);
+
+			expect(source).toContain("new LeanContext");
+			expect(source).not.toContain("new Context");
+			expect(compact).toContain("returnresponse(content)");
+			expect(compact).not.toContain("context.response.content");
+			expect(compact).not.toContain("context.response.cookies");
+			expect(compact).not.toContain("context.response.headers");
+		});
+
+		it("should keep full metadata when a handler accesses the response", async () => {
+			const app = new Cudenix(
+				new Module().route("GET", "/a", (context) => {
+					context.response.headers.set("x-value", "v1");
+
+					return ok("v1");
+				}),
+			);
+
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const source = endpoint.dispatch.toString();
+			const result = await app.fetch(new Request("http://localhost/a"));
+
+			expect(source).toContain("new Context");
+			expect(source).not.toContain("new LeanContext");
+			expect(compactSource(source)).toContain(
+				"response(context.response.content,context.response.cookies,context.response.headers)",
+			);
+			expect(result.headers.get("x-value")).toBe("v1");
+		});
+
+		it("should ignore a handler's spoofed toString when selecting metadata", async () => {
+			const handler = (context: AnyContext) => {
+				context.response.headers.set("x-value", "v1");
+
+				return ok("v1");
+			};
+
+			handler.toString = () => "context => 'v1'";
+
+			const app = new Cudenix(new Module().route("GET", "/a", handler));
+
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const result = await app.fetch(new Request("http://localhost/a"));
+
+			expect(endpoint.dispatch.toString()).toContain("new Context");
+			expect(result.headers.get("x-value")).toBe("v1");
+		});
+
+		it("should fail closed for aliasing, destructuring, and computed access", () => {
+			const dynamicKey = Date.now() > 0 ? "request" : "response";
+			const identity = <Value>(value: Value) => value;
+			const aliased = jitSource(
+				new Module().route("GET", "/a", (context) =>
+					ok(identity(context).request.raw.method),
+				),
+			);
+			const destructured = jitSource(
+				new Module().route("GET", "/a", ({ request }) =>
+					ok(request.raw.method),
+				),
+			);
+			const computed = jitSource(
+				new Module().route("GET", "/a", (context) =>
+					ok(
+						(context as unknown as Record<string, unknown>)[
+							dynamicKey
+						],
+					),
+				),
+			);
+
+			expect(aliased).toContain("new Context");
+			expect(destructured).toContain("new Context");
+			expect(computed).toContain("new Context");
 		});
 	});
 
@@ -928,7 +1034,7 @@ describe("usage: jit", () => {
 
 			expect(source).not.toContain("validatedRequest");
 			expect(source).toContain("validatedQuery");
-			expect(source).not.toContain("new Context");
+			expectNoContextAllocation(source);
 			expect(source).toContain("handler()");
 		});
 
@@ -946,8 +1052,8 @@ describe("usage: jit", () => {
 
 			expect(local).not.toContain("validatedRequest");
 			expect(local).toContain("validatedQuery");
-			expect(local).not.toContain("new Context");
-			expect(full).toContain("new Context");
+			expectNoContextAllocation(local);
+			expect(full).toContain("new LeanContext");
 			expect(full).not.toContain("validatedRequest");
 			expect(full).not.toContain("validatedQuery");
 		});
@@ -966,7 +1072,7 @@ describe("usage: jit", () => {
 
 			expect(source).not.toContain("validatedRequest");
 			expect(source).toContain("validatedBody");
-			expect(source).not.toContain("new Context");
+			expectNoContextAllocation(source);
 			expect(source).toContain("parseBody");
 		});
 
@@ -977,7 +1083,7 @@ describe("usage: jit", () => {
 					.route("GET", "/a", (context) => ok(context.store.a)),
 			);
 
-			expect(source).toContain("new Context");
+			expect(source).toContain("new LeanContext");
 			expect(source).not.toContain("request.params");
 		});
 
@@ -1123,7 +1229,7 @@ describe("usage: jit", () => {
 				}),
 			);
 
-			expect(endpoint.dispatch.toString()).not.toContain("new Context");
+			expectNoContextAllocation(endpoint.dispatch.toString());
 			expect(pending).toBeInstanceOf(Promise);
 			expect(await (await pending).text()).toBe("v1");
 			expect(input).toEqual({ value: "body" });
@@ -1174,7 +1280,7 @@ describe("usage: jit", () => {
 			const result = await server.fetch("/events?v=1");
 
 			expect(compactSource(source)).toContain("constserver=app.server");
-			expect(source).not.toContain("new Context");
+			expectNoContextAllocation(source);
 			expect(await result.text()).toBe('data: "v1"\n\n');
 		});
 
@@ -1450,9 +1556,11 @@ describe("usage: jit", () => {
 				),
 			);
 
-			expect(compactSource(source)).toContain("newContext(app,request)");
+			expect(compactSource(source)).toContain(
+				"newLeanContext(app,request)",
+			);
 			expect(compactSource(source)).not.toContain(
-				"newContext(app,request,match)",
+				"newLeanContext(app,request,match)",
 			);
 		});
 

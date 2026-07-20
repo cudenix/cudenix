@@ -1,4 +1,4 @@
-import { Context } from "@/core/context";
+import { Context, LeanContext } from "@/core/context";
 import type { Cudenix, Endpoint, EndpointChain } from "@/core/cudenix";
 import type { Dispatch } from "@/core/dispatch";
 import { fail, Reply } from "@/core/reply";
@@ -8,7 +8,10 @@ import type { ValidatorPlugin, ValidatorRequest } from "@/core/validator";
 import { parseBody } from "@/utils/bodies/parse-body";
 import { parseCookies } from "@/utils/cookies/parse-cookies";
 import { isAsync } from "@/utils/functions/is-async";
-import { usesContext } from "@/utils/functions/uses-context";
+import {
+	usesContext,
+	usesResponseMetadata,
+} from "@/utils/functions/uses-context";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 import {
@@ -34,6 +37,7 @@ interface FactoryDependencyValues {
 	Empty: typeof Empty;
 	fail: typeof fail;
 	handler: Endpoint["route"]["handler"];
+	LeanContext: typeof LeanContext;
 	merge: typeof merge;
 	parseBody: typeof parseBody;
 	parseCookies: typeof parseCookies;
@@ -178,6 +182,7 @@ interface EndpointShape {
 	key: string;
 	needsContext: boolean;
 	needsMatch: boolean;
+	needsResponseMetadata: boolean;
 	needsStoreState: boolean;
 	parsesParams: boolean;
 	validationKeys: (keyof ValidatorRequest)[];
@@ -190,6 +195,7 @@ const analyzeEndpoint = (
 	endpoint: Endpoint,
 	validator: ValidatorPlugin | undefined,
 	handlerUsesContext: boolean,
+	handlerUsesResponseMetadata: boolean,
 ): EndpointShape => {
 	const chain = endpoint.chain;
 	const chainLength = chain.length;
@@ -207,6 +213,7 @@ const analyzeEndpoint = (
 
 	let isChainAsync = isRouteAsync;
 	let needsContext = handlerUsesContext;
+	let needsResponseMetadata = handlerUsesResponseMetadata;
 	let hasStore = false;
 	let hasValidationState = false;
 	let validatesParams = false;
@@ -228,8 +235,17 @@ const analyzeEndpoint = (
 
 			isChainAsync = isHandlerAsync || isChainAsync;
 
-			if (!needsContext && usesContext(link.handler)) {
+			const linkUsesContext = usesContext(link.handler);
+
+			if (linkUsesContext) {
 				needsContext = true;
+
+				if (
+					!needsResponseMetadata &&
+					usesResponseMetadata(link.handler)
+				) {
+					needsResponseMetadata = true;
+				}
 			}
 
 			tags[i] =
@@ -278,9 +294,7 @@ const analyzeEndpoint = (
 		awaitMap[i] = isChainAsync;
 	}
 
-	let key = `${needsContext ? "1" : "0"}${hasValidationState ? "1" : "0"}${
-		isSse ? "1" : "0"
-	}${isRouteAsync ? "1" : "0"}${tags.join("")}`;
+	let key = `${needsContext ? "1" : "0"}${needsResponseMetadata ? "1" : "0"}${hasValidationState ? "1" : "0"}${isSse ? "1" : "0"}${isRouteAsync ? "1" : "0"}${tags.join("")}`;
 
 	const parsesParams =
 		validatesParams || (needsContext && endpoint.paramKeys.length > 0);
@@ -326,6 +340,7 @@ const analyzeEndpoint = (
 		key,
 		needsContext,
 		needsMatch,
+		needsResponseMetadata,
 		needsStoreState,
 		parsesParams,
 		validationKeys: VALIDATION_KEYS.filter((key) =>
@@ -351,6 +366,7 @@ const generateDispatcherBody = (
 		isSse,
 		isValidatorAsync,
 		needsContext,
+		needsResponseMetadata,
 		needsStoreState,
 	} = shape;
 	const parsedKeys = new Set<keyof ValidatorRequest>();
@@ -361,9 +377,11 @@ const generateDispatcherBody = (
 
 	const linkArgument = needsContext ? "context" : "undefined";
 	const routeArgument = needsContext ? "context" : "";
-	const contentTarget = needsContext ? "context.response.content" : "content";
+	const contentTarget = needsResponseMetadata
+		? "context.response.content"
+		: "content";
 	const responseName = link("response");
-	const returnStatement = needsContext
+	const returnStatement = needsResponseMetadata
 		? `return ${responseName}(context.response.content,context.response.cookies,context.response.headers);`
 		: `return ${responseName}(content);`;
 	const terminate = (code: string, isNested: boolean): string =>
@@ -482,6 +500,8 @@ const resolveFactoryDependency = (
 			return app;
 		case "Context":
 			return Context;
+		case "LeanContext":
+			return LeanContext;
 		case "chain":
 			return endpoint.chain;
 		case "response":
@@ -561,7 +581,12 @@ const createDispatcherFactoryPlan = (
 			`${slotTarget("query")}=${link("parseQuery")}(request.url);`,
 	};
 	const preludeStatements = shape.needsContext
-		? [`const context=new ${link("Context")}(${link("app")},request);`]
+		? shape.needsResponseMetadata
+			? [`const context=new ${link("Context")}(${link("app")},request);`]
+			: [
+					`const context=new ${link("LeanContext")}(${link("app")},request);`,
+					"let content;",
+				]
 		: ["let content;"];
 
 	if (!shape.needsContext) {
@@ -605,6 +630,8 @@ export const inspectJitFactoryDependencies = (
 	const handler = endpoint.route.handler;
 	const validator = app.memory.validator as ValidatorPlugin | undefined;
 	const handlerUsesContext = usesContext(handler);
+	const handlerUsesResponseMetadata =
+		handlerUsesContext && usesResponseMetadata(handler);
 
 	if (
 		!endpoint.route.sse &&
@@ -614,7 +641,12 @@ export const inspectJitFactoryDependencies = (
 		return ["response", "handler"];
 	}
 
-	const shape = analyzeEndpoint(endpoint, validator, handlerUsesContext);
+	const shape = analyzeEndpoint(
+		endpoint,
+		validator,
+		handlerUsesContext,
+		handlerUsesResponseMetadata,
+	);
 
 	return createDispatcherFactoryPlan(endpoint, shape).dependencies;
 };
@@ -631,6 +663,8 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 	const handler = endpoint.route.handler;
 	const validator = app.memory.validator as ValidatorPlugin | undefined;
 	const handlerUsesContext = usesContext(handler);
+	const handlerUsesResponseMetadata =
+		handlerUsesContext && usesResponseMetadata(handler);
 
 	if (
 		!endpoint.route.sse &&
@@ -642,7 +676,12 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 			: directSyncFactory(response, handler);
 	}
 
-	const shape = analyzeEndpoint(endpoint, validator, handlerUsesContext);
+	const shape = analyzeEndpoint(
+		endpoint,
+		validator,
+		handlerUsesContext,
+		handlerUsesResponseMetadata,
+	);
 
 	let entry = factories.get(shape.key);
 
