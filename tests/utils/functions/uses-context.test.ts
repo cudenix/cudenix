@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 
-import { usesContext } from "@/utils/functions/uses-context";
+import {
+	usesContext,
+	usesResponseMetadata,
+} from "@/utils/functions/uses-context";
 
 const asFn = (value: unknown) => value as (...args: any[]) => unknown;
 
@@ -358,7 +361,7 @@ describe("usesContext", () => {
 	});
 
 	describe("memoization", () => {
-		it("should cache the verdict by identity, ignoring a source patched between calls", () => {
+		it("should ignore own toString overrides and preserve cached verdicts", () => {
 			const cached = () => 1;
 			const fresh = () => 1;
 			const spoofedSource = () => "function () { return arguments[0]; }";
@@ -369,7 +372,122 @@ describe("usesContext", () => {
 			fresh.toString = spoofedSource;
 
 			expect(usesContext(cached)).toBe(false);
-			expect(usesContext(fresh)).toBe(true);
+			expect(usesContext(fresh)).toBe(false);
+		});
+	});
+});
+
+describe("usesResponseMetadata", () => {
+	describe("metadata-independent access", () => {
+		it("should return false when the context is unused", () => {
+			expect(usesResponseMetadata((_context) => "v1")).toBe(false);
+		});
+
+		it("should return false for direct request, store, memory, server, and match access", () => {
+			expect(usesResponseMetadata((context) => context.request)).toBe(
+				false,
+			);
+			expect(usesResponseMetadata((context) => context.store)).toBe(
+				false,
+			);
+			expect(usesResponseMetadata((context) => context.memory)).toBe(
+				false,
+			);
+			expect(usesResponseMetadata((context) => context.server)).toBe(
+				false,
+			);
+			expect(usesResponseMetadata((context) => context.match)).toBe(
+				false,
+			);
+		});
+
+		it("should accept optional chaining and whitespace before a known property", () => {
+			const optional = asFn(
+				new Function("return context => context?.request.raw")(),
+			);
+			const spaced = asFn(
+				new Function("return context => context \n . store")(),
+			);
+
+			expect(usesResponseMetadata(optional)).toBe(false);
+			expect(usesResponseMetadata(spaced)).toBe(false);
+		});
+	});
+
+	describe("full-context fallbacks", () => {
+		it("should return true for response access", () => {
+			expect(usesResponseMetadata((context) => context.response)).toBe(
+				true,
+			);
+		});
+
+		it("should return true when the complete context escapes", () => {
+			expect(usesResponseMetadata((context) => context)).toBe(true);
+			expect(
+				usesResponseMetadata((context) => [context.request, context]),
+			).toBe(true);
+		});
+
+		it("should return true for destructuring, computed access, and unknown properties", () => {
+			const requestKey = Date.now() > 0 ? "request" : "response";
+			const suffixedProperty = asFn(
+				new Function("return context => context.request$custom")(),
+			);
+			const unicodeProperty = asFn(
+				new Function("return context => context.requesté")(),
+			);
+
+			expect(usesResponseMetadata(({ request }) => request)).toBe(true);
+			expect(
+				usesResponseMetadata(
+					(context) =>
+						(context as unknown as Record<string, unknown>)[
+							requestKey
+						],
+				),
+			).toBe(true);
+			expect(
+				usesResponseMetadata(
+					(context) =>
+						(context as unknown as Record<string, unknown>).unknown,
+				),
+			).toBe(true);
+			expect(usesResponseMetadata(suffixedProperty)).toBe(true);
+			expect(usesResponseMetadata(unicodeProperty)).toBe(true);
+		});
+
+		it("should return true for arguments, eval, native, and bound functions", () => {
+			function throughArguments(_context: unknown) {
+				// biome-ignore lint/complexity/noArguments: Testing the conservative fallback
+				return arguments[0];
+			}
+
+			const throughEval = asFn(
+				new Function("context", 'return eval("context")'),
+			);
+
+			expect(usesResponseMetadata(throughArguments)).toBe(true);
+			expect(usesResponseMetadata(throughEval)).toBe(true);
+			expect(usesResponseMetadata(Math.random)).toBe(true);
+			expect(usesResponseMetadata((() => "v1").bind(null))).toBe(true);
+		});
+	});
+
+	describe("memoization", () => {
+		it("should ignore own toString overrides and preserve cached verdicts", () => {
+			const cached = (context: { request: unknown }) => context.request;
+			const responseHandler = (context: {
+				response: { headers: unknown };
+			}) => context.response.headers;
+			const spoofedSource = () => "context => context.request.raw";
+
+			expect(usesResponseMetadata(cached)).toBe(false);
+
+			cached.toString = spoofedSource;
+			responseHandler.toString = spoofedSource;
+
+			expect(usesResponseMetadata(cached)).toBe(false);
+			expect(usesResponseMetadata(responseHandler)).toBe(true);
 		});
 	});
 });
