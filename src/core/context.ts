@@ -35,7 +35,9 @@ export interface Context<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
-	/** @deprecated Regexp matching is an internal routing detail. */
+	/**
+	 * @deprecated Regexp matching is an internal routing detail.
+	 */
 	match?: RegExpExecArray;
 	memory: Cudenix["memory"];
 	request: { raw: Request } & Validators;
@@ -101,3 +103,30 @@ export const Context = function (
 	);
 	this.response.headers = new Headers();
 } as unknown as ContextConstructor;
+
+/**
+ * Context shape without response metadata.
+ *
+ * @example
+ * ```typescript
+ * const a = new LeanContext(app, request);
+ *
+ * a.request.raw; // request
+ * ```
+ */
+export const LeanContext = function (
+	this: AnyContext,
+	app: Cudenix,
+	request: Request,
+) {
+	this.memory = app.memory;
+	this.request = new Empty() as unknown as AnyContext["request"];
+	this.server = app.server!;
+	this.store = new Empty();
+
+	this.request.raw = request;
+} as unknown as ContextConstructor & { prototype: object };
+
+LeanContext.prototype = (
+	Context as unknown as ContextConstructor & { prototype: object }
+).prototype;

@@ -40,8 +40,7 @@ type MethodDispatchFactory = (table: Endpoint[]) => MethodDispatch;
 const methodDispatchFactories = new Map<string, MethodDispatchFactory>();
 
 /**
- * Associates compiled method data with its unrolled fallback resolver without
- * changing the hot object's property layout.
+ * Maps compiled method data to its fallback resolver.
  */
 export const methodDispatchers = new WeakMap<MethodData, MethodDispatch>();
 
@@ -188,21 +187,6 @@ const compareAnalyzedEndpoints = (a: AnalyzedEndpoint, b: AnalyzedEndpoint) => {
 
 /**
  * Collects routes and mounts from a module tree for compilation.
- *
- * @example
- * ```typescript
- * const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
- *
- * flatten(
- *   endpoints,
- *   [],
- *   new Module({ prefix: "/v1" }).route("GET", "/a", () => ok("v1")),
- *   [],
- *   "",
- * );
- *
- * endpoints.GET[0].path; // "/v1/a"
- * ```
  */
 const flatten = (
 	endpoints: Record<HttpMethod, Endpoint[]>,

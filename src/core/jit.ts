@@ -164,7 +164,9 @@ const generateParamsParser = (
 			: `params[${keyLiteral}]=${paramValueExpression};`;
 	}
 
-	// A matched dispatch without Bun params always comes from the regexp fallback.
+	/**
+	 * A matched dispatch without Bun params always comes from the regexp fallback.
+	 */
 	return `let params=request.params;if(!params){params=new ${EmptyName}();${assignmentsCode}}${target}=params;`;
 };
 
@@ -622,6 +624,11 @@ const createDispatcherFactoryPlan = (
  * Returns the exact dependency names linked by a generated dispatcher factory.
  *
  * @internal
+ *
+ * @example
+ * ```typescript
+ * const dependencies = inspectJitFactoryDependencies(app, endpoint);
+ * ```
  */
 export const inspectJitFactoryDependencies = (
 	app: Cudenix,
@@ -658,6 +665,13 @@ const factories = new Map<string, DispatcherFactoryEntry>();
 
 /**
  * Compiles an endpoint into a request dispatcher.
+ *
+ * @example
+ * ```typescript
+ * const dispatch = jit(app, endpoint);
+ *
+ * await dispatch.call(endpoint, request); // Response
+ * ```
  */
 export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 	const handler = endpoint.route.handler;
