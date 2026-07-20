@@ -2,9 +2,7 @@ import { FrozenEmpty } from "@/utils/objects/empty";
 import type { ExtractContent } from "@/utils/types/extract-content";
 
 /**
- * Response envelope returned by middlewares, stores, validators, and route
- * handlers, with `success` as the discriminant between the success and error
- * directions.
+ * Response envelope returned by handlers.
  *
  * @example
  * ```typescript
@@ -39,8 +37,7 @@ export interface Reply<
 export type AnyReply = Reply<any, any, any>;
 
 /**
- * Error direction of a {@link Reply} — discriminant fixed to `false`, status
- * defaulting to `400`.
+ * Error {@link Reply} with a `false` discriminant.
  *
  * @example
  * ```typescript
@@ -58,8 +55,7 @@ export type Fail<Content, Status extends number = 400> = Reply<
 >;
 
 /**
- * Success direction of a {@link Reply} — discriminant fixed to `true`, status
- * defaulting to `200`.
+ * Success {@link Reply} with a `true` discriminant.
  *
  * @example
  * ```typescript
@@ -234,8 +230,7 @@ export type FailFactory = <const Content, const Status extends number = 400>(
 ) => Fail<Content, Status>;
 
 /**
- * Build a success {@link Reply} ({@link Ok}) from a payload and an optional
- * status (defaults to `200`).
+ * Build an {@link Ok} reply.
  *
  * @example
  * ```typescript
@@ -250,8 +245,7 @@ export const ok = ((
 ) => new Reply(content, { status, success: true })) as unknown as OkFactory;
 
 /**
- * Build an error {@link Reply} ({@link Fail}) from a payload and an optional
- * status (defaults to `400`).
+ * Build a {@link Fail} reply.
  *
  * @example
  * ```typescript

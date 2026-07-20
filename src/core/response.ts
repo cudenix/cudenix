@@ -3,21 +3,7 @@ import type { ContextResponse } from "@/core/context";
 const NOT_CONTENT = new Response(undefined, { status: 204 });
 
 /**
- * Append every staged `Set-Cookie` header from `cookies` onto `result` and
- * return it. Bun's `CookieMap` only emits headers for cookies a handler `set`
- * or `delete`d — cookies merely read from the incoming request are never
- * echoed back — so an untouched map yields an empty list and appends nothing.
- *
- * @example
- * ```typescript
- * const cookies = new Bun.CookieMap();
- *
- * cookies.set("a", "v1");
- *
- * const a = applyCookies(new Response(), cookies);
- *
- * a.headers.getSetCookie(); // ["a=v1; Path=/; SameSite=Lax"]
- * ```
+ * Applies staged cookies to a response.
  */
 const applyCookies = (
 	result: Response,
@@ -37,27 +23,7 @@ const applyCookies = (
 };
 
 /**
- * Fold every staged `headers` entry onto `result` exactly once and return it.
- * Most headers `set` (override) — a handler staging `content-type` is meant to
- * replace the body's inferred one, and `cors`'s single-valued
- * `access-control-*` headers each have one final value — but `vary` `append`s,
- * because it is list-valued and a chain accumulates it across plugins (`cors`
- * stages `Origin`, `compress` puts `Accept-Encoding` on the body it materializes
- * and `Headers` coalesces both into one `vary: Accept-Encoding, Origin`). Staged
- * headers are folded ONLY here, never in {@link processResponse}, so no value is
- * doubled. `set-cookie` never travels through staged `headers` — it lives on
- * `cookies` and is applied by {@link applyCookies} — so the two never collide.
- *
- * @example
- * ```typescript
- * const headers = new Headers();
- *
- * headers.set("access-control-allow-origin", "*");
- *
- * const a = applyHeaders(new Response(), headers);
- *
- * a.headers.get("access-control-allow-origin"); // "*"
- * ```
+ * Applies staged headers to a response.
  */
 const applyHeaders = (
 	result: Response,
@@ -79,23 +45,7 @@ const applyHeaders = (
 };
 
 /**
- * Materialize a {@link ContextResponse} `content` value into a `Response` — a
- * `ReadableStream` becomes a `text/event-stream`, a missing or empty body
- * becomes `204`, a handler-returned raw `Response` is cloned through with its
- * own status and headers, and a reply envelope is serialized by its content's
- * constructor. The staged response `headers` and `cookies` are NOT folded here;
- * both {@link processResponse} and {@link response} share this body+status core.
- *
- * @example
- * ```typescript
- * const a = materialize(ok({ a: "v1" }));
- *
- * a.status; // 200
- *
- * const b = materialize(undefined);
- *
- * b.status; // 204
- * ```
+ * Materializes response content.
  */
 const materialize = (content: ContextResponse["content"]): Response => {
 	if (!content) {
@@ -133,14 +83,7 @@ const materialize = (content: ContextResponse["content"]): Response => {
 };
 
 /**
- * Materialize `response.content` into a real `Response` with a mutable
- * `Headers`, body, and status — WITHOUT folding the staged `response.headers`
- * or cookies. `compress` calls this to inspect and rewrite the body's own
- * headers (`content-type`, `content-length`, `vary`) before re-wrapping the
- * result as a fresh reply envelope; the staged response headers (CORS etc.) and
- * cookies are layered on later, exactly once, by {@link response} on the
- * serialize path. Folding staged headers here would double them, because the
- * re-wrapped envelope flows back through {@link response} a second time.
+ * Materializes the content of a {@link ContextResponse}.
  *
  * @example
  * ```typescript
@@ -157,10 +100,7 @@ export const processResponse = (response: ContextResponse): Response =>
 	materialize(response.content);
 
 /**
- * Build the final `Response` from a {@link ContextResponse} `content` value,
- * then fold the staged `headers` (CORS etc.) and `cookies` onto it exactly once.
- * `headers` and `cookies` are omitted only for a request-independent static
- * response that `compile` builds once without a context.
+ * Builds the final `Response` with staged cookies and headers.
  *
  * @example
  * ```typescript

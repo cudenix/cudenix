@@ -23,8 +23,7 @@ export type ValidatorPlugin = (
 ) => MaybePromise<{ content: unknown; success: boolean }>;
 
 /**
- * Infer the issue type a Standard Schema reports on failure, falling back to
- * {@link StandardSchemaV1.Issue}`[]`. Non-schema types pass through unchanged.
+ * Infers a Standard Schema issue type.
  *
  * @example
  * ```typescript
@@ -39,8 +38,7 @@ export type InferValidatorError<Type> = Type extends StandardSchemaV1
 	: Type;
 
 /**
- * Infer the input type a Standard Schema accepts via
- * {@link StandardSchemaV1.InferInput}. Non-schema types pass through unchanged.
+ * Infers a Standard Schema input type.
  *
  * @example
  * ```typescript
@@ -53,9 +51,7 @@ export type InferValidatorInput<Type> = Type extends StandardSchemaV1
 	: Type;
 
 /**
- * Infer the output type a Standard Schema produces via
- * {@link StandardSchemaV1.InferOutput}. Non-schema types pass through
- * unchanged.
+ * Infers a Standard Schema output type.
  *
  * @example
  * ```typescript

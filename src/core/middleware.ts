@@ -3,27 +3,11 @@ import type { AnyFail, AnyOk } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
- * Callable shape of a `.middleware()` step. Receives a {@link Context}
- * and a `next` continuation that advances the chain. Returning {@link AnyFail}
- * or {@link AnyOk} becomes the response; `void` defers to the rest of the
- * chain. May be sync or async.
+ * Middleware handler that may continue or return a response.
  *
  * @example
  * ```typescript
- * const a: MiddlewareFn<MaybePromise<void>, {}, {}> = async (_, next) => {
- *   await next();
- * };
- *
- * const b: MiddlewareFn<MaybePromise<AnyFail | void>, {}, {}> = (
- *   context,
- *   next,
- * ) => {
- *   if (!context.request.raw.headers.get("a")) {
- *     return fail("v1", { status: 401 });
- *   }
- *
- *   return next();
- * };
+ * const a: MiddlewareFn<MaybePromise<void>, {}, {}> = (_, next) => next();
  * ```
  */
 export type MiddlewareFn<

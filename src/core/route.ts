@@ -14,8 +14,7 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 import type { Merge } from "@/utils/types/merge";
 
 /**
- * Lift a slash-separated `Path` literal into a nested record whose deepest
- * leaf carries `Value`.
+ * Converts a path into a nested object.
  *
  * @example
  * ```typescript
@@ -33,9 +32,7 @@ export type PathToObject<
 	: Record<Path, Value>;
 
 /**
- * Compose a single route declaration into the nested record the client-facing
- * route tree expects, keyed by lower-cased method at the deepest leaf (root
- * `"/"` becomes `"index"`).
+ * Converts a route into the client route tree.
  *
  * @example
  * ```typescript
@@ -79,8 +76,7 @@ export type IsRouteLeaf<T> = T extends { method: string; path: string }
 	: false;
 
 /**
- * Deeply merge two route trees; on a duplicate route the first tree's
- * descriptor wins.
+ * Merges two route trees with left-side precedence.
  *
  * @example
  * ```typescript
@@ -110,8 +106,7 @@ export type MergeRoutes<T extends object, U extends object> = {
 };
 
 /**
- * Envelope a streaming route can emit — an {@link AnyFail} or an
- * {@link AnyOk}.
+ * Reply envelope emitted by a streaming route.
  *
  * @example
  * ```typescript
@@ -121,8 +116,7 @@ export type MergeRoutes<T extends object, U extends object> = {
 export type RouteFnReturnGeneratorEnvelope = AnyFail | AnyOk;
 
 /**
- * Single frame yielded by a streaming route — a {@link GeneratorSSE} carrying
- * a {@link RouteFnReturnGeneratorEnvelope}.
+ * SSE frame yielded by a streaming route.
  *
  * @example
  * ```typescript
@@ -138,10 +132,7 @@ export type RouteFnReturnGeneratorFrame = GeneratorSSE<
 >;
 
 /**
- * Sync or async generator returned by a streaming route. Yields a
- * {@link RouteFnReturnGeneratorFrame} per chunk and may `return` a final
- * {@link RouteFnReturnGeneratorEnvelope} — `void` covers the common case of a
- * handler that only ever yields and never returns a closing value.
+ * Generator returned by a streaming route.
  *
  * @example
  * ```typescript
@@ -164,9 +155,7 @@ export type RouteFnReturnGenerator =
 	  >;
 
 /**
- * Augment a validator map with a `params` slot inferred from `Path` when the
- * pattern declares URL parameters. A `params` slot already declared by a
- * validator wins.
+ * Adds inferred URL parameters to a validator map.
  *
  * @example
  * ```typescript
@@ -191,10 +180,7 @@ export type ValidatorsWithParams<
 		: never;
 
 /**
- * Function signature of a route handler. Receives a typed
- * {@link Context} and returns a sync or async {@link AnyFail} |
- * {@link AnyOk} envelope, or a {@link RouteFnReturnGenerator} for
- * streaming.
+ * Defines a typed route handler.
  *
  * @example
  * ```typescript
@@ -277,9 +263,7 @@ export interface Route<
 export type AnyRoute = Route<any, any, any, any, any, any>;
 
 /**
- * Value accepted by `module.route` for the handler argument — either a
- * {@link RouteFn} or the already-built {@link AnyFail}/{@link AnyOk} envelope
- * it would return.
+ * Handler accepted by `module.route`.
  *
  * @example
  * ```typescript
@@ -313,8 +297,7 @@ export type RouteHandler<
 export type AnyRouteHandler = RouteHandler<any, any, any, any>;
 
 /**
- * Options object accepted as the trailing argument to `module.route` — a
- * route-scoped {@link ValidatorOptions}.
+ * Options for `module.route`.
  *
  * @example
  * ```typescript

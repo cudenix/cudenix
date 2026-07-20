@@ -48,9 +48,7 @@ import type { RequiredKeys } from "@/utils/types/required-keys";
 import type { ValueOf } from "@/utils/types/value-of";
 
 /**
- * Ordered list of links a module accumulates — a nested {@link AnyGroup},
- * {@link AnyMiddleware}, mounted {@link AnyModule}, {@link AnyRoute},
- * {@link AnyStore}, or {@link AnyValidator}.
+ * Lists the links accumulated by a module.
  *
  * @example
  * ```typescript
@@ -68,8 +66,7 @@ export type ModuleChain = (
 )[];
 
 /**
- * Constraint on the `Validators` generic of {@link Module}: `inputs` is the
- * pre-validation shape and `outputs` is the parsed shape.
+ * Constrains the validator maps of a {@link Module}.
  *
  * @example
  * ```typescript
@@ -85,8 +82,7 @@ export interface ModuleValidatorsConstraint {
 }
 
 /**
- * Fluent module builder with `group`, `middleware`, `mount`, `route`, `store`,
- * `use`, and `validator` methods for assembling routes.
+ * Fluent module builder for assembling routes.
  *
  * @example
  * ```typescript
@@ -311,8 +307,7 @@ export interface Module<
 }
 
 /**
- * Any {@link Module} regardless of its errors, prefix, routes, stores,
- * successes, or validators generics.
+ * Any {@link Module} regardless of its generics.
  *
  * @example
  * ```typescript
@@ -322,8 +317,7 @@ export interface Module<
 export type AnyModule = Module<any, any, any, any, any, any>;
 
 /**
- * Options for the {@link Module} constructor. `prefix` (must start with `/`)
- * is the path every route is mounted under; omit it to stay rooted at `/`.
+ * Options for the {@link Module} constructor.
  *
  * @example
  * ```typescript
@@ -447,8 +441,7 @@ Module.prototype.middleware = function (
 };
 
 /**
- * Compose another module into this one, merging its routes, stores, validators,
- * and replies.
+ * Compose another module into this one.
  *
  * @example
  * ```typescript
@@ -464,9 +457,7 @@ Module.prototype.use = function (this: AnyModule, module: AnyModule) {
 };
 
 /**
- * Mount a foreign WinterCG `fetch` handler — another framework (Hono, Elysia,
- * …) or another Cudenix app. Every request below `options.prefix` is delegated
- * to `fetch` with the prefix stripped; omit `prefix` to mount at the root.
+ * Mount a WinterCG `fetch` handler.
  *
  * @example
  * ```typescript

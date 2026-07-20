@@ -3,9 +3,7 @@ import type { AnyFail } from "@/core/reply";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
- * Callable shape of a `.store()` step. Receives a {@link Context} and
- * returns either a record merged into `context.store` or an {@link AnyFail}.
- * May be sync or async.
+ * Defines a `.store()` handler.
  *
  * @example
  * ```typescript
