@@ -98,6 +98,11 @@ const decodeUtf8Bytes = (bytes: number[]) => {
 
 /**
  * Decodes a percent-encoded route parameter.
+ *
+ * @example
+ * ```typescript
+ * decodePathParam("a%20b"); // "a b"
+ * ```
  */
 export const decodePathParam = (value: string) => {
 	const firstPercentIndex = value.indexOf("%");
