@@ -4,10 +4,31 @@ const EMPTY_PARAMETERS =
 const FIRST_PARAMETER =
 	/^\s*(?:(?:async(?=\s|\*)\s*)?(?:function\s*\*?\s*(?:[A-Za-z_$][\w$]*)?|\*\s*[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*)?\(\s*([A-Za-z_]\w*)\s*[,)]|(?:async\s+)?([A-Za-z_]\w*)\s*=>)/;
 
-const verdicts = new WeakMap<(...args: any[]) => unknown, boolean>();
+const RESPONSE_INDEPENDENT_PROPERTIES = new Set([
+	"match",
+	"memory",
+	"request",
+	"server",
+	"store",
+]);
+
+interface ContextUsage {
+	needsContext: boolean;
+	needsResponseMetadata: boolean;
+}
+
+interface FirstParameter {
+	name: string;
+	searchStart: number;
+}
+
+const contextUsageCache = new WeakMap<
+	(...args: any[]) => unknown,
+	ContextUsage
+>();
 
 /**
- * Detects forms that can reach an argument without a plain identifier.
+ * Detects opaque or indirect argument access.
  */
 const hasUnsafeSourceAccess = (source: string) =>
 	source.indexOf("[native code]") !== -1 ||
@@ -16,7 +37,7 @@ const hasUnsafeSourceAccess = (source: string) =>
 	source.indexOf("\\u") !== -1;
 
 /**
- * Mirrors the ASCII `\w` boundaries previously used by the dynamic RegExp.
+ * Detects an ASCII word character.
  */
 const isWordCharacter = (code: number) =>
 	(code >= 48 && code <= 57) ||
@@ -24,70 +45,198 @@ const isWordCharacter = (code: number) =>
 	code === 95 ||
 	(code >= 97 && code <= 122);
 
-const hasParameterReference = (
-	source: string,
-	parameter: string,
-	start: number,
-) => {
-	let index = source.indexOf(parameter, start);
+/**
+ * Detects a conservative property-name character.
+ */
+const isPropertyCharacter = (code: number) =>
+	isWordCharacter(code) || code === 36 || code > 127;
+
+/**
+ * Detects whitespace accepted around property access.
+ */
+const isWhitespace = (code: number) =>
+	code === 9 || code === 10 || code === 13 || code === 32;
+
+/**
+ * Reads a plain first parameter from function source.
+ */
+const getFirstParameter = (source: string): FirstParameter | undefined => {
+	const match = FIRST_PARAMETER.exec(source);
+	const name = match?.[1] ?? match?.[2];
+
+	if (!match || !name) {
+		return;
+	}
+
+	return { name, searchStart: match[0].length };
+};
+
+/**
+ * Checks whether an occurrence is a complete parameter reference.
+ */
+const isParameterReference = (source: string, index: number, length: number) =>
+	!isWordCharacter(source.charCodeAt(index - 1)) &&
+	!isWordCharacter(source.charCodeAt(index + length));
+
+/**
+ * Finds a reference to the first parameter.
+ */
+const hasParameterReference = (source: string, parameter: FirstParameter) => {
+	let index = source.indexOf(parameter.name, parameter.searchStart);
 
 	while (index !== -1) {
-		if (
-			!isWordCharacter(source.charCodeAt(index - 1)) &&
-			!isWordCharacter(source.charCodeAt(index + parameter.length))
-		) {
+		if (isParameterReference(source, index, parameter.name.length)) {
 			return true;
 		}
 
-		index = source.indexOf(parameter, index + parameter.length);
+		index = source.indexOf(parameter.name, index + parameter.name.length);
 	}
 
 	return false;
 };
 
-const sourceUsesContext = (source: string, arity: number) => {
-	if (arity === 0) {
-		return !EMPTY_PARAMETERS.test(source) || hasUnsafeSourceAccess(source);
+/**
+ * Skips whitespace from a source offset.
+ */
+const skipWhitespace = (source: string, start: number) => {
+	let index = start;
+
+	while (isWhitespace(source.charCodeAt(index))) {
+		index++;
 	}
 
-	const match = FIRST_PARAMETER.exec(source);
-
-	if (!match) {
-		return true;
-	}
-
-	const parameter = match[1] ?? match[2];
-
-	if (
-		parameter === undefined ||
-		hasParameterReference(source, parameter, match[0].length)
-	) {
-		return true;
-	}
-
-	return hasUnsafeSourceAccess(source);
+	return index;
 };
 
 /**
- * Detects whether a function accesses the request context.
+ * Reads the direct property following a context reference.
+ */
+const getDirectProperty = (source: string, start: number) => {
+	let propertyStart = skipWhitespace(source, start);
+
+	if (source.startsWith("?.", propertyStart)) {
+		propertyStart += 2;
+	} else if (source.charCodeAt(propertyStart) === 46) {
+		propertyStart++;
+	} else {
+		return;
+	}
+
+	propertyStart = skipWhitespace(source, propertyStart);
+
+	let propertyEnd = propertyStart;
+
+	while (isPropertyCharacter(source.charCodeAt(propertyEnd))) {
+		propertyEnd++;
+	}
+
+	if (propertyEnd !== propertyStart) {
+		return source.slice(propertyStart, propertyEnd);
+	}
+};
+
+/**
+ * Checks that every context reference targets a safe property.
+ */
+const hasOnlyMetadataIndependentAccess = (
+	source: string,
+	parameter: FirstParameter,
+) => {
+	let index = source.indexOf(parameter.name, parameter.searchStart);
+
+	while (index !== -1) {
+		if (isParameterReference(source, index, parameter.name.length)) {
+			const property = getDirectProperty(
+				source,
+				index + parameter.name.length,
+			);
+
+			if (
+				property === undefined ||
+				!RESPONSE_INDEPENDENT_PROPERTIES.has(property)
+			) {
+				return false;
+			}
+		}
+
+		index = source.indexOf(parameter.name, index + parameter.name.length);
+	}
+
+	return true;
+};
+
+/**
+ * Detects whether function source needs context.
+ */
+const needsContextFromSource = (
+	source: string,
+	arity: number,
+	parameter: FirstParameter | undefined,
+	hasUnsafeAccess: boolean,
+) => {
+	if (arity === 0) {
+		return !EMPTY_PARAMETERS.test(source) || hasUnsafeAccess;
+	}
+
+	return (
+		parameter === undefined ||
+		hasParameterReference(source, parameter) ||
+		hasUnsafeAccess
+	);
+};
+
+/**
+ * Analyzes and caches a function's context requirements.
+ */
+const getContextUsage = (fn: (...args: any[]) => unknown): ContextUsage => {
+	let usage = contextUsageCache.get(fn);
+
+	if (usage) {
+		return usage;
+	}
+
+	const source = fn.toString();
+	const parameter = getFirstParameter(source);
+	const hasUnsafeAccess = hasUnsafeSourceAccess(source);
+	const needsContext = needsContextFromSource(
+		source,
+		fn.length,
+		parameter,
+		hasUnsafeAccess,
+	);
+	const needsResponseMetadata =
+		needsContext &&
+		(hasUnsafeAccess ||
+			parameter === undefined ||
+			!hasOnlyMetadataIndependentAccess(source, parameter));
+
+	usage = { needsContext, needsResponseMetadata };
+
+	contextUsageCache.set(fn, usage);
+
+	return usage;
+};
+
+/**
+ * Detects whether a function accesses its context parameter.
  *
  * @example
  * ```typescript
- * usesContext(() => {}); // false
- * usesContext((_context, next) => next()); // false
+ * usesContext(() => "v1"); // false
  * usesContext((context) => context.store); // true
- * usesContext(function () { return arguments[0]; }); // true
- * usesContext((...args) => args[0]); // true
  * ```
  */
-export const usesContext = (fn: (...args: any[]) => unknown) => {
-	let verdict = verdicts.get(fn);
+export const usesContext = (fn: (...args: any[]) => unknown) =>
+	getContextUsage(fn).needsContext;
 
-	if (verdict === undefined) {
-		verdict = sourceUsesContext(fn.toString(), fn.length);
-
-		verdicts.set(fn, verdict);
-	}
-
-	return verdict;
-};
+/**
+ * Detects whether a function requires response metadata.
+ *
+ * @example
+ * ```typescript
+ * usesResponseMetadata((context) => context.request.raw); // false
+ * usesResponseMetadata((context) => context.response.headers); // true
+ * ```
+ */
+export const usesResponseMetadata = (fn: (...args: any[]) => unknown) =>
+	getContextUsage(fn).needsResponseMetadata;
