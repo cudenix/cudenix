@@ -1,26 +1,3 @@
-const EMPTY_PARAMETERS =
-	/^\s*(?:async(?=\s|\*)\s*)?(?:function\s*\*?\s*(?:[A-Za-z_$][\w$]*)?|\*\s*[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*)?\(\s*\)/;
-const FIRST_PARAMETER =
-	/^\s*(?:(?:async(?=\s|\*)\s*)?(?:function\s*\*?\s*(?:[A-Za-z_$][\w$]*)?|\*\s*[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*)?\(\s*([A-Za-z_]\w*)\s*[,)]|(?:async\s+)?([A-Za-z_]\w*)\s*=>)/;
-
-const CONTEXT_MEMORY = 1;
-const CONTEXT_REQUEST = 2;
-const CONTEXT_SERVER = 4;
-const CONTEXT_STORE = 8;
-const RESPONSE_CONTENT = 16;
-const RESPONSE_COOKIES = 32;
-const RESPONSE_HEADERS = 64;
-const CONTEXT_ALL =
-	CONTEXT_MEMORY |
-	CONTEXT_REQUEST |
-	CONTEXT_SERVER |
-	CONTEXT_STORE |
-	RESPONSE_CONTENT |
-	RESPONSE_COOKIES |
-	RESPONSE_HEADERS;
-
-const handlerAnalysisCache = new WeakMap<AnalyzableHandler, HandlerAnalysis>();
-
 export interface HandlerAnalysis {
 	readonly needsContext: boolean;
 	readonly needsMemory: boolean;
@@ -33,24 +10,61 @@ export interface HandlerAnalysis {
 	readonly needsStore: boolean;
 }
 
+/**
+ * Any function whose source can be analyzed.
+ */
 type AnalyzableHandler = (...args: never[]) => unknown;
 
+/**
+ * A plain first parameter and the offset where its body search starts.
+ */
 interface FirstParameter {
 	name: string;
 	searchStart: number;
 }
 
 /**
- * Detects opaque or indirect argument access.
+ * Matches function sources declared with an empty parameter list.
  */
-const hasUnsafeSourceAccess = (source: string) =>
-	source.indexOf("[native code]") !== -1 ||
-	source.indexOf("arguments") !== -1 ||
-	source.indexOf("eval") !== -1 ||
-	source.indexOf("\\u") !== -1;
+const EMPTY_PARAMETERS =
+	/^\s*(?:async(?=\s|\*)\s*)?(?:function\s*\*?\s*(?:[A-Za-z_$][\w$]*)?|\*\s*[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*)?\(\s*\)/;
 
 /**
- * Detects an ASCII word character.
+ * Captures a plain first parameter name: group 1 inside a parameter list,
+ * group 2 for a bare arrow parameter.
+ */
+const FIRST_PARAMETER =
+	/^\s*(?:(?:async(?=\s|\*)\s*)?(?:function\s*\*?\s*(?:[A-Za-z_$][\w$]*)?|\*\s*[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*)?\(\s*([A-Za-z_]\w*)\s*[,)]|(?:async\s+)?([A-Za-z_]\w*)\s*=>)/;
+
+/**
+ * Bit flags for each context feature a handler can access.
+ */
+const CONTEXT_MEMORY = 1;
+const CONTEXT_REQUEST = 2;
+const CONTEXT_SERVER = 4;
+const CONTEXT_STORE = 8;
+const RESPONSE_CONTENT = 16;
+const RESPONSE_COOKIES = 32;
+const RESPONSE_HEADERS = 64;
+
+/**
+ * Union of the response flags; backs `needsResponseMetadata`.
+ */
+const RESPONSE_METADATA =
+	RESPONSE_CONTENT | RESPONSE_COOKIES | RESPONSE_HEADERS;
+
+/**
+ * Union of every flag; the pessimistic result when source cannot be narrowed.
+ */
+const CONTEXT_ALL =
+	CONTEXT_MEMORY |
+	CONTEXT_REQUEST |
+	CONTEXT_SERVER |
+	CONTEXT_STORE |
+	RESPONSE_METADATA;
+
+/**
+ * Detects an ASCII word character (`0-9`, `A-Z`, `_`, `a-z`).
  */
 const isWordCharacter = (code: number) =>
 	(code >= 48 && code <= 57) ||
@@ -59,13 +73,14 @@ const isWordCharacter = (code: number) =>
 	(code >= 97 && code <= 122);
 
 /**
- * Detects a conservative property-name character.
+ * Detects a conservative property-name character: a word character, `$`, or
+ * anything beyond ASCII.
  */
 const isPropertyCharacter = (code: number) =>
 	isWordCharacter(code) || code === 36 || code > 127;
 
 /**
- * Detects whitespace accepted around property access.
+ * Detects whitespace accepted around property access (tab, LF, CR, space).
  */
 const isWhitespace = (code: number) =>
 	code === 9 || code === 10 || code === 13 || code === 32;
@@ -122,7 +137,7 @@ const skipWhitespace = (source: string, start: number) => {
 };
 
 /**
- * Reads the direct property following a context reference.
+ * Reads the property behind a `.` or `?.` access at a source offset.
  */
 const getDirectProperty = (source: string, start: number) => {
 	let propertyStart = skipWhitespace(source, start);
@@ -221,6 +236,15 @@ const getPropertyUsage = (source: string, parameter: FirstParameter) => {
 };
 
 /**
+ * Detects opaque or indirect argument access.
+ */
+const hasUnsafeSourceAccess = (source: string) =>
+	source.indexOf("[native code]") !== -1 ||
+	source.indexOf("arguments") !== -1 ||
+	source.indexOf("eval") !== -1 ||
+	source.indexOf("\\u") !== -1;
+
+/**
  * Detects whether function source needs context.
  */
 const needsContextFromSource = (
@@ -241,7 +265,21 @@ const needsContextFromSource = (
 };
 
 /**
+ * Memoizes analyses by handler identity.
+ */
+const handlerAnalysisCache = new WeakMap<AnalyzableHandler, HandlerAnalysis>();
+
+/**
  * Analyzes and caches the characteristics of a handler.
+ *
+ * @example
+ * ```typescript
+ * const analysis = analyzeHandler((context) => context.store.a);
+ *
+ * analysis.needsContext; // true
+ * analysis.needsStore; // true
+ * analysis.needsRequest; // false
+ * ```
  */
 export const analyzeHandler = (handler: AnalyzableHandler) => {
 	let analysis = handlerAnalysisCache.get(handler);
@@ -272,10 +310,7 @@ export const analyzeHandler = (handler: AnalyzableHandler) => {
 		needsResponseContent: (propertyUsage & RESPONSE_CONTENT) !== 0,
 		needsResponseCookies: (propertyUsage & RESPONSE_COOKIES) !== 0,
 		needsResponseHeaders: (propertyUsage & RESPONSE_HEADERS) !== 0,
-		needsResponseMetadata:
-			(propertyUsage &
-				(RESPONSE_CONTENT | RESPONSE_COOKIES | RESPONSE_HEADERS)) !==
-			0,
+		needsResponseMetadata: (propertyUsage & RESPONSE_METADATA) !== 0,
 		needsServer: (propertyUsage & CONTEXT_SERVER) !== 0,
 		needsStore: (propertyUsage & CONTEXT_STORE) !== 0,
 	});
