@@ -1,5 +1,4 @@
 import { compile, methodDispatchers } from "@/core/compile";
-import type { Dispatch } from "@/core/dispatch";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
 import type { CompiledMount } from "@/core/mount";
@@ -42,7 +41,10 @@ export type EndpointChain = (AnyMiddleware | AnyStore | AnyValidator)[];
  */
 export interface Endpoint {
 	chain: EndpointChain;
-	dispatch: Dispatch;
+	dispatch: (
+		request: Request,
+		match?: RegExpExecArray,
+	) => MaybePromise<Response>;
 	matchOffset: number;
 	paramFlags?: number[];
 	paramKeys: string[];
