@@ -37,6 +37,7 @@ export const parseBody = async (request: Request) => {
 			return request.json() as Promise<unknown>;
 		}
 
+		// ";" (59) starts media type parameters
 		if (
 			(length === 24 || contentType.charCodeAt(24) === 59) &&
 			contentType.startsWith("application/octet-stream")
@@ -44,13 +45,17 @@ export const parseBody = async (request: Request) => {
 			return request.arrayBuffer();
 		}
 
+		// ";" (59) starts media type parameters
 		isForm =
 			(length === 33 || contentType.charCodeAt(33) === 59) &&
 			contentType.startsWith("application/x-www-form-urlencoded");
-	} else if (firstCharCode === 109) {
+	} else if (
 		// "m" (109) multipart/*
+		firstCharCode === 109
+	) {
 		const length = contentType.length;
 
+		// ";" (59) starts media type parameters
 		isForm =
 			(length === 19 || contentType.charCodeAt(19) === 59) &&
 			contentType.startsWith("multipart/form-data");

@@ -49,7 +49,7 @@ export const parseCookies = (header: string) => {
 			i++;
 		}
 
-		// scan to the end of the current pair
+		// scan to the next "; " (59, 32) pair boundary
 		while (i < length) {
 			if (
 				header.charCodeAt(i) === 59 &&

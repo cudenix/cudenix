@@ -100,8 +100,11 @@ export const pathToRegexp = (path: string) => {
 			ranks.push(PARAM_RANK);
 
 			segment = PARAM_CAPTURE;
-		} else if (firstCharCode === 42 && contentEnd - i === 1) {
+		} else if (
 			// lone "*" (42) wildcard
+			firstCharCode === 42 &&
+			contentEnd - i === 1
+		) {
 			ranks.push(WILDCARD_RANK);
 
 			segment = WILDCARD;

@@ -48,6 +48,7 @@ export const parseQuery = (url: string) => {
 				break;
 			}
 
+			// "+" (43) and "%" (37) require key decoding
 			if (charCode === 43) {
 				flags |= KEY_HAS_PLUS;
 			} else if (charCode === 37) {
@@ -57,6 +58,7 @@ export const parseQuery = (url: string) => {
 			i++;
 		}
 
+		// "=" (61) starts the value
 		const hasValue = i < urlLength && url.charCodeAt(i) === 61;
 
 		let key = url.substring(keyStart, i);
@@ -80,6 +82,7 @@ export const parseQuery = (url: string) => {
 					break;
 				}
 
+				// "+" (43) and "%" (37) require value decoding
 				if (charCode === 43) {
 					flags |= VALUE_HAS_PLUS;
 				} else if (charCode === 37) {
@@ -125,7 +128,7 @@ export const parseQuery = (url: string) => {
 				if (firstCharCode === 123 || firstCharCode === 91) {
 					const lastCharCode = value.charCodeAt(value.length - 1);
 
-					// only parse balanced "{...}" or "[...]"
+					// require matching "}" (125) or "]" (93)
 					if (
 						(firstCharCode === 123 && lastCharCode === 125) ||
 						(firstCharCode === 91 && lastCharCode === 93)

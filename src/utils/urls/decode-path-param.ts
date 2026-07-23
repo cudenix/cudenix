@@ -143,7 +143,7 @@ export const decodePathParam = (value: string) => {
 	let i = firstPercentIndex;
 
 	while (i < length) {
-		// literal character (not "%")
+		// literal character, not "%" (37)
 		if (value.charCodeAt(i) !== 37) {
 			if (bytes.length > 0) {
 				decoded += decodeUtf8Bytes(bytes);
