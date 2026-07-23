@@ -1,16 +1,36 @@
+// a single segment, captured
 const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
+// one or more "/"-separated segments, captured as one string
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
 // same shape as rest but non-capturing, and the trailing "?" lets "*" match zero segments
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
 
 const REGEXP_SYNTAX = /[\\^$.*+?()[\]{}|]/g;
 
+// segment specificity used to order routes: lower ranks match first
 const STATIC_RANK = 0;
 const PARAM_RANK = 1;
 const WILDCARD_RANK = 2;
 const REST_RANK = 3;
 
+/**
+ * Marks an optional route parameter in `paramFlags`.
+ *
+ * @example
+ * ```typescript
+ * pathToRegexp("/a/:p1?").paramFlags; // [PARAM_FLAG_OPTIONAL]
+ * ```
+ */
 export const PARAM_FLAG_OPTIONAL = 1;
+
+/**
+ * Marks a rest route parameter in `paramFlags`.
+ *
+ * @example
+ * ```typescript
+ * pathToRegexp("/a/...r1").paramFlags; // [PARAM_FLAG_REST]
+ * ```
+ */
 export const PARAM_FLAG_REST = 2;
 
 /**
@@ -67,7 +87,7 @@ export const pathToRegexp = (path: string) => {
 
 		// a trailing "?" (63) marks the segment as optional
 		const isOptional = path.charCodeAt(segmentEnd - 1) === 63;
-		const end = isOptional ? segmentEnd - 1 : segmentEnd;
+		const contentEnd = isOptional ? segmentEnd - 1 : segmentEnd;
 		const firstCharCode = path.charCodeAt(i);
 
 		let segment: string;
@@ -75,12 +95,12 @@ export const pathToRegexp = (path: string) => {
 		// ":" (58) named param
 		if (firstCharCode === 58) {
 			paramFlags.push(isOptional ? PARAM_FLAG_OPTIONAL : 0);
-			paramKeys.push(path.substring(i + 1, end));
+			paramKeys.push(path.substring(i + 1, contentEnd));
 
 			ranks.push(PARAM_RANK);
 
 			segment = PARAM_CAPTURE;
-		} else if (firstCharCode === 42 && end - i === 1) {
+		} else if (firstCharCode === 42 && contentEnd - i === 1) {
 			// lone "*" (42) wildcard
 			ranks.push(WILDCARD_RANK);
 
@@ -91,7 +111,7 @@ export const pathToRegexp = (path: string) => {
 			path.charCodeAt(i + 1) === 46 &&
 			path.charCodeAt(i + 2) === 46
 		) {
-			const name = path.substring(i + 3, end);
+			const name = path.substring(i + 3, contentEnd);
 
 			paramFlags.push(
 				PARAM_FLAG_REST | (isOptional ? PARAM_FLAG_OPTIONAL : 0),
@@ -107,7 +127,7 @@ export const pathToRegexp = (path: string) => {
 			// static segment, with regexp syntax escaped
 			ranks.push(STATIC_RANK);
 
-			segment = `\\/${path.substring(i, end).replace(REGEXP_SYNTAX, "\\$&")}`;
+			segment = `\\/${path.substring(i, contentEnd).replace(REGEXP_SYNTAX, "\\$&")}`;
 		}
 
 		if (isOptional) {

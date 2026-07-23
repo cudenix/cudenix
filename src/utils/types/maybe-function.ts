@@ -1,3 +1,5 @@
+import type { MaybePromise } from "@/utils/types/maybe-promise";
+
 /**
  * Represents a value or a factory that produces it.
  *
@@ -8,4 +10,4 @@
  * const c: MaybeFunction<number> = async () => 1;
  * ```
  */
-export type MaybeFunction<T> = T | (() => T | Promise<T>);
+export type MaybeFunction<T> = T | (() => MaybePromise<T>);

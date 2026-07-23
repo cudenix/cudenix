@@ -1,11 +1,11 @@
 /**
  * Normalizes a path type by removing its trailing slash.
  */
-type RemoveTrailingSlash<Type extends string> = Type extends "/"
-	? Type
-	: Type extends `${infer WithoutTrailingSlash}/`
+type RemoveTrailingSlash<Path extends string> = Path extends "/"
+	? Path
+	: Path extends `${infer WithoutTrailingSlash}/`
 		? WithoutTrailingSlash
-		: Type;
+		: Path;
 
 /**
  * Joins prefix and path literals into a single path type.

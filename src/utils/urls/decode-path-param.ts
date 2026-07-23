@@ -2,14 +2,15 @@
  * Converts a hexadecimal character code to a number.
  */
 const hexCharCodeToValue = (charCode: number) => {
-	// "0"-"9"
+	// "0" (48) - "9" (57)
 	if (charCode >= 48 && charCode <= 57) {
 		return charCode - 48;
 	}
 
-	// "| 32" lowercases, so only "a"-"f" needs checking
+	// "| 32" lowercases, so only "a" (97) - "f" (102) needs checking
 	const lowerCharCode = charCode | 32;
 
+	// 87 = "a" (97) - 10, mapping "a"-"f" to 10-15
 	return lowerCharCode >= 97 && lowerCharCode <= 102
 		? lowerCharCode - 87
 		: -1;

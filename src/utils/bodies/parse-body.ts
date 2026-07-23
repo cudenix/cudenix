@@ -6,9 +6,9 @@ import { Empty } from "@/utils/objects/empty";
  * @example
  * ```typescript
  * const request = new Request("https://a.b/c", {
- * 	body: JSON.stringify({ b: "v1" }),
- * 	headers: { "content-type": "application/json" },
- * 	method: "POST",
+ *   body: JSON.stringify({ b: "v1" }),
+ *   headers: { "content-type": "application/json" },
+ *   method: "POST",
  * });
  *
  * await parseBody(request); // { b: "v1" }
@@ -25,7 +25,7 @@ export const parseBody = async (request: Request) => {
 
 	let isForm = false;
 
-	// 97 = "a" (application/*)
+	// "a" (97) application/*
 	if (firstCharCode === 97) {
 		const length = contentType.length;
 
@@ -48,7 +48,7 @@ export const parseBody = async (request: Request) => {
 			(length === 33 || contentType.charCodeAt(33) === 59) &&
 			contentType.startsWith("application/x-www-form-urlencoded");
 	} else if (firstCharCode === 109) {
-		// 109 = "m" (multipart/*)
+		// "m" (109) multipart/*
 		const length = contentType.length;
 
 		isForm =
