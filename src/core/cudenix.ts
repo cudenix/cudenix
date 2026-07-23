@@ -80,13 +80,8 @@ export type Plugin = (this: Cudenix, ...options: any[]) => void;
 
 /**
  * Defines the options accepted when starting the application server.
- *
- * @example
- * ```typescript
- * const a: ListenOptions = { port: 3000 };
- * ```
  */
-export type ListenOptions = Omit<
+type ListenOptions = Omit<
 	Extract<Bun.Serve.Options<unknown>, { websocket?: never }>,
 	"fetch" | "routes" | "unix"
 >;
@@ -114,15 +109,8 @@ export interface Cudenix {
 
 /**
  * Defines the constructor for creating a {@link Cudenix} application.
- *
- * @example
- * ```typescript
- * const Ctor: CudenixConstructor = Cudenix;
- *
- * const a = new Ctor(new Module());
- * ```
  */
-export interface CudenixConstructor {
+interface CudenixConstructor {
 	new (module: AnyModule): Cudenix;
 }
 
