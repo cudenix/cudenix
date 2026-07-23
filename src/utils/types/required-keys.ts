@@ -1,5 +1,5 @@
 /**
- * Identifies required properties in an object type.
+ * Identifies keys of an object type whose values cannot be undefined.
  *
  * @example
  * ```typescript

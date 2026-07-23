@@ -9,6 +9,7 @@
  */
 export type AllPropertiesAreUnknown<T extends object> = {
 	[K in keyof T]: unknown extends T[K] ? true : false;
+	// "| undefined" covers optional properties
 }[keyof T] extends true | undefined
 	? true
 	: false;

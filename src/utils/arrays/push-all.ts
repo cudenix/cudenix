@@ -12,6 +12,7 @@ export const pushAll = <T>(target: T[], source: T[]) => {
 	const baseLength = target.length;
 	const sourceLength = source.length;
 
+	// presize once, then fill
 	target.length = baseLength + sourceLength;
 
 	for (let i = 0; i < sourceLength; i++) {

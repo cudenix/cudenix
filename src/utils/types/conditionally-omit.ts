@@ -2,6 +2,7 @@
  * Identifies properties whose value type matches another type.
  */
 type OmitKeys<T extends object, U> = {
+	// tuple form checks assignability both ways without distributing over U
 	[K in keyof T]: [T[K], U] extends [U, T[K]] ? K : never;
 }[keyof T];
 

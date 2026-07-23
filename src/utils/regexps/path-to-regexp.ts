@@ -1,5 +1,6 @@
 const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
+// same shape as rest but non-capturing, and the trailing "?" lets "*" match zero segments
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
 
 const REGEXP_SYNTAX = /[\\^$.*+?()[\]{}|]/g;
@@ -32,6 +33,7 @@ export const pathToRegexp = (path: string) => {
 		return {
 			paramFlags: [],
 			paramKeys: [],
+			// the leading "()" marks which route matched once patterns are combined
 			pattern: String.raw`()\/`,
 			ranks: [],
 			restKeys: [],
@@ -50,6 +52,7 @@ export const pathToRegexp = (path: string) => {
 	let i = 0;
 
 	while (i < length) {
+		// skip "/" (47) separators
 		if (path.charCodeAt(i) === 47) {
 			i++;
 
@@ -62,12 +65,14 @@ export const pathToRegexp = (path: string) => {
 			segmentEnd = length;
 		}
 
+		// a trailing "?" (63) marks the segment as optional
 		const isOptional = path.charCodeAt(segmentEnd - 1) === 63;
 		const end = isOptional ? segmentEnd - 1 : segmentEnd;
 		const firstCharCode = path.charCodeAt(i);
 
 		let segment: string;
 
+		// ":" (58) named param
 		if (firstCharCode === 58) {
 			paramFlags.push(isOptional ? PARAM_FLAG_OPTIONAL : 0);
 			paramKeys.push(path.substring(i + 1, end));
@@ -76,10 +81,12 @@ export const pathToRegexp = (path: string) => {
 
 			segment = PARAM_CAPTURE;
 		} else if (firstCharCode === 42 && end - i === 1) {
+			// lone "*" (42) wildcard
 			ranks.push(WILDCARD_RANK);
 
 			segment = WILDCARD;
 		} else if (
+			// "..." (46) rest param
 			firstCharCode === 46 &&
 			path.charCodeAt(i + 1) === 46 &&
 			path.charCodeAt(i + 2) === 46
@@ -97,6 +104,7 @@ export const pathToRegexp = (path: string) => {
 
 			segment = REST_CAPTURE;
 		} else {
+			// static segment, with regexp syntax escaped
 			ranks.push(STATIC_RANK);
 
 			segment = `\\/${path.substring(i, end).replace(REGEXP_SYNTAX, "\\$&")}`;
@@ -116,6 +124,7 @@ export const pathToRegexp = (path: string) => {
 	return {
 		paramFlags,
 		paramKeys,
+		// fully-optional patterns must also match the bare "/" path
 		pattern:
 			areAllSegmentsOptional && segments
 				? `()(?:${segments}|\\/)`

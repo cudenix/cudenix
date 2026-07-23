@@ -1,4 +1,18 @@
 /**
+ * Maps a `:param` or `...rest` segment to its parameter record.
+ */
+type ParamRecord<Segment extends string, Param extends string> = Record<
+	Param extends `${infer Name}?` ? Name : Param,
+	Segment extends `...${string}`
+		? Param extends `${string}?`
+			? string[] | undefined
+			: string[]
+		: Param extends `${string}?`
+			? string | undefined
+			: string
+>;
+
+/**
  * Extracts named parameters from a route path type.
  *
  * @example
@@ -17,31 +31,8 @@ export type ExtractUrlParams<
 	> = NonNullable<unknown>,
 > = Path extends `${infer First}/${infer Rest}`
 	? First extends `:${infer Param}` | `...${infer Param}`
-		? ExtractUrlParams<
-				Rest,
-				Accumulated &
-					Record<
-						Param extends `${infer Name}?` ? Name : Param,
-						First extends `...${string}`
-							? Param extends `${string}?`
-								? string[] | undefined
-								: string[]
-							: Param extends `${string}?`
-								? string | undefined
-								: string
-					>
-			>
+		? ExtractUrlParams<Rest, Accumulated & ParamRecord<First, Param>>
 		: ExtractUrlParams<Rest, Accumulated>
 	: Path extends `:${infer Param}` | `...${infer Param}`
-		? Accumulated &
-				Record<
-					Param extends `${infer Name}?` ? Name : Param,
-					Path extends `...${string}`
-						? Param extends `${string}?`
-							? string[] | undefined
-							: string[]
-						: Param extends `${string}?`
-							? string | undefined
-							: string
-				>
+		? Accumulated & ParamRecord<Path, Param>
 		: Accumulated;

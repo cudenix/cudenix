@@ -25,9 +25,11 @@ export const parseBody = async (request: Request) => {
 
 	let isForm = false;
 
+	// 97 = "a" (application/*)
 	if (firstCharCode === 97) {
 		const length = contentType.length;
 
+		// the media type matches exactly or is followed by ";" (59) and parameters
 		if (
 			(length === 16 || contentType.charCodeAt(16) === 59) &&
 			contentType.startsWith("application/json")
@@ -46,6 +48,7 @@ export const parseBody = async (request: Request) => {
 			(length === 33 || contentType.charCodeAt(33) === 59) &&
 			contentType.startsWith("application/x-www-form-urlencoded");
 	} else if (firstCharCode === 109) {
+		// 109 = "m" (multipart/*)
 		const length = contentType.length;
 
 		isForm =
@@ -58,6 +61,7 @@ export const parseBody = async (request: Request) => {
 
 		const body = new Empty();
 
+		// repeated form keys collapse into arrays
 		formData.forEach((value, key) => {
 			if (body[key] === undefined) {
 				body[key] = value;

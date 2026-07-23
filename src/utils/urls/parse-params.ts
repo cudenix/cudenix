@@ -22,6 +22,7 @@ export const parseParams = (
 		return params;
 	}
 
+	// +1 skips the route marker group emitted by pathToRegexp
 	const offset = matchOffset + 1;
 	const hasRestKeys = restKeys.length > 0;
 
@@ -35,6 +36,7 @@ export const parseParams = (
 
 		let decoded = value;
 
+		// keep the raw value on malformed encodings
 		if (value.indexOf("%") !== -1) {
 			try {
 				decoded = decodeURIComponent(value);
@@ -43,6 +45,7 @@ export const parseParams = (
 			}
 		}
 
+		// rest params split into their path segments
 		if (hasRestKeys && restKeys.indexOf(name) !== -1) {
 			params[name] = decoded.split("/");
 		} else {

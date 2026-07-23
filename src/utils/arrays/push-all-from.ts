@@ -16,6 +16,7 @@ export const pushAllFrom = <T>(target: T[], source: T[], start: number) => {
 		return;
 	}
 
+	// presize once, then fill
 	target.length = baseLength + count;
 
 	for (let i = 0; i < count; i++) {

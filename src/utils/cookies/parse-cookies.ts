@@ -26,6 +26,7 @@ export const parseCookies = (header: string) => {
 		let i = start;
 		let equalsIndex = -1;
 
+		// scan for "=" (61), stopping at a "; " (59, 32) pair boundary
 		while (i < length) {
 			const charCode = header.charCodeAt(i);
 
@@ -48,6 +49,7 @@ export const parseCookies = (header: string) => {
 			i++;
 		}
 
+		// scan to the end of the current pair
 		while (i < length) {
 			if (
 				header.charCodeAt(i) === 59 &&
@@ -62,6 +64,7 @@ export const parseCookies = (header: string) => {
 
 		const end = i;
 
+		// ignore pairs without a name or "="
 		if (equalsIndex > start) {
 			cookies[header.substring(start, equalsIndex)] = header.substring(
 				equalsIndex + 1,
@@ -73,6 +76,7 @@ export const parseCookies = (header: string) => {
 			break;
 		}
 
+		// skip "; "
 		start = i + 2;
 	}
 

@@ -2,10 +2,12 @@
  * Converts a hexadecimal character code to a number.
  */
 const hexCharCodeToValue = (charCode: number) => {
+	// "0"-"9"
 	if (charCode >= 48 && charCode <= 57) {
 		return charCode - 48;
 	}
 
+	// "| 32" lowercases, so only "a"-"f" needs checking
 	const lowerCharCode = charCode | 32;
 
 	return lowerCharCode >= 97 && lowerCharCode <= 102
@@ -38,6 +40,7 @@ const decodeUtf8Bytes = (bytes: number[]) => {
 		let minimumCodePoint: number;
 		let sequenceLength: number;
 
+		// lead byte determines the sequence length
 		if (firstByte >= 192 && firstByte <= 223) {
 			codePoint = firstByte & 31;
 			minimumCodePoint = 128;
@@ -62,6 +65,7 @@ const decodeUtf8Bytes = (bytes: number[]) => {
 		while (sequenceEnd < i + sequenceLength && sequenceEnd < bytes.length) {
 			const continuationByte = bytes[sequenceEnd];
 
+			// continuation bytes must match 10xxxxxx
 			if (
 				continuationByte === undefined ||
 				(continuationByte & 192) !== 128
@@ -73,6 +77,7 @@ const decodeUtf8Bytes = (bytes: number[]) => {
 			sequenceEnd++;
 		}
 
+		// sequence cut short: end of input or an invalid continuation byte
 		if (sequenceEnd !== i + sequenceLength) {
 			decoded += "�";
 			i = sequenceEnd;
@@ -80,6 +85,7 @@ const decodeUtf8Bytes = (bytes: number[]) => {
 			continue;
 		}
 
+		// reject overlong encodings, out-of-range and surrogate code points
 		if (
 			codePoint < minimumCodePoint ||
 			codePoint > 1_114_111 ||
@@ -115,7 +121,9 @@ export const decodePathParam = (value: string) => {
 
 	let lastPercentIndex = length;
 
+	// long values: locate the last "%" (37) so the literal tail is copied in bulk
 	if (length >= 32) {
+		// "%xx" is 3 chars, so a trailing escape puts the last "%" in the final 3 positions
 		if (value.charCodeAt(length - 1) === 37) {
 			lastPercentIndex = length - 1;
 		} else if (value.charCodeAt(length - 2) === 37) {
@@ -127,18 +135,21 @@ export const decodePathParam = (value: string) => {
 		}
 	}
 
+	// pending percent-decoded bytes, flushed as UTF-8 when a run ends
 	const bytes: number[] = [];
 
 	let decoded = value.substring(0, firstPercentIndex);
 	let i = firstPercentIndex;
 
 	while (i < length) {
+		// literal character (not "%")
 		if (value.charCodeAt(i) !== 37) {
 			if (bytes.length > 0) {
 				decoded += decodeUtf8Bytes(bytes);
 				bytes.length = 0;
 			}
 
+			// past the last "%": append the rest in one substring
 			if (i > lastPercentIndex) {
 				decoded += value.substring(i);
 
@@ -151,6 +162,7 @@ export const decodePathParam = (value: string) => {
 			continue;
 		}
 
+		// truncated "%xx"
 		if (i + 2 >= length) {
 			if (bytes.length > 0) {
 				decoded += decodeUtf8Bytes(bytes);
@@ -180,6 +192,7 @@ export const decodePathParam = (value: string) => {
 
 		const byte = (highNibble << 4) | lowNibble;
 
+		// ASCII decodes directly; higher bytes join a multi-byte run
 		if (byte <= 127) {
 			if (bytes.length > 0) {
 				decoded += decodeUtf8Bytes(bytes);

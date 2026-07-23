@@ -1,9 +1,10 @@
 import { Empty } from "@/utils/objects/empty";
 
-const Q_KEY_PLUS = 1;
-const Q_KEY_PCT = 2;
-const Q_VAL_PLUS = 4;
-const Q_VAL_PCT = 8;
+// scan flags marking which decode steps a key/value needs
+const KEY_HAS_PLUS = 1;
+const KEY_HAS_PERCENT = 2;
+const VALUE_HAS_PLUS = 4;
+const VALUE_HAS_PERCENT = 8;
 
 /**
  * Parses the query string from a URL.
@@ -30,6 +31,7 @@ export const parseQuery = (url: string) => {
 
 	const urlLength = url.length;
 
+	// tracks keys repeated in the query, so a JSON array value is not mistaken for repeats
 	let multiValueKeys: Set<string> | undefined;
 	let i = queryIndex + 1;
 
@@ -41,14 +43,15 @@ export const parseQuery = (url: string) => {
 		while (i < urlLength) {
 			const charCode = url.charCodeAt(i);
 
+			// stop at "=" (61), "&" (38) or "#" (35)
 			if (charCode === 61 || charCode === 38 || charCode === 35) {
 				break;
 			}
 
 			if (charCode === 43) {
-				flags |= Q_KEY_PLUS;
+				flags |= KEY_HAS_PLUS;
 			} else if (charCode === 37) {
-				flags |= Q_KEY_PCT;
+				flags |= KEY_HAS_PERCENT;
 			}
 
 			i++;
@@ -72,14 +75,15 @@ export const parseQuery = (url: string) => {
 			while (i < urlLength) {
 				const charCode = url.charCodeAt(i);
 
+				// stop at "&" (38) or "#" (35)
 				if (charCode === 38 || charCode === 35) {
 					break;
 				}
 
 				if (charCode === 43) {
-					flags |= Q_VAL_PLUS;
+					flags |= VALUE_HAS_PLUS;
 				} else if (charCode === 37) {
-					flags |= Q_VAL_PCT;
+					flags |= VALUE_HAS_PERCENT;
 				}
 
 				i++;
@@ -91,11 +95,11 @@ export const parseQuery = (url: string) => {
 		}
 
 		if (key.length > 0) {
-			if (flags & Q_KEY_PLUS) {
+			if (flags & KEY_HAS_PLUS) {
 				key = key.replaceAll("+", " ");
 			}
 
-			if (flags & Q_KEY_PCT) {
+			if (flags & KEY_HAS_PERCENT) {
 				try {
 					key = decodeURIComponent(key);
 				} catch {}
@@ -104,12 +108,12 @@ export const parseQuery = (url: string) => {
 			let parsed = value as unknown;
 
 			if (hasValue) {
-				if (flags & Q_VAL_PLUS) {
+				if (flags & VALUE_HAS_PLUS) {
 					value = value.replaceAll("+", " ");
 					parsed = value;
 				}
 
-				if (flags & Q_VAL_PCT) {
+				if (flags & VALUE_HAS_PERCENT) {
 					try {
 						value = decodeURIComponent(value);
 						parsed = value;
@@ -117,9 +121,11 @@ export const parseQuery = (url: string) => {
 					} catch {}
 				}
 
+				// "{" (123) or "[" (91) suggests a JSON value
 				if (firstCharCode === 123 || firstCharCode === 91) {
 					const lastCharCode = value.charCodeAt(value.length - 1);
 
+					// only parse balanced "{...}" or "[...]"
 					if (
 						(firstCharCode === 123 && lastCharCode === 125) ||
 						(firstCharCode === 91 && lastCharCode === 93)
@@ -138,6 +144,7 @@ export const parseQuery = (url: string) => {
 			} else if (multiValueKeys?.has(key)) {
 				(params[key] as unknown[]).push(parsed);
 			} else {
+				// first repeat: promote the value to an array
 				if (!multiValueKeys) {
 					multiValueKeys = new Set<string>();
 				}
@@ -148,6 +155,7 @@ export const parseQuery = (url: string) => {
 			}
 		}
 
+		// end of query or "#" (35) fragment
 		if (i >= urlLength || url.charCodeAt(i) === 35) {
 			break;
 		}

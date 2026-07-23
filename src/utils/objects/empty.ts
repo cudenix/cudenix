@@ -14,6 +14,7 @@ export const Empty = function Empty() {} as unknown as new () => Record<
 	unknown
 >;
 
+// new Empty() allocates faster than Object.create(null) while behaving the same (no inherited keys)
 Empty.prototype = Object.create(null);
 
 /**
