@@ -4,7 +4,6 @@ import type {
 	EndpointChain,
 	MethodData,
 } from "@/core/cudenix";
-import { type Dispatch, staticDispatch } from "@/core/dispatch";
 import { jit } from "@/core/jit";
 import { type AnyModule, Module } from "@/core/module";
 import type { CompiledMount } from "@/core/mount";
@@ -13,6 +12,7 @@ import { cloneAppend } from "@/utils/arrays/clone-append";
 import { Empty } from "@/utils/objects/empty";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 const EMPTY_KEYS = Object.freeze([]) as unknown as string[];
 const EMPTY_FLAGS = Object.freeze([]) as unknown as number[];
@@ -27,11 +27,17 @@ const BUN_METHODS = new Set([
 	"PUT",
 ]);
 
+/**
+ * Describes a compiled route used for request matching and dispatch.
+ */
 type MethodDispatch = (
 	request: Request,
 	match: RegExpExecArray,
-) => ReturnType<Dispatch>;
+) => MaybePromise<Response>;
 
+/**
+ * Describes a factory for building a compiled route resolver.
+ */
 type MethodDispatchFactory = (table: Endpoint[]) => MethodDispatch;
 
 /**
@@ -292,7 +298,9 @@ const flatten = (
 
 		methodEndpoints.push({
 			chain,
-			dispatch: staticDispatch,
+			dispatch: () => {
+				throw new Error("Endpoint dispatch not compiled");
+			},
 			matchOffset: 0,
 			paramFlags: EMPTY_FLAGS,
 			paramKeys: EMPTY_KEYS,
@@ -396,7 +404,8 @@ export const compile = (app: Cudenix) => {
 					methodEndpoint.route.handler(undefined as any),
 				);
 
-				methodEndpoint.dispatch = staticDispatch;
+				methodEndpoint.dispatch = () =>
+					methodEndpoint.response!.clone();
 			} else {
 				methodEndpoint.dispatch = jit(app, methodEndpoint);
 			}
@@ -429,8 +438,9 @@ export const compile = (app: Cudenix) => {
 						continue;
 					}
 
-					pathRoutes[method] = (request: Request) =>
-						methodEndpoint.dispatch(request);
+					pathRoutes[method] = methodEndpoint.dispatch as (
+						request: Request,
+					) => MaybePromise<Response>;
 				}
 			}
 		}
