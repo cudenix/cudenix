@@ -157,6 +157,7 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 
 	compile(this);
 
+	// Removing the module makes compilation idempotent.
 	delete this.memory.module;
 	delete this.memory.plugins;
 };
@@ -180,21 +181,21 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 		const match = methodData.regexp.exec(request.url);
 
 		if (match) {
-			const table = methodData.table;
+			const endpointTable = methodData.table;
 
 			if (match[1] !== undefined) {
-				return table[1]!.dispatch(request, match);
+				return endpointTable[1]!.dispatch(request, match);
 			}
 
-			const methodDispatch = methodDispatchers.get(methodData);
+			const compiledDispatch = methodDispatchers.get(methodData);
 
-			if (methodDispatch) {
-				return methodDispatch(request, match);
+			if (compiledDispatch) {
+				return compiledDispatch(request, match);
 			}
 
 			for (let offset = 2; offset < match.length; offset++) {
 				if (match[offset] !== undefined) {
-					return table[offset]!.dispatch(request, match);
+					return endpointTable[offset]!.dispatch(request, match);
 				}
 			}
 		}
@@ -204,40 +205,44 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 
 	if (mounts) {
 		const url = request.url;
-		const pathStart = url.indexOf("/", 8);
+		const pathnameStart = url.indexOf("/", 8); // Skip scheme and authority.
 
 		for (let i = 0; i < mounts.length; i++) {
 			const mount = mounts[i]!;
-			const prefix = mount.path;
+			const mountPath = mount.path;
 
-			if (url.startsWith(prefix, pathStart)) {
-				const afterPrefix = pathStart + prefix.length;
+			if (!url.startsWith(mountPath, pathnameStart)) {
+				continue;
+			}
 
-				if (afterPrefix === url.length) {
-					return mount.fetch(
-						new Request(`${url.slice(0, pathStart)}/`, request),
-					);
-				}
+			const prefixEnd = pathnameStart + mountPath.length;
 
-				const charCode = url.charCodeAt(afterPrefix);
+			if (prefixEnd === url.length) {
+				return mount.fetch(
+					new Request(`${url.slice(0, pathnameStart)}/`, request),
+				);
+			}
 
-				if (charCode === 47) {
-					return mount.fetch(
-						new Request(
-							url.slice(0, pathStart) + url.slice(afterPrefix),
-							request,
-						),
-					);
-				}
+			const boundaryCode = url.charCodeAt(prefixEnd);
 
-				if (charCode === 63 || charCode === 35) {
-					return mount.fetch(
-						new Request(
-							`${url.slice(0, pathStart)}/${url.slice(afterPrefix)}`,
-							request,
-						),
-					);
-				}
+			// "/" (47) continues the mounted path
+			if (boundaryCode === 47) {
+				return mount.fetch(
+					new Request(
+						url.slice(0, pathnameStart) + url.slice(prefixEnd),
+						request,
+					),
+				);
+			}
+
+			// "?" (63) or "#" (35) follows the mount root
+			if (boundaryCode === 63 || boundaryCode === 35) {
+				return mount.fetch(
+					new Request(
+						`${url.slice(0, pathnameStart)}/${url.slice(prefixEnd)}`,
+						request,
+					),
+				);
 			}
 		}
 	}
