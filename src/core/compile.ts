@@ -14,10 +14,10 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
-const EMPTY_KEYS = Object.freeze([]) as unknown as string[];
-const EMPTY_FLAGS = Object.freeze([]) as unknown as number[];
+const EMPTY_PARAM_KEYS = Object.freeze([]) as unknown as string[];
+const EMPTY_PARAM_FLAGS = Object.freeze([]) as unknown as number[];
 
-const BUN_METHODS = new Set([
+const BUN_ROUTE_METHODS = new Set([
 	"DELETE",
 	"GET",
 	"HEAD",
@@ -26,6 +26,16 @@ const BUN_METHODS = new Set([
 	"POST",
 	"PUT",
 ]);
+
+/**
+ * Stores fallback route resolver factories by their capture layout.
+ */
+const methodDispatchFactories = new Map<string, MethodDispatchFactory>();
+
+/**
+ * Maps compiled method data to its fallback resolver.
+ */
+export const methodDispatchers = new WeakMap<MethodData, MethodDispatch>();
 
 /**
  * Describes a compiled route used for request matching and dispatch.
@@ -41,14 +51,15 @@ type MethodDispatch = (
 type MethodDispatchFactory = (table: Endpoint[]) => MethodDispatch;
 
 /**
- * Stores fallback route resolver factories by their capture layout.
+ * Describes an endpoint prepared for route ordering.
  */
-const methodDispatchFactories = new Map<string, MethodDispatchFactory>();
-
-/**
- * Maps compiled method data to its fallback resolver.
- */
-export const methodDispatchers = new WeakMap<MethodData, MethodDispatch>();
+interface AnalyzedEndpoint {
+	endpoint: Endpoint;
+	native: boolean;
+	order: number;
+	pattern: string;
+	ranks: number[];
+}
 
 /**
  * Builds an unrolled resolver for the endpoint capture groups after the first.
@@ -88,6 +99,7 @@ const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 
 	const length = path.length;
 
+	// require a leading "/" (47) without a trailing separator
 	if (
 		length < 2 ||
 		path.charCodeAt(0) !== 47 ||
@@ -101,17 +113,21 @@ const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 	for (let i = 1; i < length; i++) {
 		const charCode = path.charCodeAt(i);
 
+		// reject non-ASCII code units (> 127) and "?" (63)
 		if (charCode > 127 || charCode === 63) {
 			return false;
 		}
 
+		// "/" (47) closes the current segment
 		if (charCode === 47) {
+			// reject empty or "*" (42)-prefixed non-terminal segments
 			if (i === segmentStart || path.charCodeAt(segmentStart) === 42) {
 				return false;
 			}
 
 			segmentStart = i + 1;
 		} else if (
+			// "..." (46) sequences require the fallback router
 			charCode === 46 &&
 			path.charCodeAt(i + 1) === 46 &&
 			path.charCodeAt(i + 2) === 46
@@ -120,6 +136,7 @@ const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 		}
 	}
 
+	// only a lone terminal "*" (42) is native
 	if (path.charCodeAt(segmentStart) === 42 && length - segmentStart !== 1) {
 		return false;
 	}
@@ -156,17 +173,6 @@ const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 };
 
 /**
- * Describes a compiled endpoint prepared for route ordering.
- */
-interface AnalyzedEndpoint {
-	endpoint: Endpoint;
-	native: boolean;
-	order: number;
-	pattern: string;
-	ranks: number[];
-}
-
-/**
  * Orders analyzed endpoints using Bun's route specificity rules.
  */
 const compareAnalyzedEndpoints = (a: AnalyzedEndpoint, b: AnalyzedEndpoint) => {
@@ -194,23 +200,23 @@ const compareAnalyzedEndpoints = (a: AnalyzedEndpoint, b: AnalyzedEndpoint) => {
 /**
  * Collects routes and mounts from a module tree for compilation.
  */
-const flatten = (
+const flattenModuleTree = (
 	endpoints: Record<HttpMethod, Endpoint[]>,
 	mounts: CompiledMount[],
 	module: AnyModule,
 	inheritedChain: EndpointChain,
 	inheritedPath: string,
-	reuseChain = false,
+	shareInheritedChain = false,
 ) => {
-	const accumulatedChain = reuseChain
+	const activeChain = shareInheritedChain
 		? inheritedChain
 		: inheritedChain.slice();
 	const moduleChain = module.chain;
-	const ownPrefix: "" | `/${string}` =
+	const modulePrefix: "" | `/${string}` =
 		module.prefix === "/" ? "" : module.prefix;
 
-	let composedPath = module.prefix;
-	let pathPrefix = ownPrefix;
+	let propagatedPrefix = module.prefix;
+	let activePrefix = modulePrefix;
 	let cachedChain: EndpointChain | undefined;
 
 	for (let i = 0; i < moduleChain.length; i++) {
@@ -223,19 +229,26 @@ const flatten = (
 		const type = link.type;
 
 		if (type === "GROUP") {
+			// Groups isolate changes to their chain and prefix.
 			const groupModule = new Module({
-				prefix: `${inheritedPath}${pathPrefix}${link.prefix === "/" ? "" : link.prefix}` as `/${string}`,
+				prefix: `${inheritedPath}${activePrefix}${link.prefix === "/" ? "" : link.prefix}` as `/${string}`,
 			});
 
-			groupModule.chain = accumulatedChain.slice();
+			groupModule.chain = activeChain.slice();
 
-			flatten(endpoints, mounts, link.handler(groupModule), [], "");
+			flattenModuleTree(
+				endpoints,
+				mounts,
+				link.handler(groupModule),
+				[],
+				"",
+			);
 
 			continue;
 		}
 
 		if (type === "MIDDLEWARE" || type === "STORE" || type === "VALIDATOR") {
-			accumulatedChain.push(link);
+			activeChain.push(link);
 
 			cachedChain = undefined;
 
@@ -243,33 +256,35 @@ const flatten = (
 		}
 
 		if (type === "MODULE") {
-			const beforeLength = accumulatedChain.length;
-			const compiledPath = flatten(
+			// Nested modules propagate changes to later links.
+			const beforeLength = activeChain.length;
+			const nestedPrefix = flattenModuleTree(
 				endpoints,
 				mounts,
 				link,
-				accumulatedChain,
-				`${inheritedPath}${pathPrefix}`,
+				activeChain,
+				`${inheritedPath}${activePrefix}`,
 				true,
 			);
 
-			if (accumulatedChain.length !== beforeLength) {
+			if (activeChain.length !== beforeLength) {
 				cachedChain = undefined;
 			}
 
-			if (compiledPath !== "/") {
-				composedPath = `${pathPrefix}${compiledPath}`;
-				pathPrefix = composedPath === "/" ? "" : composedPath;
+			if (nestedPrefix !== "/") {
+				propagatedPrefix = `${activePrefix}${nestedPrefix}`;
+				activePrefix = propagatedPrefix === "/" ? "" : propagatedPrefix;
 			}
 
 			continue;
 		}
 
 		if (type === "MOUNT") {
+			// Mounts ignore prefixes propagated by sibling modules.
 			mounts.push({
 				fetch: link.fetch,
 				path:
-					`${inheritedPath}${ownPrefix}${link.path === "/" ? "" : link.path}` ||
+					`${inheritedPath}${modulePrefix}${link.path === "/" ? "" : link.path}` ||
 					"/",
 			});
 
@@ -287,11 +302,11 @@ const flatten = (
 		let chain: EndpointChain;
 
 		if (link.validator) {
-			chain = cloneAppend(accumulatedChain, link.validator);
+			chain = cloneAppend(activeChain, link.validator);
 		} else if (cachedChain) {
 			chain = cachedChain;
 		} else {
-			chain = accumulatedChain.slice();
+			chain = activeChain.slice();
 
 			cachedChain = chain;
 		}
@@ -302,17 +317,167 @@ const flatten = (
 				throw new Error("Endpoint dispatch not compiled");
 			},
 			matchOffset: 0,
-			paramFlags: EMPTY_FLAGS,
-			paramKeys: EMPTY_KEYS,
+			paramFlags: EMPTY_PARAM_FLAGS,
+			paramKeys: EMPTY_PARAM_KEYS,
 			path:
-				`${inheritedPath}${pathPrefix}${link.path === "/" ? "" : link.path}` ||
+				`${inheritedPath}${activePrefix}${link.path === "/" ? "" : link.path}` ||
 				"/",
-			restKeys: EMPTY_KEYS,
+			restKeys: EMPTY_PARAM_KEYS,
 			route: link,
 		});
 	}
 
-	return composedPath;
+	return propagatedPrefix;
+};
+
+/**
+ * Compiles routing data for one HTTP method.
+ */
+const compileMethod = (
+	app: Cudenix,
+	routes: Cudenix["routes"],
+	method: HttpMethod,
+	methodEndpoints: Endpoint[],
+) => {
+	const isBunMethod = BUN_ROUTE_METHODS.has(method);
+
+	const analyzedEndpoints: AnalyzedEndpoint[] = [];
+
+	for (let i = 0; i < methodEndpoints.length; i++) {
+		const endpoint = methodEndpoints[i];
+
+		if (!endpoint) {
+			continue;
+		}
+
+		const path = endpoint.path;
+		const { paramFlags, paramKeys, pattern, ranks, restKeys } =
+			pathToRegexp(path);
+		const native = isBunMethod && isBunNativeRoute(path, paramKeys);
+
+		endpoint.paramFlags = paramFlags;
+		endpoint.paramKeys = paramKeys;
+		endpoint.restKeys = restKeys;
+
+		analyzedEndpoints.push({ endpoint, native, order: i, pattern, ranks });
+	}
+
+	if (analyzedEndpoints.length === 0) {
+		return;
+	}
+
+	analyzedEndpoints.sort(compareAnalyzedEndpoints);
+
+	const fallbackEndpoints: Endpoint[] = [];
+	const fallbackPatterns: string[] = [];
+	const fallbackTable: Endpoint[] = [];
+	const nativePatterns = new Set<string>();
+
+	let matchOffset = 1;
+
+	for (let i = 0; i < analyzedEndpoints.length; i++) {
+		const analyzedEndpoint = analyzedEndpoints[i];
+
+		if (!analyzedEndpoint) {
+			continue;
+		}
+
+		const endpoint = analyzedEndpoint.endpoint;
+		const isStatic = endpoint.route.static && endpoint.chain.length === 0;
+		const path = endpoint.path;
+
+		endpoint.matchOffset = matchOffset;
+
+		if (isStatic) {
+			endpoint.response = response(
+				endpoint.route.handler(undefined as any),
+			);
+
+			// Give each request a fresh response body.
+			endpoint.dispatch = () => endpoint.response!.clone();
+		} else {
+			endpoint.dispatch = jit(app, endpoint);
+		}
+
+		fallbackEndpoints.push(endpoint);
+		fallbackPatterns.push(analyzedEndpoint.pattern);
+
+		fallbackTable[matchOffset] = endpoint;
+
+		// Account for the marker and parameter captures.
+		matchOffset += 1 + endpoint.paramKeys.length;
+
+		if (
+			analyzedEndpoint.native &&
+			!nativePatterns.has(analyzedEndpoint.pattern)
+		) {
+			nativePatterns.add(analyzedEndpoint.pattern);
+
+			let pathRoutes = routes[path];
+
+			if (!pathRoutes) {
+				pathRoutes = new Empty() as (typeof routes)[string];
+
+				routes[path] = pathRoutes;
+			}
+
+			if (!(method in pathRoutes)) {
+				if (isStatic) {
+					pathRoutes[method] = endpoint.response!;
+
+					continue;
+				}
+
+				pathRoutes[method] = endpoint.dispatch as (
+					request: Request,
+				) => MaybePromise<Response>;
+			}
+		}
+	}
+
+	const methodData: MethodData = {
+		endpoints: fallbackEndpoints,
+		regexp: new RegExp(
+			`^(?:https?:\\/\\/)[^\\s\\/]+(?:${fallbackPatterns.join("|")})(?![^?#])`,
+		),
+		table: fallbackTable,
+	};
+
+	methodDispatchers.set(
+		methodData,
+		compileMethodDispatch(fallbackEndpoints, fallbackTable),
+	);
+
+	app.methods[method] = methodData;
+};
+
+/**
+ * Stores root and prefixed mounts on the application.
+ */
+const compileMounts = (app: Cudenix, mounts: CompiledMount[]) => {
+	if (mounts.length === 0) {
+		return;
+	}
+
+	const prefixed: CompiledMount[] = [];
+
+	for (let i = 0; i < mounts.length; i++) {
+		const mount = mounts[i]!;
+
+		if (mount.path === "/") {
+			app.rootMount ??= mount;
+
+			continue;
+		}
+
+		prefixed.push(mount);
+	}
+
+	if (prefixed.length > 0) {
+		prefixed.sort((a, b) => b.path.length - a.path.length);
+
+		app.mounts = prefixed;
+	}
 };
 
 /**
@@ -333,7 +498,13 @@ export const compile = (app: Cudenix) => {
 	const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
 	const mounts: CompiledMount[] = [];
 
-	flatten(endpoints, mounts, app.memory.module as AnyModule, [], "");
+	flattenModuleTree(
+		endpoints,
+		mounts,
+		app.memory.module as AnyModule,
+		[],
+		"",
+	);
 
 	for (const method in endpoints) {
 		const methodEndpoints = endpoints[method];
@@ -342,144 +513,8 @@ export const compile = (app: Cudenix) => {
 			continue;
 		}
 
-		const isBunMethod = BUN_METHODS.has(method);
-
-		const analyzedEndpoints: AnalyzedEndpoint[] = [];
-
-		for (let i = 0; i < methodEndpoints.length; i++) {
-			const methodEndpoint = methodEndpoints[i];
-
-			if (!methodEndpoint) {
-				continue;
-			}
-
-			const path = methodEndpoint.path;
-			const { paramFlags, paramKeys, pattern, ranks, restKeys } =
-				pathToRegexp(path);
-			const native = isBunMethod && isBunNativeRoute(path, paramKeys);
-
-			methodEndpoint.paramFlags = paramFlags;
-			methodEndpoint.paramKeys = paramKeys;
-			methodEndpoint.restKeys = restKeys;
-
-			analyzedEndpoints.push({
-				endpoint: methodEndpoint,
-				native,
-				order: i,
-				pattern,
-				ranks,
-			});
-		}
-
-		if (analyzedEndpoints.length === 0) {
-			continue;
-		}
-
-		analyzedEndpoints.sort(compareAnalyzedEndpoints);
-
-		const regexpEndpoints: Endpoint[] = [];
-		const regexpPatterns: string[] = [];
-		const regexpTable: Endpoint[] = [];
-		const nativePatterns = new Set<string>();
-
-		let matchOffset = 1;
-
-		for (let i = 0; i < analyzedEndpoints.length; i++) {
-			const analyzedEndpoint = analyzedEndpoints[i];
-
-			if (!analyzedEndpoint) {
-				continue;
-			}
-
-			const methodEndpoint = analyzedEndpoint.endpoint;
-			const isStatic =
-				methodEndpoint.route.static &&
-				methodEndpoint.chain.length === 0;
-			const path = methodEndpoint.path;
-
-			methodEndpoint.matchOffset = matchOffset;
-
-			if (isStatic) {
-				methodEndpoint.response = response(
-					methodEndpoint.route.handler(undefined as any),
-				);
-
-				methodEndpoint.dispatch = () =>
-					methodEndpoint.response!.clone();
-			} else {
-				methodEndpoint.dispatch = jit(app, methodEndpoint);
-			}
-
-			regexpEndpoints.push(methodEndpoint);
-			regexpPatterns.push(analyzedEndpoint.pattern);
-
-			regexpTable[matchOffset] = methodEndpoint;
-
-			matchOffset += 1 + methodEndpoint.paramKeys.length;
-
-			if (
-				analyzedEndpoint.native &&
-				!nativePatterns.has(analyzedEndpoint.pattern)
-			) {
-				nativePatterns.add(analyzedEndpoint.pattern);
-
-				let pathRoutes = routes[path];
-
-				if (!pathRoutes) {
-					pathRoutes = new Empty() as (typeof routes)[string];
-
-					routes[path] = pathRoutes;
-				}
-
-				if (!(method in pathRoutes)) {
-					if (isStatic) {
-						pathRoutes[method] = methodEndpoint.response!;
-
-						continue;
-					}
-
-					pathRoutes[method] = methodEndpoint.dispatch as (
-						request: Request,
-					) => MaybePromise<Response>;
-				}
-			}
-		}
-
-		const methodData: MethodData = {
-			endpoints: regexpEndpoints,
-			regexp: new RegExp(
-				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${regexpPatterns.join("|")})(?![^?#])`,
-			),
-			table: regexpTable,
-		};
-
-		methodDispatchers.set(
-			methodData,
-			compileMethodDispatch(regexpEndpoints, regexpTable),
-		);
-
-		app.methods[method] = methodData;
+		compileMethod(app, routes, method, methodEndpoints);
 	}
 
-	if (mounts.length > 0) {
-		const prefixed: CompiledMount[] = [];
-
-		for (let i = 0; i < mounts.length; i++) {
-			const mount = mounts[i]!;
-
-			if (mount.path === "/") {
-				app.rootMount ??= mount;
-
-				continue;
-			}
-
-			prefixed.push(mount);
-		}
-
-		if (prefixed.length > 0) {
-			prefixed.sort((a, b) => b.path.length - a.path.length);
-
-			app.mounts = prefixed;
-		}
-	}
+	compileMounts(app, mounts);
 };
