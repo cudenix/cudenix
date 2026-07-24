@@ -1,13 +1,12 @@
 import type { Cudenix } from "@/core/cudenix";
 import type { AnyFail, AnyOk } from "@/core/reply";
-import { Empty } from "@/utils/objects/empty";
 
 /**
- * Response envelope on `context.response`.
+ * Response state materialized only when an endpoint uses it.
  *
  * @example
  * ```typescript
- * const a: ContextResponse = {
+ * const response: ContextResponse = {
  *   content: ok({ a: "v1" }),
  *   cookies: new Bun.CookieMap(),
  *   headers: new Headers(),
@@ -15,17 +14,20 @@ import { Empty } from "@/utils/objects/empty";
  * ```
  */
 export interface ContextResponse {
+	/** Content staged by handlers. */
 	content?: AnyFail | AnyOk | ReadableStream;
+	/** Incoming cookies and staged mutations. */
 	cookies: Bun.CookieMap;
+	/** Headers staged for the response. */
 	headers: Headers;
 }
 
 /**
- * Per-request state holding the matched endpoint and framework bookkeeping.
+ * Per-request state exposed to route, middleware, and store handlers.
  *
  * @example
  * ```typescript
- * const fn = (context: Context<{ a: string }, {}>) => {
+ * const handler = (context: Context<{ a: string }, {}>) => {
  *   context.store.a; // string
  *   context.response.content = ok({ a: "v1" });
  * };
@@ -35,98 +37,21 @@ export interface Context<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
-	/**
-	 * @deprecated Regexp matching is an internal routing detail.
-	 */
+	/** @deprecated Internal routing detail. */
 	match?: RegExpExecArray;
+	/** Application memory shared across requests. */
 	memory: Cudenix["memory"];
+	/** Raw request combined with validated input. */
 	request: { raw: Request } & Validators;
+	/** State staged for the response. */
 	response: ContextResponse;
+	/** Application server instance. */
 	server: NonNullable<Cudenix["server"]>;
+	/** Values accumulated by store handlers. */
 	store: Stores;
 }
 
 /**
  * Any {@link Context} regardless of its store or validator generics.
- *
- * @example
- * ```typescript
- * const a: AnyContext = new Context(app, request);
- *
- * a.request.raw; // Request
- * ```
  */
 export type AnyContext = Context<any, any>;
-
-/**
- * Constructor signature of {@link Context}.
- *
- * @example
- * ```typescript
- * const Ctor: ContextConstructor = Context;
- *
- * const a = new Ctor(app, request);
- *
- * a.request.raw; // request
- * ```
- */
-export interface ContextConstructor {
-	new (app: Cudenix, request: Request): AnyContext;
-}
-
-/**
- * Build a {@link Context} for a single request.
- *
- * @example
- * ```typescript
- * const a = new Context(app, request);
- *
- * a.request.raw; // request
- * a.response.headers; // Headers {}
- * ```
- */
-export const Context = function (
-	this: AnyContext,
-	app: Cudenix,
-	request: Request,
-) {
-	this.memory = app.memory;
-	this.request = new Empty() as unknown as AnyContext["request"];
-	this.response = new Empty() as unknown as AnyContext["response"];
-	this.server = app.server!;
-	this.store = new Empty();
-
-	this.request.raw = request;
-
-	this.response.cookies = new Bun.CookieMap(
-		request.headers.get("cookie") ?? undefined,
-	);
-	this.response.headers = new Headers();
-} as unknown as ContextConstructor;
-
-/**
- * Context shape without response metadata.
- *
- * @example
- * ```typescript
- * const a = new LeanContext(app, request);
- *
- * a.request.raw; // request
- * ```
- */
-export const LeanContext = function (
-	this: AnyContext,
-	app: Cudenix,
-	request: Request,
-) {
-	this.memory = app.memory;
-	this.request = new Empty() as unknown as AnyContext["request"];
-	this.server = app.server!;
-	this.store = new Empty();
-
-	this.request.raw = request;
-} as unknown as ContextConstructor & { prototype: object };
-
-LeanContext.prototype = (
-	Context as unknown as ContextConstructor & { prototype: object }
-).prototype;
