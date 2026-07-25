@@ -183,16 +183,19 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 		if (match) {
 			const endpointTable = methodData.table;
 
+			// The first capture belongs to the highest-priority endpoint.
 			if (match[1] !== undefined) {
 				return endpointTable[1]!.dispatch(request, match);
 			}
 
 			const compiledDispatch = methodDispatchers.get(methodData);
 
+			// Unrolled resolver for the remaining captures.
 			if (compiledDispatch) {
 				return compiledDispatch(request, match);
 			}
 
+			// Scan the captures when no resolver was compiled.
 			for (let offset = 2; offset < match.length; offset++) {
 				if (match[offset] !== undefined) {
 					return endpointTable[offset]!.dispatch(request, match);
@@ -203,6 +206,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 
 	const mounts = this.mounts;
 
+	// Unmatched requests fall back to the mounted applications.
 	if (mounts) {
 		const url = request.url;
 		const pathnameStart = url.indexOf("/", 8); // Skip scheme and authority.
@@ -217,29 +221,30 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 
 			const prefixEnd = pathnameStart + mountPath.length;
 
+			// Path handed to the mount once its prefix is stripped.
+			let mountedPath: string | undefined;
+
 			if (prefixEnd === url.length) {
-				return mount.fetch(
-					new Request(`${url.slice(0, pathnameStart)}/`, request),
-				);
+				mountedPath = "/";
+			} else {
+				const boundaryCode = url.charCodeAt(prefixEnd);
+
+				// "/" (47) continues the mounted path
+				if (boundaryCode === 47) {
+					mountedPath = url.slice(prefixEnd);
+				} else if (
+					// "?" (63) or "#" (35) follows the mount root
+					boundaryCode === 63 ||
+					boundaryCode === 35
+				) {
+					mountedPath = `/${url.slice(prefixEnd)}`;
+				}
 			}
 
-			const boundaryCode = url.charCodeAt(prefixEnd);
-
-			// "/" (47) continues the mounted path
-			if (boundaryCode === 47) {
+			if (mountedPath !== undefined) {
 				return mount.fetch(
 					new Request(
-						url.slice(0, pathnameStart) + url.slice(prefixEnd),
-						request,
-					),
-				);
-			}
-
-			// "?" (63) or "#" (35) follows the mount root
-			if (boundaryCode === 63 || boundaryCode === 35) {
-				return mount.fetch(
-					new Request(
-						`${url.slice(0, pathnameStart)}/${url.slice(prefixEnd)}`,
+						`${url.slice(0, pathnameStart)}${mountedPath}`,
 						request,
 					),
 				);
