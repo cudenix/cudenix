@@ -39,11 +39,6 @@ const CONTEXT_ALL =
 	RESPONSE_METADATA;
 
 /**
- * Memoizes analyses by handler identity.
- */
-const handlerAnalysisCache = new WeakMap<AnalyzableHandler, HandlerAnalysis>();
-
-/**
  * Handler features inferred from its source.
  */
 export interface HandlerAnalysis {
@@ -96,6 +91,52 @@ const isPropertyCharacter = (code: number) =>
 const isWhitespace = (code: number) =>
 	// tab (9), LF (10), CR (13), space (32)
 	code === 9 || code === 10 || code === 13 || code === 32;
+
+/**
+ * Skips whitespace from a source offset.
+ */
+const skipWhitespace = (source: string, start: number) => {
+	let index = start;
+
+	while (isWhitespace(source.charCodeAt(index))) {
+		index++;
+	}
+
+	return index;
+};
+
+/**
+ * Reads the property behind a `.` or `?.` access at a source offset.
+ */
+const getDirectProperty = (source: string, start: number) => {
+	let propertyStart = skipWhitespace(source, start);
+
+	if (source.startsWith("?.", propertyStart)) {
+		propertyStart += 2;
+	} else if (
+		// "." (46) direct property access
+		source.charCodeAt(propertyStart) === 46
+	) {
+		propertyStart++;
+	} else {
+		return;
+	}
+
+	propertyStart = skipWhitespace(source, propertyStart);
+
+	let propertyEnd = propertyStart;
+
+	while (isPropertyCharacter(source.charCodeAt(propertyEnd))) {
+		propertyEnd++;
+	}
+
+	if (propertyEnd !== propertyStart) {
+		return {
+			end: propertyEnd,
+			name: source.slice(propertyStart, propertyEnd),
+		};
+	}
+};
 
 /**
  * Reads a plain first parameter from function source.
@@ -165,52 +206,6 @@ const needsContextFromSource = (
 };
 
 /**
- * Skips whitespace from a source offset.
- */
-const skipWhitespace = (source: string, start: number) => {
-	let index = start;
-
-	while (isWhitespace(source.charCodeAt(index))) {
-		index++;
-	}
-
-	return index;
-};
-
-/**
- * Reads the property behind a `.` or `?.` access at a source offset.
- */
-const getDirectProperty = (source: string, start: number) => {
-	let propertyStart = skipWhitespace(source, start);
-
-	if (source.startsWith("?.", propertyStart)) {
-		propertyStart += 2;
-	} else if (
-		// "." (46) direct property access
-		source.charCodeAt(propertyStart) === 46
-	) {
-		propertyStart++;
-	} else {
-		return;
-	}
-
-	propertyStart = skipWhitespace(source, propertyStart);
-
-	let propertyEnd = propertyStart;
-
-	while (isPropertyCharacter(source.charCodeAt(propertyEnd))) {
-		propertyEnd++;
-	}
-
-	if (propertyEnd !== propertyStart) {
-		return {
-			end: propertyEnd,
-			name: source.slice(propertyStart, propertyEnd),
-		};
-	}
-};
-
-/**
  * Collects directly accessed context fields.
  */
 const getPropertyUsage = (source: string, parameter: FirstParameter) => {
@@ -225,8 +220,6 @@ const getPropertyUsage = (source: string, parameter: FirstParameter) => {
 			);
 
 			switch (property?.name) {
-				case "match":
-					break;
 				case "memory":
 					usage |= CONTEXT_MEMORY;
 					break;
@@ -273,6 +266,11 @@ const getPropertyUsage = (source: string, parameter: FirstParameter) => {
 };
 
 /**
+ * Memoizes analyses by handler identity.
+ */
+const handlerAnalysisCache = new WeakMap<AnalyzableHandler, HandlerAnalysis>();
+
+/**
  * Analyzes and caches the characteristics of a handler.
  *
  * @example
@@ -300,11 +298,16 @@ export const analyzeHandler = (handler: AnalyzableHandler): HandlerAnalysis => {
 		parameter,
 		hasOpaqueAccess,
 	);
-	const propertyUsage = needsContext
-		? hasOpaqueAccess || parameter === undefined
-			? CONTEXT_ALL
-			: getPropertyUsage(source, parameter)
-		: 0;
+
+	let propertyUsage = 0;
+
+	if (needsContext) {
+		// Sources that cannot be narrowed assume every feature.
+		propertyUsage =
+			hasOpaqueAccess || parameter === undefined
+				? CONTEXT_ALL
+				: getPropertyUsage(source, parameter);
+	}
 
 	const analysis = Object.freeze({
 		needsContext,
