@@ -1,3 +1,5 @@
+import { isAsync } from "@/utils/functions/is-async";
+
 /**
  * Matches function sources declared with an empty parameter list.
  */
@@ -42,6 +44,7 @@ const CONTEXT_ALL =
  * Handler features inferred from its source.
  */
 export interface HandlerAnalysis {
+	readonly isAsync: boolean;
 	readonly needsContext: boolean;
 	readonly needsMemory: boolean;
 	readonly needsRequest: boolean;
@@ -310,6 +313,7 @@ export const analyzeHandler = (handler: AnalyzableHandler): HandlerAnalysis => {
 	}
 
 	const analysis = Object.freeze({
+		isAsync: isAsync(handler),
 		needsContext,
 		needsMemory: (propertyUsage & CONTEXT_MEMORY) !== 0,
 		needsRequest: (propertyUsage & CONTEXT_REQUEST) !== 0,
