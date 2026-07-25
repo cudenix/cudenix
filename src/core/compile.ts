@@ -14,9 +14,15 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
-const EMPTY_PARAM_KEYS = Object.freeze([]) as unknown as string[];
+/**
+ * Shared empty arrays reused by endpoints without parameters.
+ */
 const EMPTY_PARAM_FLAGS = Object.freeze([]) as unknown as number[];
+const EMPTY_PARAM_KEYS = Object.freeze([]) as unknown as string[];
 
+/**
+ * Methods Bun's native router accepts.
+ */
 const BUN_ROUTE_METHODS = new Set([
 	"DELETE",
 	"GET",
@@ -38,7 +44,7 @@ const methodDispatchFactories = new Map<string, MethodDispatchFactory>();
 export const methodDispatchers = new WeakMap<MethodData, MethodDispatch>();
 
 /**
- * Describes a compiled route used for request matching and dispatch.
+ * Resolves a matched request to the dispatch of its capture group.
  */
 type MethodDispatch = (
 	request: Request,
@@ -60,142 +66,6 @@ interface AnalyzedEndpoint {
 	pattern: string;
 	ranks: number[];
 }
-
-/**
- * Builds an unrolled resolver for the endpoint capture groups after the first.
- */
-const compileMethodDispatch = (endpoints: Endpoint[], table: Endpoint[]) => {
-	let dispatchCode = "";
-	let key = "";
-
-	for (let i = 1; i < endpoints.length; i++) {
-		const offset = endpoints[i]!.matchOffset;
-
-		key += `${offset},`;
-		dispatchCode += `if (match[${offset}] !== undefined) return table[${offset}].dispatch(request, match);\n`;
-	}
-
-	let factory = methodDispatchFactories.get(key);
-
-	if (!factory) {
-		factory = new Function(
-			"table",
-			`return function (request, match) {\n${dispatchCode}};`,
-		) as MethodDispatchFactory;
-
-		methodDispatchFactories.set(key, factory);
-	}
-
-	return factory(table);
-};
-
-/**
- * Checks whether a path is compatible with Bun's native route semantics.
- */
-const isBunNativeRoute = (path: string, paramKeys: string[]) => {
-	if (path === "/") {
-		return true;
-	}
-
-	const length = path.length;
-
-	// require a leading "/" (47) without a trailing separator
-	if (
-		length < 2 ||
-		path.charCodeAt(0) !== 47 ||
-		path.charCodeAt(length - 1) === 47
-	) {
-		return false;
-	}
-
-	let segmentStart = 1;
-
-	for (let i = 1; i < length; i++) {
-		const charCode = path.charCodeAt(i);
-
-		// reject non-ASCII code units (> 127) and "?" (63)
-		if (charCode > 127 || charCode === 63) {
-			return false;
-		}
-
-		// "/" (47) closes the current segment
-		if (charCode === 47) {
-			// reject empty or "*" (42)-prefixed non-terminal segments
-			if (i === segmentStart || path.charCodeAt(segmentStart) === 42) {
-				return false;
-			}
-
-			segmentStart = i + 1;
-		} else if (
-			// "..." (46) sequences require the fallback router
-			charCode === 46 &&
-			path.charCodeAt(i + 1) === 46 &&
-			path.charCodeAt(i + 2) === 46
-		) {
-			return false;
-		}
-	}
-
-	// only a lone terminal "*" (42) is native
-	if (path.charCodeAt(segmentStart) === 42 && length - segmentStart !== 1) {
-		return false;
-	}
-
-	const paramCount = paramKeys.length;
-
-	if (paramCount === 0) {
-		return true;
-	}
-
-	const firstParamKey = paramKeys[0];
-
-	if (!firstParamKey) {
-		return false;
-	}
-
-	if (paramCount === 1) {
-		return true;
-	}
-
-	const uniqueParamKeys = new Set<string>([firstParamKey]);
-
-	for (let i = 1; i < paramCount; i++) {
-		const paramKey = paramKeys[i];
-
-		if (!paramKey || uniqueParamKeys.has(paramKey)) {
-			return false;
-		}
-
-		uniqueParamKeys.add(paramKey);
-	}
-
-	return true;
-};
-
-/**
- * Orders analyzed endpoints using Bun's route specificity rules.
- */
-const compareAnalyzedEndpoints = (a: AnalyzedEndpoint, b: AnalyzedEndpoint) => {
-	if (a.native !== b.native) {
-		return a.native ? -1 : 1;
-	}
-
-	if (!a.native) {
-		return a.order - b.order;
-	}
-
-	const length = Math.min(a.ranks.length, b.ranks.length);
-
-	for (let i = 0; i < length; i++) {
-		const difference = (a.ranks[i] ?? 0) - (b.ranks[i] ?? 0);
-
-		if (difference !== 0) {
-			return difference;
-		}
-	}
-
-	return a.ranks.length - b.ranks.length || a.order - b.order;
-};
 
 /**
  * Collects routes and mounts from a module tree for compilation.
@@ -291,6 +161,7 @@ const flattenModuleTree = (
 			continue;
 		}
 
+		// Every remaining link is a route.
 		let methodEndpoints = endpoints[link.method];
 
 		if (!methodEndpoints) {
@@ -301,6 +172,7 @@ const flattenModuleTree = (
 
 		let chain: EndpointChain;
 
+		// Routes without a validator share the last chain snapshot.
 		if (link.validator) {
 			chain = cloneAppend(activeChain, link.validator);
 		} else if (cachedChain) {
@@ -331,16 +203,121 @@ const flattenModuleTree = (
 };
 
 /**
- * Compiles routing data for one HTTP method.
+ * Checks whether a path is compatible with Bun's native route semantics.
  */
-const compileMethod = (
-	app: Cudenix,
-	routes: Cudenix["routes"],
-	method: HttpMethod,
-	methodEndpoints: Endpoint[],
-) => {
-	const isBunMethod = BUN_ROUTE_METHODS.has(method);
+const isBunNativeRoute = (path: string, paramKeys: string[]) => {
+	if (path === "/") {
+		return true;
+	}
 
+	const length = path.length;
+
+	// require a leading "/" (47) without a trailing separator
+	if (
+		length < 2 ||
+		path.charCodeAt(0) !== 47 ||
+		path.charCodeAt(length - 1) === 47
+	) {
+		return false;
+	}
+
+	let segmentStart = 1;
+
+	for (let i = 1; i < length; i++) {
+		const charCode = path.charCodeAt(i);
+
+		// reject non-ASCII code units (> 127) and "?" (63)
+		if (charCode > 127 || charCode === 63) {
+			return false;
+		}
+
+		// "/" (47) closes the current segment
+		if (charCode === 47) {
+			// reject empty or "*" (42)-prefixed non-terminal segments
+			if (i === segmentStart || path.charCodeAt(segmentStart) === 42) {
+				return false;
+			}
+
+			segmentStart = i + 1;
+		} else if (
+			// "..." (46) sequences require the fallback router
+			charCode === 46 &&
+			path.charCodeAt(i + 1) === 46 &&
+			path.charCodeAt(i + 2) === 46
+		) {
+			return false;
+		}
+	}
+
+	// only a lone terminal "*" (42) is native
+	if (path.charCodeAt(segmentStart) === 42 && length - segmentStart !== 1) {
+		return false;
+	}
+
+	const paramCount = paramKeys.length;
+
+	if (paramCount === 0) {
+		return true;
+	}
+
+	const firstParamKey = paramKeys[0];
+
+	if (!firstParamKey) {
+		return false;
+	}
+
+	if (paramCount === 1) {
+		return true;
+	}
+
+	// Bun rejects duplicated parameter names.
+	const uniqueParamKeys = new Set<string>([firstParamKey]);
+
+	for (let i = 1; i < paramCount; i++) {
+		const paramKey = paramKeys[i];
+
+		if (!paramKey || uniqueParamKeys.has(paramKey)) {
+			return false;
+		}
+
+		uniqueParamKeys.add(paramKey);
+	}
+
+	return true;
+};
+
+/**
+ * Orders analyzed endpoints using Bun's route specificity rules.
+ */
+const compareAnalyzedEndpoints = (a: AnalyzedEndpoint, b: AnalyzedEndpoint) => {
+	if (a.native !== b.native) {
+		return a.native ? -1 : 1;
+	}
+
+	if (!a.native) {
+		return a.order - b.order;
+	}
+
+	const length = Math.min(a.ranks.length, b.ranks.length);
+
+	for (let i = 0; i < length; i++) {
+		const difference = (a.ranks[i] ?? 0) - (b.ranks[i] ?? 0);
+
+		if (difference !== 0) {
+			return difference;
+		}
+	}
+
+	return a.ranks.length - b.ranks.length || a.order - b.order;
+};
+
+/**
+ * Resolves the parameters of every endpoint of a method and orders them.
+ */
+const analyzeMethodEndpoints = (
+	methodEndpoints: Endpoint[],
+	isBunMethod: boolean,
+) => {
 	const analyzedEndpoints: AnalyzedEndpoint[] = [];
 
 	for (let i = 0; i < methodEndpoints.length; i++) {
@@ -353,20 +330,99 @@ const compileMethod = (
 		const path = endpoint.path;
 		const { paramFlags, paramKeys, pattern, ranks, restKeys } =
 			pathToRegexp(path);
-		const native = isBunMethod && isBunNativeRoute(path, paramKeys);
 
 		endpoint.paramFlags = paramFlags;
 		endpoint.paramKeys = paramKeys;
 		endpoint.restKeys = restKeys;
 
-		analyzedEndpoints.push({ endpoint, native, order: i, pattern, ranks });
+		analyzedEndpoints.push({
+			endpoint,
+			native: isBunMethod && isBunNativeRoute(path, paramKeys),
+			order: i,
+			pattern,
+			ranks,
+		});
 	}
+
+	analyzedEndpoints.sort(compareAnalyzedEndpoints);
+
+	return analyzedEndpoints;
+};
+
+/**
+ * Builds an unrolled resolver for the endpoint capture groups after the first.
+ */
+const compileMethodDispatch = (endpoints: Endpoint[], table: Endpoint[]) => {
+	let dispatchCode = "";
+	let key = "";
+
+	for (let i = 1; i < endpoints.length; i++) {
+		const offset = endpoints[i]!.matchOffset;
+
+		key += `${offset},`;
+		dispatchCode += `if (match[${offset}] !== undefined) return table[${offset}].dispatch(request, match);\n`;
+	}
+
+	let factory = methodDispatchFactories.get(key);
+
+	if (!factory) {
+		factory = new Function(
+			"table",
+			`return function (request, match) {\n${dispatchCode}};`,
+		) as MethodDispatchFactory;
+
+		methodDispatchFactories.set(key, factory);
+	}
+
+	return factory(table);
+};
+
+/**
+ * Registers an endpoint on Bun's native route table.
+ */
+const registerNativeRoute = (
+	routes: Cudenix["routes"],
+	method: HttpMethod,
+	endpoint: Endpoint,
+	isStatic: boolean,
+) => {
+	const path = endpoint.path;
+
+	let pathRoutes = routes[path];
+
+	if (!pathRoutes) {
+		pathRoutes = new Empty() as (typeof routes)[string];
+
+		routes[path] = pathRoutes;
+	}
+
+	// The first endpoint registered for a method wins.
+	if (!(method in pathRoutes)) {
+		pathRoutes[method] = isStatic
+			? endpoint.response!
+			: (endpoint.dispatch as (
+					request: Request,
+				) => MaybePromise<Response>);
+	}
+};
+
+/**
+ * Compiles routing data for one HTTP method.
+ */
+const compileMethod = (
+	app: Cudenix,
+	routes: Cudenix["routes"],
+	method: HttpMethod,
+	methodEndpoints: Endpoint[],
+) => {
+	const analyzedEndpoints = analyzeMethodEndpoints(
+		methodEndpoints,
+		BUN_ROUTE_METHODS.has(method),
+	);
 
 	if (analyzedEndpoints.length === 0) {
 		return;
 	}
-
-	analyzedEndpoints.sort(compareAnalyzedEndpoints);
 
 	const fallbackEndpoints: Endpoint[] = [];
 	const fallbackPatterns: string[] = [];
@@ -384,7 +440,6 @@ const compileMethod = (
 
 		const endpoint = analyzedEndpoint.endpoint;
 		const isStatic = endpoint.route.static && endpoint.chain.length === 0;
-		const path = endpoint.path;
 
 		endpoint.matchOffset = matchOffset;
 
@@ -407,31 +462,14 @@ const compileMethod = (
 		// Account for the marker and parameter captures.
 		matchOffset += 1 + endpoint.paramKeys.length;
 
+		// Only the first endpoint of each pattern reaches Bun's router.
 		if (
 			analyzedEndpoint.native &&
 			!nativePatterns.has(analyzedEndpoint.pattern)
 		) {
 			nativePatterns.add(analyzedEndpoint.pattern);
 
-			let pathRoutes = routes[path];
-
-			if (!pathRoutes) {
-				pathRoutes = new Empty() as (typeof routes)[string];
-
-				routes[path] = pathRoutes;
-			}
-
-			if (!(method in pathRoutes)) {
-				if (isStatic) {
-					pathRoutes[method] = endpoint.response!;
-
-					continue;
-				}
-
-				pathRoutes[method] = endpoint.dispatch as (
-					request: Request,
-				) => MaybePromise<Response>;
-			}
+			registerNativeRoute(routes, method, endpoint, isStatic);
 		}
 	}
 
@@ -474,6 +512,7 @@ const compileMounts = (app: Cudenix, mounts: CompiledMount[]) => {
 	}
 
 	if (prefixed.length > 0) {
+		// Longest prefixes match first.
 		prefixed.sort((a, b) => b.path.length - a.path.length);
 
 		app.mounts = prefixed;
