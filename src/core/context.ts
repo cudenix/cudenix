@@ -37,8 +37,6 @@ export interface Context<
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
-	/** @deprecated Internal routing detail. */
-	match?: RegExpExecArray;
 	/** Application memory shared across requests. */
 	memory: Cudenix["memory"];
 	/** Raw request combined with validated input. */
