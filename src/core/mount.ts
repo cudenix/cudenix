@@ -25,17 +25,8 @@ export interface MountOptions {
 
 /**
  * Compiled `.mount()` descriptor.
- *
- * @example
- * ```typescript
- * const a: Mount = {
- *   fetch: (request) => new Response(request.url),
- *   path: "/hono",
- *   type: "MOUNT",
- * };
- * ```
  */
-export interface Mount {
+interface Mount {
 	fetch: MountFn;
 	path: `/${string}`;
 	type: "MOUNT";
