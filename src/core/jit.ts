@@ -1,4 +1,4 @@
-import { Context, LeanContext } from "@/core/context";
+import { analyzeHandler, type HandlerAnalysis } from "@/core/analyzer";
 import type { Cudenix, Endpoint, EndpointChain } from "@/core/cudenix";
 import type { Dispatch } from "@/core/dispatch";
 import { fail, Reply } from "@/core/reply";
@@ -8,10 +8,6 @@ import type { ValidatorPlugin, ValidatorRequest } from "@/core/validator";
 import { parseBody } from "@/utils/bodies/parse-body";
 import { parseCookies } from "@/utils/cookies/parse-cookies";
 import { isAsync } from "@/utils/functions/is-async";
-import {
-	usesContext,
-	usesResponseMetadata,
-} from "@/utils/functions/uses-context";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
 import {
@@ -31,13 +27,13 @@ const VALIDATION_KEYS = [
 
 interface FactoryDependencyValues {
 	app: Cudenix;
-	Context: typeof Context;
+	CookieMap: typeof Bun.CookieMap;
 	chain: EndpointChain;
 	decodePathParam: typeof decodePathParam;
 	Empty: typeof Empty;
 	fail: typeof fail;
+	Headers: typeof Headers;
 	handler: Endpoint["route"]["handler"];
-	LeanContext: typeof LeanContext;
 	merge: typeof merge;
 	parseBody: typeof parseBody;
 	parseCookies: typeof parseCookies;
@@ -48,7 +44,7 @@ interface FactoryDependencyValues {
 	validator: ValidatorPlugin | undefined;
 }
 
-export type FactoryDependencyName = keyof FactoryDependencyValues;
+type FactoryDependencyName = keyof FactoryDependencyValues;
 
 type FactoryDependencyValue = FactoryDependencyValues[FactoryDependencyName];
 
@@ -184,7 +180,14 @@ interface EndpointShape {
 	key: string;
 	needsContext: boolean;
 	needsMatch: boolean;
+	needsMemory: boolean;
+	needsRequest: boolean;
+	needsResponseContent: boolean;
+	needsResponseCookies: boolean;
+	needsResponseHeaders: boolean;
 	needsResponseMetadata: boolean;
+	needsServer: boolean;
+	needsStore: boolean;
 	needsStoreState: boolean;
 	parsesParams: boolean;
 	validationKeys: (keyof ValidatorRequest)[];
@@ -196,8 +199,7 @@ interface EndpointShape {
 const analyzeEndpoint = (
 	endpoint: Endpoint,
 	validator: ValidatorPlugin | undefined,
-	handlerUsesContext: boolean,
-	handlerUsesResponseMetadata: boolean,
+	handlerAnalysis: HandlerAnalysis,
 ): EndpointShape => {
 	const chain = endpoint.chain;
 	const chainLength = chain.length;
@@ -214,8 +216,14 @@ const analyzeEndpoint = (
 	const validationKeySet = new Set<keyof ValidatorRequest>();
 
 	let isChainAsync = isRouteAsync;
-	let needsContext = handlerUsesContext;
-	let needsResponseMetadata = handlerUsesResponseMetadata;
+	let needsContext = handlerAnalysis.needsContext;
+	let needsMemory = handlerAnalysis.needsMemory;
+	let needsRequest = handlerAnalysis.needsRequest;
+	let needsResponseContent = handlerAnalysis.needsResponseContent;
+	let needsResponseCookies = handlerAnalysis.needsResponseCookies;
+	let needsResponseHeaders = handlerAnalysis.needsResponseHeaders;
+	let needsServer = handlerAnalysis.needsServer;
+	let needsStore = handlerAnalysis.needsStore;
 	let hasStore = false;
 	let hasValidationState = false;
 	let validatesParams = false;
@@ -237,17 +245,17 @@ const analyzeEndpoint = (
 
 			isChainAsync = isHandlerAsync || isChainAsync;
 
-			const linkUsesContext = usesContext(link.handler);
+			const linkAnalysis = analyzeHandler(link.handler);
 
-			if (linkUsesContext) {
+			if (linkAnalysis.needsContext) {
 				needsContext = true;
-
-				if (
-					!needsResponseMetadata &&
-					usesResponseMetadata(link.handler)
-				) {
-					needsResponseMetadata = true;
-				}
+				needsMemory ||= linkAnalysis.needsMemory;
+				needsRequest ||= linkAnalysis.needsRequest;
+				needsResponseContent ||= linkAnalysis.needsResponseContent;
+				needsResponseCookies ||= linkAnalysis.needsResponseCookies;
+				needsResponseHeaders ||= linkAnalysis.needsResponseHeaders;
+				needsServer ||= linkAnalysis.needsServer;
+				needsStore ||= linkAnalysis.needsStore;
 			}
 
 			tags[i] =
@@ -296,7 +304,17 @@ const analyzeEndpoint = (
 		awaitMap[i] = isChainAsync;
 	}
 
-	let key = `${needsContext ? "1" : "0"}${needsResponseMetadata ? "1" : "0"}${hasValidationState ? "1" : "0"}${isSse ? "1" : "0"}${isRouteAsync ? "1" : "0"}${tags.join("")}`;
+	const needsResponseMetadata =
+		needsResponseContent || needsResponseCookies || needsResponseHeaders;
+
+	if (needsContext) {
+		needsRequest ||= hasValidationState;
+		needsRequest ||= endpoint.paramKeys.length > 0;
+		needsServer ||= isSse;
+		needsStore ||= hasStore;
+	}
+
+	let key = `${needsContext ? "C" : "N"}${needsMemory ? "1" : "0"}${needsRequest ? "1" : "0"}${needsResponseContent ? "1" : "0"}${needsResponseCookies ? "1" : "0"}${needsResponseHeaders ? "1" : "0"}${needsServer ? "1" : "0"}${needsStore ? "1" : "0"}${hasValidationState ? "1" : "0"}${isSse ? "1" : "0"}${isRouteAsync ? "1" : "0"}${tags.join("")}`;
 
 	const parsesParams =
 		validatesParams || (needsContext && endpoint.paramKeys.length > 0);
@@ -342,7 +360,14 @@ const analyzeEndpoint = (
 		key,
 		needsContext,
 		needsMatch,
+		needsMemory,
+		needsRequest,
+		needsResponseContent,
+		needsResponseCookies,
+		needsResponseHeaders,
 		needsResponseMetadata,
+		needsServer,
+		needsStore,
 		needsStoreState,
 		parsesParams,
 		validationKeys: VALIDATION_KEYS.filter((key) =>
@@ -368,7 +393,9 @@ const generateDispatcherBody = (
 		isSse,
 		isValidatorAsync,
 		needsContext,
-		needsResponseMetadata,
+		needsResponseContent,
+		needsResponseCookies,
+		needsResponseHeaders,
 		needsStoreState,
 	} = shape;
 	const parsedKeys = new Set<keyof ValidatorRequest>();
@@ -379,13 +406,19 @@ const generateDispatcherBody = (
 
 	const linkArgument = needsContext ? "context" : "undefined";
 	const routeArgument = needsContext ? "context" : "";
-	const contentTarget = needsResponseMetadata
+	const contentTarget = needsResponseContent
 		? "context.response.content"
 		: "content";
 	const responseName = link("response");
-	const returnStatement = needsResponseMetadata
-		? `return ${responseName}(context.response.content,context.response.cookies,context.response.headers);`
-		: `return ${responseName}(content);`;
+	const responseContent = needsResponseContent
+		? "context.response.content"
+		: "content";
+	const responseArguments = needsResponseHeaders
+		? `${responseContent},${needsResponseCookies ? "context.response.cookies" : "undefined"},context.response.headers`
+		: needsResponseCookies
+			? `${responseContent},context.response.cookies`
+			: responseContent;
+	const returnStatement = `return ${responseName}(${responseArguments});`;
 	const terminate = (code: string, isNested: boolean): string =>
 		isNested ? code : `${code}${returnStatement}`;
 	const slotTarget = (key: keyof ValidatorRequest): string =>
@@ -500,10 +533,10 @@ const resolveFactoryDependency = (
 	switch (name) {
 		case "app":
 			return app;
-		case "Context":
-			return Context;
-		case "LeanContext":
-			return LeanContext;
+		case "CookieMap":
+			return Bun.CookieMap;
+		case "Headers":
+			return Headers;
 		case "chain":
 			return endpoint.chain;
 		case "response":
@@ -582,14 +615,51 @@ const createDispatcherFactoryPlan = (
 		query: () =>
 			`${slotTarget("query")}=${link("parseQuery")}(request.url);`,
 	};
-	const preludeStatements = shape.needsContext
-		? shape.needsResponseMetadata
-			? [`const context=new ${link("Context")}(${link("app")},request);`]
-			: [
-					`const context=new ${link("LeanContext")}(${link("app")},request);`,
-					"let content;",
-				]
-		: ["let content;"];
+	const preludeStatements: string[] = [];
+
+	if (shape.needsContext) {
+		preludeStatements.push(`const context=new ${link("Empty")}();`);
+
+		if (shape.needsMemory) {
+			preludeStatements.push(`context.memory=${link("app")}.memory;`);
+		}
+
+		if (shape.needsRequest) {
+			preludeStatements.push(
+				`context.request=new ${link("Empty")}();context.request.raw=request;`,
+			);
+		}
+
+		if (shape.needsResponseMetadata) {
+			preludeStatements.push(`context.response=new ${link("Empty")}();`);
+		}
+
+		if (shape.needsResponseCookies) {
+			preludeStatements.push(
+				`context.response.cookies=new ${link("CookieMap")}(request.headers.get("cookie")??undefined);`,
+			);
+		}
+
+		if (shape.needsResponseHeaders) {
+			preludeStatements.push(
+				`context.response.headers=new ${link("Headers")}();`,
+			);
+		}
+
+		if (shape.needsServer) {
+			preludeStatements.push(`context.server=${link("app")}.server;`);
+		}
+
+		if (shape.needsStore) {
+			preludeStatements.push(`context.store=new ${link("Empty")}();`);
+		}
+
+		if (!shape.needsResponseContent) {
+			preludeStatements.push("let content;");
+		}
+	} else {
+		preludeStatements.push("let content;");
+	}
 
 	if (!shape.needsContext) {
 		if (shape.isSse && shape.hasValidationState) {
@@ -636,24 +706,17 @@ export const inspectJitFactoryDependencies = (
 ): readonly FactoryDependencyName[] => {
 	const handler = endpoint.route.handler;
 	const validator = app.memory.validator as ValidatorPlugin | undefined;
-	const handlerUsesContext = usesContext(handler);
-	const handlerUsesResponseMetadata =
-		handlerUsesContext && usesResponseMetadata(handler);
+	const handlerAnalysis = analyzeHandler(handler);
 
 	if (
 		!endpoint.route.sse &&
-		!handlerUsesContext &&
+		!handlerAnalysis.needsContext &&
 		!hasEffectiveChain(endpoint.chain, validator !== undefined)
 	) {
 		return ["response", "handler"];
 	}
 
-	const shape = analyzeEndpoint(
-		endpoint,
-		validator,
-		handlerUsesContext,
-		handlerUsesResponseMetadata,
-	);
+	const shape = analyzeEndpoint(endpoint, validator, handlerAnalysis);
 
 	return createDispatcherFactoryPlan(endpoint, shape).dependencies;
 };
@@ -676,13 +739,11 @@ const factories = new Map<string, DispatcherFactoryEntry>();
 export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 	const handler = endpoint.route.handler;
 	const validator = app.memory.validator as ValidatorPlugin | undefined;
-	const handlerUsesContext = usesContext(handler);
-	const handlerUsesResponseMetadata =
-		handlerUsesContext && usesResponseMetadata(handler);
+	const handlerAnalysis = analyzeHandler(handler);
 
 	if (
 		!endpoint.route.sse &&
-		!handlerUsesContext &&
+		!handlerAnalysis.needsContext &&
 		!hasEffectiveChain(endpoint.chain, validator !== undefined)
 	) {
 		return isAsync(handler)
@@ -690,12 +751,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint): Dispatch => {
 			: directSyncFactory(response, handler);
 	}
 
-	const shape = analyzeEndpoint(
-		endpoint,
-		validator,
-		handlerUsesContext,
-		handlerUsesResponseMetadata,
-	);
+	const shape = analyzeEndpoint(endpoint, validator, handlerAnalysis);
 
 	let entry = factories.get(shape.key);
 
