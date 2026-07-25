@@ -49,17 +49,8 @@ export type AnyGroupFn = GroupFn<any, any>;
 
 /**
  * Compiled {@link GroupFn} descriptor tagged `"GROUP"`.
- *
- * @example
- * ```typescript
- * const a: Group<AnyModule, "/v1", AnyModule> = {
- *   handler: (module) => module.route("GET", "/a", () => ok("v1")),
- *   prefix: "/v1",
- *   type: "GROUP",
- * };
- * ```
  */
-export interface Group<
+interface Group<
 	Module extends AnyModule,
 	Prefix extends `/${string}`,
 	Return extends AnyModule,
