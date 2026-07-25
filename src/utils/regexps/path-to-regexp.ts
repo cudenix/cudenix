@@ -46,6 +46,8 @@ export const PARAM_FLAG_REST = 2;
  * paramFlags; // [0]
  * ranks; // [0, 1]
  * match[2]; // "v1"
+ *
+ * pathToRegexp("/a/...r1").restKeys; // ["r1"]
  * ```
  */
 export const pathToRegexp = (path: string) => {

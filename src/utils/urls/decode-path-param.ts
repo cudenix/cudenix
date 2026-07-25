@@ -1,5 +1,5 @@
 /**
- * Converts a hexadecimal character code to a number.
+ * Converts a hexadecimal character code to its value, or -1 if not hexadecimal.
  */
 const hexCharCodeToValue = (charCode: number) => {
 	// "0" (48) - "9" (57)
@@ -41,7 +41,7 @@ const decodeUtf8Bytes = (bytes: number[]) => {
 		let minimumCodePoint: number;
 		let sequenceLength: number;
 
-		// lead byte determines the sequence length
+		// lead byte determines the sequence length: 110xxxxx = 2, 1110xxxx = 3, 11110xxx = 4
 		if (firstByte >= 192 && firstByte <= 223) {
 			codePoint = firstByte & 31;
 			minimumCodePoint = 128;
@@ -86,7 +86,7 @@ const decodeUtf8Bytes = (bytes: number[]) => {
 			continue;
 		}
 
-		// reject overlong encodings, out-of-range and surrogate code points
+		// reject overlong encodings, code points above U+10FFFF and U+D800-U+DFFF surrogates
 		if (
 			codePoint < minimumCodePoint ||
 			codePoint > 1_114_111 ||

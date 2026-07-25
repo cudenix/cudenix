@@ -26,7 +26,7 @@ export const parseCookies = (header: string) => {
 		let i = start;
 		let equalsIndex = -1;
 
-		// scan for "=" (61), stopping at a "; " (59, 32) pair boundary
+		// scan the name, ending at "=" (61) or a "; " (59, 32) pair boundary
 		while (i < length) {
 			const charCode = header.charCodeAt(i);
 
@@ -49,7 +49,7 @@ export const parseCookies = (header: string) => {
 			i++;
 		}
 
-		// scan to the next "; " (59, 32) pair boundary
+		// scan the value, ending at the next "; " (59, 32) pair boundary
 		while (i < length) {
 			if (
 				header.charCodeAt(i) === 59 &&

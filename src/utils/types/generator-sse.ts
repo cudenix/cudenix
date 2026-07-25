@@ -20,7 +20,7 @@ export interface GeneratorSSE<
 }
 
 /**
- * Represents a generator SSE event without type constraints.
+ * Any {@link GeneratorSSE} regardless of its data or event generics.
  *
  * @example
  * ```typescript

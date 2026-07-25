@@ -12,6 +12,7 @@
  */
 export type ConditionallyOptional<T extends object, U> = {
 	[K in keyof T]-?: U extends T[K] ? K : never;
+	// "extends keyof T" is required: without it OptionalKeys cannot index T below
 }[keyof T] extends infer OptionalKeys extends keyof T
 	? Omit<T, OptionalKeys> & {
 			[K in OptionalKeys]?: T[K];

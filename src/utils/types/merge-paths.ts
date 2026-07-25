@@ -1,5 +1,5 @@
 /**
- * Normalizes a path type by removing its trailing slash.
+ * Normalizes a path type by removing its trailing slash, keeping `/` intact.
  */
 type RemoveTrailingSlash<Path extends string> = Path extends "/"
 	? Path
