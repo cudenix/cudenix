@@ -26,15 +26,8 @@ export interface Reply<
 /**
  * Any {@link Reply} regardless of its content, status, or discriminant
  * generics.
- *
- * @example
- * ```typescript
- * const a: AnyReply = ok({ a: "v1" });
- *
- * a.status; // 200
- * ```
  */
-export type AnyReply = Reply<any, any, any>;
+type AnyReply = Reply<any, any, any>;
 
 /**
  * Error {@link Reply} with a `false` discriminant.
@@ -130,44 +123,20 @@ export type MergeReplies<T extends object, U extends object> = {
 
 /**
  * Options accepted by the {@link ok} / {@link fail} factories.
- *
- * @example
- * ```typescript
- * const a: ReplyOptions<401> = { status: 401 };
- *
- * fail({ a: 1 }, a); // Fail<{ a: 1 }, 401>
- * ```
  */
-export interface ReplyOptions<Status extends number = number> {
+interface ReplyOptions<Status extends number = number> {
 	status?: Status;
 }
 
 /**
  * Any {@link ReplyOptions} regardless of its status generic.
- *
- * @example
- * ```typescript
- * const fn = ({ status = 200 }: AnyReplyOptions) => status;
- *
- * fn({ status: 201 }); // 201
- * fn({}); // 200
- * ```
  */
-export type AnyReplyOptions = ReplyOptions<any>;
+type AnyReplyOptions = ReplyOptions<any>;
 
 /**
  * Constructor signature of {@link Reply}.
- *
- * @example
- * ```typescript
- * const Ctor: ReplyConstructor = Reply;
- *
- * const a = new Ctor("v1", { status: 401, success: false });
- *
- * a.success; // false
- * ```
  */
-export interface ReplyConstructor {
+interface ReplyConstructor {
 	new <const Content, const Status extends number, const Ok extends boolean>(
 		content: Content,
 		options: { status: Status; success: Ok },
@@ -197,34 +166,16 @@ export const Reply = function Reply(
 
 /**
  * Call signature of {@link ok}.
- *
- * @example
- * ```typescript
- * const fn: OkFactory = ok;
- *
- * const a = fn({ a: "v1" }, { status: 201 });
- *
- * a.status; // 201
- * ```
  */
-export type OkFactory = <const Content, const Status extends number = 200>(
+type OkFactory = <const Content, const Status extends number = 200>(
 	content: Content,
 	options?: ReplyOptions<Status>,
 ) => Ok<Content, Status>;
 
 /**
  * Call signature of {@link fail}.
- *
- * @example
- * ```typescript
- * const fn: FailFactory = fail;
- *
- * const a = fn({ a: "v1" }, { status: 401 });
- *
- * a.status; // 401
- * ```
  */
-export type FailFactory = <const Content, const Status extends number = 400>(
+type FailFactory = <const Content, const Status extends number = 400>(
 	content: Content,
 	options?: ReplyOptions<Status>,
 ) => Fail<Content, Status>;
