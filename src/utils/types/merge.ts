@@ -17,8 +17,6 @@ type DeclaredKeys<T> = {
 /**
  * Combines two object types by overlaying one onto the other.
  *
- * The `extends unknown` checks distribute the merge over unions.
- *
  * @example
  * ```typescript
  * type A = Merge<{ a: string; b: number }, { b: boolean; c: string }>;
