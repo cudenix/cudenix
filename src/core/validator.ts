@@ -3,7 +3,31 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
 import type { StandardSchemaV1 } from "@/utils/types/standard-schema";
 
 /**
- * Runtime contract every validator adapter must satisfy.
+ * Shape of the five request slots a validator may operate.
+ *
+ * @example
+ * ```typescript
+ * type A = ValidatorRequest<{ a: string }, unknown, unknown, unknown, { b: number }>;
+ * // { body: { a: string }; cookies: unknown; headers: unknown; params: unknown; query: { b: number } }
+ * ```
+ */
+export interface ValidatorRequest<
+	Body = unknown,
+	Cookies = unknown,
+	Headers = unknown,
+	Params = unknown,
+	Query = unknown,
+> {
+	body: Body;
+	cookies: Cookies;
+	headers: Headers;
+	params: Params;
+	query: Query;
+}
+
+/**
+ * Runtime contract every validator adapter must satisfy. Receives the slot
+ * schema, the slot value, and the slot being validated.
  *
  * @example
  * ```typescript
@@ -32,20 +56,6 @@ type InferValidatorError<Type> = Type extends StandardSchemaV1
 	: Type;
 
 /**
- * Infers a Standard Schema input type.
- */
-type InferValidatorInput<Type> = Type extends StandardSchemaV1
-	? StandardSchemaV1.InferInput<Type>
-	: Type;
-
-/**
- * Infers a Standard Schema output type.
- */
-type InferValidatorOutput<Type> = Type extends StandardSchemaV1
-	? StandardSchemaV1.InferOutput<Type>
-	: Type;
-
-/**
  * Map each request slot in `T` to the issue type its Standard Schema produces.
  *
  * @example
@@ -59,6 +69,13 @@ export type DeepInferValidatorError<T extends object> = {
 };
 
 /**
+ * Infers a Standard Schema input type.
+ */
+type InferValidatorInput<Type> = Type extends StandardSchemaV1
+	? StandardSchemaV1.InferInput<Type>
+	: Type;
+
+/**
  * Map each request slot in `T` to the input type its Standard Schema accepts.
  *
  * @example
@@ -70,6 +87,13 @@ export type DeepInferValidatorError<T extends object> = {
 export type DeepInferValidatorInput<T extends object> = {
 	[K in keyof T]: InferValidatorInput<T[K]>;
 };
+
+/**
+ * Infers a Standard Schema output type.
+ */
+type InferValidatorOutput<Type> = Type extends StandardSchemaV1
+	? StandardSchemaV1.InferOutput<Type>
+	: Type;
 
 /**
  * Map each request slot in `T` to the output type its Standard Schema
@@ -99,7 +123,8 @@ export interface TransformValidatorError<T extends object> {
 }
 
 /**
- * Merge two per-slot request maps with right-side precedence.
+ * Merge two per-slot request maps with right-side precedence. Slots left
+ * `unknown` on both sides are dropped.
  *
  * @example
  * ```typescript
@@ -124,48 +149,6 @@ export type MergeInferValidatorRequest<
 };
 
 /**
- * Shape of the five request slots a validator may operate.
- *
- * @example
- * ```typescript
- * type A = ValidatorRequest<{ a: string }, unknown, unknown, unknown, { b: number }>;
- * // { body: { a: string }; cookies: unknown; headers: unknown; params: unknown; query: { b: number } }
- * ```
- */
-export interface ValidatorRequest<
-	Body = unknown,
-	Cookies = unknown,
-	Headers = unknown,
-	Params = unknown,
-	Query = unknown,
-> {
-	body: Body;
-	cookies: Cookies;
-	headers: Headers;
-	params: Params;
-	query: Query;
-}
-
-/**
- * Compiled {@link ValidatorOptions} descriptor tagged `"VALIDATOR"`.
- */
-interface Validator<Request extends Partial<ValidatorRequest>> {
-	keys: (keyof ValidatorRequest)[];
-	request: Request;
-	type: "VALIDATOR";
-}
-
-/**
- * Any {@link Validator} regardless of its request generics.
- *
- * @example
- * ```typescript
- * const a: AnyValidator[] = [];
- * ```
- */
-export type AnyValidator = Validator<any>;
-
-/**
  * Options accepted by `module.validator` and the per-route `validator` option.
  *
  * @example
@@ -188,3 +171,25 @@ export interface ValidatorOptions<Request extends Partial<ValidatorRequest>> {
  * ```
  */
 export type AnyValidatorOptions = ValidatorOptions<any>;
+
+/**
+ * Compiled {@link ValidatorOptions} descriptor tagged `"VALIDATOR"`.
+ */
+interface Validator<Request extends Partial<ValidatorRequest>> {
+	/** Slots to validate, in declared order. */
+	keys: (keyof ValidatorRequest)[];
+	/** Schema for each validated slot. */
+	request: Request;
+	/** Discriminant used when walking the chain. */
+	type: "VALIDATOR";
+}
+
+/**
+ * Any {@link Validator} regardless of its request generics.
+ *
+ * @example
+ * ```typescript
+ * const a: AnyValidator[] = [];
+ * ```
+ */
+export type AnyValidator = Validator<any>;
