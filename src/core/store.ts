@@ -34,16 +34,8 @@ export type AnyStoreFn = StoreFn<any, any, any>;
 
 /**
  * Compiled {@link StoreFn} descriptor tagged `"STORE"`.
- *
- * @example
- * ```typescript
- * const a: Store<{ a: string }, {}, {}> = {
- *   handler: () => ({ a: "v1" }),
- *   type: "STORE",
- * };
- * ```
  */
-export interface Store<
+interface Store<
 	Return extends MaybePromise<Record<PropertyKey, unknown> | AnyFail>,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
