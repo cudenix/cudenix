@@ -24,14 +24,8 @@ export type ValidatorPlugin = (
 
 /**
  * Infers a Standard Schema issue type.
- *
- * @example
- * ```typescript
- * type A = InferValidatorError<SomeSchema>;
- * // SomeSchemaIssues
- * ```
  */
-export type InferValidatorError<Type> = Type extends StandardSchemaV1
+type InferValidatorError<Type> = Type extends StandardSchemaV1
 	? Type extends { "~types"?: { issue: infer Issue } }
 		? Issue
 		: StandardSchemaV1.Issue[]
@@ -39,27 +33,15 @@ export type InferValidatorError<Type> = Type extends StandardSchemaV1
 
 /**
  * Infers a Standard Schema input type.
- *
- * @example
- * ```typescript
- * type A = InferValidatorInput<SomeSchema>;
- * // SomeSchemaInput
- * ```
  */
-export type InferValidatorInput<Type> = Type extends StandardSchemaV1
+type InferValidatorInput<Type> = Type extends StandardSchemaV1
 	? StandardSchemaV1.InferInput<Type>
 	: Type;
 
 /**
  * Infers a Standard Schema output type.
- *
- * @example
- * ```typescript
- * type A = InferValidatorOutput<SomeSchema>;
- * // SomeSchemaOutput
- * ```
  */
-export type InferValidatorOutput<Type> = Type extends StandardSchemaV1
+type InferValidatorOutput<Type> = Type extends StandardSchemaV1
 	? StandardSchemaV1.InferOutput<Type>
 	: Type;
 
@@ -166,17 +148,8 @@ export interface ValidatorRequest<
 
 /**
  * Compiled {@link ValidatorOptions} descriptor tagged `"VALIDATOR"`.
- *
- * @example
- * ```typescript
- * const a: Validator<{ body: SomeSchema }> = {
- *   keys: ["body"],
- *   request: { body: someSchema },
- *   type: "VALIDATOR",
- * };
- * ```
  */
-export interface Validator<Request extends Partial<ValidatorRequest>> {
+interface Validator<Request extends Partial<ValidatorRequest>> {
 	keys: (keyof ValidatorRequest)[];
 	request: Request;
 	type: "VALIDATOR";
