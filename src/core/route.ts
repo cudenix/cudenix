@@ -71,9 +71,7 @@ export type ParseRoute<
 /**
  * Distinguish a route descriptor leaf from a path-segment branch.
  */
-export type IsRouteLeaf<T> = T extends { method: string; path: string }
-	? true
-	: false;
+type IsRouteLeaf<T> = T extends { method: string; path: string } ? true : false;
 
 /**
  * Merges two route trees with left-side precedence.
@@ -156,20 +154,8 @@ export type RouteFnReturnGenerator =
 
 /**
  * Adds inferred URL parameters to a validator map.
- *
- * @example
- * ```typescript
- * type A = ValidatorsWithParams<"/a/:p1", { body: { a: string } }>;
- * // { body: { a: string }; params: { p1: string } }
- *
- * type B = ValidatorsWithParams<"/a/b", { body: { a: string } }>;
- * // { body: { a: string } }
- *
- * type C = ValidatorsWithParams<"/a/:p1", { params: { p1: number } }>;
- * // { params: { p1: number } }
- * ```
  */
-export type ValidatorsWithParams<
+type ValidatorsWithParams<
 	Path extends string,
 	Validators extends Record<PropertyKey, unknown>,
 > =
@@ -181,18 +167,8 @@ export type ValidatorsWithParams<
 
 /**
  * Defines a typed route handler.
- *
- * @example
- * ```typescript
- * const fn: RouteFn<
- *   "/a/:p1",
- *   MaybePromise<AnyOk>,
- *   NonNullable<unknown>,
- *   NonNullable<unknown>
- * > = (context) => ok({ a: context.request.params.p1 });
- * ```
  */
-export type RouteFn<
+type RouteFn<
 	Path extends `/${string}`,
 	Return extends MaybePromise<AnyFail | AnyOk> | RouteFnReturnGenerator,
 	Stores extends Record<PropertyKey, unknown>,
@@ -211,56 +187,6 @@ export type RouteFn<
  * ```
  */
 export type AnyRouteFn = RouteFn<any, any, any, any>;
-
-/**
- * Compiled route descriptor stored on the chain, tagged `type: "ROUTE"`.
- *
- * @example
- * ```typescript
- * const a: AnyRoute = {
- *   method: "GET",
- *   path: "/a",
- *   handler: () => ok({ a: "v1" }),
- *   sse: false,
- *   static: true,
- *   type: "ROUTE",
- * };
- * ```
- */
-export interface Route<
-	Method extends HttpMethod,
-	Path extends `/${string}`,
-	Return extends MaybePromise<AnyFail | AnyOk> | RouteFnReturnGenerator,
-	Stores extends Record<PropertyKey, unknown>,
-	RouteValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
-	Validators extends Record<PropertyKey, unknown>,
-> {
-	handler: RouteFn<
-		Path,
-		Return,
-		Stores,
-		MergeInferValidatorRequest<
-			Validators,
-			DeepInferValidatorOutput<RouteValidatorOptions["request"]>
-		>
-	>;
-	method: Method;
-	path: Path;
-	sse: boolean;
-	static: boolean;
-	type: "ROUTE";
-	validator?: AnyValidator | undefined;
-}
-
-/**
- * Any {@link Route} regardless of its generics.
- *
- * @example
- * ```typescript
- * const a: AnyRoute[] = [];
- * ```
- */
-export type AnyRoute = Route<any, any, any, any, any, any>;
 
 /**
  * Handler accepted by `module.route`.
@@ -321,3 +247,41 @@ export interface RouteOptions<
  * ```
  */
 export type AnyRouteOptions = RouteOptions<any>;
+
+/**
+ * Compiled route descriptor stored on the chain, tagged `type: "ROUTE"`.
+ */
+interface Route<
+	Method extends HttpMethod,
+	Path extends `/${string}`,
+	Return extends MaybePromise<AnyFail | AnyOk> | RouteFnReturnGenerator,
+	Stores extends Record<PropertyKey, unknown>,
+	RouteValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
+	Validators extends Record<PropertyKey, unknown>,
+> {
+	handler: RouteFn<
+		Path,
+		Return,
+		Stores,
+		MergeInferValidatorRequest<
+			Validators,
+			DeepInferValidatorOutput<RouteValidatorOptions["request"]>
+		>
+	>;
+	method: Method;
+	path: Path;
+	sse: boolean;
+	static: boolean;
+	type: "ROUTE";
+	validator?: AnyValidator | undefined;
+}
+
+/**
+ * Any {@link Route} regardless of its generics.
+ *
+ * @example
+ * ```typescript
+ * const a: AnyRoute[] = [];
+ * ```
+ */
+export type AnyRoute = Route<any, any, any, any, any, any>;
