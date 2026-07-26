@@ -1,7 +1,8 @@
 import type { AnyModule } from "@/core/module";
 
 /**
- * Options accepted by `module.group`.
+ * Options accepted by `module.group`. `prefix` is merged onto the parent
+ * module prefix.
  *
  * @example
  * ```typescript
@@ -18,14 +19,14 @@ export interface GroupOptions<Prefix extends `/${string}`> {
  *
  * @example
  * ```typescript
- * const fn = (options: AnyGroupOptions = {}) => options.prefix ?? "/";
+ * const fn = (options: AnyGroupOptions) => options.prefix;
  * ```
  */
 export type AnyGroupOptions = GroupOptions<any>;
 
 /**
- * Factory that receives a fresh inner module and returns the configured module
- * to mount.
+ * Factory that receives the group's inner module and returns the module whose
+ * routes merge into the parent.
  *
  * @example
  * ```typescript
