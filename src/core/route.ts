@@ -69,12 +69,13 @@ export type ParseRoute<
 >;
 
 /**
- * Distinguish a route descriptor leaf from a path-segment branch.
+ * Distinguishes a route descriptor leaf from a path-segment branch.
  */
 type IsRouteLeaf<T> = T extends { method: string; path: string } ? true : false;
 
 /**
- * Merges two route trees with left-side precedence.
+ * Merges two route trees with left-side precedence. Two leaves keep the left
+ * one, two branches merge recursively, and any other pair intersects.
  *
  * @example
  * ```typescript
@@ -130,6 +131,14 @@ export type RouteFnReturnGeneratorFrame = GeneratorSSE<
 >;
 
 /**
+ * Value a streaming route may return once its generator completes.
+ */
+type RouteFnReturnGeneratorResult =
+	| RouteFnReturnGeneratorEnvelope
+	| undefined
+	| void;
+
+/**
  * Generator returned by a streaming route.
  *
  * @example
@@ -143,14 +152,8 @@ export type RouteFnReturnGeneratorFrame = GeneratorSSE<
  * ```
  */
 export type RouteFnReturnGenerator =
-	| Generator<
-			RouteFnReturnGeneratorFrame,
-			RouteFnReturnGeneratorEnvelope | undefined | void
-	  >
-	| AsyncGenerator<
-			RouteFnReturnGeneratorFrame,
-			RouteFnReturnGeneratorEnvelope | undefined | void
-	  >;
+	| Generator<RouteFnReturnGeneratorFrame, RouteFnReturnGeneratorResult>
+	| AsyncGenerator<RouteFnReturnGeneratorFrame, RouteFnReturnGeneratorResult>;
 
 /**
  * Adds inferred URL parameters to a validator map.
@@ -223,7 +226,7 @@ export type RouteHandler<
 export type AnyRouteHandler = RouteHandler<any, any, any, any>;
 
 /**
- * Options for `module.route`.
+ * Options accepted by `module.route`.
  *
  * @example
  * ```typescript
@@ -259,6 +262,7 @@ interface Route<
 	RouteValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
+	/** Route handler; a static reply is wrapped into a function. */
 	handler: RouteFn<
 		Path,
 		Return,
@@ -268,11 +272,17 @@ interface Route<
 			DeepInferValidatorOutput<RouteValidatorOptions["request"]>
 		>
 	>;
+	/** HTTP method the route answers. */
 	method: Method;
+	/** Path appended to the inherited module prefixes. */
 	path: Path;
+	/** Handler is a generator, so its replies stream as SSE. */
 	sse: boolean;
+	/** Handler was a plain reply instead of a function. */
 	static: boolean;
+	/** Discriminant used when walking the chain. */
 	type: "ROUTE";
+	/** Per-route validator appended to the route's chain. */
 	validator?: AnyValidator | undefined;
 }
 
