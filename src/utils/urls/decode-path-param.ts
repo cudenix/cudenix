@@ -30,13 +30,6 @@ const decodeUtf8Bytes = (bytes: number[]) => {
 			break;
 		}
 
-		if (firstByte <= 127) {
-			decoded += String.fromCharCode(firstByte);
-			i++;
-
-			continue;
-		}
-
 		let codePoint: number;
 		let minimumCodePoint: number;
 		let sequenceLength: number;

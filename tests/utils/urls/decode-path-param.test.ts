@@ -2,80 +2,115 @@ import { describe, expect, it } from "bun:test";
 
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 
+const validCases = [
+	["hello%20world", "hello world"],
+	["a+b%20c", "a+b c"],
+	["%c3%a9", "é"],
+	["%00", "\u0000"],
+	["%C2%80", "\u0080"],
+	["%E0%A0%80", "\u0800"],
+	["%E2%82%AC", "€"],
+	["%ED%9F%BF", "\uD7FF"],
+	["%EE%80%80", "\uE000"],
+	["%F0%90%80%80", "\u{10000}"],
+	["%F0%9F%98%80", "😀"],
+	["%F4%8F%BF%BF", "\u{10FFFF}"],
+	["%2F", "/"],
+	["%252F", "%2F"],
+] as const;
+
+const malformedUtf8Cases = [
+	["%FF", "�"],
+	["%FE%FF", "��"],
+	["a%FFb", "a�b"],
+	["%80%80", "��"],
+	["%C0%AF", "�"],
+	["%C2", "�"],
+	["%E0%A4", "�"],
+	["%ED%A0%80", "�"],
+	["%ED%BF%BF", "�"],
+	["%E0%80%80", "�"],
+	["%F0%80%80%80", "�"],
+	["%F4%90%80%80", "�"],
+	["%F5%80%80%80", "�"],
+	["%F8%80%80%80%80", "�����"],
+	["%E2%28%A1", "�(�"],
+	["%E2%82%41", "�A"],
+] as const;
+
+const malformedPercentCases = [
+	["%ZZ", "�"],
+	["%G1", "�"],
+	["%1G", "�"],
+	["%", "�"],
+	["%A", "�A"],
+	["%%20", "�0"],
+	["%E0%A4%A", "��A"],
+	// invalid hex while multi-byte bytes are still pending: the buffer must be
+	// flushed before the replacement character is emitted
+	["%C3%ZZ", "��"],
+	["%E2%82%GG", "��"],
+	["%C3%", "��"],
+	["%C3%A", "��A"],
+] as const;
+
 describe("decodePathParam", () => {
+	it("should keep every fixture table populated", () => {
+		expect(validCases.length).toBe(14);
+		expect(malformedUtf8Cases.length).toBe(16);
+		expect(malformedPercentCases.length).toBe(11);
+	});
+
 	it("should return an unescaped value unchanged", () => {
 		expect(decodePathParam("plain+value")).toBe("plain+value");
 	});
 
-	it("should decode valid UTF-8 and escaped separators", () => {
-		const validCases = [
-			["hello%20world", "hello world"],
-			["a+b%20c", "a+b c"],
-			["%c3%a9", "é"],
-			["%00", "\u0000"],
-			["%C2%80", "\u0080"],
-			["%E0%A0%80", "\u0800"],
-			["%E2%82%AC", "€"],
-			["%ED%9F%BF", "\uD7FF"],
-			["%EE%80%80", "\uE000"],
-			["%F0%90%80%80", "\u{10000}"],
-			["%F0%9F%98%80", "😀"],
-			["%F4%8F%BF%BF", "\u{10FFFF}"],
-			["%2F", "/"],
-			["%252F", "%2F"],
-		] as const;
-
-		for (let i = 0; i < validCases.length; i++) {
-			const [encoded, expected] = validCases[i]!;
-
-			expect(decodePathParam(encoded)).toBe(expected);
-		}
+	it("should return an empty value unchanged", () => {
+		expect(decodePathParam("")).toBe("");
 	});
 
-	it("should replace malformed UTF-8 like Bun's native router", () => {
-		const malformedUtf8Cases = [
-			["%FF", "�"],
-			["%FE%FF", "��"],
-			["a%FFb", "a�b"],
-			["%80%80", "��"],
-			["%C0%AF", "�"],
-			["%C2", "�"],
-			["%E0%A4", "�"],
-			["%ED%A0%80", "�"],
-			["%ED%BF%BF", "�"],
-			["%E0%80%80", "�"],
-			["%F0%80%80%80", "�"],
-			["%F4%90%80%80", "�"],
-			["%F5%80%80%80", "�"],
-			["%F8%80%80%80%80", "�����"],
-			["%E2%28%A1", "�(�"],
-			["%E2%82%41", "�A"],
-		] as const;
+	it("should take the no-escape shortcut for long values", () => {
+		// longer than the 32 char threshold of the trailing "%" heuristic, so a
+		// regression there must not be able to touch a value without escapes
+		const value = "plain+value-".repeat(8);
 
-		for (let i = 0; i < malformedUtf8Cases.length; i++) {
-			const [encoded, expected] = malformedUtf8Cases[i]!;
-
-			expect(decodePathParam(encoded)).toBe(expected);
-		}
+		expect(value.length).toBeGreaterThanOrEqual(32);
+		expect(value).not.toContain("%");
+		expect(decodePathParam(value)).toBe(value);
 	});
 
-	it("should replace malformed percent escapes like Bun's native router", () => {
-		const malformedPercentCases = [
-			["%ZZ", "�"],
-			["%G1", "�"],
-			["%1G", "�"],
-			["%", "�"],
-			["%A", "�A"],
-			["%%20", "�0"],
-			["%E0%A4%A", "��A"],
-		] as const;
-
-		for (let i = 0; i < malformedPercentCases.length; i++) {
-			const [encoded, expected] = malformedPercentCases[i]!;
-
+	it.each([
+		["☕", "☕"],
+		["中文", "中文"],
+		["café", "café"],
+		["a😀b", "a😀b"],
+	] as const)(
+		"should return the literal non-ASCII value %j unchanged",
+		(encoded, expected) => {
 			expect(decodePathParam(encoded)).toBe(expected);
-		}
-	});
+		},
+	);
+
+	it.each(validCases)(
+		"should decode the valid escape %j as %j",
+		(encoded, expected) => {
+			expect(decodePathParam(encoded)).toBe(expected);
+		},
+	);
+
+	it.each(malformedUtf8Cases)(
+		"should replace the malformed UTF-8 %j with %j like Bun's native router",
+		(encoded, expected) => {
+			expect(decodePathParam(encoded)).toBe(expected);
+		},
+	);
+
+	it.each(malformedPercentCases)(
+		"should replace the malformed percent escape %j with %j like Bun's native router",
+		(encoded, expected) => {
+			expect(decodePathParam(encoded)).toBe(expected);
+		},
+	);
 
 	it("should decode dense ASCII escapes", () => {
 		expect(decodePathParam("%61".repeat(64))).toBe("a".repeat(64));
@@ -96,6 +131,33 @@ describe("decodePathParam", () => {
 
 		expect(decodePathParam(`${prefix}%ZZ${suffix}`)).toBe(
 			`${prefix}�${suffix}`,
+		);
+	});
+
+	it("should handle a long value ending in a bare percent", () => {
+		const prefix = "a".repeat(40);
+
+		expect(decodePathParam(`${prefix}%`)).toBe(`${prefix}�`);
+	});
+
+	it("should handle a long value ending in a one character escape", () => {
+		const prefix = "a".repeat(40);
+
+		expect(decodePathParam(`${prefix}%A`)).toBe(`${prefix}�A`);
+	});
+
+	it("should handle a long value ending in a complete escape", () => {
+		const prefix = "a".repeat(40);
+
+		expect(decodePathParam(`${prefix}%C3`)).toBe(`${prefix}�`);
+	});
+
+	it("should flush a multi-byte sequence before copying a long tail", () => {
+		const prefix = "a".repeat(40);
+		const suffix = "b".repeat(40);
+
+		expect(decodePathParam(`${prefix}%C3%A9${suffix}`)).toBe(
+			`${prefix}é${suffix}`,
 		);
 	});
 });
