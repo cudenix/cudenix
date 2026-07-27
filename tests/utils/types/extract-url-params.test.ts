@@ -1,6 +1,8 @@
-import { describe, expectTypeOf, it } from "bun:test";
+import { describe, expect, expectTypeOf, it } from "bun:test";
 
+import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { ExtractUrlParams } from "@/utils/types/extract-url-params";
+import { parseParams } from "@/utils/urls/parse-params";
 
 describe("ExtractUrlParams", () => {
 	describe("root path '/'", () => {
@@ -278,8 +280,16 @@ describe("ExtractUrlParams", () => {
 			expectTypeOf<ExtractUrlParams<never>>().toBeNever();
 		});
 
-		it("should not resolve the `any` input to `any`", () => {
+		it("should resolve the `any` input to both conditional branches", () => {
 			expectTypeOf<ExtractUrlParams<any>>().not.toBeAny();
+			// `any` satisfies both sides of every conditional, so the recursion
+			// yields the widened record unioned with the empty accumulator;
+			// `Param` is the widened `string`, never a `?`-suffixed literal, so
+			// the optional-parameter branch is unreachable here and no
+			// `undefined` reaches the value type
+			expectTypeOf<ExtractUrlParams<any>>().branded.toEqualTypeOf<
+				Record<string, string | string[]> | NonNullable<unknown>
+			>();
 		});
 	});
 
@@ -304,13 +314,29 @@ describe("ExtractUrlParams", () => {
 			>().branded.toEqualTypeOf<{ p1: string }>();
 		});
 
-		it("should intersect the value types for a name reused as named param and rest", () => {
+		it("should document a known type/runtime divergence for a name reused as named param and rest", () => {
+			// the type intersects both param kinds into the uninhabited
+			// `string & string[]`
 			expectTypeOf<
 				ExtractUrlParams<"/:p1/...p1">
 			>().branded.toEqualTypeOf<{ p1: string & string[] }>();
 			expectTypeOf<ExtractUrlParams<"/:p1/...p1">["p1"]>().toEqualTypeOf<
 				string & string[]
 			>();
+
+			// the runtime instead lets the last occurrence win: `parseParams`
+			// matches rest params by name, so both captures are split and the
+			// rest one overwrites the named one, yielding a plain `string[]`
+			const { paramKeys, pattern, restKeys } = pathToRegexp("/:p1/...p1");
+			const match = new RegExp(`^${pattern}$`).exec("/v1/x/y");
+			const params = parseParams(
+				match ?? undefined,
+				paramKeys,
+				1,
+				restKeys,
+			);
+
+			expect(params.p1).toEqual(["x", "y"]);
 		});
 	});
 
@@ -325,6 +351,21 @@ describe("ExtractUrlParams", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/a/b", { seed: string[] }>
 			>().branded.toEqualTypeOf<{ seed: string[] }>();
+		});
+
+		it("should accept a seed whose value type includes `undefined`", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/b/:p2", { seed: string | undefined }>
+			>().branded.toEqualTypeOf<{
+				seed: string | undefined;
+				p2: string;
+			}>();
+		});
+
+		it("should accept its own output as a seed so the type composes", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/b/:p2", ExtractUrlParams<"/a/:p1?">>
+			>().branded.toEqualTypeOf<{ p1: string | undefined; p2: string }>();
 		});
 	});
 

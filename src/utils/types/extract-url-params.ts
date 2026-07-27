@@ -25,9 +25,11 @@ type ParamRecord<Segment extends string, Param extends string> = Record<
  */
 export type ExtractUrlParams<
 	Path extends string,
+	// "| undefined" keeps the constraint satisfiable by this type's own output,
+	// which emits optional params as "string | undefined"
 	Accumulated extends Record<
 		string,
-		string | string[]
+		string | string[] | undefined
 	> = NonNullable<unknown>,
 > = Path extends `${infer First}/${infer Rest}`
 	? First extends `:${infer Param}` | `...${infer Param}`
