@@ -9,9 +9,10 @@
  * ```
  */
 export const merge = (
-	target: Record<PropertyKey, unknown>,
-	source: Record<PropertyKey, unknown>,
+	target: Record<string, unknown>,
+	source: Record<string, unknown>,
 ) => {
+	// for...in walks the prototype chain and skips symbols, hence the notes above
 	for (const key in source) {
 		target[key] = source[key];
 	}

@@ -427,6 +427,45 @@ describe("merge", () => {
 				}),
 			).toThrow(TypeError);
 		});
+
+		it("should throw TypeError when target is frozen and source overwrites an existing key with an identical value", () => {
+			const target = Object.freeze({ a: 1 }) as Record<string, unknown>;
+
+			expect(() => merge(target, { a: 1 })).toThrow(TypeError);
+		});
+	});
+
+	describe("unusable targets left untouched by a keyless source", () => {
+		it("should not throw when target is null and source has no enumerable keys", () => {
+			expect(() =>
+				merge(null as unknown as Record<PropertyKey, unknown>, {}),
+			).not.toThrow();
+		});
+
+		it("should not throw when target is undefined and source has no enumerable keys", () => {
+			expect(() =>
+				merge(undefined as unknown as Record<PropertyKey, unknown>, {}),
+			).not.toThrow();
+		});
+
+		it("should not throw when target is frozen and source has no enumerable keys", () => {
+			const target = Object.freeze({ a: 1 }) as Record<string, unknown>;
+
+			expect(() => merge(target, {})).not.toThrow();
+			expect(target).toEqual({ a: 1 });
+		});
+
+		it("should not throw when target is null and source only carries non-enumerable or symbol keys", () => {
+			const source: Record<PropertyKey, unknown> = {};
+
+			Object.defineProperty(source, "a", { enumerable: false, value: 1 });
+
+			source[Symbol("b")] = 2;
+
+			expect(() =>
+				merge(null as unknown as Record<PropertyKey, unknown>, source),
+			).not.toThrow();
+		});
 	});
 
 	describe("cyclic sources", () => {
