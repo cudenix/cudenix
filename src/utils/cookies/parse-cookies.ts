@@ -30,27 +30,37 @@ export const parseCookies = (header: string) => {
 			end = length;
 		}
 
-		const equalsIndex = header.indexOf("=", start);
+		let nameStart = start;
 
-		// ignore pairs without an "=" of their own
-		if (equalsIndex !== -1 && equalsIndex < end) {
-			let nameStart = start;
-			let nameEnd = equalsIndex;
+		// optional whitespace, " " (32) or "\t" (9), is not part of the name
+		while (nameStart < end) {
+			const charCode = header.charCodeAt(nameStart);
 
-			// optional whitespace, " " (32) or "\t" (9), is not part of the name
-			while (
-				nameStart < nameEnd &&
-				(header.charCodeAt(nameStart) === 32 ||
-					header.charCodeAt(nameStart) === 9)
-			) {
-				nameStart++;
+			if (charCode !== 32 && charCode !== 9) {
+				break;
 			}
 
-			while (
-				nameEnd > nameStart &&
-				(header.charCodeAt(nameEnd - 1) === 32 ||
-					header.charCodeAt(nameEnd - 1) === 9)
-			) {
+			nameStart++;
+		}
+
+		let equalsIndex = nameStart;
+
+		// scan the name, ending at "=" (61) or at the pair boundary
+		while (equalsIndex < end && header.charCodeAt(equalsIndex) !== 61) {
+			equalsIndex++;
+		}
+
+		// ignore pairs without an "=" of their own
+		if (equalsIndex < end) {
+			let nameEnd = equalsIndex;
+
+			while (nameEnd > nameStart) {
+				const charCode = header.charCodeAt(nameEnd - 1);
+
+				if (charCode !== 32 && charCode !== 9) {
+					break;
+				}
+
 				nameEnd--;
 			}
 
@@ -60,19 +70,23 @@ export const parseCookies = (header: string) => {
 				let valueEnd = end;
 
 				// optional whitespace is not part of the value either
-				while (
-					valueStart < valueEnd &&
-					(header.charCodeAt(valueStart) === 32 ||
-						header.charCodeAt(valueStart) === 9)
-				) {
+				while (valueStart < valueEnd) {
+					const charCode = header.charCodeAt(valueStart);
+
+					if (charCode !== 32 && charCode !== 9) {
+						break;
+					}
+
 					valueStart++;
 				}
 
-				while (
-					valueEnd > valueStart &&
-					(header.charCodeAt(valueEnd - 1) === 32 ||
-						header.charCodeAt(valueEnd - 1) === 9)
-				) {
+				while (valueEnd > valueStart) {
+					const charCode = header.charCodeAt(valueEnd - 1);
+
+					if (charCode !== 32 && charCode !== 9) {
+						break;
+					}
+
 					valueEnd--;
 				}
 
