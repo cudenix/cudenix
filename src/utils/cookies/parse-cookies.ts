@@ -23,61 +23,66 @@ export const parseCookies = (header: string) => {
 	let start = 0;
 
 	while (start < length) {
-		let i = start;
-		let equalsIndex = -1;
+		// each pair ends at the next ";" (59) or at the end of the header
+		let end = header.indexOf(";", start);
 
-		// scan the name, ending at "=" (61) or a "; " (59, 32) pair boundary
-		while (i < length) {
-			const charCode = header.charCodeAt(i);
+		if (end === -1) {
+			end = length;
+		}
 
-			if (charCode === 61) {
-				equalsIndex = i;
+		const equalsIndex = header.indexOf("=", start);
 
-				i++;
+		// ignore pairs without an "=" of their own
+		if (equalsIndex !== -1 && equalsIndex < end) {
+			let nameStart = start;
+			let nameEnd = equalsIndex;
 
-				break;
-			}
-
-			if (
-				charCode === 59 &&
-				i + 1 < length &&
-				header.charCodeAt(i + 1) === 32
+			// optional whitespace, " " (32) or "\t" (9), is not part of the name
+			while (
+				nameStart < nameEnd &&
+				(header.charCodeAt(nameStart) === 32 ||
+					header.charCodeAt(nameStart) === 9)
 			) {
-				break;
+				nameStart++;
 			}
 
-			i++;
-		}
-
-		// scan the value, ending at the next "; " (59, 32) pair boundary
-		while (i < length) {
-			if (
-				header.charCodeAt(i) === 59 &&
-				i + 1 < length &&
-				header.charCodeAt(i + 1) === 32
+			while (
+				nameEnd > nameStart &&
+				(header.charCodeAt(nameEnd - 1) === 32 ||
+					header.charCodeAt(nameEnd - 1) === 9)
 			) {
-				break;
+				nameEnd--;
 			}
 
-			i++;
+			// ignore pairs without a name
+			if (nameEnd > nameStart) {
+				let valueStart = equalsIndex + 1;
+				let valueEnd = end;
+
+				// optional whitespace is not part of the value either
+				while (
+					valueStart < valueEnd &&
+					(header.charCodeAt(valueStart) === 32 ||
+						header.charCodeAt(valueStart) === 9)
+				) {
+					valueStart++;
+				}
+
+				while (
+					valueEnd > valueStart &&
+					(header.charCodeAt(valueEnd - 1) === 32 ||
+						header.charCodeAt(valueEnd - 1) === 9)
+				) {
+					valueEnd--;
+				}
+
+				cookies[header.substring(nameStart, nameEnd)] =
+					header.substring(valueStart, valueEnd);
+			}
 		}
 
-		const end = i;
-
-		// ignore pairs without a name or "="
-		if (equalsIndex > start) {
-			cookies[header.substring(start, equalsIndex)] = header.substring(
-				equalsIndex + 1,
-				end,
-			);
-		}
-
-		if (i >= length) {
-			break;
-		}
-
-		// skip "; "
-		start = i + 2;
+		// skip the ";"
+		start = end + 1;
 	}
 
 	return cookies;

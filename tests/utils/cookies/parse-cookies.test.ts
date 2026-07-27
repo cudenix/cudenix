@@ -76,13 +76,6 @@ describe("parseCookies", () => {
 			expect(result.a).toBe("a%20b%3Dc");
 		});
 
-		it("should decode to the original value via decodeURIComponent at the call site", () => {
-			const result = parseCookies("a=a%20b");
-
-			expect(result.a).toBe("a%20b");
-			expect(decodeURIComponent(result.a!)).toBe("a b");
-		});
-
 		it("should preserve double-quoted values verbatim (no RFC 6265 quote stripping)", () => {
 			const result = parseCookies('a="v1"; b=2');
 
@@ -90,10 +83,10 @@ describe("parseCookies", () => {
 			expect(result.b).toBe("2");
 		});
 
-		it("should not trim whitespace around values", () => {
-			const result = parseCookies("a=v1 ; b=2");
+		it("should trim optional whitespace around values", () => {
+			const result = parseCookies("a=v1 ; b= 2\t");
 
-			expect(result.a).toBe("v1 ");
+			expect(result.a).toBe("v1");
 			expect(result.b).toBe("2");
 		});
 
@@ -127,19 +120,36 @@ describe("parseCookies", () => {
 	});
 
 	describe("separator handling", () => {
-		it("should treat only '; ' (semicolon + space) as a separator", () => {
+		it("should split on a bare ';' with no following space", () => {
 			const result = parseCookies("a=1;b=2");
 
-			expect(result.a).toBe("1;b=2");
-			expect("b" in result).toBe(false);
+			expect(result).toEqual({ a: "1", b: "2" });
 		});
 
-		it("should not split on a bare ';' inside an entry", () => {
+		it("should split on a ';' followed by a tab", () => {
+			const result = parseCookies("a=1;\tb=2");
+
+			expect(result).toEqual({ a: "1", b: "2" });
+		});
+
+		it("should split three or more pairs regardless of the spacing used", () => {
+			expect(parseCookies("a=1;b=2;c=3")).toEqual({
+				a: "1",
+				b: "2",
+				c: "3",
+			});
+
+			expect(parseCookies("a=1; b=2;  c=3")).toEqual({
+				a: "1",
+				b: "2",
+				c: "3",
+			});
+		});
+
+		it("should skip a chunk that carries no '=' of its own", () => {
 			const result = parseCookies("a=1; b=2;3; c=4");
 
-			expect(result.a).toBe("1");
-			expect(result.b).toBe("2;3");
-			expect(result.c).toBe("4");
+			expect(result).toEqual({ a: "1", b: "2", c: "4" });
 		});
 
 		it("should handle a leading '; ' delimiter (empty first chunk)", () => {
@@ -162,26 +172,40 @@ describe("parseCookies", () => {
 			expect(result).toEqual({ a: "1", b: "2" });
 		});
 
-		it("should keep a trailing bare ';' as part of the last value", () => {
+		it("should drop a trailing bare ';' instead of keeping it in the value", () => {
 			const result = parseCookies("a=v1;");
 
-			expect(result.a).toBe("v1;");
+			expect(result).toEqual({ a: "v1" });
 		});
 
-		it("should merge two entries into one name on a bare ';' during the name scan", () => {
+		it("should skip a nameless chunk and still read the pair after it", () => {
 			const result = parseCookies("a;b=c");
 
-			expect(result["a;b"]).toBe("c");
+			expect(result).toEqual({ b: "c" });
 			expect("a" in result).toBe(false);
-			expect("b" in result).toBe(false);
+			expect("a;b" in result).toBe(false);
 		});
 
-		it("should leak the extra space into the name when the separator is doubled", () => {
+		it("should not leak the extra space into the name when the separator is doubled", () => {
 			const result = parseCookies("a=1;  b=2");
 
-			expect(result.a).toBe("1");
-			expect(result[" b"]).toBe("2");
-			expect("b" in result).toBe(false);
+			expect(result).toEqual({ a: "1", b: "2" });
+			expect(" b" in result).toBe(false);
+		});
+
+		it("should trim optional whitespace from a leading name", () => {
+			const result = parseCookies(" a=1; b=2");
+
+			expect(result).toEqual({ a: "1", b: "2" });
+			expect(" a" in result).toBe(false);
+		});
+
+		it("should trim optional whitespace between a name and its '='", () => {
+			const result = parseCookies("a =1; b\t=2");
+
+			expect(result).toEqual({ a: "1", b: "2" });
+			expect("a " in result).toBe(false);
+			expect("b\t" in result).toBe(false);
 		});
 	});
 
@@ -319,7 +343,20 @@ describe("parseCookies", () => {
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
 			expect(result.__proto__).toBe("v1");
 			expect(result.a).toBe("v2");
-			expect(({} as Record<string, unknown>).__proto__).not.toBe("v1");
+			expect(
+				Object.getPrototypeOf(Object.getPrototypeOf(result)),
+			).toBeNull();
+		});
+
+		it("should keep `__proto__` as data instead of rewiring the prototype chain", () => {
+			const reference = parseCookies("a=v1");
+			const result = parseCookies("__proto__=v1");
+
+			expect(Object.getPrototypeOf(result)).toBe(
+				Object.getPrototypeOf(reference),
+			);
+			expect(Reflect.ownKeys(result)).toEqual(["__proto__"]);
+			expect("toString" in result).toBe(false);
 		});
 
 		it("should store `constructor` as a real own key without invoking inheritance", () => {
@@ -359,10 +396,24 @@ describe("parseCookies", () => {
 			expect(a).not.toBe(b);
 		});
 
-		it("should preserve insertion order regardless of name ordering", () => {
+		it("should preserve insertion order for non-numeric names", () => {
 			const result = parseCookies("z=1; a=2; m=3");
 
 			expect(Object.keys(result)).toEqual(["z", "a", "m"]);
+		});
+
+		it("should enumerate integer-like names first and in ascending order", () => {
+			const result = parseCookies("2=b; 1=a");
+
+			expect(Object.keys(result)).toEqual(["1", "2"]);
+			expect(result["1"]).toBe("a");
+			expect(result["2"]).toBe("b");
+		});
+
+		it("should enumerate integer-like names before non-numeric ones", () => {
+			const result = parseCookies("2=b; 1=a; z=c");
+
+			expect(Object.keys(result)).toEqual(["1", "2", "z"]);
 		});
 	});
 });
