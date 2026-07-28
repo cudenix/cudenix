@@ -48,6 +48,19 @@ export type Fail<Content, Status extends number = 400> = Reply<
 >;
 
 /**
+ * Any error-direction {@link Reply} (`success: false`) regardless of its
+ * content or status generics.
+ *
+ * @example
+ * ```typescript
+ * const a: AnyFail = fail({ a: "v1" });
+ *
+ * a.success; // false
+ * ```
+ */
+export type AnyFail = Reply<any, any, false>;
+
+/**
  * Success {@link Reply} with a `true` discriminant.
  *
  * @example
@@ -66,19 +79,6 @@ export type Ok<Content, Status extends number = 200> = Reply<
 >;
 
 /**
- * Any error-direction {@link Reply} (`success: false`) regardless of its
- * content or status generics.
- *
- * @example
- * ```typescript
- * const a: AnyFail = fail({ a: "v1" });
- *
- * a.success; // false
- * ```
- */
-export type AnyFail = Reply<any, any, false>;
-
-/**
  * Any success-direction {@link Reply} (`success: true`) regardless of its
  * content or status generics.
  *
@@ -90,6 +90,19 @@ export type AnyFail = Reply<any, any, false>;
  * ```
  */
 export type AnyOk = Reply<any, any, true>;
+
+/**
+ * Union the fields of two replies sharing the same status.
+ */
+type MergeReply<T, U> = {
+	[K in keyof T | keyof U]: K extends keyof T
+		? K extends keyof U
+			? T[K] | U[K]
+			: T[K]
+		: K extends keyof U
+			? U[K]
+			: never;
+};
 
 /**
  * Deeply merge two status-keyed reply dictionaries.
@@ -106,32 +119,12 @@ export type AnyOk = Reply<any, any, true>;
 export type MergeReplies<T extends object, U extends object> = {
 	[K in keyof T | keyof U]: K extends keyof T
 		? K extends keyof U
-			? {
-					[K2 in keyof T[K] | keyof U[K]]: K2 extends keyof T[K]
-						? K2 extends keyof U[K]
-							? T[K][K2] | U[K][K2]
-							: T[K][K2]
-						: K2 extends keyof U[K]
-							? U[K][K2]
-							: never;
-				}
+			? MergeReply<T[K], U[K]>
 			: T[K]
 		: K extends keyof U
 			? U[K]
 			: never;
 };
-
-/**
- * Options accepted by the {@link ok} / {@link fail} factories.
- */
-interface ReplyOptions<Status extends number = number> {
-	status?: Status;
-}
-
-/**
- * Any {@link ReplyOptions} regardless of its status generic.
- */
-type AnyReplyOptions = ReplyOptions<any>;
 
 /**
  * Constructor signature of {@link Reply}.
@@ -165,12 +158,16 @@ export const Reply = function Reply(
 } as unknown as ReplyConstructor;
 
 /**
- * Call signature of {@link ok}.
+ * Options accepted by the {@link ok} / {@link fail} factories.
  */
-type OkFactory = <const Content, const Status extends number = 200>(
-	content: Content,
-	options?: ReplyOptions<Status>,
-) => Ok<Content, Status>;
+interface ReplyOptions<Status extends number = number> {
+	status?: Status;
+}
+
+/**
+ * Any {@link ReplyOptions} regardless of its status generic.
+ */
+type AnyReplyOptions = ReplyOptions<any>;
 
 /**
  * Call signature of {@link fail}.
@@ -179,21 +176,6 @@ type FailFactory = <const Content, const Status extends number = 400>(
 	content: Content,
 	options?: ReplyOptions<Status>,
 ) => Fail<Content, Status>;
-
-/**
- * Build an {@link Ok} reply.
- *
- * @example
- * ```typescript
- * const a = ok({ a: "v1" }); // status 200, success true
- *
- * const b = ok({ a: 1 }, { status: 201 }); // status 201
- * ```
- */
-export const ok = ((
-	content: unknown,
-	{ status = 200 }: AnyReplyOptions = FrozenEmpty,
-) => new Reply(content, { status, success: true })) as unknown as OkFactory;
 
 /**
  * Build a {@link Fail} reply.
@@ -209,3 +191,26 @@ export const fail = ((
 	content: unknown,
 	{ status = 400 }: AnyReplyOptions = FrozenEmpty,
 ) => new Reply(content, { status, success: false })) as unknown as FailFactory;
+
+/**
+ * Call signature of {@link ok}.
+ */
+type OkFactory = <const Content, const Status extends number = 200>(
+	content: Content,
+	options?: ReplyOptions<Status>,
+) => Ok<Content, Status>;
+
+/**
+ * Build an {@link Ok} reply.
+ *
+ * @example
+ * ```typescript
+ * const a = ok({ a: "v1" }); // status 200, success true
+ *
+ * const b = ok({ a: 1 }, { status: 201 }); // status 201
+ * ```
+ */
+export const ok = ((
+	content: unknown,
+	{ status = 200 }: AnyReplyOptions = FrozenEmpty,
+) => new Reply(content, { status, success: true })) as unknown as OkFactory;
