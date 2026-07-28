@@ -214,6 +214,28 @@ describe("ConditionallyOptional", () => {
 			>().branded.toEqualTypeOf<{ a: string; b: number }>();
 		});
 
+		it("should not recurse into nested object values", () => {
+			// src/ecosystem/client/client.ts depends on this being shallow: a
+			// recursive version would silently relax fields inside the body
+			interface A {
+				a: { b: string | undefined };
+			}
+
+			expectTypeOf<
+				ConditionallyOptional<A, undefined>
+			>().branded.toEqualTypeOf<{ a: { b: string | undefined } }>();
+		});
+
+		it("should relax the outer key when the nested object itself may be undefined", () => {
+			interface A {
+				a: { b: string } | undefined;
+			}
+
+			expectTypeOf<
+				ConditionallyOptional<A, undefined>
+			>().branded.toEqualTypeOf<{ a?: { b: string } | undefined }>();
+		});
+
 		it("should not relax a key whose value is a strict subtype of the marker", () => {
 			interface A {
 				a: "v1";

@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
 
+import { fail, ok } from "@/core/reply";
 import { Empty, FrozenEmpty } from "@/utils/objects/empty";
 
 describe("Empty", () => {
@@ -67,6 +68,69 @@ describe("Empty", () => {
 
 		it("should return an empty array from Object.values", () => {
 			expect(Object.values(instance)).toEqual([]);
+		});
+	});
+
+	describe("serialization of a populated instance", () => {
+		const dangerous: string = "constructor";
+
+		let nested: Record<PropertyKey, unknown>;
+		let instance: Record<PropertyKey, unknown>;
+
+		beforeEach(() => {
+			nested = new Empty();
+			nested.b = 2;
+
+			instance = new Empty();
+			instance.a = 1;
+			instance.nested = nested;
+			instance[dangerous] = "x";
+		});
+
+		it("should serialize own keys in insertion order via JSON.stringify, including a nested instance and a 'constructor' key", () => {
+			expect(JSON.stringify(instance)).toBe(
+				'{"a":1,"nested":{"b":2},"constructor":"x"}',
+			);
+		});
+
+		it("should spread to a plain object carrying every own key by reference", () => {
+			const spread = { ...instance };
+
+			expect(Object.keys(spread)).toEqual(["a", "nested", "constructor"]);
+			expect(spread.a).toBe(1);
+			expect(spread.nested).toBe(nested);
+			expect(spread[dangerous]).toBe("x");
+		});
+
+		it("should return every own entry in insertion order from Object.entries", () => {
+			const entries = Object.entries(instance);
+
+			expect(entries.map(([key]) => key)).toEqual([
+				"a",
+				"nested",
+				"constructor",
+			]);
+			expect(entries[0]?.[1]).toBe(1);
+			expect(entries[1]?.[1]).toBe(nested);
+			expect(entries[2]?.[1]).toBe("x");
+		});
+
+		it("should return every own value in insertion order from Object.values", () => {
+			const values = Object.values(instance);
+
+			expect(values).toHaveLength(3);
+			expect(values[0]).toBe(1);
+			expect(values[1]).toBe(nested);
+			expect(values[2]).toBe("x");
+		});
+
+		it("should not inherit a toJSON hook that could rewrite the serialized shape", () => {
+			expect("toJSON" in instance).toBe(false);
+			expect(JSON.parse(JSON.stringify(instance))).toEqual({
+				a: 1,
+				constructor: "x",
+				nested: { b: 2 },
+			});
 		});
 	});
 
@@ -338,10 +402,32 @@ describe("FrozenEmpty", () => {
 			expect(FrozenEmpty).toBeInstanceOf(Empty);
 		});
 
-		it("should be the same reference across re-imports of the module", async () => {
-			const reimported = await import("@/utils/objects/empty");
+		it("should be the very instance distinct src consumers destructure as their options default", () => {
+			const receivers: unknown[] = [];
 
-			expect(FrozenEmpty).toBe(reimported.FrozenEmpty);
+			Object.defineProperty(Empty.prototype, "status", {
+				configurable: true,
+				enumerable: true,
+				get(this: unknown) {
+					receivers.push(this);
+
+					return 418;
+				},
+			});
+
+			try {
+				expect(fail("v1").status as number).toBe(418);
+				expect(ok("v2").status as number).toBe(418);
+			} finally {
+				delete Empty.prototype.status;
+			}
+
+			expect(receivers).toHaveLength(2);
+			expect(receivers[0]).toBe(FrozenEmpty);
+			expect(receivers[1]).toBe(FrozenEmpty);
+
+			expect(fail("v1").status).toBe(400);
+			expect(ok("v2").status).toBe(200);
 		});
 	});
 

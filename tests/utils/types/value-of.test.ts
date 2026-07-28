@@ -214,18 +214,44 @@ describe("ValueOf", () => {
 
 			expectTypeOf<string>().toExtend<ValueOf<A>>();
 			expectTypeOf<number>().toExtend<ValueOf<A>>();
+
+			// `toExtend` alone also holds for the degenerate `ValueOf<T> = unknown`
+			expectTypeOf<ValueOf<A>>().not.toBeUnknown();
+			expectTypeOf<Extract<ValueOf<A>, string>>().toEqualTypeOf<string>();
+		});
+
+		it("should include the `length` literal of a tuple in the union", () => {
+			type A = [string, "x"];
+
+			expectTypeOf<Extract<ValueOf<A>, 2>>().toEqualTypeOf<2>();
 		});
 
 		it("should include the element type of a homogeneous array in the union", () => {
 			type A = string[];
 
 			expectTypeOf<string>().toExtend<ValueOf<A>>();
+
+			expectTypeOf<ValueOf<A>>().not.toBeUnknown();
+			expectTypeOf<Extract<ValueOf<A>, number>>().toEqualTypeOf<number>();
 		});
 
 		it("should not equal the bare element union for a tuple because the length literal and array-method types leak in", () => {
 			type A = [string, "x"];
 
 			expectTypeOf<ValueOf<A>>().not.toEqualTypeOf<string | "x">();
+			expectTypeOf<ValueOf<A>>().not.toBeUnknown();
+		});
+	});
+
+	describe("rejected inputs", () => {
+		it("should reject a `string` source", () => {
+			// @ts-expect-error - string does not satisfy `T extends object`
+			type _A = ValueOf<string>;
+		});
+
+		it("should reject a `number` source", () => {
+			// @ts-expect-error - number does not satisfy `T extends object`
+			type _A = ValueOf<number>;
 		});
 	});
 

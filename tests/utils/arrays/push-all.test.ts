@@ -28,6 +28,7 @@ describe("pushAll", () => {
 			const result = pushAll(target, [1, 2]);
 
 			expect(result).toBeUndefined();
+			expect(target).toEqual([1, 2]);
 		});
 	});
 
@@ -134,12 +135,12 @@ describe("pushAll", () => {
 			const target = [0];
 			const source = Array.from({ length }, (_, i) => i + 1);
 
-			expect(() => {
-				const probe: number[] = [];
-
-				probe.push(...source);
-			}).toThrow(RangeError);
-
+			// `target.push(...source)` would spread 1M arguments onto the call
+			// stack and blow up with a RangeError, so `pushAll` must copy the
+			// source with an indexed loop instead of a variadic spread. The
+			// exact argument count that overflows depends on the engine and on
+			// the stack depth at the call site, so it is deliberately not
+			// asserted here: this test pins `pushAll`, not the JS engine.
 			pushAll(target, source);
 
 			expect(target).toHaveLength(length + 1);

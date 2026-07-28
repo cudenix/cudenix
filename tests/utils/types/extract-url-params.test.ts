@@ -1,8 +1,8 @@
 import { describe, expect, expectTypeOf, it } from "bun:test";
 
-import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
+import { PARAM_FLAG_REST, pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { ExtractUrlParams } from "@/utils/types/extract-url-params";
-import { parseParams } from "@/utils/urls/parse-params";
+import { decodePathParam } from "@/utils/urls/decode-path-param";
 
 describe("ExtractUrlParams", () => {
 	describe("root path '/'", () => {
@@ -324,17 +324,22 @@ describe("ExtractUrlParams", () => {
 				string & string[]
 			>();
 
-			// the runtime instead lets the last occurrence win: `parseParams`
-			// matches rest params by name, so both captures are split and the
-			// rest one overwrites the named one, yielding a plain `string[]`
-			const { paramKeys, pattern, restKeys } = pathToRegexp("/:p1/...p1");
+			// the runtime instead lets the last occurrence win, mirroring the
+			// assignments src/core/jit.ts emits: each capture is decoded in
+			// order and the rest one overwrites the named one
+			const { paramFlags, paramKeys, pattern } =
+				pathToRegexp("/:p1/...p1");
 			const match = new RegExp(`^${pattern}$`).exec("/v1/x/y");
-			const params = parseParams(
-				match ?? undefined,
-				paramKeys,
-				1,
-				restKeys,
-			);
+			const params: Record<string, string | string[]> = {};
+
+			for (let i = 0; i < paramKeys.length; i++) {
+				const decoded = decodePathParam(match![2 + i]!);
+
+				params[paramKeys[i]!] =
+					(paramFlags[i]! & PARAM_FLAG_REST) !== 0
+						? decoded.split("/")
+						: decoded;
+			}
 
 			expect(params.p1).toEqual(["x", "y"]);
 		});

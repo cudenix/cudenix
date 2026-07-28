@@ -526,17 +526,24 @@ describe("Merge", () => {
 			expectTypeOf<Merge<A, B>["other"]>().toEqualTypeOf<number>();
 		});
 
-		it("should union the declarations when the overlapping key is optional on both sides", () => {
+		it("should union an optional concrete key from the first operand with the second's index signature", () => {
 			interface A {
 				a?: string;
 			}
 			interface B {
-				a?: number;
+				[k: string]: number;
 			}
 
 			expectTypeOf<Merge<A, B>["a"]>().toEqualTypeOf<
 				string | number | undefined
 			>();
+			expectTypeOf<Merge<A, B>["other"]>().toEqualTypeOf<number>();
+			expectTypeOf<
+				NonNullable<unknown> extends Pick<Merge<A, B>, "a">
+					? true
+					: false
+			>().toEqualTypeOf<true>();
+			expectTypeOf<keyof Merge<A, B>>().toEqualTypeOf<string | number>();
 		});
 	});
 
@@ -618,6 +625,75 @@ describe("Merge", () => {
 			}
 
 			expectTypeOf<Merge<A, A>>().branded.toEqualTypeOf<A>();
+		});
+	});
+
+	describe("chained merges", () => {
+		interface A {
+			a: string;
+			shared: string;
+		}
+		interface B {
+			b: number;
+			shared: number;
+		}
+
+		it("should let the third operand override keys inherited from both earlier operands", () => {
+			interface C {
+				a: boolean;
+				b: bigint;
+			}
+
+			expectTypeOf<Merge<Merge<A, B>, C>>().branded.toEqualTypeOf<
+				{ shared: number } & { a: boolean; b: bigint }
+			>();
+		});
+
+		it("should let the last operand win on a key overridden by every step of the chain", () => {
+			interface C {
+				shared: boolean;
+			}
+
+			expectTypeOf<Merge<Merge<A, B>, C>>().branded.toEqualTypeOf<
+				{ a: string; b: number } & { shared: boolean }
+			>();
+		});
+
+		it("should keep the `?` modifier blocking replacement of a first-operand key when the base is an intersection", () => {
+			interface C {
+				a?: boolean;
+			}
+
+			expectTypeOf<Merge<Merge<A, B>, C>["a"]>().toEqualTypeOf<
+				string | boolean | undefined
+			>();
+			expectTypeOf<
+				NonNullable<unknown> extends Pick<Merge<Merge<A, B>, C>, "a">
+					? true
+					: false
+			>().toEqualTypeOf<false>();
+			expectTypeOf<Merge<Merge<A, B>, C>>().branded.toEqualTypeOf<
+				{
+					a: string | boolean | undefined;
+					b: number;
+					shared: number;
+				} & NonNullable<unknown>
+			>();
+		});
+
+		it("should keep the `?` modifier blocking replacement of a second-operand key when the base is an intersection", () => {
+			interface C {
+				b?: string;
+			}
+
+			expectTypeOf<Merge<Merge<A, B>, C>["b"]>().toEqualTypeOf<
+				string | number | undefined
+			>();
+			expectTypeOf<
+				NonNullable<unknown> extends Pick<Merge<Merge<A, B>, C>, "b">
+					? true
+					: false
+			>().toEqualTypeOf<false>();
 		});
 	});
 

@@ -32,12 +32,20 @@ describe("AllPropertiesAreUnknown", () => {
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
-		it("should resolve to true when a property's union value collapses into unknown", () => {
-			interface A {
-				a: unknown | string;
+		it("should discriminate a deferred union that only collapses into unknown for some instantiations", () => {
+			// a bare `unknown | string` is normalized to `unknown` at declaration
+			// time, so the union has to stay deferred behind a type parameter for
+			// the utility to be the one doing the work
+			interface A<T> {
+				a: T | string;
 			}
 
-			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
+			expectTypeOf<
+				AllPropertiesAreUnknown<A<unknown>>
+			>().toEqualTypeOf<true>();
+			expectTypeOf<
+				AllPropertiesAreUnknown<A<number>>
+			>().toEqualTypeOf<false>();
 		});
 
 		it("should resolve to true for an intersection of unknown-property shapes", () => {

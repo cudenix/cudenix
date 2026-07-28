@@ -314,5 +314,25 @@ describe("RequiredKeys", () => {
 
 			expectTypeOf<RequiredKeys<A | B>>().toEqualTypeOf<"a">();
 		});
+
+		it("should resolve to `never` for an `any` source instead of propagating `any`", () => {
+			expectTypeOf<RequiredKeys<any>>().toBeNever();
+		});
+
+		it("should resolve to `never` for a `never` source", () => {
+			expectTypeOf<RequiredKeys<never>>().toBeNever();
+		});
+	});
+
+	describe("rejected inputs", () => {
+		it("should reject a primitive source", () => {
+			// @ts-expect-error - string does not satisfy `T extends object`
+			type _A = RequiredKeys<string>;
+		});
+
+		it("should reject a nullish source", () => {
+			// @ts-expect-error - undefined does not satisfy `T extends object`
+			type _A = RequiredKeys<undefined>;
+		});
 	});
 });

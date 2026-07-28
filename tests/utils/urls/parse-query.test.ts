@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 
 import { Empty } from "@/utils/objects/empty";
+import { decodePathParam } from "@/utils/urls/decode-path-param";
 import { parseQuery } from "@/utils/urls/parse-query";
 
 describe("parseQuery", () => {
@@ -197,6 +198,26 @@ describe("parseQuery", () => {
 			const result = parseQuery("/a?a+100%=v1");
 
 			expect(result["a 100%"]).toBe("v1");
+		});
+
+		it("should keep a syntactically valid escape carrying invalid UTF-8 verbatim", () => {
+			const result = parseQuery("/a?b=%FF&c=v2");
+
+			expect(result.b).toBe("%FF");
+			expect(result.c).toBe("v2");
+		});
+
+		it("should keep a key whose valid escape carries invalid UTF-8 verbatim", () => {
+			const result = parseQuery("/a?b%FF=v1");
+
+			expect(result["b%FF"]).toBe("v1");
+		});
+
+		it("should hand undecodable query bytes to consumers raw, unlike path params", () => {
+			// query keeps the raw escape, a path param yields a replacement
+			// character; changing either decoder must break this test
+			expect(parseQuery("/a?b=%FF").b).toBe("%FF");
+			expect(decodePathParam("%FF")).toBe("�");
 		});
 	});
 
@@ -485,7 +506,11 @@ describe("parseQuery", () => {
 
 			expect(Object.hasOwn(result, "b")).toBe(true);
 			expect(Object.hasOwn(result.b as object, "__proto__")).toBe(true);
-			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+
+			// the payload survives as an own key on a normal object, so a
+			// consumer reaching for Object.assign (which triggers the setter,
+			// unlike spread) would still pollute: that is their contract to keep
+			expect(Object.getPrototypeOf(result.b)).toBe(Object.prototype);
 		});
 	});
 
@@ -517,10 +542,21 @@ describe("parseQuery", () => {
 			expect(a).not.toBe(b);
 		});
 
-		it("should preserve insertion order regardless of name ordering", () => {
+		it("should preserve insertion order for non-index names", () => {
 			const result = parseQuery("/a?z=1&a=2&m=3");
 
 			expect(Object.keys(result)).toEqual(["z", "a", "m"]);
+		});
+
+		it("should reorder integer-index names ahead of the rest, per spec", () => {
+			// query names are client-controlled, so "?1=..&0=.." is trivial to
+			// send; no consumer may rely on Object.keys order for the query
+			const result = parseQuery("/a?2=x&1=y&z=w");
+
+			expect(Object.keys(result)).toEqual(["1", "2", "z"]);
+			expect(result[1]).toBe("y");
+			expect(result[2]).toBe("x");
+			expect(result.z).toBe("w");
 		});
 	});
 });
