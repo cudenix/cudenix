@@ -13,6 +13,14 @@ type ParamRecord<Segment extends string, Param extends string> = Record<
 >;
 
 /**
+ * Replaces the accumulated entry for a repeated parameter name.
+ */
+type Override<
+	Accumulated extends Record<string, string | string[] | undefined>,
+	Latest extends Record<string, string | string[] | undefined>,
+> = Omit<Accumulated, keyof Latest> & Latest;
+
+/**
  * Extracts named parameters from a route path type.
  *
  * @example
@@ -21,6 +29,8 @@ type ParamRecord<Segment extends string, Param extends string> = Record<
  *
  * type B = ExtractUrlParams<"/a/:p1?/b/...r1">;
  * // { p1: string | undefined; r1: string[] }
+ *
+ * type C = ExtractUrlParams<"/:p1/...p1">; // { p1: string[] }
  * ```
  */
 export type ExtractUrlParams<
@@ -33,8 +43,11 @@ export type ExtractUrlParams<
 	> = NonNullable<unknown>,
 > = Path extends `${infer First}/${infer Rest}`
 	? First extends `:${infer Param}` | `...${infer Param}`
-		? ExtractUrlParams<Rest, Accumulated & ParamRecord<First, Param>>
+		? ExtractUrlParams<
+				Rest,
+				Override<Accumulated, ParamRecord<First, Param>>
+			>
 		: ExtractUrlParams<Rest, Accumulated>
 	: Path extends `:${infer Param}` | `...${infer Param}`
-		? Accumulated & ParamRecord<Path, Param>
+		? Override<Accumulated, ParamRecord<Path, Param>>
 		: Accumulated;

@@ -308,20 +308,21 @@ describe("ExtractUrlParams", () => {
 	});
 
 	describe("duplicate parameter names", () => {
-		it("should collapse a name repeated as required then optional to the required type", () => {
+		it("should let the last occurrence win when a name is repeated as required then optional", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/:p1/:p1?">
-			>().branded.toEqualTypeOf<{ p1: string }>();
+			>().branded.toEqualTypeOf<{ p1: string | undefined }>();
 		});
 
-		it("should document a known type/runtime divergence for a name reused as named param and rest", () => {
-			// the type intersects both param kinds into the uninhabited
-			// `string & string[]`
+		it("should agree with the runtime for a name reused as named param and rest", () => {
+			// this used to intersect both param kinds into the uninhabited
+			// `string & string[]`; the last occurrence wins now, which is what
+			// the assignments src/core/jit.ts emits actually produce
 			expectTypeOf<
 				ExtractUrlParams<"/:p1/...p1">
-			>().branded.toEqualTypeOf<{ p1: string & string[] }>();
+			>().branded.toEqualTypeOf<{ p1: string[] }>();
 			expectTypeOf<ExtractUrlParams<"/:p1/...p1">["p1"]>().toEqualTypeOf<
-				string & string[]
+				string[]
 			>();
 
 			// the runtime instead lets the last occurrence win, mirroring the
