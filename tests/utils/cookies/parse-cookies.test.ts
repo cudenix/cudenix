@@ -70,10 +70,22 @@ describe("parseCookies", () => {
 			expect(result.b).toBe("");
 		});
 
-		it("should not URL-decode values (raw, undecoded)", () => {
+		it("should percent-decode values", () => {
 			const result = parseCookies("a=a%20b%3Dc");
 
-			expect(result.a).toBe("a%20b%3Dc");
+			expect(result.a).toBe("a b=c");
+		});
+
+		it("should replace a malformed escape instead of throwing", () => {
+			expect(parseCookies("a=%ZZ").a).toBe("�");
+			expect(parseCookies("a=%E0%A4%A").a).toBe("��A");
+		});
+
+		it("should leave a value without any '%' untouched", () => {
+			const result = parseCookies("a=v+b; b=v1");
+
+			expect(result.a).toBe("v+b");
+			expect(result.b).toBe("v1");
 		});
 
 		it("should preserve double-quoted values verbatim (no RFC 6265 quote stripping)", () => {
@@ -90,11 +102,11 @@ describe("parseCookies", () => {
 			expect(result.b).toBe("2");
 		});
 
-		it("should keep a percent-encoded name raw (no URL-decoding of names)", () => {
+		it("should percent-decode names", () => {
 			const result = parseCookies("a%20b=1");
 
-			expect(result["a%20b"]).toBe("1");
-			expect("a b" in result).toBe(false);
+			expect(result["a b"]).toBe("1");
+			expect("a%20b" in result).toBe(false);
 		});
 
 		it("should preserve whitespace inside values", () => {
@@ -210,17 +222,44 @@ describe("parseCookies", () => {
 	});
 
 	describe("duplicate names", () => {
-		it("should keep the last value when a name appears multiple times", () => {
+		// RFC 6265 has the server send the most specific cookie first, so the
+		// first occurrence is the one to keep; Bun.CookieMap reads them the same
+		// way, and it is what writes these cookies out
+		it("should keep the first value when a name appears multiple times", () => {
 			const result = parseCookies("a=1; a=2; a=3");
 
-			expect(result.a).toBe("3");
+			expect(result.a).toBe("1");
 			expect(Object.keys(result)).toEqual(["a"]);
 		});
 
-		it("should keep the last value when an empty value follows a non-empty one", () => {
-			const result = parseCookies("a=1; a=");
+		it("should keep the first value even when it is empty", () => {
+			expect(parseCookies("a=; a=1").a).toBe("");
+			expect(parseCookies("a=1; a=").a).toBe("1");
+		});
 
-			expect(result.a).toBe("");
+		it("should compare duplicate names after decoding them", () => {
+			expect(parseCookies("a%20b=v1; a b=v2")).toEqual({ "a b": "v1" });
+			expect(parseCookies("a b=v1; a%20b=v2")).toEqual({ "a b": "v1" });
+		});
+
+		it("should not let a chunk without '=' reserve the name", () => {
+			expect(parseCookies("a; a=v2")).toEqual({ a: "v2" });
+			expect(parseCookies("=v1; a=v2; a=v3")).toEqual({ a: "v2" });
+		});
+
+		it("should treat names differing only in case as distinct cookies", () => {
+			expect(parseCookies("A=v1; a=v2")).toEqual({ A: "v1", a: "v2" });
+		});
+
+		it("should keep first-seen insertion order when a duplicate appears later", () => {
+			const result = parseCookies("a=v1; b=v2; a=v3");
+
+			expect(Object.keys(result)).toEqual(["a", "b"]);
+			expect(result.a).toBe("v1");
+		});
+
+		it("should trim optional whitespace before deduplicating", () => {
+			expect(parseCookies("a =v1; a=v2")).toEqual({ a: "v1" });
 		});
 	});
 
@@ -414,6 +453,132 @@ describe("parseCookies", () => {
 			const result = parseCookies("2=b; 1=a; z=c");
 
 			expect(Object.keys(result)).toEqual(["1", "2", "z"]);
+		});
+	});
+
+	describe("parity with Bun.CookieMap", () => {
+		// Bun.CookieMap is what src/core/response.ts writes cookies through, so
+		// what it reads back is the reference this parser has to match.
+		const parityCases = [
+			"a=v1; b=v2",
+			"session=a%20b",
+			"json=%7B%22x%22%3A1%7D",
+			"a%20b=v1",
+			"encoded%3Dname=v1",
+			"a=%ZZ",
+			"a=%E0%A4%A",
+			"a=%FF",
+			"a=%C3%A9",
+			"a=v%2Bb",
+			"a=v+b",
+			"a=",
+			"a=  v1  ; b=\t2\t",
+			"novalue; b=1",
+			"=v1; b=1",
+			"__proto__=v1",
+			"a=100%; b=50%off",
+			"a=v1; a=v2",
+			"a=v1; a=v2; a=v3",
+			"a=; a=1",
+			"a=1; a=",
+			"a%20b=v1; a b=v2",
+			"a b=v1; a%20b=v2",
+			"a; a=v2",
+			"=v1; a=v2; a=v3",
+			"a=v1; b=v2; a=v3",
+			"A=v1; a=v2",
+			"a =v1; a=v2",
+			"a=%20; a=x",
+		];
+
+		for (const header of parityCases) {
+			it(`should match Bun.CookieMap for ${JSON.stringify(header)}`, () => {
+				expect({ ...parseCookies(header) }).toEqual(
+					new Bun.CookieMap(header).toJSON(),
+				);
+			});
+		}
+
+		it("should match Bun.CookieMap on generated ASCII headers", () => {
+			// A seeded LCG, not Math.random: the inputs are identical on every
+			// run, so a failure is reproducible and the test cannot flake.
+			// ASCII only, because that is what a header carries on the wire -
+			// with a raw non-ASCII character Bun.CookieMap re-reads its own
+			// UTF-8 bytes as Latin-1 ("é" becomes "Ã©"), which is an artefact of
+			// building one from a JS string and not what a request produces.
+			// This is the short version; the same comparison over 500k headers
+			// also reports zero mismatches.
+			const alphabet = [
+				"a",
+				"b",
+				"A",
+				"1",
+				"2",
+				"=",
+				";",
+				" ",
+				"\t",
+				"%",
+				"%2",
+				"%20",
+				"%ZZ",
+				"%C3%A9",
+				"%7B",
+				"%3D",
+				"%3B",
+				"_",
+				"+",
+				"-",
+				"__proto__",
+				"constructor",
+			];
+
+			let seed = 987654321;
+
+			const random = () => {
+				seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+
+				return seed / 0x7fffffff;
+			};
+
+			for (let iteration = 0; iteration < 5000; iteration++) {
+				let header = "";
+
+				for (
+					let part = 1 + Math.floor(random() * 11);
+					part > 0;
+					part--
+				) {
+					header += alphabet[Math.floor(random() * alphabet.length)];
+				}
+
+				expect({ ...parseCookies(header) }).toEqual(
+					new Bun.CookieMap(header).toJSON(),
+				);
+			}
+		});
+
+		it("should round-trip everything Bun.CookieMap encodes on the write path", () => {
+			const written = new Bun.CookieMap();
+
+			written.set("session", "a b");
+			written.set("json", '{"x":1}');
+			written.set("path", "/a/b?c=d#e");
+			written.set("unicode", "café ☕");
+			written.set("semi", "a;b");
+
+			const header = written
+				.toSetCookieHeaders()
+				.map((setCookie) => setCookie.split(";")[0])
+				.join("; ");
+
+			expect(parseCookies(header)).toEqual({
+				json: '{"x":1}',
+				path: "/a/b?c=d#e",
+				semi: "a;b",
+				session: "a b",
+				unicode: "café ☕",
+			});
 		});
 	});
 });

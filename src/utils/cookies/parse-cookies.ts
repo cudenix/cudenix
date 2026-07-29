@@ -1,14 +1,16 @@
 import { Empty } from "@/utils/objects/empty";
+import { decodePathParam } from "@/utils/urls/decode-path-param";
 
 /**
  * Parses cookies from a `Cookie` request header.
  *
  * @example
  * ```typescript
- * const cookies = parseCookies("a=v1; b=v2");
+ * const cookies = parseCookies("a=v1; b=v2; c=a%20b");
  *
  * cookies.a; // "v1"
  * cookies.b; // "v2"
+ * cookies.c; // "a b"
  * ```
  */
 export const parseCookies = (header: string) => {
@@ -19,6 +21,9 @@ export const parseCookies = (header: string) => {
 	}
 
 	const length = header.length;
+	// one native scan decides whether any pair can need decoding at all, so the
+	// common unencoded header never pays for a decode call
+	const isEncoded = header.indexOf("%") !== -1;
 
 	let start = 0;
 
@@ -90,8 +95,21 @@ export const parseCookies = (header: string) => {
 					valueEnd--;
 				}
 
-				cookies[header.substring(nameStart, nameEnd)] =
-					header.substring(valueStart, valueEnd);
+				const name = isEncoded
+					? decodePathParam(header.substring(nameStart, nameEnd))
+					: header.substring(nameStart, nameEnd);
+
+				// first one wins, and the name is compared after decoding, so
+				// "a%20b" and "a b" are the same cookie. Values are always
+				// strings, so undefined means the name is still free; skipping
+				// also avoids decoding a value that would be discarded
+				if (cookies[name] === undefined) {
+					cookies[name] = isEncoded
+						? decodePathParam(
+								header.substring(valueStart, valueEnd),
+							)
+						: header.substring(valueStart, valueEnd);
+				}
 			}
 		}
 
