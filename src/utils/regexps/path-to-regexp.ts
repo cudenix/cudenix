@@ -5,7 +5,21 @@ const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
 // same shape as rest but non-capturing, and the trailing "?" lets "*" match zero segments
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
 
-const REGEXP_SYNTAX = /[\\^$.*+?()[\]{}|]/g;
+// regexp syntax plus "#": one pass handles escaping and the two delimiters that
+// have to be percent-encoded, so a static segment is only scanned once
+const STATIC_SEGMENT_SYNTAX = /[\\^$.*+?()[\]{}|#]/g;
+
+// "?" and "#" end the path in a request URL, so a static segment may only match
+// them in their percent-encoded form; left literal, the pattern would reach into
+// the query string and shadow the route the request actually asked for
+const escapeStaticSegment = (segment: string) =>
+	segment.replace(STATIC_SEGMENT_SYNTAX, (character) =>
+		character === "?"
+			? "%3F"
+			: character === "#"
+				? "%23"
+				: `\\${character}`,
+	);
 
 // segment specificity used to order routes: lower ranks match first
 const STATIC_RANK = 0;
@@ -129,10 +143,11 @@ export const pathToRegexp = (path: string) => {
 
 			segment = REST_CAPTURE;
 		} else {
-			// static segment, with regexp syntax escaped
+			// static segment: one pass escapes regexp syntax and percent-encodes
+			// the reserved delimiters
 			ranks.push(STATIC_RANK);
 
-			segment = `\\/${path.substring(i, contentEnd).replace(REGEXP_SYNTAX, "\\$&")}`;
+			segment = `\\/${escapeStaticSegment(path.substring(i, contentEnd))}`;
 		}
 
 		if (isOptional) {
@@ -146,15 +161,20 @@ export const pathToRegexp = (path: string) => {
 		i = segmentEnd;
 	}
 
-	return {
-		paramFlags,
-		paramKeys,
+	let pattern: string;
+
+	if (segments) {
 		// fully-optional patterns must also match the bare "/" path
-		pattern:
-			areAllSegmentsOptional && segments
-				? `()(?:${segments}|\\/)`
-				: `()${segments}`,
-		ranks,
-		restKeys,
-	};
+		pattern = areAllSegmentsOptional
+			? `()(?:${segments}|\\/)`
+			: `()${segments}`;
+	} else {
+		// a path of nothing but separators normalizes to the root, the same way
+		// the loop already collapses duplicate and trailing slashes; without
+		// this, "//" would compile to a zero-width pattern that no real request
+		// can match, since every request path starts with "/"
+		pattern = length ? String.raw`()\/` : "()";
+	}
+
+	return { paramFlags, paramKeys, pattern, ranks, restKeys };
 };

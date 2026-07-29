@@ -54,12 +54,23 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/a")).toBe(false);
 		});
 
-		it("should compile a slashes-only path '//' like the empty path, not the root", () => {
-			const { paramKeys, pattern, restKeys } = pathToRegexp("//");
+		it("should normalise a slashes-only path to the root, not to the empty path", () => {
+			for (const path of ["//", "///"]) {
+				const { paramKeys, pattern, restKeys } = pathToRegexp(path);
 
-			expect(paramKeys).toEqual([]);
-			expect(pattern).toBe("()");
-			expect(restKeys).toEqual([]);
+				expect(paramKeys).toEqual([]);
+				expect(pattern).toBe(pathToRegexp("/").pattern);
+				expect(restKeys).toEqual([]);
+			}
+		});
+
+		it("should make a slashes-only path reachable by a real request", () => {
+			// the previous zero-width "()" pattern required an empty path, which
+			// no HTTP client can send, so the route was silently dead
+			const { regex } = compile("//");
+
+			expect(regex.test("/")).toBe(true);
+			expect(regex.test("")).toBe(false);
 		});
 	});
 
@@ -166,7 +177,6 @@ describe("pathToRegexp", () => {
 				"1abc",
 				"a-b",
 				"a,b",
-				"hash#tag",
 				"space here",
 				"line\nbreak",
 				"carriage\rreturn",
@@ -199,11 +209,35 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/b")).toBe(false);
 		});
 
-		it("should treat a '?' in the middle of a segment as a literal character", () => {
-			const { regex } = compile("/a?b");
+		it("should compile a '?' in the middle of a segment to its percent-encoding", () => {
+			const { pattern, regex } = compile("/a?b");
 
-			expect(regex.test("/a?b")).toBe(true);
+			// a request path can only carry "?" encoded, so matching it raw would
+			// reach into the query string and shadow the route "/a"
+			expect(pattern).toBe(String.raw`()\/a%3Fb`);
+			expect(regex.test("/a%3Fb")).toBe(true);
+			expect(regex.test("/a?b")).toBe(false);
 			expect(regex.test("/ab")).toBe(false);
+		});
+
+		it("should compile a '#' in the middle of a segment to its percent-encoding", () => {
+			const { pattern, regex } = compile("/hash#tag");
+
+			expect(pattern).toBe(String.raw`()\/hash%23tag`);
+			expect(regex.test("/hash%23tag")).toBe(true);
+			expect(regex.test("/hash#tag")).toBe(false);
+		});
+
+		it("should not let a '?' segment shadow the route the request actually asked for", () => {
+			const shadowing = pathToRegexp("/search?q=1").pattern;
+			const real = pathToRegexp("/search").pattern;
+			const combined = new RegExp(
+				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${shadowing}|${real})(?![^?#])`,
+			);
+
+			// group 1 is the shadowing route's marker, group 2 the real one
+			expect(combined.exec("http://h/search?q=1")?.[2]).toBe("");
+			expect(combined.exec("http://h/search?q=1")?.[1]).toBeUndefined();
 		});
 
 		it("should treat a ':' in the middle of a segment as a literal character", () => {
