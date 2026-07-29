@@ -202,18 +202,15 @@ describe("Empty", () => {
 			expect("constructor" in Empty.prototype).toBe(false);
 		});
 
-		it("should propagate properties added to Empty.prototype to instances", () => {
+		it("should reject properties added to the frozen Empty.prototype", () => {
 			const probe = Symbol();
 
-			Empty.prototype[probe] = "v1";
+			expect(() => {
+				Empty.prototype[probe] = "v1";
+			}).toThrow(TypeError);
 
-			try {
-				expect(instance[probe]).toBe("v1");
-				expect(Reflect.has(instance, probe)).toBe(true);
-				expect(Object.hasOwn(instance, probe)).toBe(false);
-			} finally {
-				delete Empty.prototype[probe];
-			}
+			expect(Reflect.has(instance, probe)).toBe(false);
+			expect(instance[probe]).toBeUndefined();
 		});
 	});
 
@@ -402,29 +399,19 @@ describe("FrozenEmpty", () => {
 			expect(FrozenEmpty).toBeInstanceOf(Empty);
 		});
 
-		it("should be the very instance distinct src consumers destructure as their options default", () => {
-			const receivers: unknown[] = [];
+		it("should keep the shared options default of src consumers immune to prototype poisoning", () => {
+			// this used to install a getter on Empty.prototype to observe the
+			// receiver; the prototype is frozen now, so the poisoning attempt is
+			// what gets asserted, and the defaults have to survive it
+			expect(() =>
+				Object.defineProperty(Empty.prototype, "status", {
+					configurable: true,
+					enumerable: true,
+					value: 418,
+				}),
+			).toThrow(TypeError);
 
-			Object.defineProperty(Empty.prototype, "status", {
-				configurable: true,
-				enumerable: true,
-				get(this: unknown) {
-					receivers.push(this);
-
-					return 418;
-				},
-			});
-
-			try {
-				expect(fail("v1").status as number).toBe(418);
-				expect(ok("v2").status as number).toBe(418);
-			} finally {
-				delete Empty.prototype.status;
-			}
-
-			expect(receivers).toHaveLength(2);
-			expect(receivers[0]).toBe(FrozenEmpty);
-			expect(receivers[1]).toBe(FrozenEmpty);
+			expect("status" in FrozenEmpty).toBe(false);
 
 			expect(fail("v1").status).toBe(400);
 			expect(ok("v2").status).toBe(200);
@@ -522,27 +509,21 @@ describe("FrozenEmpty", () => {
 	});
 
 	describe("pollution of the shared Empty.prototype", () => {
-		it("should leave Empty.prototype unfrozen and extensible", () => {
-			expect(Object.isFrozen(Empty.prototype)).toBe(false);
-			expect(Object.isExtensible(Empty.prototype)).toBe(true);
+		it("should be frozen and non-extensible", () => {
+			expect(Object.isFrozen(Empty.prototype)).toBe(true);
+			expect(Object.isExtensible(Empty.prototype)).toBe(false);
 		});
 
-		it("should surface string keys added to Empty.prototype as inherited, non-own keys while staying frozen", () => {
-			Empty.prototype.threshold = 9;
-
-			try {
-				expect("threshold" in FrozenEmpty).toBe(true);
-				expect(FrozenEmpty.threshold).toBe(9);
-				expect(Object.hasOwn(FrozenEmpty, "threshold")).toBe(false);
-				expect(Object.isFrozen(FrozenEmpty)).toBe(true);
-			} finally {
-				delete Empty.prototype.threshold;
-			}
+		it("should reject a string key added to Empty.prototype", () => {
+			expect(() => {
+				Empty.prototype.threshold = 9;
+			}).toThrow(TypeError);
 
 			expect("threshold" in FrozenEmpty).toBe(false);
+			expect(FrozenEmpty.threshold).toBeUndefined();
 		});
 
-		it("should let keys added to Empty.prototype override destructuring defaults read through FrozenEmpty", () => {
+		it("should keep destructuring defaults read through FrozenEmpty stable", () => {
 			const fn = ({
 				threshold = 1024,
 			}: {
@@ -551,15 +532,21 @@ describe("FrozenEmpty", () => {
 
 			expect(fn()).toBe(1024);
 
-			Empty.prototype.threshold = 9;
-
-			try {
-				expect(fn()).toBe(9);
-			} finally {
-				delete Empty.prototype.threshold;
-			}
+			expect(() => {
+				Empty.prototype.threshold = 9;
+			}).toThrow(TypeError);
 
 			expect(fn()).toBe(1024);
+		});
+
+		it("should still let each instance take its own keys", () => {
+			const dictionary = new Empty();
+
+			dictionary.threshold = 9;
+
+			expect(dictionary.threshold).toBe(9);
+			expect(Object.hasOwn(dictionary, "threshold")).toBe(true);
+			expect("threshold" in new Empty()).toBe(false);
 		});
 	});
 
