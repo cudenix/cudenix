@@ -1,5 +1,6 @@
-import { describe, expectTypeOf, it } from "bun:test";
+import { describe, expect, expectTypeOf, it } from "bun:test";
 
+import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { MergePaths } from "@/utils/types/merge-paths";
 
 describe("MergePaths", () => {
@@ -89,33 +90,44 @@ describe("MergePaths", () => {
 		});
 	});
 
-	describe("doubled-slash passthrough", () => {
-		it("should keep a doubled slash inside the prefix as written", () => {
-			expectTypeOf<
-				MergePaths<"/a//b", "/c">
-			>().toEqualTypeOf<"/a//b/c">();
+	describe("slash normalization", () => {
+		// the runtime router collapses repeated and trailing separators, so the
+		// type has to agree with it or the inferred path stops matching the route
+		it("should collapse a doubled slash inside the prefix", () => {
+			expectTypeOf<MergePaths<"/a//b", "/c">>().toEqualTypeOf<"/a/b/c">();
 		});
 
-		it("should keep a doubled slash inside the path as written", () => {
-			expectTypeOf<
-				MergePaths<"/a", "/b//c">
-			>().toEqualTypeOf<"/a/b//c">();
+		it("should collapse a doubled slash inside the path", () => {
+			expectTypeOf<MergePaths<"/a", "/b//c">>().toEqualTypeOf<"/a/b/c">();
 		});
 
-		it("should strip only one slash from a doubled trailing slash on the prefix", () => {
-			expectTypeOf<MergePaths<"/a//", "/b">>().toEqualTypeOf<"/a//b">();
+		it("should strip every slash from a doubled trailing slash on the prefix", () => {
+			expectTypeOf<MergePaths<"/a//", "/b">>().toEqualTypeOf<"/a/b">();
 		});
 
-		it("should strip only one slash from a doubled trailing slash on the path", () => {
-			expectTypeOf<MergePaths<"/a", "/b//">>().toEqualTypeOf<"/a/b/">();
+		it("should strip every slash from a doubled trailing slash on the path", () => {
+			expectTypeOf<MergePaths<"/a", "/b//">>().toEqualTypeOf<"/a/b">();
 		});
 
-		it("should keep the doubled slash of a slashes-only prefix", () => {
-			expectTypeOf<MergePaths<"//", "/b">>().toEqualTypeOf<"//b">();
+		it("should reduce a slashes-only prefix to the root", () => {
+			expectTypeOf<MergePaths<"//", "/b">>().toEqualTypeOf<"/b">();
 		});
 
-		it("should reduce a slashes-only path to a trailing slash on the prefix", () => {
-			expectTypeOf<MergePaths<"/a", "//">>().toEqualTypeOf<"/a/">();
+		it("should reduce a slashes-only path to the root", () => {
+			expectTypeOf<MergePaths<"/a", "//">>().toEqualTypeOf<"/a">();
+		});
+
+		it("should collapse a long run of slashes", () => {
+			expectTypeOf<MergePaths<"/a///", "///b">>().toEqualTypeOf<"/a/b">();
+			expectTypeOf<MergePaths<"///", "/b">>().toEqualTypeOf<"/b">();
+		});
+
+		it("should agree with what pathToRegexp compiles at runtime", () => {
+			const merged: MergePaths<"/a//", "//b"> = "/a/b";
+
+			expect(pathToRegexp("/a////b").pattern).toBe(
+				pathToRegexp(merged).pattern,
+			);
 		});
 
 		it("should reduce a slashes-only path to root when the prefix is root", () => {
@@ -214,15 +226,17 @@ describe("MergePaths", () => {
 			});
 
 			it("should keep the literal path after an `any` prefix", () => {
+				// normalizing rebuilds the leading slash, so the result stays a
+				// template literal instead of widening to `string`
 				expectTypeOf<
 					MergePaths<any, "/b">
-				>().toEqualTypeOf<`${any}/b`>();
+				>().toEqualTypeOf<`/${string}/b`>();
 			});
 
 			it("should keep the literal prefix before an `any` path", () => {
 				expectTypeOf<
 					MergePaths<"/a", any>
-				>().toEqualTypeOf<`/a${any}`>();
+				>().toEqualTypeOf<`/a/${string}`>();
 			});
 		});
 
