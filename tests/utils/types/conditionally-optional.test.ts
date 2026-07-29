@@ -305,24 +305,36 @@ describe("ConditionallyOptional", () => {
 	});
 
 	describe("union object inputs", () => {
-		it("should resolve a union input non-distributively to only its common keys", () => {
-			type A =
-				| { a: string; b: number | undefined }
-				| { a: string | undefined; c: boolean };
-
-			expectTypeOf<
-				keyof ConditionallyOptional<A, undefined>
-			>().toEqualTypeOf<"a">();
-		});
-
-		it("should relax the shared key to the union of its member value types", () => {
+		// each member keeps its own keys now; collapsing to the common keys used
+		// to silently drop `b` and `c` from the result
+		it("should keep every member's keys instead of only the common ones", () => {
 			type A =
 				| { a: string; b: number | undefined }
 				| { a: string | undefined; c: boolean };
 
 			expectTypeOf<
 				ConditionallyOptional<A, undefined>
-			>().branded.toEqualTypeOf<{ a?: string | undefined }>();
+			>().branded.toEqualTypeOf<
+				| ({ a: string } & { b?: number | undefined })
+				| ({ c: boolean } & { a?: string | undefined })
+			>();
+		});
+
+		it("should relax each member on its own keys", () => {
+			type A = { a: string; b: string | undefined } | { c: boolean };
+
+			expectTypeOf<
+				keyof ConditionallyOptional<A, undefined>
+			>().toEqualTypeOf<never>();
+
+			expectTypeOf<
+				ConditionallyOptional<
+					{ a: string; b: string | undefined },
+					undefined
+				>
+			>().branded.toEqualTypeOf<
+				{ a: string } & { b?: string | undefined }
+			>();
 		});
 	});
 

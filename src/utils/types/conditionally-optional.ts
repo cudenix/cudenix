@@ -1,5 +1,5 @@
 /**
- * Marks properties compatible with a given type as optional.
+ * Marks as optional every property whose type accepts a given marker.
  *
  * @example
  * ```typescript
@@ -8,13 +8,18 @@
  *   undefined
  * >;
  * // { a: string; b?: string | undefined }
+ *
+ * type B = ConditionallyOptional<{ a: string } | { b: number }, string>;
+ * // { a?: string } | { b: number }
  * ```
  */
-export type ConditionallyOptional<T extends object, U> = {
-	[K in keyof T]-?: U extends T[K] ? K : never;
-	// "extends keyof T" is required: without it OptionalKeys cannot index T below
-}[keyof T] extends infer OptionalKeys extends keyof T
-	? Omit<T, OptionalKeys> & {
-			[K in OptionalKeys]?: T[K];
-		}
+export type ConditionallyOptional<T extends object, U> = T extends unknown
+	? {
+			[K in keyof T]-?: U extends T[K] ? K : never;
+			// "extends keyof T" is required: without it OptionalKeys cannot index T below
+		}[keyof T] extends infer OptionalKeys extends keyof T
+		? Omit<T, OptionalKeys> & {
+				[K in OptionalKeys]?: T[K];
+			}
+		: never
 	: never;
