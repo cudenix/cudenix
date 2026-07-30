@@ -233,15 +233,23 @@ describe("AnyGeneratorSSE", () => {
 		expectTypeOf<A>().toExtend<AnyGeneratorSSE>();
 	});
 
-	it("should widen `data` and `event` to `any` while leaving `id` and `retry` narrow", () => {
-		expectTypeOf<AnyGeneratorSSE["data"]>().toBeAny();
-		expectTypeOf<AnyGeneratorSSE["event"]>().toBeAny();
+	it("should preserve the framework reply and string event constraints", () => {
+		expectTypeOf<AnyGeneratorSSE["data"]>().toEqualTypeOf<
+			AnyFail | AnyOk
+		>();
+		expectTypeOf<AnyGeneratorSSE["event"]>().toEqualTypeOf<
+			string | undefined
+		>();
 		expectTypeOf<AnyGeneratorSSE["id"]>().toEqualTypeOf<
 			string | undefined
 		>();
 		expectTypeOf<AnyGeneratorSSE["retry"]>().toEqualTypeOf<
 			number | undefined
 		>();
+	});
+
+	it("should reject an arbitrary non-reply data payload", () => {
+		expectTypeOf<{ data: string }>().not.toExtend<AnyGeneratorSSE>();
 	});
 
 	it("should be usable as an array element type", () => {

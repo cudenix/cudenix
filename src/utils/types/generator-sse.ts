@@ -25,7 +25,7 @@ export interface GeneratorSSE<
  * @example
  * ```typescript
  * type A = AnyGeneratorSSE;
- * // { data: any; event?: any; id?: string; retry?: number }
+ * // { data: AnyFail | AnyOk; event?: string; id?: string; retry?: number }
  * ```
  */
-export type AnyGeneratorSSE = GeneratorSSE<any, any>;
+export type AnyGeneratorSSE = GeneratorSSE<AnyFail | AnyOk, string>;
