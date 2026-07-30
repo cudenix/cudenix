@@ -1,6 +1,28 @@
 import { Empty } from "@/utils/objects/empty";
 
 /**
+ * Compares a media type region against a lowercase name, ignoring case.
+ */
+const matchesMediaType = (
+	contentType: string,
+	end: number,
+	mediaType: string,
+) => {
+	if (end !== mediaType.length) {
+		return false;
+	}
+
+	for (let i = 0; i < end; i++) {
+		// "| 32" lowercases letters and leaves "/", "-" and digits untouched
+		if ((contentType.charCodeAt(i) | 32) !== mediaType.charCodeAt(i)) {
+			return false;
+		}
+	}
+
+	return true;
+};
+
+/**
  * Parses a request body according to its content type.
  *
  * @example
@@ -21,44 +43,63 @@ export const parseBody = async (request: Request) => {
 		return request.text();
 	}
 
-	const firstCharCode = contentType.charCodeAt(0);
+	// ";" (59) starts the media type parameters
+	let mediaTypeEnd = contentType.indexOf(";");
+
+	if (mediaTypeEnd === -1) {
+		mediaTypeEnd = contentType.length;
+	}
+
+	// trailing optional whitespace, " " (32) or "\t" (9), is not part of the media type
+	while (mediaTypeEnd > 0) {
+		const charCode = contentType.charCodeAt(mediaTypeEnd - 1);
+
+		if (charCode !== 32 && charCode !== 9) {
+			break;
+		}
+
+		mediaTypeEnd--;
+	}
+
+	// "| 32" lowercases, so one check covers both cases
+	const firstCharCode = contentType.charCodeAt(0) | 32;
 
 	let isForm = false;
 
 	// "a" (97) application/*
 	if (firstCharCode === 97) {
-		const length = contentType.length;
-
-		// the media type matches exactly or is followed by ";" (59) and parameters
-		if (
-			(length === 16 || contentType.charCodeAt(16) === 59) &&
-			contentType.startsWith("application/json")
-		) {
+		if (matchesMediaType(contentType, mediaTypeEnd, "application/json")) {
 			return request.json() as Promise<unknown>;
 		}
 
-		// ";" (59) starts media type parameters
 		if (
-			(length === 24 || contentType.charCodeAt(24) === 59) &&
-			contentType.startsWith("application/octet-stream")
+			matchesMediaType(
+				contentType,
+				mediaTypeEnd,
+				"application/octet-stream",
+			)
 		) {
 			return request.arrayBuffer();
 		}
 
-		// ";" (59) starts media type parameters
-		isForm =
-			(length === 33 || contentType.charCodeAt(33) === 59) &&
-			contentType.startsWith("application/x-www-form-urlencoded");
+		if (
+			matchesMediaType(
+				contentType,
+				mediaTypeEnd,
+				"application/x-www-form-urlencoded",
+			)
+		) {
+			isForm = true;
+		}
 	} else if (
 		// "m" (109) multipart/*
 		firstCharCode === 109
 	) {
-		const length = contentType.length;
-
-		// ";" (59) starts media type parameters
-		isForm =
-			(length === 19 || contentType.charCodeAt(19) === 59) &&
-			contentType.startsWith("multipart/form-data");
+		if (
+			matchesMediaType(contentType, mediaTypeEnd, "multipart/form-data")
+		) {
+			isForm = true;
+		}
 	}
 
 	if (isForm) {

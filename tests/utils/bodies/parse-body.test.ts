@@ -170,6 +170,18 @@ describe("parseBody", () => {
 			expect(result).toEqual({ a: "", b: "" });
 		});
 
+		it("should keep an empty field name as an empty string key", async () => {
+			const result = (await parseBody(
+				request("=v1&a=v2", "application/x-www-form-urlencoded"),
+			)) as Record<string, unknown>;
+
+			// this diverges from parseCookies, which drops nameless pairs on purpose
+			expect(Object.keys(result)).toEqual(["", "a"]);
+			expect(Object.hasOwn(result, "")).toBe(true);
+			expect(result[""]).toBe("v1");
+			expect(result.a).toBe("v2");
+		});
+
 		it("should decode percent escapes and '+' in field values", async () => {
 			const result = (await parseBody(
 				request("a=v1%20v2&b=c+d", "application/x-www-form-urlencoded"),
@@ -311,16 +323,87 @@ describe("parseBody", () => {
 			expect(values[1]?.name).toBe("a.txt");
 		});
 
-		it("should reject for 'multipart/form-data' without a boundary parameter", async () => {
-			await expect(
-				parseBody(request("v1", "multipart/form-data")),
-			).rejects.toThrow();
+		it("should parse a hand written multipart body with its boundary", async () => {
+			const boundary = "a1b2c3";
+			const body = [
+				`--${boundary}`,
+				'Content-Disposition: form-data; name="a"',
+				"",
+				"v1",
+				`--${boundary}`,
+				'Content-Disposition: form-data; name="b"',
+				"",
+				"v2",
+				`--${boundary}--`,
+				"",
+			].join("\r\n");
+
+			const result = (await parseBody(
+				request(body, `multipart/form-data; boundary=${boundary}`),
+			)) as Record<string, unknown>;
+
+			expect(result).toBeInstanceOf(Empty);
+			expect(Object.keys(result)).toEqual(["a", "b"]);
+			expect(result.a).toBe("v1");
+			expect(result.b).toBe("v2");
 		});
 
-		it("should enter the multipart branch for a bare trailing semicolon (then reject without a boundary)", async () => {
+		it("should recognise a non canonical media type spelling and let Bun reject it", async () => {
+			const boundary = "a1b2c3";
+			const body = [
+				`--${boundary}`,
+				'Content-Disposition: form-data; name="a"',
+				"",
+				"v1",
+				`--${boundary}--`,
+				"",
+			].join("\r\n");
+
+			// formData() checks the header again case-sensitively and throws.
+			// Rejecting is what proves the media type was matched here: an
+			// unrecognised type falls back to text() and resolves instead, as
+			// "multipart/form-datax" does further down.
+			await expect(
+				parseBody(
+					request(body, `Multipart/Form-Data; boundary=${boundary}`),
+				),
+			).rejects.toThrow(TypeError);
+
+			expect(
+				await parseBody(
+					request(body, `multipart/form-data; boundary=${boundary}`),
+				),
+			).toEqual({ a: "v1" });
+		});
+
+		it("should drop an empty field name, unlike the urlencoded branch", async () => {
+			const formData = new FormData();
+
+			formData.append("", "v1");
+			formData.append("a", "v2");
+
+			const result = (await parseBody(request(formData))) as Record<
+				string,
+				unknown
+			>;
+
+			// the nameless part never survives the multipart decoding round trip
+			expect(Object.keys(result)).toEqual(["a"]);
+			expect(Object.hasOwn(result, "")).toBe(false);
+			expect(result.a).toBe("v2");
+		});
+
+		it("should reject with a TypeError for 'multipart/form-data' without a boundary parameter", async () => {
+			// a TypeError, not the SyntaxError the json branch would raise for "v1"
+			await expect(
+				parseBody(request("v1", "multipart/form-data")),
+			).rejects.toThrow(TypeError);
+		});
+
+		it("should enter the multipart branch for a bare trailing semicolon (then reject with a TypeError without a boundary)", async () => {
 			await expect(
 				parseBody(request("v1", "multipart/form-data;")),
-			).rejects.toThrow();
+			).rejects.toThrow(TypeError);
 		});
 
 		it("should resolve to an empty dictionary for a multipart body with no entries", async () => {
@@ -382,12 +465,47 @@ describe("parseBody", () => {
 			expect(result).toBe(JSON.stringify({ a: "v1" }));
 		});
 
-		it("should match case-sensitively, falling back to text for upper-case", async () => {
+		it("should match the media type case-insensitively", async () => {
+			expect(
+				await parseBody(
+					request(JSON.stringify({ a: "v1" }), "APPLICATION/JSON"),
+				),
+			).toEqual({ a: "v1" });
+
+			expect(
+				await parseBody(
+					request(JSON.stringify({ a: "v1" }), "Application/Json"),
+				),
+			).toEqual({ a: "v1" });
+
+			expect(
+				await parseBody(
+					request(
+						JSON.stringify({ a: "v1" }),
+						"application/JSON;charset=utf-8",
+					),
+				),
+			).toEqual({ a: "v1" });
+		});
+
+		it("should match a case-insensitive octet-stream type", async () => {
 			const result = await parseBody(
-				request(JSON.stringify({ a: "v1" }), "APPLICATION/JSON"),
+				request("v1", "Application/Octet-Stream"),
 			);
 
-			expect(result).toBe(JSON.stringify({ a: "v1" }));
+			expect(result).toBeInstanceOf(ArrayBuffer);
+		});
+
+		it("should match a case-insensitive urlencoded type and let Bun reject it", async () => {
+			await expect(
+				parseBody(request("a=v1", "APPLICATION/X-WWW-FORM-URLENCODED")),
+			).rejects.toThrow(TypeError);
+
+			expect(
+				await parseBody(
+					request("a=v1", "application/x-www-form-urlencoded"),
+				),
+			).toEqual({ a: "v1" });
 		});
 
 		it("should not treat a longer look-alike type as a urlencoded form", async () => {
@@ -406,15 +524,24 @@ describe("parseBody", () => {
 			expect(result).toBe("v1");
 		});
 
-		it("should fall back to text when whitespace precedes the parameter semicolon", async () => {
-			const result = await parseBody(
-				request(
-					JSON.stringify({ a: "v1" }),
-					"application/json ; charset=utf-8",
+		it("should ignore optional whitespace before the parameter semicolon", async () => {
+			expect(
+				await parseBody(
+					request(
+						JSON.stringify({ a: "v1" }),
+						"application/json ; charset=utf-8",
+					),
 				),
-			);
+			).toEqual({ a: "v1" });
 
-			expect(result).toBe(JSON.stringify({ a: "v1" }));
+			expect(
+				await parseBody(
+					request(
+						JSON.stringify({ a: "v1" }),
+						"application/json\t;charset=utf-8",
+					),
+				),
+			).toEqual({ a: "v1" });
 		});
 
 		it("should fall back to text for a content type shorter than every match window", async () => {
@@ -423,37 +550,72 @@ describe("parseBody", () => {
 		});
 
 		it("should fall back to text for a non-json type whose length equals the json match window", async () => {
+			// "application/abcd" is as long as "application/json", so the length
+			// guard alone cannot reject it
 			const contentType = "application/abcd";
 
-			expect(contentType).toHaveLength("application/json".length);
 			expect(await parseBody(request("v1", contentType))).toBe("v1");
 		});
 
 		it("should fall back to text for a non-octet-stream type whose length equals the octet-stream match window", async () => {
+			// "application/vnd.ms-excel" is as long as "application/octet-stream",
+			// so the length guard alone cannot reject it
 			const contentType = "application/vnd.ms-excel";
 
-			expect(contentType).toHaveLength("application/octet-stream".length);
 			expect(await parseBody(request("v1", contentType))).toBe("v1");
 		});
 
 		it("should fall back to text for a non-urlencoded type whose length equals the urlencoded match window", async () => {
+			// "application/x-www-form-urlencodeX" is as long as
+			// "application/x-www-form-urlencoded", so the length guard alone
+			// cannot reject it
 			const contentType = "application/x-www-form-urlencodeX";
 
-			expect(contentType).toHaveLength(
-				"application/x-www-form-urlencoded".length,
-			);
 			expect(await parseBody(request("a=v1", contentType))).toBe("a=v1");
 		});
 
 		it("should fall back to text for a non-form-data multipart type whose length equals the form-data match window", async () => {
+			// "multipart/form-dat0" is as long as "multipart/form-data", so the
+			// length guard alone cannot reject it
 			const contentType = "multipart/form-dat0";
 
-			expect(contentType).toHaveLength("multipart/form-data".length);
 			expect(await parseBody(request("v1", contentType))).toBe("v1");
 		});
 	});
 
 	describe("dangerous field names", () => {
+		it("should store a json `__proto__` key as a real own key without polluting the prototype", async () => {
+			const result = (await parseBody(
+				request(
+					'{"__proto__":{"polluted":"yes"},"a":"v1"}',
+					"application/json",
+				),
+			)) as Record<string, unknown>;
+
+			expect(Object.hasOwn(result, "__proto__")).toBe(true);
+			expect(
+				Object.getOwnPropertyDescriptor(result, "__proto__")?.value,
+			).toEqual({ polluted: "yes" });
+			expect(result.a).toBe("v1");
+			const objectPrototype = Object.prototype as unknown as Record<
+				string,
+				unknown
+			>;
+
+			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+			expect(objectPrototype.polluted).toBeUndefined();
+		});
+
+		it("should store a json `constructor` key as a real own key without invoking inheritance", async () => {
+			const result = (await parseBody(
+				request('{"constructor":"v1","a":"v2"}', "application/json"),
+			)) as Record<string, unknown>;
+
+			expect(Object.hasOwn(result, "constructor")).toBe(true);
+			expect(Reflect.get(result, "constructor")).toBe("v1");
+			expect(result.a).toBe("v2");
+		});
+
 		it("should store `__proto__` as a real own key without polluting the prototype", async () => {
 			const result = (await parseBody(
 				request(
@@ -539,6 +701,26 @@ describe("parseBody", () => {
 				).toBeNull();
 				expect("toString" in result).toBe(false);
 				expect("hasOwnProperty" in result).toBe(false);
+			});
+		});
+
+		describe("with a json body", () => {
+			let result: object;
+
+			beforeAll(async () => {
+				result = (await parseBody(
+					request(JSON.stringify({ a: "v1" }), "application/json"),
+				)) as object;
+			});
+
+			it("should not return a dictionary inheriting from Empty", () => {
+				expect(result).not.toBeInstanceOf(Empty);
+			});
+
+			it("should inherit from Object.prototype, unlike form bodies", () => {
+				expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+				expect("toString" in result).toBe(true);
+				expect("hasOwnProperty" in result).toBe(true);
 			});
 		});
 
