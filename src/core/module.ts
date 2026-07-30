@@ -49,13 +49,8 @@ import type { ValueOf } from "@/utils/types/value-of";
 
 /**
  * Lists the links accumulated by a module.
- *
- * @example
- * ```typescript
- * const a: ModuleChain = [];
- * ```
  */
-export type ModuleChain = (
+type ModuleChain = (
 	| AnyGroup
 	| AnyMiddleware
 	| AnyModule
@@ -67,16 +62,8 @@ export type ModuleChain = (
 
 /**
  * Constrains the validator maps of a {@link Module}.
- *
- * @example
- * ```typescript
- * const a: ModuleValidatorsConstraint = {
- *   inputs: { body: { a: "v1" } },
- *   outputs: { body: { a: 1 } },
- * };
- * ```
  */
-export interface ModuleValidatorsConstraint {
+interface ModuleValidatorsConstraint {
 	inputs: Record<PropertyKey, unknown>;
 	outputs: Record<PropertyKey, unknown>;
 }
@@ -318,40 +305,20 @@ export type AnyModule = Module<any, any, any, any, any, any>;
 
 /**
  * Options for the {@link Module} constructor.
- *
- * @example
- * ```typescript
- * const a: ModuleOptions<"/v1"> = { prefix: "/v1" };
- * const b: ModuleOptions<"/"> = {};
- * ```
  */
-export interface ModuleOptions<Prefix extends `/${string}`> {
+interface ModuleOptions<Prefix extends `/${string}`> {
 	prefix?: Prefix;
 }
 
 /**
  * Any {@link ModuleOptions} regardless of its prefix generic.
- *
- * @example
- * ```typescript
- * const fn = (options: AnyModuleOptions = {}) => options.prefix ?? "/";
- * ```
  */
-export type AnyModuleOptions = ModuleOptions<any>;
+type AnyModuleOptions = ModuleOptions<any>;
 
 /**
  * Constructor signature of {@link Module}.
- *
- * @example
- * ```typescript
- * const Ctor: ModuleConstructor = Module;
- *
- * const a = new Ctor({ prefix: "/v1" });
- *
- * a.prefix; // "/v1"
- * ```
  */
-export interface ModuleConstructor {
+interface ModuleConstructor {
 	new <
 		const Errors extends Record<
 			PropertyKey,
