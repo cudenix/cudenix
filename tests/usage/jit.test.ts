@@ -24,8 +24,7 @@ const echo: ValidatorPlugin = (_schema, input) => ({
 const compactSource = (source: string): string => source.replace(/\s+/g, "");
 
 const expectNoContextAllocation = (source: string) => {
-	expect(source).not.toContain("new Context");
-	expect(source).not.toContain("new LeanContext");
+	expect(compactSource(source)).not.toContain("constcontext=newEmpty()");
 };
 
 const expectNoDynamicPromiseAdoption = (source: string) => {
@@ -77,7 +76,7 @@ describe("usage: jit", () => {
 						ok(context.memory),
 					),
 				),
-			).toEqual(["LeanContext", "app", "response", "handler"]);
+			).toEqual(["Empty", "app", "response", "handler"]);
 			expect(
 				jitDependencies(
 					new Module().route("GET", "/metadata", (context) => {
@@ -86,7 +85,7 @@ describe("usage: jit", () => {
 						return ok("v1");
 					}),
 				),
-			).toEqual(["Context", "app", "response", "handler"]);
+			).toEqual(["Empty", "Headers", "response", "handler"]);
 			expect(
 				jitDependencies(
 					new Module()
@@ -103,8 +102,7 @@ describe("usage: jit", () => {
 						),
 				),
 			).toEqual([
-				"LeanContext",
-				"app",
+				"Empty",
 				"response",
 				"chain",
 				"merge",
@@ -169,6 +167,81 @@ describe("usage: jit", () => {
 					}),
 				),
 			).toEqual(["response", "handler", "app", "stream"]);
+		});
+
+		it("should isolate every top-level context shape in the factory cache", () => {
+			const assignments = {
+				memory: "context.memory=app.memory",
+				request: "context.request=newEmpty()",
+				server: "context.server=app.server",
+				store: "context.store=newEmpty()",
+			} as const;
+			const expectOnly = (
+				source: string,
+				expected: keyof typeof assignments,
+			) => {
+				const compact = compactSource(source);
+
+				expect(compact).toContain("constcontext=newEmpty()");
+
+				for (const [name, assignment] of Object.entries(assignments)) {
+					expect(compact.includes(assignment)).toBe(
+						name === expected,
+					);
+				}
+			};
+			const syncSources = {
+				memory: jitSource(
+					new Module().route("GET", "/memory", (context) =>
+						ok(context.memory),
+					),
+				),
+				request: jitSource(
+					new Module().route("GET", "/request", (context) =>
+						ok(context.request.raw.method),
+					),
+				),
+				server: jitSource(
+					new Module().route("GET", "/server", (context) =>
+						ok(context.server),
+					),
+				),
+				store: jitSource(
+					new Module().route("GET", "/store", (context) =>
+						ok(context.store),
+					),
+				),
+			};
+			const asyncSources = {
+				memory: jitSource(
+					new Module().route("GET", "/memory", async (context) =>
+						ok(context.memory),
+					),
+				),
+				request: jitSource(
+					new Module().route("GET", "/request", async (context) =>
+						ok(context.request.raw.method),
+					),
+				),
+				server: jitSource(
+					new Module().route("GET", "/server", async (context) =>
+						ok(context.server),
+					),
+				),
+				store: jitSource(
+					new Module().route("GET", "/store", async (context) =>
+						ok(context.store),
+					),
+				),
+			};
+
+			for (const [name, source] of Object.entries(syncSources)) {
+				expectOnly(source, name as keyof typeof assignments);
+			}
+
+			for (const [name, source] of Object.entries(asyncSources)) {
+				expectOnly(source, name as keyof typeof assignments);
+			}
 		});
 
 		it("should bind endpoint values when reusing a factory shape", async () => {
@@ -630,15 +703,16 @@ describe("usage: jit", () => {
 			);
 			const compact = compactSource(source);
 
-			expect(source).toContain("new LeanContext");
-			expect(source).not.toContain("new Context");
+			expect(compact).toContain("constcontext=newEmpty()");
+			expect(compact).toContain("context.memory=app.memory");
+			expect(compact).toContain("context.request=newEmpty()");
 			expect(compact).toContain("returnresponse(content)");
 			expect(compact).not.toContain("context.response.content");
 			expect(compact).not.toContain("context.response.cookies");
 			expect(compact).not.toContain("context.response.headers");
 		});
 
-		it("should keep full metadata when a handler accesses the response", async () => {
+		it("should allocate only headers when a handler accesses headers", async () => {
 			const app = new Cudenix(
 				new Module().route("GET", "/a", (context) => {
 					context.response.headers.set("x-value", "v1");
@@ -653,22 +727,195 @@ describe("usage: jit", () => {
 			const source = endpoint.dispatch.toString();
 			const result = await app.fetch(new Request("http://localhost/a"));
 
-			expect(source).toContain("new Context");
-			expect(source).not.toContain("new LeanContext");
+			expect(compactSource(source)).toContain("constcontext=newEmpty()");
 			expect(compactSource(source)).toContain(
-				"response(context.response.content,context.response.cookies,context.response.headers)",
+				"context.response=newEmpty()",
+			);
+			expect(source).toContain("new Headers");
+			expect(source).not.toContain("CookieMap");
+			expect(compactSource(source)).toContain(
+				"response(content,undefined,context.response.headers)",
 			);
 			expect(result.headers.get("x-value")).toBe("v1");
 		});
 
-		it("should ignore a handler's spoofed toString when selecting metadata", async () => {
+		it("should allocate only cookies when a handler accesses cookies", async () => {
+			const app = new Cudenix(
+				new Module().route("GET", "/a", (context) => {
+					const incoming = context.response.cookies.get("incoming");
+
+					context.response.cookies.set(
+						"outgoing",
+						incoming ?? "none",
+					);
+
+					return ok(incoming);
+				}),
+			);
+
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const source = endpoint.dispatch.toString();
+			const result = await app.fetch(
+				new Request("http://localhost/a", {
+					headers: { cookie: "incoming=v1" },
+				}),
+			);
+
+			expect(compactSource(source)).toContain("constcontext=newEmpty()");
+			expect(compactSource(source)).toContain(
+				"context.response=newEmpty()",
+			);
+			expect(source).toContain("new CookieMap");
+			expect(source).not.toContain("new Headers");
+			expect(compactSource(source)).toContain(
+				"response(content,context.response.cookies)",
+			);
+			expect(await result.text()).toBe("v1");
+			expect(result.headers.get("set-cookie")).toStartWith("outgoing=v1");
+		});
+
+		it("should combine content and cookies without allocating headers", async () => {
+			const app = new Cudenix(
+				new Module().route("GET", "/a", (context) => {
+					context.response.cookies.set("outgoing", "v1");
+					context.response.content = ok("staged");
+
+					return context.response.content;
+				}),
+			);
+
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const source = compactSource(endpoint.dispatch.toString());
+			const result = await app.fetch(new Request("http://localhost/a"));
+
+			expect(source).toContain("constcontext=newEmpty()");
+			expect(source).toContain("newCookieMap");
+			expect(source).not.toContain("newHeaders");
+			expect(source).toContain(
+				"response(context.response.content,context.response.cookies)",
+			);
+			expect(await result.text()).toBe("staged");
+			expect(result.headers.get("set-cookie")).toStartWith("outgoing=v1");
+		});
+
+		it("should combine cookies and headers while keeping content local", async () => {
+			const app = new Cudenix(
+				new Module().route("GET", "/a", (context) => {
+					context.response.cookies.set("outgoing", "v1");
+					context.response.headers.set("x-value", "v1");
+
+					return ok("local-content");
+				}),
+			);
+
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const source = compactSource(endpoint.dispatch.toString());
+			const result = await app.fetch(new Request("http://localhost/a"));
+
+			expect(source).toContain("constcontext=newEmpty()");
+			expect(source).toContain("newCookieMap");
+			expect(source).toContain("newHeaders");
+			expect(source).toContain(
+				"response(content,context.response.cookies,context.response.headers)",
+			);
+			expect(await result.text()).toBe("local-content");
+			expect(result.headers.get("x-value")).toBe("v1");
+			expect(result.headers.get("set-cookie")).toStartWith("outgoing=v1");
+		});
+
+		it("should keep content on context without allocating cookies or headers", async () => {
+			const app = new Cudenix(
+				new Module()
+					.middleware((context) => {
+						context.response.content = ok("from-middleware");
+					})
+					.route("GET", "/a", () => ok("unreachable")),
+			);
+
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const source = endpoint.dispatch.toString();
+			const result = await app.fetch(new Request("http://localhost/a"));
+
+			expect(compactSource(source)).toContain("constcontext=newEmpty()");
+			expect(source).not.toContain("CookieMap");
+			expect(source).not.toContain("new Headers");
+			expect(compactSource(source)).toContain(
+				"response(context.response.content)",
+			);
+			expect(await result.text()).toBe("from-middleware");
+		});
+
+		it("should union metadata used by different links around next", async () => {
+			const app = new Cudenix(
+				new Module()
+					.middleware((context, next) => {
+						next();
+						context.response.content = ok("overridden");
+					})
+					.route("GET", "/a", (context) => {
+						context.response.headers.set("x-value", "v1");
+
+						return ok("route");
+					}),
+			);
+
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const source = compactSource(endpoint.dispatch.toString());
+			const result = await app.fetch(new Request("http://localhost/a"));
+
+			expect(source).toContain("constcontext=newEmpty()");
+			expect(source).not.toContain("CookieMap");
+			expect(source).toContain(
+				"response(context.response.content,undefined,context.response.headers)",
+			);
+			expect(await result.text()).toBe("overridden");
+			expect(result.headers.get("x-value")).toBe("v1");
+		});
+
+		it("should retain request state when a metadata route has path params", async () => {
+			const app = new Cudenix(
+				new Module().route("GET", "/a/:id", (context) => {
+					context.response.headers.set("x-value", "v1");
+
+					return ok("v1");
+				}),
+			);
+
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const source = compactSource(endpoint.dispatch.toString());
+			const result = await app.fetch(
+				new Request("http://localhost/a/42"),
+			);
+
+			expect(source).toContain("context.request=newEmpty()");
+			expect(source).toContain("context.response=newEmpty()");
+			expect(source).toContain("context.request.params=params");
+			expect(await result.text()).toBe("v1");
+			expect(result.headers.get("x-value")).toBe("v1");
+		});
+
+		it("should honor a handler's toString override when selecting metadata", async () => {
 			const handler = (context: AnyContext) => {
-				context.response.headers.set("x-value", "v1");
+				const responseState = context.response;
+
+				responseState.headers.set("x-value", "v1");
 
 				return ok("v1");
 			};
 
-			handler.toString = () => "context => 'v1'";
+			handler.toString = () => "context => context.response.headers";
 
 			const app = new Cudenix(new Module().route("GET", "/a", handler));
 
@@ -677,7 +924,11 @@ describe("usage: jit", () => {
 			const endpoint = app.methods.GET!.endpoints[0]!;
 			const result = await app.fetch(new Request("http://localhost/a"));
 
-			expect(endpoint.dispatch.toString()).toContain("new Context");
+			expect(compactSource(endpoint.dispatch.toString())).toContain(
+				"constcontext=newEmpty()",
+			);
+			expect(endpoint.dispatch.toString()).toContain("new Headers");
+			expect(endpoint.dispatch.toString()).not.toContain("CookieMap");
 			expect(result.headers.get("x-value")).toBe("v1");
 		});
 
@@ -704,9 +955,48 @@ describe("usage: jit", () => {
 				),
 			);
 
-			expect(aliased).toContain("new Context");
-			expect(destructured).toContain("new Context");
-			expect(computed).toContain("new Context");
+			for (const source of [aliased, destructured, computed]) {
+				const compact = compactSource(source);
+
+				expect(compact).toContain("context.memory=app.memory");
+				expect(compact).toContain("context.request=newEmpty()");
+				expect(compact).toContain("context.response=newEmpty()");
+				expect(compact).toContain("context.server=app.server");
+				expect(compact).toContain("context.store=newEmpty()");
+			}
+		});
+
+		it("should materialize every context field for opaque calls", async () => {
+			let app: Cudenix;
+			const inspect = (context: AnyContext) => {
+				context.response.headers.set("x-value", "v1");
+				context.response.cookies.set("outgoing", "v1");
+
+				return ok(
+					String(
+						context.memory === app.memory &&
+							context.request.raw.method === "GET" &&
+							context.server === app.server &&
+							Object.keys(context).join(",") ===
+								"memory,request,response,server,store",
+					),
+				);
+			};
+
+			app = new Cudenix(
+				new Module().route("GET", "/a", (context) => inspect(context)),
+			);
+			app.compile();
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const result = await app.fetch(new Request("http://localhost/a"));
+
+			expect(compactSource(endpoint.dispatch.toString())).toContain(
+				"constcontext=newEmpty()",
+			);
+			expect(await result.text()).toBe("true");
+			expect(result.headers.get("x-value")).toBe("v1");
+			expect(result.headers.get("set-cookie")).toStartWith("outgoing=v1");
 		});
 	});
 
@@ -1053,7 +1343,7 @@ describe("usage: jit", () => {
 			expect(local).not.toContain("validatedRequest");
 			expect(local).toContain("validatedQuery");
 			expectNoContextAllocation(local);
-			expect(full).toContain("new LeanContext");
+			expect(compactSource(full)).toContain("context.request=newEmpty()");
 			expect(full).not.toContain("validatedRequest");
 			expect(full).not.toContain("validatedQuery");
 		});
@@ -1083,7 +1373,7 @@ describe("usage: jit", () => {
 					.route("GET", "/a", (context) => ok(context.store.a)),
 			);
 
-			expect(source).toContain("new LeanContext");
+			expect(compactSource(source)).toContain("context.store=newEmpty()");
 			expect(source).not.toContain("request.params");
 		});
 
@@ -1549,7 +1839,7 @@ describe("usage: jit", () => {
 			);
 		});
 
-		it("should build Context without exposing the regexp match", () => {
+		it("should build context without exposing the regexp match", () => {
 			const source = jitSource(
 				new Module().route("GET", "/a/:p1", (context) =>
 					ok(context.request.params),
@@ -1557,11 +1847,9 @@ describe("usage: jit", () => {
 			);
 
 			expect(compactSource(source)).toContain(
-				"newLeanContext(app,request)",
+				"context.request=newEmpty()",
 			);
-			expect(compactSource(source)).not.toContain(
-				"newLeanContext(app,request,match)",
-			);
+			expect(compactSource(source)).not.toContain("context.match");
 		});
 
 		it("should omit match when params validation has no captures", () => {

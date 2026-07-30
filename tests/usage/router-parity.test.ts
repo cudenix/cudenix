@@ -306,14 +306,14 @@ describe("usage: router parity", () => {
 		it("should not expose the regexp matcher as request context", async () => {
 			using server = serveApp(
 				new Module().route("GET", "/context/:value", (context) =>
-					ok(typeof context.match),
+					ok(Object.hasOwn(context, "match")),
 				),
 			);
 
 			const result = await compareRouters(server, "/context/value");
 
 			expectSameResult(result);
-			expect(result.native.body).toBe("undefined");
+			expect(result.native.body).toBe("false");
 		});
 	});
 
