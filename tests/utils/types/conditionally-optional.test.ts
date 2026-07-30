@@ -339,16 +339,31 @@ describe("ConditionallyOptional", () => {
 	});
 
 	describe("array and tuple inputs", () => {
-		it("should collapse a tuple input to `never` because its indices are not relaxed", () => {
+		it("should preserve a mutable tuple because tuple positions cannot be omitted like object properties", () => {
 			expectTypeOf<
 				ConditionallyOptional<[string, number | undefined], undefined>
-			>().toBeNever();
+			>().branded.toEqualTypeOf<[string, number | undefined]>();
 		});
 
-		it("should collapse an array input to `never`", () => {
+		it("should preserve a mutable array because array elements are not optional object properties", () => {
 			expectTypeOf<
 				ConditionallyOptional<(number | undefined)[], undefined>
-			>().toBeNever();
+			>().branded.toEqualTypeOf<(number | undefined)[]>();
+		});
+
+		it("should preserve readonly tuples and arrays", () => {
+			expectTypeOf<
+				ConditionallyOptional<
+					readonly [string, number | undefined],
+					undefined
+				>
+			>().branded.toEqualTypeOf<readonly [string, number | undefined]>();
+			expectTypeOf<
+				ConditionallyOptional<
+					readonly (number | undefined)[],
+					undefined
+				>
+			>().branded.toEqualTypeOf<readonly (number | undefined)[]>();
 		});
 	});
 });
