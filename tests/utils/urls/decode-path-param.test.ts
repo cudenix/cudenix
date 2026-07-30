@@ -3,7 +3,7 @@ import { describe, expect, it } from "bun:test";
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 
 const validCases = [
-	["hello%20world", "hello world"],
+	["a%20b", "a b"],
 	["a+b%20c", "a+b c"],
 	["%c3%a9", "é"],
 	["%00", "\u0000"],
@@ -62,7 +62,7 @@ describe("decodePathParam", () => {
 	});
 
 	it("should return an unescaped value unchanged", () => {
-		expect(decodePathParam("plain+value")).toBe("plain+value");
+		expect(decodePathParam("a+b")).toBe("a+b");
 	});
 
 	it("should return an empty value unchanged", () => {
@@ -72,7 +72,7 @@ describe("decodePathParam", () => {
 	it("should take the no-escape shortcut for long values", () => {
 		// longer than the 32 char threshold of the trailing "%" heuristic, so a
 		// regression there must not be able to touch a value without escapes
-		const value = "plain+value-".repeat(8);
+		const value = "a+b-c".repeat(8);
 
 		expect(value.length).toBeGreaterThanOrEqual(32);
 		expect(value).not.toContain("%");
