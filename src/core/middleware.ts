@@ -32,18 +32,8 @@ export type AnyMiddlewareFn = MiddlewareFn<any, any, any>;
 
 /**
  * Compiled {@link MiddlewareFn} descriptor tagged `"MIDDLEWARE"`.
- *
- * @example
- * ```typescript
- * const a: Middleware<MaybePromise<void>, {}, {}> = {
- *   handler: async (_, next) => {
- *     await next();
- *   },
- *   type: "MIDDLEWARE",
- * };
- * ```
  */
-export interface Middleware<
+interface Middleware<
 	Return extends MaybePromise<AnyFail | AnyOk | void>,
 	Stores extends Record<PropertyKey, unknown>,
 	Validators extends Record<PropertyKey, unknown>,
