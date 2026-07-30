@@ -476,6 +476,56 @@ describe("Merge", () => {
 				{ a: number; b: boolean } & Record<Sym, string>
 			>();
 		});
+
+		it("should preserve an optional target symbol and ignore an optional source symbol", () => {
+			interface A {
+				[sym]?: string;
+			}
+			interface B {
+				a: number;
+				[sym]?: boolean;
+			}
+
+			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				a: number;
+				[sym]?: string;
+			}>();
+		});
+	});
+
+	describe("inherited source declarations", () => {
+		it("should merge inherited keys that are visible in the source type", () => {
+			interface Parent {
+				inherited: number;
+			}
+			interface Source extends Parent {
+				own: boolean;
+			}
+
+			expectTypeOf<
+				Merge<{ base: string; inherited: string }, Source>
+			>().branded.toEqualTypeOf<{
+				base: string;
+				inherited: number;
+				own: boolean;
+			}>();
+		});
+
+		it("should keep a target value possible when an inherited source declaration is optional", () => {
+			interface Parent {
+				inherited?: number;
+			}
+			interface Source extends Parent {
+				own: boolean;
+			}
+
+			expectTypeOf<
+				Merge<{ inherited: string }, Source>
+			>().branded.toEqualTypeOf<{
+				inherited: string | number | undefined;
+				own: boolean;
+			}>();
+		});
 	});
 
 	describe("index signatures", () => {
