@@ -213,9 +213,11 @@ describe("pathToRegexp", () => {
 			const { pattern, regex } = compile("/a?b");
 
 			// a request path can only carry "?" encoded, so matching it raw would
-			// reach into the query string and shadow the route "/a"
+			// reach into the query string and shadow the route "/a"; Bun's native
+			// router also compares the spelling and hex casing of encoded paths
 			expect(pattern).toBe(String.raw`()\/a%3Fb`);
 			expect(regex.test("/a%3Fb")).toBe(true);
+			expect(regex.test("/a%3fb")).toBe(false);
 			expect(regex.test("/a?b")).toBe(false);
 			expect(regex.test("/ab")).toBe(false);
 		});
@@ -250,12 +252,33 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/aXb")).toBe(false);
 		});
 
-		it("should match literal segments with non-ASCII characters", () => {
+		it("should preserve non-ASCII route spelling instead of encoding it implicitly", () => {
 			const { paramKeys, regex } = compile("/café");
 
 			expect(paramKeys).toEqual([]);
 			expect(regex.test("/café")).toBe(true);
+			expect(regex.test("/caf%C3%A9")).toBe(false);
 			expect(regex.test("/cafe")).toBe(false);
+		});
+
+		it("should preserve the spelling and casing of an encoded route", () => {
+			const { regex } = compile("/caf%C3%A9");
+
+			// Bun requires static non-ASCII routes to be encoded and compares the
+			// percent escapes byte-for-byte rather than normalizing their casing
+			expect(regex.test("/caf%C3%A9")).toBe(true);
+			expect(regex.test("/caf%c3%a9")).toBe(false);
+			expect(regex.test("/café")).toBe(false);
+		});
+
+		it("should leave spaces unencoded unless the route declares the encoding", () => {
+			const raw = compile("/a b").regex;
+			const encoded = compile("/a%20b").regex;
+
+			expect(raw.test("/a b")).toBe(true);
+			expect(raw.test("/a%20b")).toBe(false);
+			expect(encoded.test("/a%20b")).toBe(true);
+			expect(encoded.test("/a b")).toBe(false);
 		});
 
 		it("should make an optional literal segment optional in the regex", () => {
