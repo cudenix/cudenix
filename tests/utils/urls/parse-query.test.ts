@@ -374,10 +374,12 @@ describe("parseQuery", () => {
 			expect(result).toEqual({ b: "v1" });
 		});
 
-		it("should not recognize a '#' before the first '?' as a fragment", () => {
-			const result = parseQuery("/a#c?b=v1");
-
-			expect(result).toEqual({ b: "v1" });
+		it("should use Bun's first-'?' query boundary even when it follows '#'", () => {
+			// Bun preserves this spelling in Request.url and routes on "/a#c";
+			// its HTTP router still treats the first "?" as the query boundary.
+			for (const url of ["/a#c?b=v1", "http://localhost/a#c?b=v1"]) {
+				expect(parseQuery(url)).toEqual({ b: "v1" });
+			}
 		});
 	});
 
