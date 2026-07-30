@@ -25,25 +25,25 @@ describe("GeneratorSSE", () => {
 	});
 
 	describe("`data` payload typing", () => {
-		it("should accept a frame parametrized with a concrete `Ok` envelope", () => {
+		it("should accept a frame parameterized with a concrete `Ok` envelope", () => {
 			expectTypeOf<{ data: Ok<{ a: true }, 1> }>().toExtend<
 				GeneratorSSE<Ok<{ a: true }, 1>>
 			>();
 		});
 
-		it("should accept a frame parametrized with a concrete `Fail` envelope", () => {
+		it("should accept a frame parameterized with a concrete `Fail` envelope", () => {
 			expectTypeOf<{ data: Fail<{ a: "v1" }, 1> }>().toExtend<
 				GeneratorSSE<Fail<{ a: "v1" }, 1>>
 			>();
 		});
 
-		it("should type `data` as the parametrized payload", () => {
+		it("should type `data` as the parameterized payload", () => {
 			type A = GeneratorSSE<Ok<{ a: true }, 1>>;
 
 			expectTypeOf<A["data"]>().toEqualTypeOf<Ok<{ a: true }, 1>>();
 		});
 
-		it("should type `data` as the parametrized `Fail` payload", () => {
+		it("should type `data` as the parameterized `Fail` payload", () => {
 			type A = GeneratorSSE<Fail<{ a: "v1" }, 1>>;
 
 			expectTypeOf<A["data"]>().toEqualTypeOf<Fail<{ a: "v1" }, 1>>();
@@ -181,7 +181,7 @@ describe("GeneratorSSE", () => {
 	});
 
 	describe("required keys contract", () => {
-		it("should mark only `data` as required on the parametrized form", () => {
+		it("should mark only `data` as required on the parameterized form", () => {
 			type A = GeneratorSSE<AnyOk, "tick">;
 
 			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<"data">();

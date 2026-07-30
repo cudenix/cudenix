@@ -348,7 +348,7 @@ describe("parseBody", () => {
 			expect(result.b).toBe("v2");
 		});
 
-		it("should recognise a non canonical media type spelling and let Bun reject it", async () => {
+		it("should recognize a non canonical media type spelling and let Bun reject it", async () => {
 			const boundary = "a1b2c3";
 			const body = [
 				`--${boundary}`,
@@ -361,7 +361,7 @@ describe("parseBody", () => {
 
 			// formData() checks the header again case-sensitively and throws.
 			// Rejecting is what proves the media type was matched here: an
-			// unrecognised type falls back to text() and resolves instead, as
+			// unrecognized type falls back to text() and resolves instead, as
 			// "multipart/form-datax" does further down.
 			await expect(
 				parseBody(

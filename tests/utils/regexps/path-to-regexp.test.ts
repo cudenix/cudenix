@@ -54,7 +54,7 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/a")).toBe(false);
 		});
 
-		it("should normalise a slashes-only path to the root, not to the empty path", () => {
+		it("should normalize a slashes-only path to the root, not to the empty path", () => {
 			for (const path of ["//", "///"]) {
 				const { paramKeys, pattern, restKeys } = pathToRegexp(path);
 

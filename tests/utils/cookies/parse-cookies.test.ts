@@ -504,7 +504,7 @@ describe("parseCookies", () => {
 			// run, so a failure is reproducible and the test cannot flake.
 			// ASCII only, because that is what a header carries on the wire -
 			// with a raw non-ASCII character Bun.CookieMap re-reads its own
-			// UTF-8 bytes as Latin-1 ("é" becomes "Ã©"), which is an artefact of
+			// UTF-8 bytes as Latin-1 ("é" becomes "Ã©"), which is an artifact of
 			// building one from a JS string and not what a request produces.
 			// This is the short version; the same comparison over 500k headers
 			// also reports zero mismatches.
