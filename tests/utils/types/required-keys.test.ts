@@ -193,7 +193,7 @@ describe("RequiredKeys", () => {
 		});
 
 		it("should keep a required symbol-keyed property alongside string keys", () => {
-			const sym = Symbol("key");
+			const sym = Symbol("a");
 			type Sym = typeof sym;
 
 			interface A {
@@ -205,7 +205,7 @@ describe("RequiredKeys", () => {
 		});
 
 		it("should exclude an optional `symbol`-keyed property", () => {
-			const sym = Symbol("key");
+			const sym = Symbol("a");
 
 			interface A {
 				a: number;

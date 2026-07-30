@@ -116,7 +116,7 @@ describe("ValueOf", () => {
 		});
 
 		it("should preserve values keyed by `symbol`", () => {
-			const sym = Symbol("key");
+			const sym = Symbol("a");
 
 			interface A {
 				a: string;
@@ -141,7 +141,7 @@ describe("ValueOf", () => {
 
 		it("should preserve function value types", () => {
 			type A = () => void;
-			type B = (input: string) => string;
+			type B = (a: string) => string;
 
 			interface C {
 				a: B;
@@ -221,7 +221,7 @@ describe("ValueOf", () => {
 		});
 
 		it("should include the `length` literal of a tuple in the union", () => {
-			type A = [string, "x"];
+			type A = [string, "v1"];
 
 			expectTypeOf<Extract<ValueOf<A>, 2>>().toEqualTypeOf<2>();
 		});
@@ -236,9 +236,9 @@ describe("ValueOf", () => {
 		});
 
 		it("should not equal the bare element union for a tuple because the length literal and array-method types leak in", () => {
-			type A = [string, "x"];
+			type A = [string, "v1"];
 
-			expectTypeOf<ValueOf<A>>().not.toEqualTypeOf<string | "x">();
+			expectTypeOf<ValueOf<A>>().not.toEqualTypeOf<string | "v1">();
 			expectTypeOf<ValueOf<A>>().not.toBeUnknown();
 		});
 	});

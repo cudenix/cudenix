@@ -4,17 +4,17 @@ import { cloneAppend } from "@/utils/arrays/clone-append";
 
 describe("cloneAppend", () => {
 	describe("empty source", () => {
-		describe("with source [] and item 'a'", () => {
+		describe("with source [] and item 'v1'", () => {
 			let source: string[];
 			let result: string[];
 
 			beforeAll(() => {
 				source = [];
-				result = cloneAppend(source, "a");
+				result = cloneAppend(source, "v1");
 			});
 
 			it("should return a one-element array containing the appended item", () => {
-				expect(result).toEqual(["a"]);
+				expect(result).toEqual(["v1"]);
 			});
 
 			it("should not mutate the source array", () => {
@@ -50,21 +50,21 @@ describe("cloneAppend", () => {
 	});
 
 	describe("single-element source", () => {
-		describe("with source ['a'] and item 'b'", () => {
+		describe("with source ['v1'] and item 'v2'", () => {
 			let source: string[];
 			let result: string[];
 
 			beforeAll(() => {
-				source = ["a"];
-				result = cloneAppend(source, "b");
+				source = ["v1"];
+				result = cloneAppend(source, "v2");
 			});
 
 			it("should return a two-element array preserving order", () => {
-				expect(result).toEqual(["a", "b"]);
+				expect(result).toEqual(["v1", "v2"]);
 			});
 
 			it("should not mutate the source array", () => {
-				expect(source).toEqual(["a"]);
+				expect(source).toEqual(["v1"]);
 			});
 
 			it("should return a fresh array reference", () => {
@@ -73,12 +73,12 @@ describe("cloneAppend", () => {
 		});
 
 		it("should preserve object identity of the single existing element", () => {
-			const only = { a: 1 };
-			const source = [only];
+			const a = { a: 1 };
+			const source = [a];
 
 			const result = cloneAppend(source, { a: 2 });
 
-			expect(result[0]).toBe(only);
+			expect(result[0]).toBe(a);
 		});
 
 		it("should preserve object identity of the appended item", () => {
@@ -98,17 +98,17 @@ describe("cloneAppend", () => {
 	});
 
 	describe("multi-element source", () => {
-		describe("with source ['a', 'b'] and item 'c'", () => {
+		describe("with source ['v1', 'v2'] and item 'v3'", () => {
 			let source: string[];
 			let result: string[];
 
 			beforeAll(() => {
-				source = ["a", "b"];
-				result = cloneAppend(source, "c");
+				source = ["v1", "v2"];
+				result = cloneAppend(source, "v3");
 			});
 
 			it("should append to the end and preserve all existing elements", () => {
-				expect(result).toEqual(["a", "b", "c"]);
+				expect(result).toEqual(["v1", "v2", "v3"]);
 			});
 
 			it("should return a fresh array reference", () => {
@@ -117,10 +117,10 @@ describe("cloneAppend", () => {
 		});
 
 		it("should not mutate the source array", () => {
-			const source = ["a", "b", "c"];
+			const source = ["v1", "v2", "v3"];
 			const snapshot = [...source];
 
-			cloneAppend(source, "d");
+			cloneAppend(source, "v4");
 
 			expect(source).toEqual(snapshot);
 		});
@@ -243,7 +243,7 @@ describe("cloneAppend", () => {
 
 		it("should append undefined as a real element", () => {
 			const result = cloneAppend(
-				["a", "b"],
+				["v1", "v2"],
 				undefined as unknown as string,
 			);
 
@@ -252,9 +252,9 @@ describe("cloneAppend", () => {
 		});
 
 		it("should support heterogeneous element types via generics", () => {
-			const result = cloneAppend<number | string>([1, 2], "three");
+			const result = cloneAppend<number | string>([1, 2], "v1");
 
-			expect(result).toEqual([1, 2, "three"]);
+			expect(result).toEqual([1, 2, "v1"]);
 		});
 	});
 

@@ -82,10 +82,10 @@ describe("parseCookies", () => {
 		});
 
 		it("should leave a value without any '%' untouched", () => {
-			const result = parseCookies("a=v+b; b=v1");
+			const result = parseCookies("a=v1+v2; b=v3");
 
-			expect(result.a).toBe("v+b");
-			expect(result.b).toBe("v1");
+			expect(result.a).toBe("v1+v2");
+			expect(result.b).toBe("v3");
 		});
 
 		it("should preserve double-quoted values verbatim (no RFC 6265 quote stripping)", () => {
@@ -191,9 +191,9 @@ describe("parseCookies", () => {
 		});
 
 		it("should skip a nameless chunk and still read the pair after it", () => {
-			const result = parseCookies("a;b=c");
+			const result = parseCookies("a;b=v1");
 
-			expect(result).toEqual({ b: "c" });
+			expect(result).toEqual({ b: "v1" });
 			expect("a" in result).toBe(false);
 			expect("a;b" in result).toBe(false);
 		});
@@ -265,18 +265,18 @@ describe("parseCookies", () => {
 
 	describe("entries skipped or dropped", () => {
 		it("should skip a leading entry without '=' (flag-style)", () => {
-			const result = parseCookies("flag; a=v1");
+			const result = parseCookies("b; a=v1");
 
 			expect(result.a).toBe("v1");
-			expect("flag" in result).toBe(false);
+			expect("b" in result).toBe(false);
 			expect(Object.keys(result)).toEqual(["a"]);
 		});
 
 		it("should skip a trailing entry without '='", () => {
-			const result = parseCookies("a=v1; flag");
+			const result = parseCookies("a=v1; b");
 
 			expect(result.a).toBe("v1");
-			expect("flag" in result).toBe(false);
+			expect("b" in result).toBe(false);
 			expect(Object.keys(result)).toEqual(["a"]);
 		});
 
@@ -318,11 +318,11 @@ describe("parseCookies", () => {
 		});
 
 		it("should drop a no-'=' entry ending in a bare ';' at the end of the header", () => {
-			const result = parseCookies("flag;");
+			const result = parseCookies("ab;");
 
 			expect(Object.keys(result)).toHaveLength(0);
-			expect("flag" in result).toBe(false);
-			expect("flag;" in result).toBe(false);
+			expect("ab" in result).toBe(false);
+			expect("ab;" in result).toBe(false);
 		});
 
 		it("should drop a single-character no-'=' entry ending in a bare ';'", () => {
@@ -343,7 +343,7 @@ describe("parseCookies", () => {
 		});
 
 		it("should return an Empty-shaped dictionary when the header has no pairs", () => {
-			const result = parseCookies("flag");
+			const result = parseCookies("a");
 
 			expect(result).toBeInstanceOf(Empty);
 			expect(Object.keys(result)).toHaveLength(0);
@@ -436,23 +436,23 @@ describe("parseCookies", () => {
 		});
 
 		it("should preserve insertion order for non-numeric names", () => {
-			const result = parseCookies("z=1; a=2; m=3");
+			const result = parseCookies("c=1; a=2; b=3");
 
-			expect(Object.keys(result)).toEqual(["z", "a", "m"]);
+			expect(Object.keys(result)).toEqual(["c", "a", "b"]);
 		});
 
 		it("should enumerate integer-like names first and in ascending order", () => {
-			const result = parseCookies("2=b; 1=a");
+			const result = parseCookies("2=v1; 1=v2");
 
 			expect(Object.keys(result)).toEqual(["1", "2"]);
-			expect(result["1"]).toBe("a");
-			expect(result["2"]).toBe("b");
+			expect(result["1"]).toBe("v2");
+			expect(result["2"]).toBe("v1");
 		});
 
 		it("should enumerate integer-like names before non-numeric ones", () => {
-			const result = parseCookies("2=b; 1=a; z=c");
+			const result = parseCookies("2=v1; 1=v2; a=v3");
 
-			expect(Object.keys(result)).toEqual(["1", "2", "z"]);
+			expect(Object.keys(result)).toEqual(["1", "2", "a"]);
 		});
 	});
 
@@ -461,22 +461,22 @@ describe("parseCookies", () => {
 		// what it reads back is the reference this parser has to match.
 		const parityCases = [
 			"a=v1; b=v2",
-			"session=a%20b",
-			"json=%7B%22x%22%3A1%7D",
+			"a=a%20b",
+			"a=%7B%22a%22%3A1%7D",
 			"a%20b=v1",
-			"encoded%3Dname=v1",
+			"a%3Db=v1",
 			"a=%ZZ",
 			"a=%E0%A4%A",
 			"a=%FF",
 			"a=%C3%A9",
-			"a=v%2Bb",
-			"a=v+b",
+			"a=v1%2Bv2",
+			"a=v1+v2",
 			"a=",
 			"a=  v1  ; b=\t2\t",
-			"novalue; b=1",
+			"a; b=1",
 			"=v1; b=1",
 			"__proto__=v1",
-			"a=100%; b=50%off",
+			"a=100%; b=50%v1",
 			"a=v1; a=v2",
 			"a=v1; a=v2; a=v3",
 			"a=; a=1",
@@ -488,7 +488,7 @@ describe("parseCookies", () => {
 			"a=v1; b=v2; a=v3",
 			"A=v1; a=v2",
 			"a =v1; a=v2",
-			"a=%20; a=x",
+			"a=%20; a=v1",
 		];
 
 		for (const header of parityCases) {
@@ -561,11 +561,11 @@ describe("parseCookies", () => {
 		it("should round-trip everything Bun.CookieMap encodes on the write path", () => {
 			const written = new Bun.CookieMap();
 
-			written.set("session", "a b");
-			written.set("json", '{"x":1}');
-			written.set("path", "/a/b?c=d#e");
-			written.set("unicode", "café ☕");
-			written.set("semi", "a;b");
+			written.set("a", "a b");
+			written.set("b", '{"a":1}');
+			written.set("c", "/a/b?c=v1#f");
+			written.set("d", "café ☕");
+			written.set("e", "a;b");
 
 			const header = written
 				.toSetCookieHeaders()
@@ -573,11 +573,11 @@ describe("parseCookies", () => {
 				.join("; ");
 
 			expect(parseCookies(header)).toEqual({
-				json: '{"x":1}',
-				path: "/a/b?c=d#e",
-				semi: "a;b",
-				session: "a b",
-				unicode: "café ☕",
+				a: "a b",
+				b: '{"a":1}',
+				c: "/a/b?c=v1#f",
+				d: "café ☕",
+				e: "a;b",
 			});
 		});
 	});

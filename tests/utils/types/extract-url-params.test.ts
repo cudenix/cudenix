@@ -330,7 +330,7 @@ describe("ExtractUrlParams", () => {
 			// order and the rest one overwrites the named one
 			const { paramFlags, paramKeys, pattern } =
 				pathToRegexp("/:p1/...p1");
-			const match = new RegExp(`^${pattern}$`).exec("/v1/x/y");
+			const match = new RegExp(`^${pattern}$`).exec("/v1/v2/v3");
 			const params: Record<string, string | string[]> = {};
 
 			for (let i = 0; i < paramKeys.length; i++) {
@@ -342,30 +342,27 @@ describe("ExtractUrlParams", () => {
 						: decoded;
 			}
 
-			expect(params.p1).toEqual(["x", "y"]);
+			expect(params.p1).toEqual(["v2", "v3"]);
 		});
 	});
 
 	describe("explicit Accumulated seed", () => {
 		it("should merge extracted params into the provided seed record", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/a/:p1", { seed: string }>
-			>().branded.toEqualTypeOf<{ seed: string; p1: string }>();
+				ExtractUrlParams<"/a/:p1", { c: string }>
+			>().branded.toEqualTypeOf<{ c: string; p1: string }>();
 		});
 
 		it("should preserve the seed record for a literal-only path", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/a/b", { seed: string[] }>
-			>().branded.toEqualTypeOf<{ seed: string[] }>();
+				ExtractUrlParams<"/a/b", { c: string[] }>
+			>().branded.toEqualTypeOf<{ c: string[] }>();
 		});
 
 		it("should accept a seed whose value type includes `undefined`", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/b/:p2", { seed: string | undefined }>
-			>().branded.toEqualTypeOf<{
-				seed: string | undefined;
-				p2: string;
-			}>();
+				ExtractUrlParams<"/b/:p2", { c: string | undefined }>
+			>().branded.toEqualTypeOf<{ c: string | undefined; p2: string }>();
 		});
 
 		it("should accept its own output as a seed so the type composes", () => {

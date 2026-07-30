@@ -8,9 +8,9 @@ describe("merge", () => {
 		it("should copy all own enumerable string keys from source", () => {
 			const target: Record<string, unknown> = {};
 
-			merge(target, { a: 1, b: "v2", c: true });
+			merge(target, { a: 1, b: "v1", c: true });
 
-			expect(target).toEqual({ a: 1, b: "v2", c: true });
+			expect(target).toEqual({ a: 1, b: "v1", c: true });
 		});
 
 		it("should overwrite matching keys in target with values from source", () => {
@@ -190,14 +190,14 @@ describe("merge", () => {
 				},
 			});
 
-			const source = Object.create({ a: "proto" });
+			const source = Object.create({ a: "v1" });
 
-			source.a = "own";
+			source.a = "v2";
 
 			merge(target, source);
 
 			expect(writes).toBe(1);
-			expect(target.a).toBe("own");
+			expect(target.a).toBe("v2");
 		});
 
 		it("should still copy own keys when source has a null prototype", () => {
@@ -300,10 +300,10 @@ describe("merge", () => {
 				},
 			});
 
-			Object.defineProperty(source, "boom", {
+			Object.defineProperty(source, "b", {
 				enumerable: true,
 				get() {
-					throw new Error("x");
+					throw new Error("v1");
 				},
 			});
 
@@ -316,9 +316,9 @@ describe("merge", () => {
 
 			const target: Record<string, unknown> = {};
 
-			expect(() => merge(target, source)).toThrow("x");
+			expect(() => merge(target, source)).toThrow("v1");
 			expect(target).toEqual({ a: 1 });
-			expect("boom" in target).toBe(false);
+			expect("b" in target).toBe(false);
 			expect("c" in target).toBe(false);
 		});
 

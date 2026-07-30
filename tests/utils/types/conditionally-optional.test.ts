@@ -178,7 +178,7 @@ describe("ConditionallyOptional", () => {
 
 	describe("special key kinds", () => {
 		it("should mark a `symbol`-keyed property optional when its value admits the marker", () => {
-			const sym = Symbol("k");
+			const sym = Symbol("a");
 
 			interface A {
 				a: number;

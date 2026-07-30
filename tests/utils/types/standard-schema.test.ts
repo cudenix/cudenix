@@ -99,7 +99,7 @@ describe("StandardSchemaV1", () => {
 				value,
 			) => ({ value: value as string });
 
-			expectTypeOf(validate("x")).toEqualTypeOf<
+			expectTypeOf(validate("v1")).toEqualTypeOf<
 				| StandardSchemaV1.Result<string>
 				| Promise<StandardSchemaV1.Result<string>>
 			>();

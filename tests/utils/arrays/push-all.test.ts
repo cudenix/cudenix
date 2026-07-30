@@ -61,11 +61,11 @@ describe("pushAll", () => {
 
 	describe("element preservation", () => {
 		it("should preserve duplicates from source", () => {
-			const target = ["a"];
+			const target = ["v1"];
 
-			pushAll(target, ["b", "b", "c"]);
+			pushAll(target, ["v2", "v2", "v3"]);
 
-			expect(target).toEqual(["a", "b", "b", "c"]);
+			expect(target).toEqual(["v1", "v2", "v2", "v3"]);
 		});
 
 		it("should preserve element identity for objects appended from source", () => {
@@ -80,16 +80,16 @@ describe("pushAll", () => {
 		});
 
 		it("should preserve identity of pre-existing target elements", () => {
-			const x = { a: "v1" };
-			const y = { a: "v2" };
-			const z = { a: "v3" };
-			const target: object[] = [x, y];
+			const a = { a: "v1" };
+			const b = { a: "v2" };
+			const c = { a: "v3" };
+			const target: object[] = [a, b];
 
-			pushAll(target, [z]);
+			pushAll(target, [c]);
 
-			expect(target[0]).toBe(x);
-			expect(target[1]).toBe(y);
-			expect(target[2]).toBe(z);
+			expect(target[0]).toBe(a);
+			expect(target[1]).toBe(b);
+			expect(target[2]).toBe(c);
 		});
 
 		it("should support mixing element types under a union generic", () => {

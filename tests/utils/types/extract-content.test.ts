@@ -9,7 +9,7 @@ describe("ExtractContent", () => {
 		});
 
 		it("should pass a string literal through unchanged", () => {
-			expectTypeOf<ExtractContent<"a">>().toEqualTypeOf<"a">();
+			expectTypeOf<ExtractContent<"v1">>().toEqualTypeOf<"v1">();
 		});
 
 		it("should pass `bigint` through unchanged", () => {
@@ -228,7 +228,7 @@ describe("ExtractContent", () => {
 		});
 
 		it("should resolve a generic factory to `unknown` because the type parameter collapses to its default", () => {
-			type A = <T>(x: T) => T;
+			type A = <T>(a: T) => T;
 
 			expectTypeOf<ExtractContent<A>>().toBeUnknown();
 		});

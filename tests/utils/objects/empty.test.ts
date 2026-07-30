@@ -79,27 +79,27 @@ describe("Empty", () => {
 
 		beforeEach(() => {
 			nested = new Empty();
-			nested.b = 2;
+			nested.a = 2;
 
 			instance = new Empty();
 			instance.a = 1;
-			instance.nested = nested;
-			instance[dangerous] = "x";
+			instance.b = nested;
+			instance[dangerous] = "v1";
 		});
 
 		it("should serialize own keys in insertion order via JSON.stringify, including a nested instance and a 'constructor' key", () => {
 			expect(JSON.stringify(instance)).toBe(
-				'{"a":1,"nested":{"b":2},"constructor":"x"}',
+				'{"a":1,"b":{"a":2},"constructor":"v1"}',
 			);
 		});
 
 		it("should spread to a plain object carrying every own key by reference", () => {
 			const spread = { ...instance };
 
-			expect(Object.keys(spread)).toEqual(["a", "nested", "constructor"]);
+			expect(Object.keys(spread)).toEqual(["a", "b", "constructor"]);
 			expect(spread.a).toBe(1);
-			expect(spread.nested).toBe(nested);
-			expect(spread[dangerous]).toBe("x");
+			expect(spread.b).toBe(nested);
+			expect(spread[dangerous]).toBe("v1");
 		});
 
 		it("should return every own entry in insertion order from Object.entries", () => {
@@ -107,12 +107,12 @@ describe("Empty", () => {
 
 			expect(entries.map(([key]) => key)).toEqual([
 				"a",
-				"nested",
+				"b",
 				"constructor",
 			]);
 			expect(entries[0]?.[1]).toBe(1);
 			expect(entries[1]?.[1]).toBe(nested);
-			expect(entries[2]?.[1]).toBe("x");
+			expect(entries[2]?.[1]).toBe("v1");
 		});
 
 		it("should return every own value in insertion order from Object.values", () => {
@@ -121,15 +121,15 @@ describe("Empty", () => {
 			expect(values).toHaveLength(3);
 			expect(values[0]).toBe(1);
 			expect(values[1]).toBe(nested);
-			expect(values[2]).toBe("x");
+			expect(values[2]).toBe("v1");
 		});
 
 		it("should not inherit a toJSON hook that could rewrite the serialized shape", () => {
 			expect("toJSON" in instance).toBe(false);
 			expect(JSON.parse(JSON.stringify(instance))).toEqual({
 				a: 1,
-				constructor: "x",
-				nested: { b: 2 },
+				b: { a: 2 },
+				constructor: "v1",
 			});
 		});
 	});
@@ -264,11 +264,11 @@ describe("Empty", () => {
 		});
 
 		it("should isolate mutations between distinct instances", () => {
-			const other = new Empty();
+			const b = new Empty();
 
 			instance.a = 1;
 
-			expect("a" in other).toBe(false);
+			expect("a" in b).toBe(false);
 		});
 
 		it("should iterate added string keys with for...in", () => {
@@ -404,14 +404,14 @@ describe("FrozenEmpty", () => {
 			// receiver; the prototype is frozen now, so the poisoning attempt is
 			// what gets asserted, and the defaults have to survive it
 			expect(() =>
-				Object.defineProperty(Empty.prototype, "status", {
+				Object.defineProperty(Empty.prototype, "a", {
 					configurable: true,
 					enumerable: true,
-					value: 418,
+					value: 1,
 				}),
 			).toThrow(TypeError);
 
-			expect("status" in FrozenEmpty).toBe(false);
+			expect("a" in FrozenEmpty).toBe(false);
 
 			expect(fail("v1").status).toBe(400);
 			expect(ok("v2").status).toBe(200);
@@ -473,20 +473,20 @@ describe("FrozenEmpty", () => {
 		it("should reject property assignment in strict mode", () => {
 			expect(() => {
 				// @ts-expect-error - should not allow adding properties
-				FrozenEmpty.x = 1;
+				FrozenEmpty.a = 1;
 			}).toThrow(TypeError);
 		});
 
 		it("should reject symbol-keyed assignment in strict mode", () => {
 			expect(() => {
 				// @ts-expect-error - should not allow adding properties
-				FrozenEmpty[Symbol("k")] = 1;
+				FrozenEmpty[Symbol("a")] = 1;
 			}).toThrow(TypeError);
 		});
 
 		it("should reject defining new properties via Object.defineProperty", () => {
 			expect(() =>
-				Object.defineProperty(FrozenEmpty, "x", { value: 1 }),
+				Object.defineProperty(FrozenEmpty, "a", { value: 1 }),
 			).toThrow(TypeError);
 		});
 
@@ -516,37 +516,33 @@ describe("FrozenEmpty", () => {
 
 		it("should reject a string key added to Empty.prototype", () => {
 			expect(() => {
-				Empty.prototype.threshold = 9;
+				Empty.prototype.a = 1;
 			}).toThrow(TypeError);
 
-			expect("threshold" in FrozenEmpty).toBe(false);
-			expect(FrozenEmpty.threshold).toBeUndefined();
+			expect("a" in FrozenEmpty).toBe(false);
+			expect(FrozenEmpty.a).toBeUndefined();
 		});
 
 		it("should keep destructuring defaults read through FrozenEmpty stable", () => {
-			const fn = ({
-				threshold = 1024,
-			}: {
-				threshold?: number;
-			} = FrozenEmpty) => threshold;
+			const fn = ({ a = 1 }: { a?: number } = FrozenEmpty) => a;
 
-			expect(fn()).toBe(1024);
+			expect(fn()).toBe(1);
 
 			expect(() => {
-				Empty.prototype.threshold = 9;
+				Empty.prototype.a = 2;
 			}).toThrow(TypeError);
 
-			expect(fn()).toBe(1024);
+			expect(fn()).toBe(1);
 		});
 
 		it("should still let each instance take its own keys", () => {
 			const dictionary = new Empty();
 
-			dictionary.threshold = 9;
+			dictionary.a = 1;
 
-			expect(dictionary.threshold).toBe(9);
-			expect(Object.hasOwn(dictionary, "threshold")).toBe(true);
-			expect("threshold" in new Empty()).toBe(false);
+			expect(dictionary.a).toBe(1);
+			expect(Object.hasOwn(dictionary, "a")).toBe(true);
+			expect("a" in new Empty()).toBe(false);
 		});
 	});
 

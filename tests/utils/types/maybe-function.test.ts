@@ -27,7 +27,7 @@ describe("MaybeFunction", () => {
 		});
 
 		it("should accept an arrow factory returning a literal", () => {
-			expectTypeOf<() => "a">().toExtend<MaybeFunction<"a">>();
+			expectTypeOf<() => "v1">().toExtend<MaybeFunction<"v1">>();
 		});
 	});
 

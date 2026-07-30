@@ -54,22 +54,22 @@ describe("isAsync", () => {
 	describe("async methods on a class", () => {
 		it("should return true for an async instance method", () => {
 			class A {
-				async method() {
+				async a() {
 					return 1;
 				}
 			}
 
-			expect(isAsync(new A().method)).toBe(true);
+			expect(isAsync(new A().a)).toBe(true);
 		});
 
 		it("should return true for an async static method", () => {
 			class A {
-				static async staticMethod() {
+				static async a() {
 					return 1;
 				}
 			}
 
-			expect(isAsync(A.staticMethod)).toBe(true);
+			expect(isAsync(A.a)).toBe(true);
 		});
 	});
 

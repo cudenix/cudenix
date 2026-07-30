@@ -49,7 +49,7 @@ describe("parseQuery", () => {
 		});
 
 		it("should read the query from a full absolute URL", () => {
-			const result = parseQuery("https://host/a?b=v1&c=v2");
+			const result = parseQuery("http://localhost/a?b=v1&c=v2");
 
 			expect(result).toEqual({ b: "v1", c: "v2" });
 		});
@@ -126,9 +126,9 @@ describe("parseQuery", () => {
 		});
 
 		it("should decode '%2B' to a literal '+' in a key", () => {
-			const result = parseQuery("/a?a%2Bb=v1");
+			const result = parseQuery("/a?b%2Bc=v1");
 
-			expect(result["a+b"]).toBe("v1");
+			expect(result["b+c"]).toBe("v1");
 		});
 
 		it("should decode percent-escapes exactly once (no double decode)", () => {
@@ -138,9 +138,9 @@ describe("parseQuery", () => {
 		});
 
 		it("should keep a '?' after the first one as literal data in a value", () => {
-			const result = parseQuery("/a?b=v?1");
+			const result = parseQuery("/a?b=v1?v2");
 
-			expect(result.b).toBe("v?1");
+			expect(result.b).toBe("v1?v2");
 		});
 
 		it("should keep a '?' after the first one as literal data in a key", () => {
@@ -150,23 +150,23 @@ describe("parseQuery", () => {
 		});
 
 		it("should decode '%26' and '%3D' into the value without splitting the pair", () => {
-			const result = parseQuery("/a?a=1%262%3D3");
+			const result = parseQuery("/a?b=1%262%3D3");
 
-			expect(result).toEqual({ a: "1&2=3" });
+			expect(result).toEqual({ b: "1&2=3" });
 		});
 
 		it("should decode '%23' into the value without truncating at a fragment", () => {
-			const result = parseQuery("/a?a=1%232&b=2");
+			const result = parseQuery("/a?b=1%232&c=2");
 
-			expect(result).toEqual({ a: "1#2", b: "2" });
+			expect(result).toEqual({ b: "1#2", c: "2" });
 		});
 	});
 
 	describe("malformed percent-escapes", () => {
 		it("should keep a bare '%' in a value verbatim instead of throwing", () => {
-			const result = parseQuery("/a?b=100%&c=v2");
+			const result = parseQuery("/a?b=v1%&c=v2");
 
-			expect(result.b).toBe("100%");
+			expect(result.b).toBe("v1%");
 			expect(result.c).toBe("v2");
 		});
 
@@ -189,15 +189,15 @@ describe("parseQuery", () => {
 		});
 
 		it("should keep the plus-replaced value when a '%' escape is malformed", () => {
-			const result = parseQuery("/a?b=a+100%");
+			const result = parseQuery("/a?b=v1+v2%");
 
-			expect(result.b).toBe("a 100%");
+			expect(result.b).toBe("v1 v2%");
 		});
 
 		it("should keep the plus-replaced key when a '%' escape is malformed", () => {
-			const result = parseQuery("/a?a+100%=v1");
+			const result = parseQuery("/a?b+c%=v1");
 
-			expect(result["a 100%"]).toBe("v1");
+			expect(result["b c%"]).toBe("v1");
 		});
 
 		it("should keep a syntactically valid escape carrying invalid UTF-8 verbatim", () => {
@@ -241,9 +241,9 @@ describe("parseQuery", () => {
 		});
 
 		it("should fall back to the raw string when JSON parsing fails", () => {
-			const result = parseQuery("/a?b={bad}");
+			const result = parseQuery("/a?b={c}");
 
-			expect(result.b).toBe("{bad}");
+			expect(result.b).toBe("{c}");
 		});
 
 		it("should keep the raw string when a percent-decode failure leaves JSON-shaped text", () => {
@@ -300,11 +300,11 @@ describe("parseQuery", () => {
 		});
 
 		it("should split a JSON value on a raw '&' (JSON values must be fully percent-encoded)", () => {
-			const result = parseQuery('/a?b={"a":"x&y"}');
+			const result = parseQuery('/a?b={"c":"v1&v2"}');
 
-			expect(result.b).toBe('{"a":"x');
-			expect(result['y"}']).toBe("");
-			expect(Object.keys(result)).toEqual(["b", 'y"}']);
+			expect(result.b).toBe('{"c":"v1');
+			expect(result['v2"}']).toBe("");
+			expect(Object.keys(result)).toEqual(["b", 'v2"}']);
 		});
 	});
 
@@ -355,14 +355,14 @@ describe("parseQuery", () => {
 
 	describe("fragment handling", () => {
 		it("should stop parsing at a '#' fragment after a value", () => {
-			const result = parseQuery("/a?b=v1#section");
+			const result = parseQuery("/a?b=v1#c");
 
 			expect(result.b).toBe("v1");
-			expect("section" in result).toBe(false);
+			expect("c" in result).toBe(false);
 		});
 
 		it("should stop parsing at a '#' fragment that ends a key", () => {
-			const result = parseQuery("/a?b#section");
+			const result = parseQuery("/a?b#c");
 
 			expect(result.b).toBe("");
 			expect(Object.keys(result)).toEqual(["b"]);
@@ -375,7 +375,7 @@ describe("parseQuery", () => {
 		});
 
 		it("should not recognize a '#' before the first '?' as a fragment", () => {
-			const result = parseQuery("/a#f?b=v1");
+			const result = parseQuery("/a#c?b=v1");
 
 			expect(result).toEqual({ b: "v1" });
 		});
@@ -423,10 +423,10 @@ describe("parseQuery", () => {
 		});
 
 		it("should collapse differently-encoded spellings of the same key into one array", () => {
-			const result = parseQuery("/a?a%20b=1&a+b=2");
+			const result = parseQuery("/a?b%20c=1&b+c=2");
 
-			expect(result["a b"]).toEqual(["1", "2"]);
-			expect(Object.keys(result)).toEqual(["a b"]);
+			expect(result["b c"]).toEqual(["1", "2"]);
+			expect(Object.keys(result)).toEqual(["b c"]);
 		});
 	});
 
@@ -477,7 +477,7 @@ describe("parseQuery", () => {
 		});
 
 		it("should return an empty dictionary when the query is only a fragment", () => {
-			expect(Object.keys(parseQuery("/a?#section"))).toHaveLength(0);
+			expect(Object.keys(parseQuery("/a?#b"))).toHaveLength(0);
 		});
 	});
 
@@ -502,7 +502,7 @@ describe("parseQuery", () => {
 		});
 
 		it("should not pollute the prototype when a JSON value carries a `__proto__` key", () => {
-			const result = parseQuery('/a?b={"__proto__":{"polluted":1}}');
+			const result = parseQuery('/a?b={"__proto__":{"a":1}}');
 
 			expect(Object.hasOwn(result, "b")).toBe(true);
 			expect(Object.hasOwn(result.b as object, "__proto__")).toBe(true);
@@ -543,20 +543,20 @@ describe("parseQuery", () => {
 		});
 
 		it("should preserve insertion order for non-index names", () => {
-			const result = parseQuery("/a?z=1&a=2&m=3");
+			const result = parseQuery("/a?c=1&b=2&d=3");
 
-			expect(Object.keys(result)).toEqual(["z", "a", "m"]);
+			expect(Object.keys(result)).toEqual(["c", "b", "d"]);
 		});
 
 		it("should reorder integer-index names ahead of the rest, per spec", () => {
 			// query names are client-controlled, so "?1=..&0=.." is trivial to
 			// send; no consumer may rely on Object.keys order for the query
-			const result = parseQuery("/a?2=x&1=y&z=w");
+			const result = parseQuery("/a?2=v1&1=v2&b=v3");
 
-			expect(Object.keys(result)).toEqual(["1", "2", "z"]);
-			expect(result[1]).toBe("y");
-			expect(result[2]).toBe("x");
-			expect(result.z).toBe("w");
+			expect(Object.keys(result)).toEqual(["1", "2", "b"]);
+			expect(result[1]).toBe("v2");
+			expect(result[2]).toBe("v1");
+			expect(result.b).toBe("v3");
 		});
 	});
 });

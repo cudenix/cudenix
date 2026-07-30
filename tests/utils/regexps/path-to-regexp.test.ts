@@ -82,7 +82,7 @@ describe("pathToRegexp", () => {
 			expect(restKeys).toEqual([]);
 			expect(regex.test("/a")).toBe(true);
 			expect(regex.test("/b")).toBe(false);
-			expect(regex.test("/a/1")).toBe(false);
+			expect(regex.test("/a/b")).toBe(false);
 		});
 
 		it("should match literal segments case-sensitively", () => {
@@ -177,11 +177,11 @@ describe("pathToRegexp", () => {
 				"1abc",
 				"a-b",
 				"a,b",
-				"space here",
-				"line\nbreak",
-				"carriage\rreturn",
-				"null\u0000byte",
-				"separator\u2028line",
+				"a b",
+				"a\nb",
+				"a\rb",
+				"a\u0000b",
+				"a\u2028b",
 			];
 
 			for (let i = 0; i < segments.length; i++) {
@@ -221,23 +221,25 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should compile a '#' in the middle of a segment to its percent-encoding", () => {
-			const { pattern, regex } = compile("/hash#tag");
+			const { pattern, regex } = compile("/a#b");
 
-			expect(pattern).toBe(String.raw`()\/hash%23tag`);
-			expect(regex.test("/hash%23tag")).toBe(true);
-			expect(regex.test("/hash#tag")).toBe(false);
+			expect(pattern).toBe(String.raw`()\/a%23b`);
+			expect(regex.test("/a%23b")).toBe(true);
+			expect(regex.test("/a#b")).toBe(false);
 		});
 
 		it("should not let a '?' segment shadow the route the request actually asked for", () => {
-			const shadowing = pathToRegexp("/search?q=1").pattern;
-			const real = pathToRegexp("/search").pattern;
+			const shadowing = pathToRegexp("/a?b=1").pattern;
+			const real = pathToRegexp("/a").pattern;
 			const combined = new RegExp(
 				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${shadowing}|${real})(?![^?#])`,
 			);
 
 			// group 1 is the shadowing route's marker, group 2 the real one
-			expect(combined.exec("http://h/search?q=1")?.[2]).toBe("");
-			expect(combined.exec("http://h/search?q=1")?.[1]).toBeUndefined();
+			expect(combined.exec("http://localhost/a?b=1")?.[2]).toBe("");
+			expect(
+				combined.exec("http://localhost/a?b=1")?.[1],
+			).toBeUndefined();
 		});
 
 		it("should treat a ':' in the middle of a segment as a literal character", () => {
@@ -350,9 +352,9 @@ describe("pathToRegexp", () => {
 			});
 
 			it("should reject a value containing whitespace, '?', or '#'", () => {
-				expect(compiled.regex.test("/a/0 v1")).toBe(false);
-				expect(compiled.regex.test("/a/0?v1")).toBe(false);
-				expect(compiled.regex.test("/a/0#v1")).toBe(false);
+				expect(compiled.regex.test("/a/v1 v2")).toBe(false);
+				expect(compiled.regex.test("/a/v1?v2")).toBe(false);
+				expect(compiled.regex.test("/a/v1#v2")).toBe(false);
 			});
 
 			it("should not let a single param value span a '/' segment boundary", () => {
@@ -390,28 +392,28 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should keep duplicate param names as separate paramKeys entries", () => {
-			const { paramKeys, regex } = compile("/:a/:a");
+			const { paramKeys, regex } = compile("/:p1/:p1");
 
-			expect(paramKeys).toEqual(["a", "a"]);
+			expect(paramKeys).toEqual(["p1", "p1"]);
 
-			const match = "/x/y".match(regex);
+			const match = "/v1/v2".match(regex);
 
 			expect(match?.length).toBe(4);
-			expect(match?.[2]).toBe("x");
-			expect(match?.[3]).toBe("y");
+			expect(match?.[2]).toBe("v1");
+			expect(match?.[3]).toBe("v2");
 		});
 
 		it("should give a duplicated name its own capture when one is a rest param", () => {
-			const { paramKeys, regex, restKeys } = compile("/:same/...same");
+			const { paramKeys, regex, restKeys } = compile("/:p1/...p1");
 
-			expect(paramKeys).toEqual(["same", "same"]);
-			expect(restKeys).toEqual(["same"]);
+			expect(paramKeys).toEqual(["p1", "p1"]);
+			expect(restKeys).toEqual(["p1"]);
 
-			const match = "/x/y/z".match(regex);
+			const match = "/v1/v2/v3".match(regex);
 
 			expect(match?.length).toBe(4);
-			expect(match?.[2]).toBe("x");
-			expect(match?.[3]).toBe("y/z");
+			expect(match?.[2]).toBe("v1");
+			expect(match?.[3]).toBe("v2/v3");
 		});
 
 		it("should support a ':' segment with no name (empty key)", () => {
@@ -558,22 +560,22 @@ describe("pathToRegexp", () => {
 			expect(restKeys).toEqual(["r1", "r2"]);
 
 			// the first rest is greedy, so it backtracks only the last segment
-			const match = "/a/b/c".match(regex);
+			const match = "/v1/v2/v3".match(regex);
 
-			expect(match?.[2]).toBe("a/b");
-			expect(match?.[3]).toBe("c");
+			expect(match?.[2]).toBe("v1/v2");
+			expect(match?.[3]).toBe("v3");
 
-			expect("/a/b".match(regex)?.slice(2)).toEqual(["a", "b"]);
-			expect(regex.test("/a")).toBe(false);
+			expect("/v1/v2".match(regex)?.slice(2)).toEqual(["v1", "v2"]);
+			expect(regex.test("/v1")).toBe(false);
 		});
 
 		it("should never capture a second adjacent rest param when both are optional", () => {
 			const { regex } = compile("/...r1?/...r2?");
 
 			// nothing forces the greedy first rest to give segments back
-			const deep = "/a/b/c".match(regex);
+			const deep = "/v1/v2/v3".match(regex);
 
-			expect(deep?.[2]).toBe("a/b/c");
+			expect(deep?.[2]).toBe("v1/v2/v3");
 			expect(deep?.[3]).toBeUndefined();
 
 			const shallow = "/v1/v2".match(regex);
@@ -706,9 +708,9 @@ describe("pathToRegexp", () => {
 			});
 
 			it("should reject segments containing whitespace, '?', or '#'", () => {
-				expect(compiled.regex.test("/a/v 1")).toBe(false);
-				expect(compiled.regex.test("/a/v1?x")).toBe(false);
-				expect(compiled.regex.test("/a/v#1")).toBe(false);
+				expect(compiled.regex.test("/a/v1 v2")).toBe(false);
+				expect(compiled.regex.test("/a/v1?v2")).toBe(false);
+				expect(compiled.regex.test("/a/v1#v2")).toBe(false);
 			});
 		});
 
@@ -800,12 +802,12 @@ describe("pathToRegexp", () => {
 			expect(paramKeys).toEqual(["p1"]);
 			expect(restKeys).toEqual([]);
 
-			const match = "/a/w1/w2/v1".match(regex);
+			const match = "/a/v1/v2/v3".match(regex);
 
 			// the wildcard consumes segments without adding a capture group
 			expect(match?.length).toBe(3);
-			expect(match?.[2]).toBe("v1");
-			expect("/a/w1/v1".match(regex)?.[2]).toBe("v1");
+			expect(match?.[2]).toBe("v3");
+			expect("/a/v1/v2".match(regex)?.[2]).toBe("v2");
 		});
 
 		it("should keep capture indexes aligned when a wildcard sits between a param and a rest", () => {
@@ -814,12 +816,12 @@ describe("pathToRegexp", () => {
 			expect(paramKeys).toEqual(["p1", "r1"]);
 			expect(restKeys).toEqual(["r1"]);
 
-			const match = "/a/v1/w1/r1/r2".match(regex);
+			const match = "/a/v1/v2/v3/v4".match(regex);
 
 			expect(match?.length).toBe(4);
 			expect(match?.[2]).toBe("v1");
 			// the greedy wildcard leaves only the last segment to the rest param
-			expect(match?.[3]).toBe("r2");
+			expect(match?.[3]).toBe("v4");
 		});
 
 		it("should preserve left-to-right paramKeys order across mixed segments", () => {
@@ -871,38 +873,44 @@ describe("pathToRegexp", () => {
 		it("should stop a param capture right before the query string", () => {
 			const regex = embed("/a/:p1");
 
-			expect("http://h/a/v1?x=1".match(regex)?.[2]).toBe("v1");
-			expect("http://h/a/v1".match(regex)?.[2]).toBe("v1");
+			expect("http://localhost/a/v1?b=1".match(regex)?.[2]).toBe("v1");
+			expect("http://localhost/a/v1".match(regex)?.[2]).toBe("v1");
 		});
 
 		it("should stop a param capture right before the fragment", () => {
 			const regex = embed("/a/:p1");
 
-			expect("http://h/a/v1#f".match(regex)?.[2]).toBe("v1");
+			expect("http://localhost/a/v1#c".match(regex)?.[2]).toBe("v1");
 		});
 
 		it("should stop a rest capture right before the query string or fragment", () => {
 			const regex = embed("/a/...r1");
 
-			expect("http://h/a/v1/v2?x=1".match(regex)?.[2]).toBe("v1/v2");
-			expect("http://h/a/v1/v2#f".match(regex)?.[2]).toBe("v1/v2");
+			expect("http://localhost/a/v1/v2?b=1".match(regex)?.[2]).toBe(
+				"v1/v2",
+			);
+			expect("http://localhost/a/v1/v2#c".match(regex)?.[2]).toBe(
+				"v1/v2",
+			);
 		});
 
 		it("should stop a wildcard right before the query string or fragment", () => {
 			const regex = embed("/a/*");
 
-			const withQuery = "http://h/a/v1/v2?x=1".match(regex);
+			const withQuery = "http://localhost/a/v1/v2?b=1".match(regex);
 
-			expect(withQuery?.[0]).toBe("http://h/a/v1/v2");
+			expect(withQuery?.[0]).toBe("http://localhost/a/v1/v2");
 			expect(withQuery?.length).toBe(2);
 
-			expect("http://h/a/v1/v2#f".match(regex)?.[0]).toBe(
-				"http://h/a/v1/v2",
+			expect("http://localhost/a/v1/v2#c".match(regex)?.[0]).toBe(
+				"http://localhost/a/v1/v2",
 			);
 		});
 
 		it("should not match when unconsumed path segments remain", () => {
-			expect(embed("/a/:p1").test("http://h/a/v1/v2")).toBe(false);
+			expect(embed("/a/:p1").test("http://localhost/a/v1/v2")).toBe(
+				false,
+			);
 		});
 	});
 
@@ -941,10 +949,10 @@ describe("pathToRegexp", () => {
 
 		it("should align required and optional flags with duplicate names", () => {
 			const { paramFlags, paramKeys } = pathToRegexp(
-				"/:same/:same?/...same/...same?",
+				"/:p1/:p1?/...p1/...p1?",
 			);
 
-			expect(paramKeys).toEqual(["same", "same", "same", "same"]);
+			expect(paramKeys).toEqual(["p1", "p1", "p1", "p1"]);
 			expect(paramFlags).toEqual([0, 1, 2, 3]);
 		});
 

@@ -5,7 +5,7 @@ import { Empty } from "@/utils/objects/empty";
 
 const request = (body: BodyInit, contentType?: string) =>
 	new Request(
-		"https://a.b/c",
+		"http://localhost/a",
 		contentType === undefined
 			? { body, method: "POST" }
 			: {
@@ -67,7 +67,7 @@ describe("parseBody", () => {
 
 		it("should reject when the json body is malformed", async () => {
 			await expect(
-				parseBody(request("{bad", "application/json")),
+				parseBody(request("{a", "application/json")),
 			).rejects.toThrow();
 		});
 
@@ -184,11 +184,14 @@ describe("parseBody", () => {
 
 		it("should decode percent escapes and '+' in field values", async () => {
 			const result = (await parseBody(
-				request("a=v1%20v2&b=c+d", "application/x-www-form-urlencoded"),
+				request(
+					"a=v1%20v2&b=v3+v4",
+					"application/x-www-form-urlencoded",
+				),
 			)) as Record<string, unknown>;
 
 			expect(result.a).toBe("v1 v2");
-			expect(result.b).toBe("c d");
+			expect(result.b).toBe("v3 v4");
 		});
 
 		it("should match the content type set by URLSearchParams", async () => {
@@ -324,7 +327,7 @@ describe("parseBody", () => {
 		});
 
 		it("should parse a hand written multipart body with its boundary", async () => {
-			const boundary = "a1b2c3";
+			const boundary = "v3";
 			const body = [
 				`--${boundary}`,
 				'Content-Disposition: form-data; name="a"',
@@ -349,7 +352,7 @@ describe("parseBody", () => {
 		});
 
 		it("should recognize a non canonical media type spelling and let Bun reject it", async () => {
-			const boundary = "a1b2c3";
+			const boundary = "v2";
 			const body = [
 				`--${boundary}`,
 				'Content-Disposition: form-data; name="a"',
@@ -422,17 +425,17 @@ describe("parseBody", () => {
 		});
 
 		it("should resolve to an empty string for a bodyless request with no content type", async () => {
-			const bodylessRequest = new Request("https://a.b/c");
+			const bodylessRequest = new Request("http://localhost/a");
 
 			expect(bodylessRequest.headers.get("content-type")).toBeNull();
 			expect(await parseBody(bodylessRequest)).toBe("");
 		});
 
 		it("should read a byte body as text when no content type is set", async () => {
-			const byteBodyRequest = request(new Uint8Array([104, 105]));
+			const byteBodyRequest = request(new Uint8Array([118, 49]));
 
 			expect(byteBodyRequest.headers.get("content-type")).toBeNull();
-			expect(await parseBody(byteBodyRequest)).toBe("hi");
+			expect(await parseBody(byteBodyRequest)).toBe("v1");
 		});
 
 		it("should read the body as text for an unknown content type", async () => {
@@ -587,7 +590,7 @@ describe("parseBody", () => {
 		it("should store a json `__proto__` key as a real own key without polluting the prototype", async () => {
 			const result = (await parseBody(
 				request(
-					'{"__proto__":{"polluted":"yes"},"a":"v1"}',
+					'{"__proto__":{"a":"v1"},"a":"v2"}',
 					"application/json",
 				),
 			)) as Record<string, unknown>;
@@ -595,15 +598,15 @@ describe("parseBody", () => {
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
 			expect(
 				Object.getOwnPropertyDescriptor(result, "__proto__")?.value,
-			).toEqual({ polluted: "yes" });
-			expect(result.a).toBe("v1");
+			).toEqual({ a: "v1" });
+			expect(result.a).toBe("v2");
 			const objectPrototype = Object.prototype as unknown as Record<
 				string,
 				unknown
 			>;
 
-			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
-			expect(objectPrototype.polluted).toBeUndefined();
+			expect(({} as Record<string, unknown>).a).toBeUndefined();
+			expect(objectPrototype.a).toBeUndefined();
 		});
 
 		it("should store a json `constructor` key as a real own key without invoking inheritance", async () => {

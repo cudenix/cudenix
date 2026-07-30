@@ -280,13 +280,13 @@ describe("Merge", () => {
 	describe("any operands", () => {
 		it("should widen existing values and add an index signature when the second operand is `any`", () => {
 			expectTypeOf<Merge<{ a: 1 }, any>>().branded.toEqualTypeOf<
-				{ a: any } & { [x: string]: any }
+				{ a: any } & { [k: string]: any }
 			>();
 		});
 
 		it("should add an index signature while keeping the second operand's declarations when the first operand is `any`", () => {
 			expectTypeOf<Merge<any, { a: 1 }>>().branded.toEqualTypeOf<
-				{ [x: string]: any } & { a: 1 }
+				{ [k: string]: any } & { a: 1 }
 			>();
 		});
 	});
@@ -434,7 +434,7 @@ describe("Merge", () => {
 	});
 
 	describe("symbol keys", () => {
-		const sym = Symbol("k");
+		const sym = Symbol("a");
 		type Sym = typeof sym;
 
 		it("should keep the first operand's symbol key instead of letting the second override it", () => {
@@ -494,24 +494,24 @@ describe("Merge", () => {
 
 		it("should union a concrete key from the first operand with the second's index signature", () => {
 			interface A {
-				id: string;
+				a: string;
 			}
 			interface B {
 				[k: string]: number;
 			}
 
-			expectTypeOf<Merge<A, B>["id"]>().toEqualTypeOf<string | number>();
+			expectTypeOf<Merge<A, B>["a"]>().toEqualTypeOf<string | number>();
 		});
 
 		it("should keep the second operand's index signature reachable on the merged type", () => {
 			interface A {
-				id: string;
+				a: string;
 			}
 			interface B {
 				[k: string]: number;
 			}
 
-			expectTypeOf<Merge<A, B>["other"]>().toEqualTypeOf<number>();
+			expectTypeOf<Merge<A, B>["b"]>().toEqualTypeOf<number>();
 		});
 
 		it("should replace a key reached only through the first operand's index signature", () => {
@@ -519,11 +519,11 @@ describe("Merge", () => {
 				[k: string]: number;
 			}
 			interface B {
-				id: string;
+				a: string;
 			}
 
-			expectTypeOf<Merge<A, B>["id"]>().toEqualTypeOf<string>();
-			expectTypeOf<Merge<A, B>["other"]>().toEqualTypeOf<number>();
+			expectTypeOf<Merge<A, B>["a"]>().toEqualTypeOf<string>();
+			expectTypeOf<Merge<A, B>["b"]>().toEqualTypeOf<number>();
 		});
 
 		it("should union an optional concrete key from the first operand with the second's index signature", () => {
@@ -537,7 +537,7 @@ describe("Merge", () => {
 			expectTypeOf<Merge<A, B>["a"]>().toEqualTypeOf<
 				string | number | undefined
 			>();
-			expectTypeOf<Merge<A, B>["other"]>().toEqualTypeOf<number>();
+			expectTypeOf<Merge<A, B>["b"]>().toEqualTypeOf<number>();
 			expectTypeOf<
 				NonNullable<unknown> extends Pick<Merge<A, B>, "a">
 					? true
@@ -552,15 +552,13 @@ describe("Merge", () => {
 			[k: string]: number;
 		}
 		interface B {
-			id?: string;
+			a?: string;
 		}
 
 		type M = Merge<A, B>;
 
 		it("should keep the optional concrete key and union it with the index-signature value", () => {
-			expectTypeOf<M["id"]>().toEqualTypeOf<
-				string | number | undefined
-			>();
+			expectTypeOf<M["a"]>().toEqualTypeOf<string | number | undefined>();
 		});
 
 		it("should keep `keyof` limited to the index signature's key types", () => {
@@ -569,16 +567,16 @@ describe("Merge", () => {
 
 		it("should keep the surviving concrete key optional", () => {
 			expectTypeOf<
-				NonNullable<unknown> extends Pick<M, "id"> ? true : false
+				NonNullable<unknown> extends Pick<M, "a"> ? true : false
 			>().toEqualTypeOf<true>();
 		});
 
 		it("should still replace wholesale when the concrete key is required", () => {
 			interface C {
-				id: string;
+				a: string;
 			}
 
-			expectTypeOf<Merge<A, C>["id"]>().toEqualTypeOf<string>();
+			expectTypeOf<Merge<A, C>["a"]>().toEqualTypeOf<string>();
 		});
 	});
 
@@ -631,11 +629,11 @@ describe("Merge", () => {
 	describe("chained merges", () => {
 		interface A {
 			a: string;
-			shared: string;
+			c: string;
 		}
 		interface B {
 			b: number;
-			shared: number;
+			c: number;
 		}
 
 		it("should let the third operand override keys inherited from both earlier operands", () => {
@@ -645,17 +643,17 @@ describe("Merge", () => {
 			}
 
 			expectTypeOf<Merge<Merge<A, B>, C>>().branded.toEqualTypeOf<
-				{ shared: number } & { a: boolean; b: bigint }
+				{ c: number } & { a: boolean; b: bigint }
 			>();
 		});
 
 		it("should let the last operand win on a key overridden by every step of the chain", () => {
 			interface C {
-				shared: boolean;
+				c: boolean;
 			}
 
 			expectTypeOf<Merge<Merge<A, B>, C>>().branded.toEqualTypeOf<
-				{ a: string; b: number } & { shared: boolean }
+				{ a: string; b: number } & { c: boolean }
 			>();
 		});
 
@@ -676,7 +674,7 @@ describe("Merge", () => {
 				{
 					a: string | boolean | undefined;
 					b: number;
-					shared: number;
+					c: number;
 				} & NonNullable<unknown>
 			>();
 		});
