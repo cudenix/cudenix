@@ -180,7 +180,11 @@ export interface Module<
 								Validators["inputs"],
 								DeepInferValidatorInput<RouteValidatorRequest>
 							> &
-								([NonNullable<unknown>] extends [PathParams]
+								([
+									PathParams extends unknown
+										? keyof PathParams
+										: never,
+								] extends [never]
 									? NonNullable<unknown>
 									: {
 											params: RequiredKeys<PathParams> extends never
