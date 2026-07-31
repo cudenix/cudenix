@@ -119,6 +119,29 @@ describe("usage: router parity", () => {
 				expect(result.serverFallbackCalls).toBe(0);
 			}
 		});
+
+		it("should normalize route methods to uppercase", async () => {
+			using server = serveApp(
+				new Module()
+					.route("get", "/lowercase-get", () => ok("get"))
+					.route("purge", "/lowercase-purge", () => ok("purge")),
+			);
+
+			for (const [path, method, expected] of [
+				["/lowercase-get", "GET", "get"],
+				["/lowercase-purge", "PURGE", "purge"],
+			] as const) {
+				const result = await compareRouters(server, path, { method });
+
+				expectSameResult(result);
+				expect(result.native.body).toBe(expected);
+			}
+
+			expect(server.app.methods.GET).toBeDefined();
+			expect(server.app.methods.PURGE).toBeDefined();
+			expect(server.app.methods.get).toBeUndefined();
+			expect(server.app.methods.purge).toBeUndefined();
+		});
 	});
 
 	describe("fallback-only grammar", () => {
@@ -182,6 +205,30 @@ describe("usage: router parity", () => {
 			expect(duplicate.native.body).toBe("duplicate");
 			expect(custom.serverFallbackCalls).toBe(1);
 			expect(duplicate.serverFallbackCalls).toBe(1);
+		});
+
+		it("should preserve an earlier duplicate when a trailing optional rest is absent", async () => {
+			using server = serveApp(
+				new Module().route(
+					"GET",
+					"/duplicate-optional/:value/...value?",
+					(context) => ok(context.request.params),
+				),
+			);
+
+			for (const [path, expected] of [
+				["/duplicate-optional/first", '{"value":"first"}'],
+				[
+					"/duplicate-optional/first/second/third",
+					'{"value":["second","third"]}',
+				],
+			] as const) {
+				const result = await compareRouters(server, path);
+
+				expectSameResult(result);
+				expect(result.native).toEqual({ body: expected, status: 200 });
+				expect(result.serverFallbackCalls).toBe(1);
+			}
 		});
 
 		it("should resolve early, middle, and late hits in a large fallback table", async () => {
