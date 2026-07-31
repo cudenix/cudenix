@@ -138,15 +138,17 @@ export interface TransformValidatorError<T extends object> {
 export type MergeInferValidatorRequest<
 	T extends Record<PropertyKey, unknown>,
 	U extends Record<PropertyKey, unknown>,
-> = {
-	[K in "body" | "cookies" | "headers" | "params" | "query" as [
-		unknown,
-	] extends [U[K]]
-		? [unknown] extends [T[K]]
-			? never
-			: K
-		: K]: [unknown] extends [U[K]] ? T[K] : U[K];
-};
+> = [keyof T | keyof U] extends [never]
+	? NonNullable<unknown>
+	: {
+			[K in "body" | "cookies" | "headers" | "params" | "query" as [
+				unknown,
+			] extends [U[K]]
+				? [unknown] extends [T[K]]
+					? never
+					: K
+				: K]: [unknown] extends [U[K]] ? T[K] : U[K];
+		};
 
 /**
  * Options accepted by `module.validator` and the per-route `validator` option.
