@@ -1,3 +1,13 @@
+import type { OptionalKeys } from "@/utils/types/optional-keys";
+import type { Prettify } from "@/utils/types/prettify";
+
+/**
+ * Maps a route segment to its decoded value type.
+ */
+type ParamValue<Segment extends string> = Segment extends `...${string}`
+	? [string, ...string[]]
+	: string;
+
 /**
  * Maps a `:param` or `...rest` segment to its parameter record.
  */
@@ -6,19 +16,36 @@ type ParamRecord<
 	Param extends string,
 > = Param extends `${infer Name}?`
 	? {
-			[Key in Name]?:
-				| (Segment extends `...${string}` ? string[] : string)
-				| undefined;
+			[Key in Name]?: ParamValue<Segment> | undefined;
 		}
-	: Record<Param, Segment extends `...${string}` ? string[] : string>;
+	: Record<Param, ParamValue<Segment>>;
 
 /**
- * Replaces the accumulated entry for a repeated parameter name.
+ * Applies the latest capture for a repeated parameter name. A required capture
+ * always replaces the previous value; an optional capture preserves the
+ * previous value when absent and overwrites it when present.
  */
 type Override<
 	Accumulated extends Record<string, string | string[] | undefined>,
 	Latest extends Record<string, string | string[] | undefined>,
-> = Omit<Accumulated, keyof Latest> & Latest;
+> = Prettify<
+	{
+		[K in keyof Accumulated as K extends Exclude<
+			keyof Latest,
+			OptionalKeys<Latest>
+		>
+			? never
+			: K]: K extends keyof Latest
+			? Accumulated[K] | Exclude<Latest[K], undefined>
+			: Accumulated[K];
+	} & {
+		[K in keyof Latest as K extends OptionalKeys<Latest>
+			? K extends keyof Accumulated
+				? never
+				: K
+			: K]: Latest[K];
+	}
+>;
 
 /**
  * Extracts named parameters from a route path type.
@@ -28,9 +55,10 @@ type Override<
  * type A = ExtractUrlParams<"/a/:p1">; // { p1: string }
  *
  * type B = ExtractUrlParams<"/a/:p1?/b/...r1">;
- * // { p1?: string | undefined; r1: string[] }
+ * // { p1?: string | undefined; r1: [string, ...string[]] }
  *
- * type C = ExtractUrlParams<"/:p1/...p1">; // { p1: string[] }
+ * type C = ExtractUrlParams<"/:p1/...p1">;
+ * // { p1: [string, ...string[]] }
  * ```
  */
 export type ExtractUrlParams<
