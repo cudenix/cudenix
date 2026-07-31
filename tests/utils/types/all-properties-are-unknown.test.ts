@@ -249,15 +249,50 @@ describe("AllPropertiesAreUnknown", () => {
 		});
 	});
 
-	describe("disjoint-keyed union shapes", () => {
-		it("should resolve to true for a union of object types with disjoint keys", () => {
-			type A = { a: string } | { b: number };
+	describe("union shapes", () => {
+		it("should resolve to true when every branch has only unknown properties", () => {
+			type A = { a: unknown } | { b: unknown };
 
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
 		});
 
+		it("should resolve to false when disjoint branches have concrete properties", () => {
+			type A = { a: string } | { b: number };
+
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
+		});
+
 		it("should resolve to false for a union of object types that share a key", () => {
 			type A = { a: string } | { a: number };
+
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
+		});
+
+		it("should inspect non-common keys even when a shared key is unknown", () => {
+			type A =
+				| { shared: unknown; a: unknown }
+				| { shared: unknown; b: string };
+
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
+		});
+
+		it("should resolve to true for disjoint optional unknown properties", () => {
+			type A = { a?: unknown } | { b?: unknown };
+
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<true>();
+		});
+
+		it("should resolve to false when one optional property is concrete", () => {
+			type A = { a?: unknown } | { b?: string };
+
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
+		});
+
+		it("should resolve to false when any branch in a wider union is concrete", () => {
+			type A =
+				| { a: unknown }
+				| { b: unknown; c?: unknown }
+				| { d: boolean };
 
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
