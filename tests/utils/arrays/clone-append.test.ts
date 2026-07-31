@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, expectTypeOf, it } from "bun:test";
 
 import { cloneAppend } from "@/utils/arrays/clone-append";
 
@@ -224,13 +224,27 @@ describe("cloneAppend", () => {
 
 	describe("frozen source", () => {
 		it("should clone a frozen source without throwing", () => {
-			const source = Object.freeze([1, 2]);
+			const source: readonly number[] = Object.freeze([1, 2]);
 
-			const result = cloneAppend(source as number[], 3);
+			const result = cloneAppend(source, 3);
 
 			expect(result).toEqual([1, 2, 3]);
 			expect(source).toEqual([1, 2]);
 			expect(Object.isFrozen(result)).toBe(false);
+		});
+
+		it("should accept a readonly tuple and return a mutable array", () => {
+			type NumberCloneAppend = typeof cloneAppend<number>;
+			const source = [1, 2] as const;
+
+			const result = cloneAppend<number>(source, 3);
+
+			expectTypeOf<Parameters<NumberCloneAppend>[0]>().toEqualTypeOf<
+				readonly number[]
+			>();
+			expectTypeOf(result).toEqualTypeOf<number[]>();
+			result.push(4);
+			expect(result).toEqual([1, 2, 3, 4]);
 		});
 	});
 
