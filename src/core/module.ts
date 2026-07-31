@@ -472,7 +472,7 @@ Module.prototype.route = function (
 		handler: isFn
 			? (handler as AnyRouteFn)
 			: () => handler as AnyFail | AnyOk,
-		method,
+		method: method.toUpperCase(),
 		path,
 		sse: isFn && isGenerator(handler as AnyRouteFn),
 		static: !isFn,
