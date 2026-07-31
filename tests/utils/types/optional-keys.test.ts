@@ -76,12 +76,51 @@ describe("OptionalKeys", () => {
 		expectTypeOf<Extract<OptionalKeys<A>, "0">>().toBeNever();
 	});
 
+	describe("union inputs", () => {
+		it("should collect disjoint optional keys from every branch", () => {
+			type A = { a?: string } | { b?: number };
+
+			expectTypeOf<OptionalKeys<A>>().toEqualTypeOf<"a" | "b">();
+		});
+
+		it("should resolve to never when every branch has only required keys", () => {
+			type A = { a: string } | { b: number };
+
+			expectTypeOf<OptionalKeys<A>>().toBeNever();
+		});
+
+		it("should collect a shared key when it is optional in any branch", () => {
+			type A = { a?: string; b: number } | { a: string; c?: boolean };
+
+			expectTypeOf<OptionalKeys<A>>().toEqualTypeOf<"a" | "c">();
+		});
+
+		it("should distinguish an optional branch from a required undefined-containing branch", () => {
+			type A = { a: string | undefined } | { a?: string };
+
+			expectTypeOf<OptionalKeys<A>>().toEqualTypeOf<"a">();
+		});
+
+		it("should collect optional keys across more than two branches", () => {
+			type A =
+				| { a?: string }
+				| { b: number; c?: boolean }
+				| { d?: symbol };
+
+			expectTypeOf<OptionalKeys<A>>().toEqualTypeOf<"a" | "c" | "d">();
+		});
+	});
+
 	it("should resolve to never when every property is required", () => {
 		expectTypeOf<OptionalKeys<{ a: string; b: number }>>().toBeNever();
 	});
 
 	it("should resolve to never for an empty object", () => {
 		expectTypeOf<OptionalKeys<NonNullable<unknown>>>().toBeNever();
+	});
+
+	it("should resolve to never for the degenerate never input", () => {
+		expectTypeOf<OptionalKeys<never>>().toBeNever();
 	});
 
 	it("should reject primitive and nullish inputs", () => {
