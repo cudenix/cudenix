@@ -163,9 +163,11 @@ type ValidatorsWithParams<
 	Validators extends Record<PropertyKey, unknown>,
 > =
 	ExtractUrlParams<Path> extends infer Params
-		? [NonNullable<unknown>] extends [Params]
-			? Validators
-			: Merge<{ params: Params }, Validators>
+		? [Params] extends [never]
+			? never
+			: [Params extends unknown ? keyof Params : never] extends [never]
+				? Validators
+				: Merge<{ params: Params }, Validators>
 		: never;
 
 /**

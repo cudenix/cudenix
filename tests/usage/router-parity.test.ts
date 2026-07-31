@@ -238,6 +238,43 @@ describe("usage: router parity", () => {
 				expect(result.serverFallbackCalls).toBe(1);
 			}
 		});
+
+		it("should preserve encoded slashes inside rest segments like Bun named params", async () => {
+			using server = serveApp(
+				new Module()
+					.route("GET", "/pair/:first/:second", (context) =>
+						ok([
+							context.request.params.first,
+							context.request.params.second,
+						]),
+					)
+					.route("GET", "/rest-encoded/...values", (context) =>
+						ok(context.request.params.values),
+					),
+			);
+
+			for (const [suffix, expected] of [
+				["a%2Fb/c", '["a/b","c"]'],
+				["a/b%2Fc", '["a","b/c"]'],
+				["%2F/c", '["/","c"]'],
+				["a%252Fb/c", '["a%2Fb","c"]'],
+				["a%/b", '["a�","b"]'],
+				["%A/b", '["�A","b"]'],
+			] as const) {
+				const named = await compareRouters(server, `/pair/${suffix}`);
+				const rest = await compareRouters(
+					server,
+					`/rest-encoded/${suffix}`,
+				);
+
+				expectSameResult(named);
+				expectSameResult(rest);
+				expect(named.native).toEqual({ body: expected, status: 200 });
+				expect(rest.native).toEqual(named.native);
+				expect(named.serverFallbackCalls).toBe(0);
+				expect(rest.serverFallbackCalls).toBe(1);
+			}
+		});
 	});
 
 	describe("precedence and collisions", () => {

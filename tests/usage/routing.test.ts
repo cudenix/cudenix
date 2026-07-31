@@ -2,6 +2,7 @@ import { describe, expect, expectTypeOf, it } from "bun:test";
 
 import { Module } from "@/core/module";
 import { ok } from "@/core/reply";
+import { client, type InferRouteOptions } from "@/ecosystem/client/client";
 
 import { serveApp } from "./helpers";
 
@@ -334,6 +335,61 @@ describe("usage: routing", () => {
 			expect(without.status).toBe(200);
 			expect(withSegment.status).toBe(200);
 			expect(extra.status).toBe(404);
+		});
+
+		it("should keep an all-optional param visible to handlers and optional to clients", () => {
+			const module = new Module().route(
+				"GET",
+				"/optional-only/:value?",
+				(context) => {
+					expectTypeOf(context.request.params).branded.toEqualTypeOf<{
+						value?: string | undefined;
+					}>();
+
+					return ok("v1");
+				},
+			);
+			const api = client<typeof module>({ url: "http://localhost" });
+
+			type Options = InferRouteOptions<
+				(typeof api)["optional-only"][":value?"]["get"]
+			>;
+
+			expectTypeOf<Options>().toHaveProperty("params");
+			expectTypeOf<NonNullable<unknown>>().toExtend<Options>();
+			expectTypeOf<{ params: undefined }>().toExtend<Options>();
+			expectTypeOf<{
+				params: NonNullable<unknown>;
+			}>().toExtend<Options>();
+			expectTypeOf<{ params: { value: string } }>().toExtend<Options>();
+		});
+
+		it("should type optional params like their runtime shape for handlers and clients", () => {
+			const module = new Module().route(
+				"GET",
+				"/typed/:required/:optional?",
+				(context) => {
+					expectTypeOf(context.request.params).branded.toEqualTypeOf<{
+						required: string;
+						optional?: string | undefined;
+					}>();
+
+					return ok("v1");
+				},
+			);
+			const api = client<typeof module>({ url: "http://localhost" });
+
+			type Options = InferRouteOptions<
+				(typeof api)["typed"][":required"][":optional?"]["get"]
+			>;
+
+			expectTypeOf<{
+				params: { required: string };
+			}>().toExtend<Options>();
+			expectTypeOf<{
+				params: { optional: undefined; required: string };
+			}>().toExtend<Options>();
+			expectTypeOf<NonNullable<unknown>>().not.toExtend<Options>();
 		});
 
 		it("should answer the root path when the only segment is an optional param", async () => {
