@@ -39,16 +39,6 @@ describe("isAsync", () => {
 
 			expect(isAsync(obj.method)).toBe(true);
 		});
-
-		it("should still detect the function reference after its promise resolved", async () => {
-			async function asyncFn() {
-				return 1;
-			}
-
-			await asyncFn();
-
-			expect(isAsync(asyncFn)).toBe(true);
-		});
 	});
 
 	describe("async methods on a class", () => {

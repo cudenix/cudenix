@@ -39,13 +39,11 @@ describe("merge", () => {
 			expect(result).toBeUndefined();
 		});
 
-		it("should mutate target in place keeping the same reference", () => {
+		it("should mutate the provided target", () => {
 			const target: Record<string, unknown> = { a: 1 };
-			const before = target;
 
 			merge(target, { b: 2 });
 
-			expect(target).toBe(before);
 			expect(target).toEqual({ a: 1, b: 2 });
 		});
 

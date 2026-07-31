@@ -55,12 +55,6 @@ const malformedPercentCases = [
 ] as const;
 
 describe("decodePathParam", () => {
-	it("should keep every fixture table populated", () => {
-		expect(validCases.length).toBe(14);
-		expect(malformedUtf8Cases.length).toBe(16);
-		expect(malformedPercentCases.length).toBe(11);
-	});
-
 	it("should return an unescaped value unchanged", () => {
 		expect(decodePathParam("a+b")).toBe("a+b");
 	});

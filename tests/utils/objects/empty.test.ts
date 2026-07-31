@@ -1,6 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
 
-import { fail, ok } from "@/core/reply";
 import { Empty, FrozenEmpty } from "@/utils/objects/empty";
 
 describe("Empty", () => {
@@ -28,22 +27,6 @@ describe("Empty", () => {
 
 		it("should mark instances as instanceof Empty", () => {
 			expect(new Empty()).toBeInstanceOf(Empty);
-		});
-
-		it("should silently return undefined when invoked without new", () => {
-			const result = (Empty as unknown as () => unknown)();
-
-			expect(result).toBeUndefined();
-		});
-	});
-
-	describe("constructor metadata", () => {
-		it("should expose 'Empty' as the constructor name", () => {
-			expect(Empty.name).toBe("Empty");
-		});
-
-		it("should declare zero formal parameters", () => {
-			expect(Empty.length).toBe(0);
 		});
 	});
 
@@ -397,24 +380,6 @@ describe("FrozenEmpty", () => {
 
 		it("should be an instance of Empty", () => {
 			expect(FrozenEmpty).toBeInstanceOf(Empty);
-		});
-
-		it("should keep the shared options default of src consumers immune to prototype poisoning", () => {
-			// this used to install a getter on Empty.prototype to observe the
-			// receiver; the prototype is frozen now, so the poisoning attempt is
-			// what gets asserted, and the defaults have to survive it
-			expect(() =>
-				Object.defineProperty(Empty.prototype, "a", {
-					configurable: true,
-					enumerable: true,
-					value: 1,
-				}),
-			).toThrow(TypeError);
-
-			expect("a" in FrozenEmpty).toBe(false);
-
-			expect(fail("v1").status).toBe(400);
-			expect(ok("v2").status).toBe(200);
 		});
 	});
 

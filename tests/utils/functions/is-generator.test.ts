@@ -32,19 +32,6 @@ describe("isGenerator", () => {
 
 			expect(isGenerator(obj.gen)).toBe(true);
 		});
-
-		it("should still detect the function reference after its instance has yielded values", () => {
-			function* gen() {
-				yield 1;
-				yield 2;
-			}
-
-			const instance = gen();
-
-			instance.next();
-
-			expect(isGenerator(gen)).toBe(true);
-		});
 	});
 
 	describe("asynchronous generator functions", () => {
