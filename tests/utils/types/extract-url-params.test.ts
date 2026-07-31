@@ -81,21 +81,21 @@ describe("ExtractUrlParams", () => {
 	});
 
 	describe(":name? optional parameter", () => {
-		it("should resolve a ':name?' segment to a `string | undefined` value", () => {
+		it("should resolve a ':name?' segment to an optional string property", () => {
 			expectTypeOf<ExtractUrlParams<"/a/:p1?">>().branded.toEqualTypeOf<{
-				p1: string | undefined;
+				p1?: string | undefined;
 			}>();
 		});
 
 		it("should capture an optional param in the middle of a path", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/a/:p1?/b">
-			>().branded.toEqualTypeOf<{ p1: string | undefined }>();
+			>().branded.toEqualTypeOf<{ p1?: string | undefined }>();
 		});
 
 		it("should capture an optional param as the only segment", () => {
 			expectTypeOf<ExtractUrlParams<":p1?">>().branded.toEqualTypeOf<{
-				p1: string | undefined;
+				p1?: string | undefined;
 			}>();
 		});
 
@@ -103,9 +103,27 @@ describe("ExtractUrlParams", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/:p1?/:p2?">
 			>().branded.toEqualTypeOf<{
-				p1: string | undefined;
-				p2: string | undefined;
+				p1?: string | undefined;
+				p2?: string | undefined;
 			}>();
+		});
+
+		it("should accept the runtime shape when an optional param is absent", () => {
+			expectTypeOf<NonNullable<unknown>>().toExtend<
+				ExtractUrlParams<"/a/:p1?">
+			>();
+			expectTypeOf<{ p1: string }>().toExtend<
+				ExtractUrlParams<"/a/:p1?">
+			>();
+		});
+
+		it("should still require a required sibling when the optional param is absent", () => {
+			expectTypeOf<{ p1: string }>().toExtend<
+				ExtractUrlParams<"/:p1/:p2?">
+			>();
+			expectTypeOf<NonNullable<unknown>>().not.toExtend<
+				ExtractUrlParams<"/:p1/:p2?">
+			>();
 		});
 	});
 
@@ -148,27 +166,36 @@ describe("ExtractUrlParams", () => {
 	});
 
 	describe("...name? optional rest parameter", () => {
-		it("should resolve a '...name?' segment to a `string[] | undefined` value", () => {
+		it("should resolve a '...name?' segment to an optional string-array property", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/a/...r1?">
-			>().branded.toEqualTypeOf<{ r1: string[] | undefined }>();
+			>().branded.toEqualTypeOf<{ r1?: string[] | undefined }>();
 		});
 
 		it("should capture an optional rest followed by a literal segment", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/a/...r1?/b">
-			>().branded.toEqualTypeOf<{ r1: string[] | undefined }>();
+			>().branded.toEqualTypeOf<{ r1?: string[] | undefined }>();
 		});
 
 		it("should capture an optional rest as the only segment", () => {
 			expectTypeOf<ExtractUrlParams<"...r1?">>().branded.toEqualTypeOf<{
-				r1: string[] | undefined;
+				r1?: string[] | undefined;
 			}>();
 		});
 
 		it("should guard the optional rest element type against an `any[]` regression that branded equality cannot see", () => {
 			expectTypeOf<ExtractUrlParams<"/a/...r1?">["r1"]>().toEqualTypeOf<
 				string[] | undefined
+			>();
+		});
+
+		it("should accept the runtime shape when an optional rest is absent", () => {
+			expectTypeOf<NonNullable<unknown>>().toExtend<
+				ExtractUrlParams<"/a/...r1?">
+			>();
+			expectTypeOf<{ r1: string[] }>().toExtend<
+				ExtractUrlParams<"/a/...r1?">
 			>();
 		});
 	});
@@ -183,7 +210,10 @@ describe("ExtractUrlParams", () => {
 		it("should accumulate required and optional named params", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/a/:p1/:p2?">
-			>().branded.toEqualTypeOf<{ p1: string; p2: string | undefined }>();
+			>().branded.toEqualTypeOf<{
+				p1: string;
+				p2?: string | undefined;
+			}>();
 		});
 
 		it("should accumulate required and rest params separated by literals", () => {
@@ -197,7 +227,7 @@ describe("ExtractUrlParams", () => {
 				ExtractUrlParams<"/a/:p1/b/:p2?/c/...r1">
 			>().branded.toEqualTypeOf<{
 				p1: string;
-				p2: string | undefined;
+				p2?: string | undefined;
 				r1: string[];
 			}>();
 		});
@@ -206,7 +236,7 @@ describe("ExtractUrlParams", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/a/:p1?/b/...r1">
 			>().branded.toEqualTypeOf<{
-				p1: string | undefined;
+				p1?: string | undefined;
 				r1: string[];
 			}>();
 		});
@@ -258,13 +288,13 @@ describe("ExtractUrlParams", () => {
 
 		it("should resolve a bare ':?' segment to an empty-key optional value", () => {
 			expectTypeOf<ExtractUrlParams<"/:?">>().branded.toEqualTypeOf<{
-				"": string | undefined;
+				""?: string | undefined;
 			}>();
 		});
 
 		it("should resolve a bare '...?' segment to an empty-key optional rest value", () => {
 			expectTypeOf<ExtractUrlParams<"/...?">>().branded.toEqualTypeOf<{
-				"": string[] | undefined;
+				""?: string[] | undefined;
 			}>();
 		});
 	});
@@ -311,7 +341,13 @@ describe("ExtractUrlParams", () => {
 		it("should let the last occurrence win when a name is repeated as required then optional", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/:p1/:p1?">
-			>().branded.toEqualTypeOf<{ p1: string | undefined }>();
+			>().branded.toEqualTypeOf<{ p1?: string | undefined }>();
+		});
+
+		it("should let a required occurrence replace an earlier optional one", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/:p1?/:p1">
+			>().branded.toEqualTypeOf<{ p1: string }>();
 		});
 
 		it("should agree with the runtime for a name reused as named param and rest", () => {
@@ -330,19 +366,19 @@ describe("ExtractUrlParams", () => {
 			// order and the rest one overwrites the named one
 			const { paramFlags, paramKeys, pattern } =
 				pathToRegexp("/:p1/...p1");
-			const match = new RegExp(`^${pattern}$`).exec("/v1/v2/v3");
+			const match = new RegExp(`^${pattern}$`).exec("/v1/v2%2Fv3/v4");
 			const params: Record<string, string | string[]> = {};
 
 			for (let i = 0; i < paramKeys.length; i++) {
-				const decoded = decodePathParam(match![2 + i]!);
+				const captured = match![2 + i]!;
 
 				params[paramKeys[i]!] =
 					(paramFlags[i]! & PARAM_FLAG_REST) !== 0
-						? decoded.split("/")
-						: decoded;
+						? captured.split("/").map(decodePathParam)
+						: decodePathParam(captured);
 			}
 
-			expect(params.p1).toEqual(["v2", "v3"]);
+			expect(params.p1).toEqual(["v2/v3", "v4"]);
 		});
 	});
 
@@ -368,14 +404,17 @@ describe("ExtractUrlParams", () => {
 		it("should accept its own output as a seed so the type composes", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/b/:p2", ExtractUrlParams<"/a/:p1?">>
-			>().branded.toEqualTypeOf<{ p1: string | undefined; p2: string }>();
+			>().branded.toEqualTypeOf<{
+				p1?: string | undefined;
+				p2: string;
+			}>();
 		});
 	});
 
 	describe("negative assertions", () => {
 		it("should not widen a required param to optional", () => {
 			expectTypeOf<ExtractUrlParams<"/a/:p1">>().not.toEqualTypeOf<{
-				p1: string | undefined;
+				p1?: string | undefined;
 			}>();
 		});
 
