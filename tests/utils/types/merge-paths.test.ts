@@ -140,34 +140,34 @@ describe("MergePaths", () => {
 	});
 
 	describe("non-literal inputs", () => {
-		it("should join a non-literal prefix with a literal path", () => {
-			expectTypeOf<
-				MergePaths<`/${string}`, "/b">
-			>().toEqualTypeOf<`/${string}/b`>();
+		it("should join a non-literal prefix with a literal path and retain its root case", () => {
+			expectTypeOf<MergePaths<`/${string}`, "/b">>().toEqualTypeOf<
+				"/b" | `/${string}/b`
+			>();
 		});
 
-		it("should join a literal prefix with a non-literal path", () => {
-			expectTypeOf<
-				MergePaths<"/a", `/${string}`>
-			>().toEqualTypeOf<`/a/${string}`>();
+		it("should join a literal prefix with a non-literal path and retain its root case", () => {
+			expectTypeOf<MergePaths<"/a", `/${string}`>>().toEqualTypeOf<
+				"/a" | `/a/${string}`
+			>();
 		});
 
-		it("should strip a trailing slash from a non-literal prefix", () => {
-			expectTypeOf<
-				MergePaths<`/${string}/`, "/b">
-			>().toEqualTypeOf<`/${string}/b`>();
+		it("should strip a trailing slash from a non-literal prefix and retain its normalized root case", () => {
+			expectTypeOf<MergePaths<`/${string}/`, "/b">>().toEqualTypeOf<
+				"/b" | `/${string}/b`
+			>();
 		});
 
-		it("should strip a trailing slash from a non-literal path", () => {
-			expectTypeOf<
-				MergePaths<"/a", `/${string}/`>
-			>().toEqualTypeOf<`/a/${string}`>();
+		it("should strip a trailing slash from a non-literal path and retain its normalized root case", () => {
+			expectTypeOf<MergePaths<"/a", `/${string}/`>>().toEqualTypeOf<
+				"/a" | `/a/${string}`
+			>();
 		});
 
 		it("should join a non-literal prefix with a non-literal path", () => {
 			expectTypeOf<
 				MergePaths<`/${string}`, `/${string}`>
-			>().toEqualTypeOf<`/${string}/${string}`>();
+			>().toEqualTypeOf<`/${string}` | `/${string}/${string}`>();
 		});
 
 		it("should collapse a root prefix to the non-literal path itself", () => {
@@ -227,16 +227,17 @@ describe("MergePaths", () => {
 
 			it("should keep the literal path after an `any` prefix", () => {
 				// normalizing rebuilds the leading slash, so the result stays a
-				// template literal instead of widening to `string`
-				expectTypeOf<
-					MergePaths<any, "/b">
-				>().toEqualTypeOf<`/${string}/b`>();
+				// template literal instead of widening to `string`; `any` also
+				// includes the root prefix
+				expectTypeOf<MergePaths<any, "/b">>().toEqualTypeOf<
+					"/b" | `/${string}/b`
+				>();
 			});
 
 			it("should keep the literal prefix before an `any` path", () => {
-				expectTypeOf<
-					MergePaths<"/a", any>
-				>().toEqualTypeOf<`/a/${string}`>();
+				expectTypeOf<MergePaths<"/a", any>>().toEqualTypeOf<
+					"/a" | `/a/${string}`
+				>();
 			});
 		});
 

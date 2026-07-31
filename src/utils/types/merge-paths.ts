@@ -34,6 +34,22 @@ type NormalizeBody<Path extends `/${string}`> = Path extends `/${infer Body}`
 type Normalize<Path extends `/${string}`> = `/${NormalizeBody<Path>}`;
 
 /**
+ * Joins normalized path types while retaining the root cases represented by
+ * broad template literal types.
+ */
+type JoinNormalized<
+	Prefix extends `/${string}`,
+	Path extends `/${string}`,
+> = Prefix extends "/"
+	? Path
+	: Path extends "/"
+		? Prefix
+		:
+				| `${Prefix}${Path}`
+				| ("/" extends Prefix ? Path : never)
+				| ("/" extends Path ? Prefix : never);
+
+/**
  * Joins prefix and path literals into a single path type.
  *
  * @example
@@ -52,10 +68,6 @@ export type MergePaths<
 	// root branch for a union member
 > = Prefix extends unknown
 	? Path extends unknown
-		? Normalize<Prefix> extends "/"
-			? Normalize<Path>
-			: Normalize<Path> extends "/"
-				? Normalize<Prefix>
-				: `${Normalize<Prefix>}${Normalize<Path>}`
+		? JoinNormalized<Normalize<Prefix>, Normalize<Path>>
 		: never
 	: never;
