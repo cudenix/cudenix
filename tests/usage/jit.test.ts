@@ -1825,17 +1825,21 @@ describe("usage: jit", () => {
 				),
 			);
 
-			expect(required).toContain('decodePathParam(match[2]).split("/")');
+			expect(required).toContain(
+				'match[2].split("/").map(decodePathParam)',
+			);
 			expect(compactSource(required)).not.toContain(
 				"value_0!==undefined",
 			);
 			expect(compactSource(optional)).toContain("value_0!==undefined");
-			expect(optional).toContain('decodePathParam(value_0).split("/")');
+			expect(optional).toContain(
+				'value_0.split("/").map(decodePathParam)',
+			);
 			expect(compactSource(duplicate)).toContain(
 				'params["same"]=decodePathParam(match[2])',
 			);
 			expect(compactSource(duplicate)).toContain(
-				'params["same"]=decodePathParam(match[3]).split("/")',
+				'params["same"]=match[3].split("/").map(decodePathParam)',
 			);
 		});
 

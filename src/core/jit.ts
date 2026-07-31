@@ -475,7 +475,7 @@ const generateParamsParser = (
 			: `match[${matchGroupIndex}]`;
 		const decodedValue = `${decodePathParamName}(${valueExpression})`;
 		const paramValueExpression = isRest
-			? `${decodedValue}.split("/")`
+			? `${valueExpression}.split("/").map(${decodePathParamName})`
 			: decodedValue;
 
 		assignmentsCode += isOptional
