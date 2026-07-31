@@ -8,7 +8,7 @@
  * pushAll(target, [3, 4, 5]); // target is now [1, 2, 3, 4, 5]
  * ```
  */
-export const pushAll = <T>(target: T[], source: T[]) => {
+export const pushAll = <T>(target: T[], source: readonly T[]) => {
 	const sourceLength = source.length;
 
 	// nothing to append must stay a true no-op; writing length would otherwise

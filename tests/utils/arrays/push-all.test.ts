@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, expectTypeOf, it } from "bun:test";
 
 import { pushAll } from "@/utils/arrays/push-all";
 
@@ -41,12 +41,9 @@ describe("pushAll", () => {
 			source = [3, 4, 5];
 		});
 
-		it("should mutate the target in place (same reference)", () => {
-			const before = target;
-
+		it("should mutate the provided target", () => {
 			pushAll(target, source);
 
-			expect(target).toBe(before);
 			expect(target).toEqual([1, 2, 3, 4, 5]);
 		});
 
@@ -56,6 +53,36 @@ describe("pushAll", () => {
 			pushAll(target, source);
 
 			expect(source).toEqual(snapshot);
+		});
+	});
+
+	describe("readonly source", () => {
+		it("should accept a readonly tuple while keeping the target mutable", () => {
+			type NumberPushAll = typeof pushAll<number>;
+			const target = [1];
+			const source = [2, 3] as const;
+
+			pushAll<number>(target, source);
+
+			expectTypeOf<Parameters<NumberPushAll>[0]>().toEqualTypeOf<
+				number[]
+			>();
+			expectTypeOf<Parameters<NumberPushAll>[1]>().toEqualTypeOf<
+				readonly number[]
+			>();
+			target.push(4);
+			expect(target).toEqual([1, 2, 3, 4]);
+		});
+
+		it("should append from a frozen source without a cast", () => {
+			const target = [1];
+			const source: readonly number[] = Object.freeze([2, 3]);
+
+			pushAll(target, source);
+
+			expect(target).toEqual([1, 2, 3]);
+			expect(source).toEqual([2, 3]);
+			expect(Object.isFrozen(source)).toBe(true);
 		});
 	});
 
