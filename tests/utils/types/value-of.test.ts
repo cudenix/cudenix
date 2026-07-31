@@ -268,16 +268,18 @@ describe("ValueOf", () => {
 			expectTypeOf<ValueOf<A>>().toEqualTypeOf<string | number>();
 		});
 
-		it("should collapse a union of objects to the values of only their shared keys", () => {
+		it("should collect every branch's values from a union of objects", () => {
 			type A = { a: string; b: number } | { a: boolean; c: string };
 
-			expectTypeOf<ValueOf<A>>().toEqualTypeOf<string | boolean>();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<
+				string | number | boolean
+			>();
 		});
 
-		it("should resolve to `never` for a union of objects with no shared keys", () => {
+		it("should collect values from a union of objects with disjoint keys", () => {
 			type A = { a: string } | { b: number };
 
-			expectTypeOf<ValueOf<A>>().toBeNever();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<string | number>();
 		});
 
 		it("should resolve to `any` for an `any` source", () => {
