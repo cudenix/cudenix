@@ -68,6 +68,10 @@ export type MergePaths<
 	// root branch for a union member
 > = Prefix extends unknown
 	? Path extends unknown
-		? JoinNormalized<Normalize<Prefix>, Normalize<Path>>
+		? Prefix extends "/"
+			? Normalize<Path>
+			: Path extends "/"
+				? Normalize<Prefix>
+				: JoinNormalized<Normalize<Prefix>, Normalize<Path>>
 		: never
 	: never;
