@@ -268,7 +268,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 Cudenix.prototype.listen = function (this: Cudenix, options?: ListenOptions) {
 	this.compile();
 
-	this.server = Bun.serve({
+	this.server = Bun.serve<unknown, string>({
 		development: false,
 		reusePort: true,
 		...options,
