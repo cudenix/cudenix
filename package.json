@@ -78,7 +78,7 @@
 		"check": "biome check --diagnostic-level=error --write .",
 		"format": "biome format --write .",
 		"lint": "biome lint .",
-		"test": "bun --bun test --coverage && bun --bun run typecheck",
+		"test": "bun --bun run typecheck && bun --bun test --coverage",
 		"typecheck": "tsc --build tsconfig.json tests/tsconfig.json --noEmit --builders 8 --checkers 8"
 	},
 	"devDependencies": {
