@@ -1,4 +1,3 @@
-import type { OptionalKeys } from "@/utils/types/optional-keys";
 import type { Prettify } from "@/utils/types/prettify";
 
 /**
@@ -9,43 +8,52 @@ type ParamValue<Segment extends string> = Segment extends `...${string}`
 	: string;
 
 /**
- * Maps a `:param` or `...rest` segment to its parameter record.
- */
-type ParamRecord<
-	Segment extends string,
-	Param extends string,
-> = Param extends `${infer Name}?`
-	? {
-			[Key in Name]?: ParamValue<Segment> | undefined;
-		}
-	: Record<Param, ParamValue<Segment>>;
-
-/**
  * Applies the latest capture for a repeated parameter name. A required capture
  * always replaces the previous value; an optional capture preserves the
  * previous value when absent and overwrites it when present.
  */
 type Override<
-	Accumulated extends Record<string, string | string[] | undefined>,
-	Latest extends Record<string, string | string[] | undefined>,
-> = Prettify<
-	{
-		[K in keyof Accumulated as K extends Exclude<
-			keyof Latest,
-			OptionalKeys<Latest>
-		>
-			? never
-			: K]: K extends keyof Latest
-			? Accumulated[K] | Exclude<Latest[K], undefined>
-			: Accumulated[K];
-	} & {
-		[K in keyof Latest as K extends OptionalKeys<Latest>
-			? K extends keyof Accumulated
-				? never
-				: K
-			: K]: Latest[K];
-	}
->;
+	Accumulated extends object,
+	Segment extends string,
+	Param extends string,
+> = Accumulated extends unknown
+	? Param extends `${infer Name}?`
+		? Name extends keyof Accumulated
+			? Prettify<
+					{
+						[K in keyof Accumulated as K]: K extends Name
+							? Accumulated[K] | ParamValue<Segment>
+							: Accumulated[K];
+					} & NonNullable<unknown>
+				>
+			: Prettify<
+					Accumulated & {
+						[Key in Name]?: ParamValue<Segment> | undefined;
+					}
+				>
+		: Prettify<
+				{
+					[K in keyof Accumulated as K extends Param
+						? never
+						: K]: Accumulated[K];
+				} & Record<Param, ParamValue<Segment>>
+			>
+	: never;
+
+/**
+ * Walks the path without rechecking the public accumulator constraint at each
+ * recursive step.
+ */
+type ExtractUrlParamsInternal<
+	Path extends string,
+	Accumulated extends object,
+> = Path extends `${infer First}/${infer Rest}`
+	? First extends `:${infer Param}` | `...${infer Param}`
+		? ExtractUrlParamsInternal<Rest, Override<Accumulated, First, Param>>
+		: ExtractUrlParamsInternal<Rest, Accumulated>
+	: Path extends `:${infer Param}` | `...${infer Param}`
+		? Override<Accumulated, Path, Param>
+		: Accumulated;
 
 /**
  * Extracts named parameters from a route path type.
@@ -69,13 +77,4 @@ export type ExtractUrlParams<
 		string,
 		string | string[] | undefined
 	> = NonNullable<unknown>,
-> = Path extends `${infer First}/${infer Rest}`
-	? First extends `:${infer Param}` | `...${infer Param}`
-		? ExtractUrlParams<
-				Rest,
-				Override<Accumulated, ParamRecord<First, Param>>
-			>
-		: ExtractUrlParams<Rest, Accumulated>
-	: Path extends `:${infer Param}` | `...${infer Param}`
-		? Override<Accumulated, ParamRecord<Path, Param>>
-		: Accumulated;
+> = ExtractUrlParamsInternal<Path, Accumulated>;
