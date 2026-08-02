@@ -10,13 +10,23 @@ const STORE = new Empty() as unknown as I18n;
 
 const PREFIX_MATCH_OPTIONS = Object.freeze({ prefixMatch: true });
 
-type DeepPaths<Type extends Record<PropertyKey, unknown>> = {
-	[Key in keyof Type]: Key extends string
-		? Type[Key] extends Record<PropertyKey, unknown>
-			? `${Key}` | `${Key}.${DeepPaths<Type[Key]>}`
-			: `${Key}`
-		: never;
-}[keyof Type];
+type DeepPaths<Type extends Record<PropertyKey, unknown>> =
+	// A string index already admits every path, so no recursive walk is needed.
+	string extends keyof Type
+		? [Type] extends [never]
+			? never
+			: string
+		: {
+				[Key in keyof Type]: Key extends string
+					? // Cache the node before reusing it in the recursive branch.
+						Type[Key] extends infer Value extends Record<
+							PropertyKey,
+							unknown
+						>
+						? `${Key}` | `${Key}.${DeepPaths<Value>}`
+						: `${Key}`
+					: never;
+			}[keyof Type];
 
 type DeepValue<
 	Type extends Record<PropertyKey, unknown>,
