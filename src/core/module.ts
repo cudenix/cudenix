@@ -119,26 +119,23 @@ export interface Module<
 		> = undefined,
 	>(
 		handler: MiddlewareFn<MiddlewareReturn, Stores, Validators["outputs"]>,
-	): Module<
-		MergeReplies<
-			Errors,
-			Record<
-				Extract<MiddlewareReturn, AnyFail>["status"],
-				Extract<MiddlewareReturn, AnyFail>
-			>
-		>,
-		Prefix,
-		Routes,
-		Stores,
-		MergeReplies<
-			Successes,
-			Record<
-				Extract<MiddlewareReturn, AnyOk>["status"],
-				Extract<MiddlewareReturn, AnyOk>
-			>
-		>,
-		Validators
-	>;
+		// both directions are split off once instead of being extracted again
+		// for the status key and for the reply itself
+	): Extract<MiddlewareReturn, AnyFail> extends infer Failed extends AnyFail
+		? Extract<MiddlewareReturn, AnyOk> extends infer Succeeded extends AnyOk
+			? Module<
+					MergeReplies<Errors, Record<Failed["status"], Failed>>,
+					Prefix,
+					Routes,
+					Stores,
+					MergeReplies<
+						Successes,
+						Record<Succeeded["status"], Succeeded>
+					>,
+					Validators
+				>
+			: never
+		: never;
 	mount(
 		fetch: MountFn,
 		options?: MountOptions,
@@ -218,20 +215,25 @@ export interface Module<
 		>,
 	>(
 		handler: StoreFn<StoreReturn, Stores, Validators["outputs"]>,
-	): Module<
-		MergeReplies<
-			Errors,
-			Record<
-				Extract<Awaited<StoreReturn>, AnyFail>["status"],
-				Extract<Awaited<StoreReturn>, AnyFail>
+		// the promise is unwrapped once instead of once per use below
+	): Awaited<StoreReturn> extends infer Resolved extends
+		| Record<PropertyKey, unknown>
+		| AnyFail
+		? Module<
+				MergeReplies<
+					Errors,
+					Record<
+						Extract<Resolved, AnyFail>["status"],
+						Extract<Resolved, AnyFail>
+					>
+				>,
+				Prefix,
+				Routes,
+				Merge<Stores, Exclude<Resolved, AnyFail>>,
+				Successes,
+				Validators
 			>
-		>,
-		Prefix,
-		Routes,
-		Merge<Stores, Exclude<Awaited<StoreReturn>, AnyFail>>,
-		Successes,
-		Validators
-	>;
+		: never;
 	type: "MODULE";
 	use<
 		const ModuleErrors extends Record<PropertyKey, unknown>,
