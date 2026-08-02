@@ -175,7 +175,6 @@ describe("parseBody", () => {
 				request("=v1&a=v2", "application/x-www-form-urlencoded"),
 			)) as Record<string, unknown>;
 
-			// this diverges from parseCookies, which drops nameless pairs on purpose
 			expect(Object.keys(result)).toEqual(["", "a"]);
 			expect(Object.hasOwn(result, "")).toBe(true);
 			expect(result[""]).toBe("v1");
@@ -362,10 +361,7 @@ describe("parseBody", () => {
 				"",
 			].join("\r\n");
 
-			// formData() checks the header again case-sensitively and throws.
-			// Rejecting is what proves the media type was matched here: an
-			// unrecognized type falls back to text() and resolves instead, as
-			// "multipart/form-datax" does further down.
+			// formData() checks the header again case-sensitively and throws
 			await expect(
 				parseBody(
 					request(body, `Multipart/Form-Data; boundary=${boundary}`),
@@ -397,7 +393,6 @@ describe("parseBody", () => {
 		});
 
 		it("should reject with a TypeError for 'multipart/form-data' without a boundary parameter", async () => {
-			// a TypeError, not the SyntaxError the json branch would raise for "v1"
 			await expect(
 				parseBody(request("v1", "multipart/form-data")),
 			).rejects.toThrow(TypeError);
@@ -553,33 +548,28 @@ describe("parseBody", () => {
 		});
 
 		it("should fall back to text for a non-json type whose length equals the json match window", async () => {
-			// "application/abcd" is as long as "application/json", so the length
-			// guard alone cannot reject it
+			// same length as "application/json"
 			const contentType = "application/abcd";
 
 			expect(await parseBody(request("v1", contentType))).toBe("v1");
 		});
 
 		it("should fall back to text for a non-octet-stream type whose length equals the octet-stream match window", async () => {
-			// "application/vnd.ms-excel" is as long as "application/octet-stream",
-			// so the length guard alone cannot reject it
+			// same length as "application/octet-stream"
 			const contentType = "application/vnd.ms-excel";
 
 			expect(await parseBody(request("v1", contentType))).toBe("v1");
 		});
 
 		it("should fall back to text for a non-urlencoded type whose length equals the urlencoded match window", async () => {
-			// "application/x-www-form-urlencodeX" is as long as
-			// "application/x-www-form-urlencoded", so the length guard alone
-			// cannot reject it
+			// same length as "application/x-www-form-urlencoded"
 			const contentType = "application/x-www-form-urlencodeX";
 
 			expect(await parseBody(request("a=v1", contentType))).toBe("a=v1");
 		});
 
 		it("should fall back to text for a non-form-data multipart type whose length equals the form-data match window", async () => {
-			// "multipart/form-dat0" is as long as "multipart/form-data", so the
-			// length guard alone cannot reject it
+			// same length as "multipart/form-data"
 			const contentType = "multipart/form-dat0";
 
 			expect(await parseBody(request("v1", contentType))).toBe("v1");

@@ -215,8 +215,6 @@ describe("ConditionallyOptional", () => {
 		});
 
 		it("should not recurse into nested object values", () => {
-			// src/ecosystem/client/client.ts depends on this being shallow: a
-			// recursive version would silently relax fields inside the body
 			interface A {
 				a: { b: string | undefined };
 			}
@@ -305,8 +303,6 @@ describe("ConditionallyOptional", () => {
 	});
 
 	describe("union object inputs", () => {
-		// each member keeps its own keys now; collapsing to the common keys used
-		// to silently drop `b` and `c` from the result
 		it("should keep every member's keys instead of only the common ones", () => {
 			type A =
 				| { a: string; b: number | undefined }

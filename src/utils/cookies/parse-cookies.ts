@@ -21,8 +21,7 @@ export const parseCookies = (header: string) => {
 	}
 
 	const length = header.length;
-	// one native scan decides whether any pair can need decoding at all, so the
-	// common unencoded header never pays for a decode call
+	// one scan decides whether any pair needs decoding
 	const isEncoded = header.indexOf("%") !== -1;
 
 	let start = 0;
@@ -37,7 +36,7 @@ export const parseCookies = (header: string) => {
 
 		let nameStart = start;
 
-		// optional whitespace, " " (32) or "\t" (9), is not part of the name
+		// skip leading " " (32) and "\t" (9)
 		while (nameStart < end) {
 			const charCode = header.charCodeAt(nameStart);
 
@@ -74,7 +73,7 @@ export const parseCookies = (header: string) => {
 				let valueStart = equalsIndex + 1;
 				let valueEnd = end;
 
-				// optional whitespace is not part of the value either
+				// skip leading whitespace
 				while (valueStart < valueEnd) {
 					const charCode = header.charCodeAt(valueStart);
 
@@ -99,10 +98,7 @@ export const parseCookies = (header: string) => {
 					? decodePathParam(header.substring(nameStart, nameEnd))
 					: header.substring(nameStart, nameEnd);
 
-				// first one wins, and the name is compared after decoding, so
-				// "a%20b" and "a b" are the same cookie. Values are always
-				// strings, so undefined means the name is still free; skipping
-				// also avoids decoding a value that would be discarded
+				// first one wins
 				if (cookies[name] === undefined) {
 					cookies[name] = isEncoded
 						? decodePathParam(

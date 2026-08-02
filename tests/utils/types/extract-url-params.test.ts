@@ -368,14 +368,9 @@ describe("ExtractUrlParams", () => {
 		});
 
 		it("should resolve the `any` input to both conditional branches", () => {
-			// biome-ignore lint/suspicious/noExplicitAny: This test intentionally verifies the public contract for an `any` path.
+			// biome-ignore lint/suspicious/noExplicitAny: Testing an `any` path
 			expectTypeOf<ExtractUrlParams<any>>().not.toBeAny();
-			// `any` satisfies both sides of every conditional, so the recursion
-			// yields the widened record unioned with the empty accumulator;
-			// `Param` is the widened `string`, never a `?`-suffixed literal, so
-			// the optional-parameter branch is unreachable here and no
-			// `undefined` reaches the value type
-			// biome-ignore lint/suspicious/noExplicitAny: This test intentionally verifies the public contract for an `any` path.
+			// biome-ignore lint/suspicious/noExplicitAny: Testing an `any` path
 			expectTypeOf<ExtractUrlParams<any>>().toEqualTypeOf<
 				Record<string, string | RestParam> | NonNullable<unknown>
 			>();
@@ -410,9 +405,6 @@ describe("ExtractUrlParams", () => {
 		});
 
 		it("should agree with the runtime for a name reused as named param and rest", () => {
-			// this used to intersect both param kinds into the uninhabited
-			// `string & RestParam`; the last required occurrence wins now, which is what
-			// the assignments src/core/jit.ts emits actually produce
 			expectTypeOf<
 				ExtractUrlParams<"/:p1/...p1">
 			>().branded.toEqualTypeOf<{ p1: RestParam }>();

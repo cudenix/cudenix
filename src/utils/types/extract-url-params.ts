@@ -8,9 +8,7 @@ type ParamValue<Segment extends string> = Segment extends `...${string}`
 	: string;
 
 /**
- * Applies the latest capture for a repeated parameter name. A required capture
- * always replaces the previous value; an optional capture preserves the
- * previous value when absent and overwrites it when present.
+ * Applies the latest capture for a repeated parameter name.
  */
 type Override<
 	Accumulated extends object,
@@ -41,8 +39,7 @@ type Override<
 	: never;
 
 /**
- * Walks the path without rechecking the public accumulator constraint at each
- * recursive step.
+ * Walks the path without rechecking the accumulator constraint.
  */
 type ExtractUrlParamsInternal<
 	Path extends string,
@@ -71,14 +68,12 @@ type ExtractUrlParamsInternal<
  */
 export type ExtractUrlParams<
 	Path extends string,
-	// "| undefined" keeps the constraint satisfiable by optional properties,
-	// whose indexed value type includes undefined
+	// "| undefined" covers optional properties
 	Accumulated extends Record<
 		string,
 		string | string[] | undefined
 	> = NonNullable<unknown>,
-	// a path with no capture marker cannot contribute a parameter, so the
-	// segment walk is skipped instead of recursing once per "/"
+	// skip the segment walk when the path carries no capture marker
 > = Path extends `${string}:${string}` | `${string}...${string}`
 	? ExtractUrlParamsInternal<Path, Accumulated>
 	: Accumulated;

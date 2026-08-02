@@ -7,7 +7,7 @@ const hexCharCodeToValue = (charCode: number) => {
 		return charCode - 48;
 	}
 
-	// "| 32" lowercases, so only "a" (97) - "f" (102) needs checking
+	// "| 32" lowercases letters
 	const lowerCharCode = charCode | 32;
 
 	// 87 = "a" (97) - 10, mapping "a"-"f" to 10-15
@@ -115,9 +115,9 @@ export const decodePathParam = (value: string) => {
 
 	let lastPercentIndex = length;
 
-	// long values: locate the last "%" (37) so the literal tail is copied in bulk
+	// long values: locate the last "%" (37)
 	if (length >= 32) {
-		// "%xx" is 3 chars, so a trailing escape puts the last "%" in the final 3 positions
+		// check the final 3 positions for the last "%"
 		if (value.charCodeAt(length - 1) === 37) {
 			lastPercentIndex = length - 1;
 		} else if (value.charCodeAt(length - 2) === 37) {

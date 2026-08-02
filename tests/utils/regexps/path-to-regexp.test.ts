@@ -65,8 +65,6 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should make a slashes-only path reachable by a real request", () => {
-			// the previous zero-width "()" pattern required an empty path, which
-			// no HTTP client can send, so the route was silently dead
 			const { regex } = compile("//");
 
 			expect(regex.test("/")).toBe(true);
@@ -212,9 +210,7 @@ describe("pathToRegexp", () => {
 		it("should compile a '?' in the middle of a segment to its percent-encoding", () => {
 			const { pattern, regex } = compile("/a?b");
 
-			// a request path can only carry "?" encoded, so matching it raw would
-			// reach into the query string and shadow the route "/a"; Bun's native
-			// router also compares the spelling and hex casing of encoded paths
+			// "?" matches only percent-encoded, with exact hex casing
 			expect(pattern).toBe(String.raw`()\/a%3Fb`);
 			expect(regex.test("/a%3Fb")).toBe(true);
 			expect(regex.test("/a%3fb")).toBe(false);
@@ -264,8 +260,7 @@ describe("pathToRegexp", () => {
 		it("should preserve the spelling and casing of an encoded route", () => {
 			const { regex } = compile("/caf%C3%A9");
 
-			// Bun requires static non-ASCII routes to be encoded and compares the
-			// percent escapes byte-for-byte rather than normalizing their casing
+			// encoded escapes are compared byte-for-byte
 			expect(regex.test("/caf%C3%A9")).toBe(true);
 			expect(regex.test("/caf%c3%a9")).toBe(false);
 			expect(regex.test("/café")).toBe(false);
@@ -582,7 +577,7 @@ describe("pathToRegexp", () => {
 			expect(paramKeys).toEqual(["r1", "r2"]);
 			expect(restKeys).toEqual(["r1", "r2"]);
 
-			// the first rest is greedy, so it backtracks only the last segment
+			// the greedy first rest gives back only the last segment
 			const match = "/v1/v2/v3".match(regex);
 
 			expect(match?.[2]).toBe("v1/v2");
@@ -595,7 +590,7 @@ describe("pathToRegexp", () => {
 		it("should never capture a second adjacent rest param when both are optional", () => {
 			const { regex } = compile("/...r1?/...r2?");
 
-			// nothing forces the greedy first rest to give segments back
+			// the greedy first rest keeps every segment
 			const deep = "/v1/v2/v3".match(regex);
 
 			expect(deep?.[2]).toBe("v1/v2/v3");
@@ -887,7 +882,7 @@ describe("pathToRegexp", () => {
 	});
 
 	describe("embedded in the combined request-url pattern", () => {
-		// mirrors how src/core/compile.ts embeds every pattern to match a full request url
+		// mirrors how src/core/compile.ts embeds a pattern in a request url
 		const embed = (path: string) =>
 			new RegExp(
 				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${pathToRegexp(path).pattern})(?![^?#])`,

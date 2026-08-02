@@ -31,7 +31,7 @@ export const parseQuery = (url: string) => {
 
 	const urlLength = url.length;
 
-	// tracks keys repeated in the query, so a JSON array value is not mistaken for repeats
+	// tracks keys repeated in the query
 	let multiValueKeys: Set<string> | undefined;
 	let i = queryIndex + 1;
 

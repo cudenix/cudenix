@@ -46,8 +46,7 @@ const malformedPercentCases = [
 	["%A", "�A"],
 	["%%20", "�0"],
 	["%E0%A4%A", "��A"],
-	// invalid hex while multi-byte bytes are still pending: the buffer must be
-	// flushed before the replacement character is emitted
+	// invalid hex while multi-byte bytes are still pending
 	["%C3%ZZ", "��"],
 	["%E2%82%GG", "��"],
 	["%C3%", "��"],
@@ -64,8 +63,7 @@ describe("decodePathParam", () => {
 	});
 
 	it("should take the no-escape shortcut for long values", () => {
-		// longer than the 32 char threshold of the trailing "%" heuristic, so a
-		// regression there must not be able to touch a value without escapes
+		// longer than the 32 char threshold of the trailing "%" heuristic
 		const value = "a+b-c".repeat(8);
 
 		expect(value.length).toBeGreaterThanOrEqual(32);

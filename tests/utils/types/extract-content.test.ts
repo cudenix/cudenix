@@ -217,7 +217,7 @@ describe("ExtractContent", () => {
 		});
 
 		it("should pass the built-in `Function` type through unchanged because it does not match `(...args: any[]) => infer Return`", () => {
-			// biome-ignore lint/complexity/noBannedTypes: probing the built-in Function type is the point of the test
+			// biome-ignore lint/complexity/noBannedTypes: Testing the built-in Function type
 			expectTypeOf<ExtractContent<Function>>().toEqualTypeOf<Function>();
 		});
 

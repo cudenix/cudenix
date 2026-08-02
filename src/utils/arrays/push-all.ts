@@ -11,15 +11,14 @@
 export const pushAll = <T>(target: T[], source: readonly T[]) => {
 	const sourceLength = source.length;
 
-	// nothing to append must stay a true no-op; writing length would otherwise
-	// reject a frozen target and can turn a packed array holey
+	// nothing to append
 	if (sourceLength === 0) {
 		return;
 	}
 
 	const baseLength = target.length;
 
-	// presize once, then fill; a spread push overflows the stack on large sources
+	// presize once, then fill
 	target.length = baseLength + sourceLength;
 
 	for (let i = 0; i < sourceLength; i++) {

@@ -28,14 +28,12 @@ type NormalizeBody<Path extends `/${string}`> = Path extends `/${infer Body}`
 	: string;
 
 /**
- * Rebuilds the leading "/" outside the conditional, so the result stays a
- * template literal type.
+ * Rebuilds the leading "/" outside the conditional.
  */
 type Normalize<Path extends `/${string}`> = `/${NormalizeBody<Path>}`;
 
 /**
- * Joins normalized path types while retaining the root cases represented by
- * broad template literal types.
+ * Joins normalized path types while retaining the root cases.
  */
 type JoinNormalized<
 	Prefix extends `/${string}`,
@@ -63,9 +61,7 @@ type JoinNormalized<
 export type MergePaths<
 	Prefix extends `/${string}`,
 	Path extends `/${string}`,
-	// both sides distribute before being normalized: testing Normalize<...>
-	// directly would compare the whole union against "/" and never take the
-	// root branch for a union member
+	// both sides distribute before being normalized
 > = Prefix extends unknown
 	? Path extends unknown
 		? Prefix extends "/"

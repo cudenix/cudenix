@@ -13,7 +13,7 @@ const matchesMediaType = (
 	}
 
 	for (let i = 0; i < end; i++) {
-		// "| 32" lowercases letters and leaves "/", "-" and digits untouched
+		// "| 32" lowercases letters
 		if ((contentType.charCodeAt(i) | 32) !== mediaType.charCodeAt(i)) {
 			return false;
 		}
@@ -50,7 +50,7 @@ export const parseBody = async (request: Request) => {
 		mediaTypeEnd = contentType.length;
 	}
 
-	// trailing optional whitespace, " " (32) or "\t" (9), is not part of the media type
+	// trim trailing " " (32) and "\t" (9)
 	while (mediaTypeEnd > 0) {
 		const charCode = contentType.charCodeAt(mediaTypeEnd - 1);
 
@@ -61,7 +61,7 @@ export const parseBody = async (request: Request) => {
 		mediaTypeEnd--;
 	}
 
-	// "| 32" lowercases, so one check covers both cases
+	// "| 32" lowercases
 	const firstCharCode = contentType.charCodeAt(0) | 32;
 
 	let isForm = false;

@@ -214,8 +214,7 @@ describe("parseQuery", () => {
 		});
 
 		it("should hand undecodable query bytes to consumers raw, unlike path params", () => {
-			// query keeps the raw escape, a path param yields a replacement
-			// character; changing either decoder must break this test
+			// query keeps the raw escape, path param yields a replacement char
 			expect(parseQuery("/a?b=%FF").b).toBe("%FF");
 			expect(decodePathParam("%FF")).toBe("�");
 		});
@@ -375,8 +374,6 @@ describe("parseQuery", () => {
 		});
 
 		it("should use Bun's first-'?' query boundary even when it follows '#'", () => {
-			// Bun preserves this spelling in Request.url and routes on "/a#c";
-			// its HTTP router still treats the first "?" as the query boundary.
 			for (const url of ["/a#c?b=v1", "http://localhost/a#c?b=v1"]) {
 				expect(parseQuery(url)).toEqual({ b: "v1" });
 			}
@@ -509,9 +506,7 @@ describe("parseQuery", () => {
 			expect(Object.hasOwn(result, "b")).toBe(true);
 			expect(Object.hasOwn(result.b as object, "__proto__")).toBe(true);
 
-			// the payload survives as an own key on a normal object, so a
-			// consumer reaching for Object.assign (which triggers the setter,
-			// unlike spread) would still pollute: that is their contract to keep
+			// the payload survives as an own key on a normal object
 			expect(Object.getPrototypeOf(result.b)).toBe(Object.prototype);
 		});
 	});
@@ -551,8 +546,6 @@ describe("parseQuery", () => {
 		});
 
 		it("should reorder integer-index names ahead of the rest, per spec", () => {
-			// query names are client-controlled, so "?1=..&0=.." is trivial to
-			// send; no consumer may rely on Object.keys order for the query
 			const result = parseQuery("/a?2=v1&1=v2&b=v3");
 
 			expect(Object.keys(result)).toEqual(["1", "2", "b"]);

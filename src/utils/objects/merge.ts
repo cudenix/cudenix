@@ -18,8 +18,7 @@ export const merge = <
 	U extends Record<string, unknown>,
 >(
 	target: T,
-	// a key both objects declare has to keep the target's type; anything else
-	// passes through, so the source may still introduce new keys
+	// shared keys keep the target's type
 	source: U & { [K in keyof U]: K extends keyof T ? T[K] : U[K] },
 ) => {
 	// for...in walks the prototype chain and skips symbols

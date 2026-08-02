@@ -222,9 +222,7 @@ describe("parseCookies", () => {
 	});
 
 	describe("duplicate names", () => {
-		// RFC 6265 has the server send the most specific cookie first, so the
-		// first occurrence is the one to keep; Bun.CookieMap reads them the same
-		// way, and it is what writes these cookies out
+		// first one wins
 		it("should keep the first value when a name appears multiple times", () => {
 			const result = parseCookies("a=1; a=2; a=3");
 
@@ -457,8 +455,6 @@ describe("parseCookies", () => {
 	});
 
 	describe("parity with Bun.CookieMap", () => {
-		// Bun.CookieMap is what src/core/response.ts writes cookies through, so
-		// what it reads back is the reference this parser has to match.
 		const parityCases = [
 			"a=v1; b=v2",
 			"a=a%20b",
@@ -500,14 +496,7 @@ describe("parseCookies", () => {
 		}
 
 		it("should match Bun.CookieMap on generated ASCII headers", () => {
-			// A seeded LCG, not Math.random: the inputs are identical on every
-			// run, so a failure is reproducible and the test cannot flake.
-			// ASCII only, because that is what a header carries on the wire -
-			// with a raw non-ASCII character Bun.CookieMap re-reads its own
-			// UTF-8 bytes as Latin-1 ("é" becomes "Ã©"), which is an artifact of
-			// building one from a JS string and not what a request produces.
-			// This is the short version; the same comparison over 500k headers
-			// also reports zero mismatches.
+			// seeded LCG over ASCII-only headers
 			const alphabet = [
 				"a",
 				"b",

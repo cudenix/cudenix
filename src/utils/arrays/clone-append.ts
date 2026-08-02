@@ -9,7 +9,7 @@
 export const cloneAppend = <T>(array: readonly T[], item: T) => {
 	const length = array.length;
 
-	// fast paths for the most common sizes
+	// fast paths for length 0 and 1
 	if (length === 0) {
 		return [item];
 	}

@@ -33,9 +33,7 @@ describe("AllPropertiesAreUnknown", () => {
 		});
 
 		it("should discriminate a deferred union that only collapses into unknown for some instantiations", () => {
-			// a bare `unknown | string` is normalized to `unknown` at declaration
-			// time, so the union has to stay deferred behind a type parameter for
-			// the utility to be the one doing the work
+			// the union stays deferred behind a type parameter
 			interface A<T> {
 				a: T | string;
 			}

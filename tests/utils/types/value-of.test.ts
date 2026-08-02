@@ -215,7 +215,6 @@ describe("ValueOf", () => {
 			expectTypeOf<string>().toExtend<ValueOf<A>>();
 			expectTypeOf<number>().toExtend<ValueOf<A>>();
 
-			// `toExtend` alone also holds for the degenerate `ValueOf<T> = unknown`
 			expectTypeOf<ValueOf<A>>().not.toBeUnknown();
 			expectTypeOf<Extract<ValueOf<A>, string>>().toEqualTypeOf<string>();
 		});

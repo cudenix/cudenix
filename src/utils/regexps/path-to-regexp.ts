@@ -2,16 +2,13 @@
 const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
 // one or more "/"-separated segments, captured as one string
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
-// same shape as rest but non-capturing, and the trailing "?" lets "*" match zero segments
+// same shape as rest but non-capturing, and matches zero segments too
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
 
-// regexp syntax plus "#": one pass handles escaping and the two delimiters that
-// have to be percent-encoded, so a static segment is only scanned once
+// regexp syntax plus "#"
 const STATIC_SEGMENT_SYNTAX = /[\\^$.*+?()[\]{}|#]/g;
 
-// "?" and "#" end the path in a request URL, so a static segment may only match
-// them in their percent-encoded form; left literal, the pattern would reach into
-// the query string and shadow the route the request actually asked for
+// escapes regexp syntax and percent-encodes "?" and "#"
 const escapeStaticSegment = (segment: string) =>
 	segment.replace(STATIC_SEGMENT_SYNTAX, (character) =>
 		character === "?"
@@ -69,7 +66,7 @@ export const pathToRegexp = (path: string) => {
 		return {
 			paramFlags: [],
 			paramKeys: [],
-			// the leading "()" marks which route matched once patterns are combined
+			// the leading "()" marks which route matched
 			pattern: String.raw`()\/`,
 			ranks: [],
 			restKeys: [],
@@ -143,8 +140,7 @@ export const pathToRegexp = (path: string) => {
 
 			segment = REST_CAPTURE;
 		} else {
-			// static segment: one pass escapes regexp syntax and percent-encodes
-			// the reserved delimiters
+			// static segment
 			ranks.push(STATIC_RANK);
 
 			segment = `\\/${escapeStaticSegment(path.substring(i, contentEnd))}`;
@@ -164,15 +160,12 @@ export const pathToRegexp = (path: string) => {
 	let pattern: string;
 
 	if (segments) {
-		// fully-optional patterns must also match the bare "/" path
+		// fully-optional patterns also match the bare "/" path
 		pattern = areAllSegmentsOptional
 			? `()(?:${segments}|\\/)`
 			: `()${segments}`;
 	} else {
-		// a path of nothing but separators normalizes to the root, the same way
-		// the loop already collapses duplicate and trailing slashes; without
-		// this, "//" would compile to a zero-width pattern that no real request
-		// can match, since every request path starts with "/"
+		// a path of nothing but separators normalizes to the root
 		pattern = length ? String.raw`()\/` : "()";
 	}
 

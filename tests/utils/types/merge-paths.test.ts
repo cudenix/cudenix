@@ -91,8 +91,6 @@ describe("MergePaths", () => {
 	});
 
 	describe("slash normalization", () => {
-		// the runtime router collapses repeated and trailing separators, so the
-		// type has to agree with it or the inferred path stops matching the route
 		it("should collapse a doubled slash inside the prefix", () => {
 			expectTypeOf<MergePaths<"/a//b", "/c">>().toEqualTypeOf<"/a/b/c">();
 		});
@@ -226,9 +224,6 @@ describe("MergePaths", () => {
 			});
 
 			it("should keep the literal path after an `any` prefix", () => {
-				// normalizing rebuilds the leading slash, so the result stays a
-				// template literal instead of widening to `string`; `any` also
-				// includes the root prefix
 				expectTypeOf<MergePaths<any, "/b">>().toEqualTypeOf<
 					"/b" | `/${string}/b`
 				>();
