@@ -77,4 +77,8 @@ export type ExtractUrlParams<
 		string,
 		string | string[] | undefined
 	> = NonNullable<unknown>,
-> = ExtractUrlParamsInternal<Path, Accumulated>;
+	// a path with no capture marker cannot contribute a parameter, so the
+	// segment walk is skipped instead of recursing once per "/"
+> = Path extends `${string}:${string}` | `${string}...${string}`
+	? ExtractUrlParamsInternal<Path, Accumulated>
+	: Accumulated;
