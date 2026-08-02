@@ -137,7 +137,7 @@ interface ReplyConstructor {
 }
 
 /**
- * Construct a {@link Reply} envelope; must be invoked with `new`.
+ * Construct a {@link Reply} envelope.
  *
  * @example
  * ```typescript

@@ -74,8 +74,7 @@ export type ParseRoute<
 type IsRouteLeaf<T> = T extends { method: string; path: string } ? true : false;
 
 /**
- * Merges two route trees with left-side precedence. Two leaves keep the left
- * one, two branches merge recursively, and any other pair intersects.
+ * Merges two route trees with left-side precedence.
  *
  * @example
  * ```typescript
@@ -89,7 +88,7 @@ type IsRouteLeaf<T> = T extends { method: string; path: string } ? true : false;
 export type MergeRoutes<T extends object, U extends object> = {
 	[K in keyof T | keyof U]: K extends keyof T
 		? K extends keyof U
-			? // Cache both nodes before the repeated leaf and branch checks.
+			? // cache both nodes for the leaf and branch checks
 				T[K] extends infer Left
 				? U[K] extends infer Right
 					? [IsRouteLeaf<Left>, IsRouteLeaf<Right>] extends [
@@ -276,7 +275,7 @@ interface Route<
 	RouteValidatorOptions extends ValidatorOptions<Partial<ValidatorRequest>>,
 	Validators extends Record<PropertyKey, unknown>,
 > {
-	/** Route handler; a static reply is wrapped into a function. */
+	/** Route handler, with a static reply wrapped into a function. */
 	handler: RouteFn<
 		Path,
 		Return,
@@ -290,9 +289,9 @@ interface Route<
 	method: Method;
 	/** Path appended to the inherited module prefixes. */
 	path: Path;
-	/** Handler is a generator, so its replies stream as SSE. */
+	/** Handler is a generator streamed as SSE. */
 	sse: boolean;
-	/** Handler was a plain reply instead of a function. */
+	/** Handler was a plain reply, not a function. */
 	static: boolean;
 	/** Discriminant used when walking the chain. */
 	type: "ROUTE";

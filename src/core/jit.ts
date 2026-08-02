@@ -156,15 +156,13 @@ const collectValidationKeys = (
 };
 
 /**
- * Returns whether a parameter is optional; missing flags assume the loosest
- * layout.
+ * Returns whether a parameter is optional.
  */
 const isOptionalParam = (flags: number | undefined) =>
 	flags === undefined || (flags & PARAM_FLAG_OPTIONAL) !== 0;
 
 /**
- * Returns whether a parameter is a rest segment; missing flags fall back to the
- * resolved rest keys.
+ * Returns whether a parameter is a rest segment.
  */
 const isRestParam = (
 	flags: number | undefined,
@@ -239,7 +237,6 @@ const buildParamLayoutKey = (endpoint: Endpoint) => {
 
 	for (let i = 0; i < paramKeys.length; i++) {
 		const paramKey = paramKeys[i];
-		// A hole in the key list carries no layout of its own.
 		const flags = paramKey === undefined ? 0 : paramFlags?.[i];
 
 		optionalBits += bit(isOptionalParam(flags));
@@ -260,14 +257,14 @@ const analyzeEndpoint = (
 	const chain = endpoint.chain;
 	const chainLength = chain.length;
 	const isSse = endpoint.route.sse;
-	// An SSE handler is a generator, so its iterator is never awaited.
+	// an SSE handler is never awaited
 	const isRouteAsync = !isSse && handlerAnalysis.isAsync;
 	const hasValidator = validator !== undefined;
 	const isValidatorAsync = hasValidator && isAsync(validator);
 	const validatorTag = isValidatorAsync ? "Va" : "Vs";
 
 	const asyncMap = new Array<boolean>(chainLength).fill(false);
-	// The extra slot is the route handler tail.
+	// the extra slot is the route handler tail
 	const awaitMap = new Array<boolean>(chainLength + 1).fill(false);
 	const tags = new Array<string>(chainLength).fill("");
 	const validationKeySet = new Set<keyof ValidatorRequest>();
@@ -288,7 +285,6 @@ const analyzeEndpoint = (
 
 	awaitMap[chainLength] = isChainAsync;
 
-	// Walked backwards so each link sees whether its tail awaits.
 	for (let i = chainLength - 1; i >= 0; i--) {
 		const link = chain[i];
 
@@ -315,7 +311,7 @@ const analyzeEndpoint = (
 				needsStore ||= linkAnalysis.needsStore;
 			}
 
-			// The middleware tag reads isChainAsync after this link folded into it.
+			// cache-key tag for the link
 			tags[i] =
 				link.type === "MIDDLEWARE"
 					? `M${bit(isChainAsync)}${bit(awaitMap[i + 1])}`
@@ -351,11 +347,10 @@ const analyzeEndpoint = (
 
 			emitsBelow = true;
 		} else if (emitsBelow) {
-			// The placeholder keeps chain indices stable in the cache key.
+			// placeholder for a link that emits nothing
 			tags[i] = "_";
 		}
 
-		// Runs for every index, including links that emit nothing.
 		awaitMap[i] = isChainAsync;
 	}
 
@@ -366,7 +361,7 @@ const analyzeEndpoint = (
 		needsRequest ||= hasValidationState;
 		needsRequest ||= endpoint.paramKeys.length > 0;
 		needsServer ||= isSse;
-		// A store merge needs the object even when no handler reads it.
+		// store links need the store object
 		needsStore ||= hasStore;
 	}
 
@@ -375,8 +370,7 @@ const analyzeEndpoint = (
 	const needsMatch = parsesParams && endpoint.paramKeys.length > 0;
 	const needsStoreState = hasValidationState && hasStore && !needsContext;
 
-	// Key layout: context flag, ten shape bits, the chain tags, then "G" to close
-	// them before the optional parameter layout.
+	// key layout: context flag, shape bits, chain tags, "G", parameter layout
 	const key = `${needsContext ? "C" : "N"}${bit(needsMemory)}${bit(needsRequest)}${bit(needsResponseContent)}${bit(needsResponseCookies)}${bit(needsResponseHeaders)}${bit(needsServer)}${bit(needsStore)}${bit(hasValidationState)}${bit(isSse)}${bit(isRouteAsync)}${tags.join("")}G${needsMatch ? buildParamLayoutKey(endpoint) : ""}`;
 
 	return {
@@ -483,7 +477,7 @@ const generateParamsParser = (
 			: `params[${keyLiteral}]=${paramValueExpression};`;
 	}
 
-	// A matched dispatch without Bun params always comes from the regexp fallback.
+	// fall back to the regexp match when Bun parsed no params
 	return `let params=request.params;if(!params){params=new ${EmptyName}();${assignmentsCode}}${target}=params;`;
 };
 
@@ -513,11 +507,11 @@ const generateDispatcherBody = (
 	const parsedKeys = new Set<keyof ValidatorRequest>();
 
 	if (needsContext && parsesParams) {
-		// The prelude already parsed params for a context dispatcher.
+		// the prelude already parsed params
 		parsedKeys.add("params");
 	}
 
-	// Without context a link still takes an explicit undefined; the route takes nothing.
+	// without context a link takes an explicit undefined and the route nothing
 	const linkArgument = needsContext ? "context" : "undefined";
 	const routeArgument = needsContext ? "context" : "";
 	const contentTarget = needsResponseContent
@@ -530,13 +524,13 @@ const generateDispatcherBody = (
 			? `${contentTarget},context.response.cookies`
 			: contentTarget;
 	const returnStatement = `return ${responseName}(${responseArguments});`;
-	// Only the outermost emission returns; nested code runs inside a next callback.
+	// only the outermost emission returns
 	const terminate = (code: string, isNested: boolean): string =>
 		isNested ? code : `${code}${returnStatement}`;
 	const slotTarget = (key: keyof ValidatorRequest): string =>
 		getSlotTarget(needsContext, key);
 
-	// Emits the route handler tail once the chain is exhausted.
+	// emits the route handler tail
 	const emitRoute = (isNested: boolean): string => {
 		const handlerName = link("handler");
 
@@ -570,7 +564,7 @@ const generateDispatcherBody = (
 			const isTailAsync = awaitMap[index + 1];
 			const nextName = `next_${index}`;
 			const returnedName = `returned_${index}`;
-			// A sync middleware still awaits when its tail is async.
+			// the next callback is async when the tail awaits
 			const block = `{const ${nextName}=${isTailAsync ? "async " : ""}()=>{${emit(index + 1, true)}};const ${returnedName}=${awaitMap[index] ? "await " : ""}${link("chain")}[${index}].handler(${linkArgument},${nextName});if(${returnedName}){${contentTarget}=${returnedName}}}`;
 
 			return terminate(block, isNested);
@@ -579,7 +573,7 @@ const generateDispatcherBody = (
 		if (chainLink?.type === "STORE") {
 			const returnedName = `returned_${index}`;
 			const call = `const ${returnedName}=${asyncMap[index] ? "await " : ""}${link("chain")}[${index}].handler(${linkArgument});`;
-			// A nested short circuit returns void so the caller resumes.
+			// a nested short circuit returns void
 			const shortCircuit = `${contentTarget}=${returnedName};${isNested ? "return;" : returnStatement}`;
 			const storeTarget = needsContext
 				? "context.store"
@@ -609,13 +603,13 @@ const generateDispatcherBody = (
 				const target = slotTarget(key);
 				const keyLiteral = JSON.stringify(key);
 
-				// Parsing waits for this position so earlier links can short circuit.
+				// parse each slot the first time it is validated
 				if (!parsedKeys.has(key)) {
 					parsedKeys.add(key);
 					validations += parsers[key]();
 				}
 
-				// Each slot gets its own block so "validated" can be redeclared.
+				// each slot gets its own block
 				validations += `{const validated=${isValidatorAsync ? "await " : ""}${link("validator")}(${requestTarget}.${key},${target},${keyLiteral});if(validated.success){${target}=validated.content}else{(${errorTarget}??=new ${link("Empty")}()).${key}=validated.content}}`;
 			}
 
@@ -716,7 +710,7 @@ const createDispatcherFactoryPlan = (
 	const { dependencies, link } = createDependencyLinker();
 	const slotTarget = (key: keyof ValidatorRequest) =>
 		getSlotTarget(shape.needsContext, key);
-	// Thunks keep each slot's dependency linked in emission order.
+	// thunks link each slot's dependency when emitted
 	const parsers: Record<keyof ValidatorRequest, () => string> = {
 		body: () =>
 			`${slotTarget("body")}=await ${link("parseBody")}(request);`,

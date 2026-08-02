@@ -1,8 +1,7 @@
 import type { AnyModule } from "@/core/module";
 
 /**
- * Options accepted by `module.group`. `prefix` is merged onto the parent
- * module prefix.
+ * Options accepted by `module.group`.
  *
  * @example
  * ```typescript

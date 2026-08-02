@@ -458,7 +458,7 @@ describe("usesResponseMetadata", () => {
 
 		it("should return true for arguments, eval, native, and bound functions", () => {
 			function throughArguments(_context: unknown) {
-				// biome-ignore lint/complexity/noArguments: Testing the conservative fallback
+				// biome-ignore lint/complexity/noArguments: Testing the `arguments` fallback
 				return arguments[0];
 			}
 

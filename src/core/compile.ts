@@ -99,7 +99,7 @@ const flattenModuleTree = (
 		const type = link.type;
 
 		if (type === "GROUP") {
-			// Groups isolate changes to their chain and prefix.
+			// groups get their own chain and prefix snapshot
 			const groupModule = new Module({
 				prefix: `${inheritedPath}${activePrefix}${link.prefix === "/" ? "" : link.prefix}` as `/${string}`,
 			});
@@ -126,7 +126,7 @@ const flattenModuleTree = (
 		}
 
 		if (type === "MODULE") {
-			// Nested modules propagate changes to later links.
+			// nested modules propagate chain and prefix changes to later links
 			const beforeLength = activeChain.length;
 			const nestedPrefix = flattenModuleTree(
 				endpoints,
@@ -150,7 +150,7 @@ const flattenModuleTree = (
 		}
 
 		if (type === "MOUNT") {
-			// Mounts ignore prefixes propagated by sibling modules.
+			// mounts use the module prefix, not the propagated one
 			mounts.push({
 				fetch: link.fetch,
 				path:
@@ -161,7 +161,7 @@ const flattenModuleTree = (
 			continue;
 		}
 
-		// Every remaining link is a route.
+		// every remaining link is a route
 		let methodEndpoints = endpoints[link.method];
 
 		if (!methodEndpoints) {
@@ -172,7 +172,7 @@ const flattenModuleTree = (
 
 		let chain: EndpointChain;
 
-		// Routes without a validator share the last chain snapshot.
+		// routes without a validator share the last chain snapshot
 		if (link.validator) {
 			chain = cloneAppend(activeChain, link.validator);
 		} else if (cachedChain) {
@@ -270,7 +270,7 @@ const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 		return true;
 	}
 
-	// Bun rejects duplicated parameter names.
+	// reject duplicated parameter names
 	const uniqueParamKeys = new Set<string>([firstParamKey]);
 
 	for (let i = 1; i < paramCount; i++) {
@@ -396,7 +396,7 @@ const registerNativeRoute = (
 		routes[path] = pathRoutes;
 	}
 
-	// The first endpoint registered for a method wins.
+	// the first endpoint registered for a method wins
 	if (!(method in pathRoutes)) {
 		pathRoutes[method] = isStatic
 			? endpoint.response!
@@ -448,7 +448,7 @@ const compileMethod = (
 				endpoint.route.handler(undefined as any),
 			);
 
-			// Give each request a fresh response body.
+			// clone the static response per request
 			endpoint.dispatch = () => endpoint.response!.clone();
 		} else {
 			endpoint.dispatch = jit(app, endpoint);
@@ -459,10 +459,10 @@ const compileMethod = (
 
 		fallbackTable[matchOffset] = endpoint;
 
-		// Account for the marker and parameter captures.
+		// skip the marker and parameter captures
 		matchOffset += 1 + endpoint.paramKeys.length;
 
-		// Only the first endpoint of each pattern reaches Bun's router.
+		// only the first endpoint of each pattern reaches Bun's router
 		if (
 			analyzedEndpoint.native &&
 			!nativePatterns.has(analyzedEndpoint.pattern)
@@ -512,7 +512,7 @@ const compileMounts = (app: Cudenix, mounts: CompiledMount[]) => {
 	}
 
 	if (prefixed.length > 0) {
-		// Longest prefixes match first.
+		// longest prefixes match first
 		prefixed.sort((a, b) => b.path.length - a.path.length);
 
 		app.mounts = prefixed;

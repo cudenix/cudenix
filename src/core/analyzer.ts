@@ -25,13 +25,13 @@ const RESPONSE_COOKIES = 32;
 const RESPONSE_HEADERS = 64;
 
 /**
- * Union of the response flags; backs `needsResponseMetadata`.
+ * Union of the response flags.
  */
 const RESPONSE_METADATA =
 	RESPONSE_CONTENT | RESPONSE_COOKIES | RESPONSE_HEADERS;
 
 /**
- * Union of every flag; the pessimistic result when source cannot be narrowed.
+ * Union of every flag.
  */
 const CONTEXT_ALL =
 	CONTEXT_MEMORY |
@@ -81,8 +81,8 @@ const isWordCharacter = (code: number) =>
 	(code >= 97 && code <= 122);
 
 /**
- * Detects a conservative property-name character: a word character, `$`, or
- * anything beyond ASCII.
+ * Detects a property-name character: a word character, `$`, or anything
+ * beyond ASCII.
  */
 const isPropertyCharacter = (code: number) =>
 	// "$" (36) or a code unit above DEL (127)
@@ -305,7 +305,7 @@ export const analyzeHandler = (handler: AnalyzableHandler): HandlerAnalysis => {
 	let propertyUsage = 0;
 
 	if (needsContext) {
-		// Sources that cannot be narrowed assume every feature.
+		// unnarrowable sources assume every feature
 		propertyUsage =
 			hasOpaqueAccess || parameter === undefined
 				? CONTEXT_ALL

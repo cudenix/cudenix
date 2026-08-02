@@ -26,8 +26,7 @@ export interface ValidatorRequest<
 }
 
 /**
- * Runtime contract every validator adapter must satisfy. Receives the slot
- * schema, the slot value, and the slot being validated.
+ * Runtime contract every validator adapter satisfies.
  *
  * @example
  * ```typescript
@@ -123,8 +122,7 @@ export interface TransformValidatorError<T extends object> {
 }
 
 /**
- * Merge two per-slot request maps with right-side precedence. Slots left
- * `unknown` on both sides are dropped.
+ * Merge two per-slot request maps with right-side precedence.
  *
  * @example
  * ```typescript

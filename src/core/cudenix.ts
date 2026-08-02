@@ -157,7 +157,6 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 
 	compile(this);
 
-	// Removing the module makes compilation idempotent.
 	delete this.memory.module;
 	delete this.memory.plugins;
 };
@@ -183,19 +182,19 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 		if (match) {
 			const endpointTable = methodData.table;
 
-			// The first capture belongs to the highest-priority endpoint.
+			// the first capture belongs to the highest-priority endpoint
 			if (match[1] !== undefined) {
 				return endpointTable[1]!.dispatch(request, match);
 			}
 
 			const compiledDispatch = methodDispatchers.get(methodData);
 
-			// Unrolled resolver for the remaining captures.
+			// unrolled resolver for the remaining captures
 			if (compiledDispatch) {
 				return compiledDispatch(request, match);
 			}
 
-			// Scan the captures when no resolver was compiled.
+			// scan the remaining captures
 			for (let offset = 2; offset < match.length; offset++) {
 				if (match[offset] !== undefined) {
 					return endpointTable[offset]!.dispatch(request, match);
@@ -206,10 +205,10 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 
 	const mounts = this.mounts;
 
-	// Unmatched requests fall back to the mounted applications.
+	// unmatched requests fall back to the mounts
 	if (mounts) {
 		const url = request.url;
-		const pathnameStart = url.indexOf("/", 8); // Skip scheme and authority.
+		const pathnameStart = url.indexOf("/", 8); // skip scheme and authority
 
 		for (let i = 0; i < mounts.length; i++) {
 			const mount = mounts[i]!;
@@ -221,7 +220,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 
 			const prefixEnd = pathnameStart + mountPath.length;
 
-			// Path handed to the mount once its prefix is stripped.
+			// path handed to the mount once its prefix is stripped
 			let mountedPath: string | undefined;
 
 			if (prefixEnd === url.length) {

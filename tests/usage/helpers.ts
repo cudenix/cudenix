@@ -1,9 +1,7 @@
 import { Cudenix, type Plugin } from "@/core/cudenix";
 
 /**
- * A live Cudenix app under test: its `Bun.Server` plus a `fetch` already bound
- * to the server's address. Implements `Disposable`, so a `using` binding stops
- * the server when the test block exits — including on failure.
+ * A live Cudenix app under test: its `Bun.Server` plus a bound `fetch`.
  */
 export interface ServedApp extends Disposable {
 	app: Cudenix;
@@ -13,9 +11,7 @@ export interface ServedApp extends Disposable {
 }
 
 /**
- * Options accepted by {@link serveApp}. `listen` carries extra `Bun.serve`
- * options forwarded to `.listen()` — `port` is always overridden to `0` — and
- * `plugins` lists setup hooks registered before the server boots.
+ * Options accepted by {@link serveApp}.
  *
  * @example
  * ```typescript
@@ -31,18 +27,10 @@ export interface ServeAppOptions {
 }
 
 /**
- * Boot a real Bun server around a root module and return a handle whose
- * `fetch` targets it, so a test drives the app end-to-end through Bun's own
- * router — both the static route table and the regexp fallback — exactly as a
- * deployed app is reached, rather than the in-process `app.fetch()` shortcut
- * that only ever consults the regexp table.
- *
- * Listens on an ephemeral port (`port: 0`); build one server per test. Bind it
- * with `using` to stop the server automatically.
+ * Boot a real Bun server on an ephemeral port around a root module.
  *
  * @param module - Root module compiled into the app's routes.
- * @param options - Optional plugins and `Bun.serve` overrides; see
- *   {@link ServeAppOptions}.
+ * @param options - Optional plugins and `Bun.serve` overrides.
  * @returns A {@link ServedApp} handle bound to the running server.
  * @example
  * ```typescript

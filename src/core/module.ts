@@ -119,8 +119,7 @@ export interface Module<
 		> = undefined,
 	>(
 		handler: MiddlewareFn<MiddlewareReturn, Stores, Validators["outputs"]>,
-		// both directions are split off once instead of being extracted again
-		// for the status key and for the reply itself
+		// each reply direction is split off once
 	): Extract<MiddlewareReturn, AnyFail> extends infer Failed extends AnyFail
 		? Extract<MiddlewareReturn, AnyOk> extends infer Succeeded extends AnyOk
 			? Module<
@@ -149,14 +148,12 @@ export interface Module<
 			| RouteFnReturnGenerator,
 		const RouteValidatorRequest extends
 			Partial<ValidatorRequest> = NonNullable<unknown>,
-		// defaulted, never inferred: the merge runs once and is shared by the
-		// handler's context and by the route tree
+		// defaulted, never inferred: the path merge runs once
 		MergedPath extends `/${string}` = MergePaths<Prefix, RoutePath>,
 	>(
 		method: RouteMethod,
 		path: RoutePath,
-		// the merged path, not the bare route path: the router fills the
-		// prefix's own parameters into the request too
+		// the merged path, not the bare route path
 		handler: RouteHandler<
 			MergedPath,
 			RouteReturn,
@@ -217,7 +214,7 @@ export interface Module<
 		>,
 	>(
 		handler: StoreFn<StoreReturn, Stores, Validators["outputs"]>,
-		// the promise is unwrapped once instead of once per use below
+		// the promise is unwrapped once
 	): Awaited<StoreReturn> extends infer Resolved extends
 		| Record<PropertyKey, unknown>
 		| AnyFail
