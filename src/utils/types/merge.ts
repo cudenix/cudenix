@@ -25,26 +25,31 @@ type DeclaredKeys<T> = {
  */
 export type Merge<T extends object, U extends object> = T extends unknown
 	? U extends unknown
-		? {
-				[K in keyof T as K extends Exclude<ReplacedKeys<U>, symbol>
-					? never
-					: K]: K extends symbol
-					? T[K]
-					: K extends keyof U
-						? T[K] | U[K]
-						: T[K];
-			} & {
-				[K in keyof U as K extends symbol
-					? never
-					: K extends DeclaredKeys<T>
-						? K extends ReplacedKeys<U>
-							? K
-							: never
-						: K]: K extends keyof T
-					? K extends ReplacedKeys<U>
-						? U[K]
-						: T[K] | U[K]
-					: U[K];
-			}
+		? // both key sets are classified once here instead of once per mapped key
+			ReplacedKeys<U> extends infer Replaced
+			? DeclaredKeys<T> extends infer Declared
+				? {
+						[K in keyof T as K extends Exclude<Replaced, symbol>
+							? never
+							: K]: K extends symbol
+							? T[K]
+							: K extends keyof U
+								? T[K] | U[K]
+								: T[K];
+					} & {
+						[K in keyof U as K extends symbol
+							? never
+							: K extends Declared
+								? K extends Replaced
+									? K
+									: never
+								: K]: K extends keyof T
+							? K extends Replaced
+								? U[K]
+								: T[K] | U[K]
+							: U[K];
+					}
+				: never
+			: never
 		: never
 	: never;
