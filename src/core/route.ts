@@ -89,15 +89,27 @@ type IsRouteLeaf<T> = T extends { method: string; path: string } ? true : false;
 export type MergeRoutes<T extends object, U extends object> = {
 	[K in keyof T | keyof U]: K extends keyof T
 		? K extends keyof U
-			? [IsRouteLeaf<T[K]>, IsRouteLeaf<U[K]>] extends [true, true]
-				? T[K]
-				: [IsRouteLeaf<T[K]>, IsRouteLeaf<U[K]>] extends [false, false]
-					? T[K] extends object
-						? U[K] extends object
-							? MergeRoutes<T[K], U[K]>
-							: T[K] & U[K]
-						: T[K] & U[K]
-					: T[K] & U[K]
+			? // Cache both nodes before the repeated leaf and branch checks.
+				T[K] extends infer Left
+				? U[K] extends infer Right
+					? [IsRouteLeaf<Left>, IsRouteLeaf<Right>] extends [
+							true,
+							true,
+						]
+						? Left
+						: [IsRouteLeaf<Left>, IsRouteLeaf<Right>] extends [
+									false,
+									false,
+								]
+							? [Left, Right] extends [
+									infer LeftObject extends object,
+									infer RightObject extends object,
+								]
+								? MergeRoutes<LeftObject, RightObject>
+								: Left & Right
+							: Left & Right
+					: never
+				: never
 			: T[K]
 		: K extends keyof U
 			? U[K]
