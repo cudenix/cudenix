@@ -149,11 +149,16 @@ export interface Module<
 			| RouteFnReturnGenerator,
 		const RouteValidatorRequest extends
 			Partial<ValidatorRequest> = NonNullable<unknown>,
+		// defaulted, never inferred: the merge runs once and is shared by the
+		// handler's context and by the route tree
+		MergedPath extends `/${string}` = MergePaths<Prefix, RoutePath>,
 	>(
 		method: RouteMethod,
 		path: RoutePath,
+		// the merged path, not the bare route path: the router fills the
+		// prefix's own parameters into the request too
 		handler: RouteHandler<
-			RoutePath,
+			MergedPath,
 			RouteReturn,
 			Stores,
 			MergeInferValidatorRequest<
@@ -162,51 +167,48 @@ export interface Module<
 			>
 		>,
 		options?: RouteOptions<ValidatorOptions<RouteValidatorRequest>>,
-	): MergePaths<Prefix, RoutePath> extends infer MergedPath extends
-		`/${string}`
-		? ExtractUrlParams<MergedPath> extends infer PathParams extends object
-			? Module<
-					Errors,
-					Prefix,
-					MergeRoutes<
-						Routes,
-						ParseRoute<
-							RouteMethod,
-							MergedPath,
-							MergeInferValidatorRequest<
-								Validators["inputs"],
-								DeepInferValidatorInput<RouteValidatorRequest>
-							> &
-								([
-									PathParams extends unknown
-										? keyof PathParams
-										: never,
-								] extends [never]
-									? NonNullable<unknown>
-									: {
-											params: RequiredKeys<PathParams> extends never
-												? PathParams | undefined
-												: PathParams;
-										}),
-							| Awaited<RouteReturn>
-							| ValueOf<
-									AllPropertiesAreUnknown<RouteValidatorRequest> extends true
-										? Errors
-										: MergeReplies<
-												Errors,
-												TransformValidatorError<
-													DeepInferValidatorError<RouteValidatorRequest>
-												>
+	): ExtractUrlParams<MergedPath> extends infer PathParams extends object
+		? Module<
+				Errors,
+				Prefix,
+				MergeRoutes<
+					Routes,
+					ParseRoute<
+						RouteMethod,
+						MergedPath,
+						MergeInferValidatorRequest<
+							Validators["inputs"],
+							DeepInferValidatorInput<RouteValidatorRequest>
+						> &
+							([
+								PathParams extends unknown
+									? keyof PathParams
+									: never,
+							] extends [never]
+								? NonNullable<unknown>
+								: {
+										params: RequiredKeys<PathParams> extends never
+											? PathParams | undefined
+											: PathParams;
+									}),
+						| Awaited<RouteReturn>
+						| ValueOf<
+								AllPropertiesAreUnknown<RouteValidatorRequest> extends true
+									? Errors
+									: MergeReplies<
+											Errors,
+											TransformValidatorError<
+												DeepInferValidatorError<RouteValidatorRequest>
 											>
-							  >
-							| ValueOf<Successes>
-						>
-					>,
-					Stores,
-					Successes,
-					Validators
-				>
-			: never
+										>
+						  >
+						| ValueOf<Successes>
+					>
+				>,
+				Stores,
+				Successes,
+				Validators
+			>
 		: never;
 	routes: Routes;
 	store<
