@@ -38,6 +38,12 @@ describe("HttpMethod", () => {
 			expectTypeOf<Extract<HttpMethod, "PUT">>().toEqualTypeOf<"PUT">();
 		});
 
+		it("should keep `QUERY` extractable from the union", () => {
+			expectTypeOf<
+				Extract<HttpMethod, "QUERY">
+			>().toEqualTypeOf<"QUERY">();
+		});
+
 		it("should not surface an unnamed verb as a literal member", () => {
 			expectTypeOf<Extract<HttpMethod, "PURGE">>().toEqualTypeOf<never>();
 		});

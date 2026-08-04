@@ -213,6 +213,99 @@ describe("usage: routing", () => {
 			});
 		});
 
+		describe("query", () => {
+			it("should serve a QUERY route through the regexp fallback", async () => {
+				using server = serveApp(
+					new Module().route("QUERY", "/a", () => ok("query")),
+				);
+
+				const result = await server.fetch("/a", {
+					body: "b1",
+					method: "QUERY",
+				});
+
+				expect(result.status).toBe(200);
+				expect(await result.text()).toBe("query");
+				expect(server.app.routes["/a"]).toBeUndefined();
+			});
+
+			it("should expose the QUERY content to the handler", async () => {
+				using server = serveApp(
+					new Module().route("QUERY", "/a", async (context) =>
+						ok(await context.request.raw.text()),
+					),
+				);
+
+				const result = await server.fetch("/a", {
+					body: "b1",
+					method: "QUERY",
+				});
+
+				expect(result.status).toBe(200);
+				expect(await result.text()).toBe("b1");
+			});
+
+			it("should route by method when GET and QUERY share a path", async () => {
+				using server = serveApp(
+					new Module()
+						.route("GET", "/a", () => ok("get"))
+						.route("QUERY", "/a", () => ok("query")),
+				);
+
+				const get = await server.fetch("/a");
+				const query = await server.fetch("/a", {
+					body: "b1",
+					method: "QUERY",
+				});
+
+				expect(await get.text()).toBe("get");
+				expect(await query.text()).toBe("query");
+			});
+
+			it("should match params on a QUERY route", async () => {
+				using server = serveApp(
+					new Module().route("QUERY", "/a/:p1", (context) =>
+						ok(context.request.params.p1),
+					),
+				);
+
+				const result = await server.fetch("/a/b", {
+					body: "b1",
+					method: "QUERY",
+				});
+
+				expect(result.status).toBe(200);
+				expect(await result.text()).toBe("b");
+			});
+
+			it("should not implicitly answer QUERY from a GET route", async () => {
+				using server = serveApp(
+					new Module().route("GET", "/a", () => ok("get")),
+				);
+
+				const get = await server.fetch("/a");
+				const query = await server.fetch("/a", {
+					body: "b1",
+					method: "QUERY",
+				});
+
+				expect(get.status).toBe(200);
+				expect(query.status).toBe(404);
+			});
+
+			it("should expose a QUERY route to clients under its lowercase key", () => {
+				const module = new Module().route("QUERY", "/a", () =>
+					ok("v1"),
+				);
+				const api = client<typeof module>({ url: "http://localhost" });
+
+				expectTypeOf<
+					(typeof module)["routes"]["a"]["query"]["method"]
+				>().toEqualTypeOf<"QUERY">();
+				expectTypeOf(api.a.query).toBeFunction();
+			});
+		});
+
 		describe("non-canonical verbs", () => {
 			it("should dispatch a custom verb route declared on a regexp-only path", async () => {
 				using server = serveApp(

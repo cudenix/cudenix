@@ -15,5 +15,6 @@ export type HttpMethod =
 	| "PATCH"
 	| "POST"
 	| "PUT"
+	| "QUERY"
 	// keeps autocomplete for the literals while accepting any method
 	| (string & NonNullable<unknown>);

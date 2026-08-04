@@ -21,7 +21,7 @@ interface CorsOptions {
 
 export const cors = ({
 	allowHeaders,
-	allowMethods = "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT",
+	allowMethods = "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT,QUERY",
 	credentials,
 	exposeHeaders,
 	maxAge,
