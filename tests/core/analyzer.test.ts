@@ -2,13 +2,14 @@ import { describe, expect, it } from "bun:test";
 
 import { analyzeHandler } from "@/core/analyzer";
 
-type AnalyzableHandler = Parameters<typeof analyzeHandler>[0];
+type AnalyzableHandler = (...args: any[]) => unknown;
 
+const analyze = (handler: AnalyzableHandler) => analyzeHandler(handler);
 const asFn = (value: unknown) => value as AnalyzableHandler;
 const usesContext = (handler: AnalyzableHandler) =>
-	analyzeHandler(handler).needsContext;
+	analyze(handler).needsContext;
 const usesResponseMetadata = (handler: AnalyzableHandler) =>
-	analyzeHandler(handler).needsResponseMetadata;
+	analyze(handler).needsResponseMetadata;
 
 describe("usesContext", () => {
 	describe("functions that use the first parameter", () => {
@@ -494,7 +495,7 @@ describe("usesResponseMetadata", () => {
 
 describe("analyzeHandler", () => {
 	it("should distinguish direct response fields", () => {
-		expect(analyzeHandler((context) => context.response.headers)).toEqual({
+		expect(analyze((context) => context.response.headers)).toEqual({
 			isAsync: false,
 			needsContext: true,
 			needsMemory: false,
@@ -507,7 +508,7 @@ describe("analyzeHandler", () => {
 			needsStore: false,
 		});
 		expect(
-			analyzeHandler((context) => [
+			analyze((context) => [
 				context.response.content,
 				context.response.cookies,
 			]),
@@ -527,7 +528,7 @@ describe("analyzeHandler", () => {
 
 	it("should distinguish direct top-level fields", () => {
 		expect(
-			analyzeHandler((context) => [context.request.raw, context.store]),
+			analyze((context) => [context.request.raw, context.store]),
 		).toEqual({
 			isAsync: false,
 			needsContext: true,
@@ -543,7 +544,7 @@ describe("analyzeHandler", () => {
 	});
 
 	it("should require every response field when access is opaque", () => {
-		expect(analyzeHandler((context) => context.response)).toEqual({
+		expect(analyze((context) => context.response)).toEqual({
 			isAsync: false,
 			needsContext: true,
 			needsMemory: true,
@@ -558,12 +559,10 @@ describe("analyzeHandler", () => {
 	});
 
 	it("should detect an asynchronous handler", () => {
-		expect(analyzeHandler(async () => undefined).isAsync).toBe(true);
-		expect(analyzeHandler((async () => undefined).bind(null)).isAsync).toBe(
-			true,
-		);
-		expect(analyzeHandler(() => undefined).isAsync).toBe(false);
-		expect(analyzeHandler(asFn(function* () {})).isAsync).toBe(false);
-		expect(analyzeHandler(asFn(async function* () {})).isAsync).toBe(false);
+		expect(analyze(async () => undefined).isAsync).toBe(true);
+		expect(analyze((async () => undefined).bind(null)).isAsync).toBe(true);
+		expect(analyze(() => undefined).isAsync).toBe(false);
+		expect(analyze(asFn(function* () {})).isAsync).toBe(false);
+		expect(analyze(asFn(async function* () {})).isAsync).toBe(false);
 	});
 });

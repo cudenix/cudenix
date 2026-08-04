@@ -2,11 +2,10 @@ import { describe, expect, it } from "bun:test";
 
 import type { AnyContext } from "@/core/context";
 import { Cudenix, type Plugin } from "@/core/cudenix";
-import { staticDispatch } from "@/core/dispatch";
 import { inspectJitFactoryDependencies, jit } from "@/core/jit";
 import { Module } from "@/core/module";
 import { fail, ok } from "@/core/reply";
-import type { ValidatorPlugin } from "@/core/validator";
+import type { ValidatorCompiler, ValidatorPlugin } from "@/core/validator";
 import { isAsync } from "@/utils/functions/is-async";
 
 import { serveApp } from "./helpers";
@@ -19,6 +18,16 @@ const withValidator = (validate: ValidatorPlugin): Plugin =>
 const echo: ValidatorPlugin = (_schema, input) => ({
 	content: input,
 	success: true,
+});
+
+const asyncEcho: ValidatorPlugin = async (_schema, input) => ({
+	content: input,
+	success: true,
+});
+
+const compileEcho: ValidatorCompiler = () => ({
+	run: (input) => ({ content: input, success: true }),
+	sync: true,
 });
 
 const compactSource = (source: string): string => source.replace(/\s+/g, "");
@@ -281,7 +290,7 @@ describe("usage: jit", () => {
 
 			const compiled = endpoint.dispatch;
 
-			expect(compiled).not.toBe(staticDispatch);
+			expect(endpoint.response).toBeUndefined();
 
 			const first = await server.fetch("/a");
 
@@ -590,8 +599,10 @@ describe("usage: jit", () => {
 
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
 
-			expect(endpoint.dispatch).toBe(staticDispatch);
+			const dispatch = endpoint.dispatch;
+
 			expect(endpoint.response).toBeInstanceOf(Response);
+			expect(isAsync(dispatch)).toBe(false);
 
 			const native = await server.fetch("/b");
 
@@ -603,17 +614,35 @@ describe("usage: jit", () => {
 			expect(await native.text()).toBe("v2");
 			expect(await inProcess.text()).toBe("v2");
 			expect(await again.text()).toBe("v2");
-			expect(endpoint.dispatch).toBe(staticDispatch);
+			expect(endpoint.dispatch).toBe(dispatch);
 		});
 
-		it("should serve a static wildcard route through staticDispatch", async () => {
+		it("should give each static endpoint its own clone dispatcher", async () => {
+			using server = serveApp(
+				new Module()
+					.route("GET", "/b", ok("v2"))
+					.route("GET", "/c", ok("v3")),
+			);
+
+			const first = server.app.methods.GET!.endpoints[0]!;
+			const second = server.app.methods.GET!.endpoints[1]!;
+
+			expect(first.dispatch).not.toBe(second.dispatch);
+			expect(first.dispatch(new Request(server.url("/b")))).not.toBe(
+				first.response,
+			);
+			expect(await (await server.fetch("/b")).text()).toBe("v2");
+			expect(await (await server.fetch("/c")).text()).toBe("v3");
+		});
+
+		it("should serve a static wildcard route through the static fast path", async () => {
 			using server = serveApp(
 				new Module().route("GET", "/b/...rest", ok("v2")),
 			);
 
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
 
-			expect(endpoint.dispatch).toBe(staticDispatch);
+			expect(endpoint.response).toBeInstanceOf(Response);
 
 			const first = await server.fetch("/b/x/y");
 			const second = await server.fetch("/b/x/y");
@@ -622,7 +651,7 @@ describe("usage: jit", () => {
 			expect(await second.text()).toBe("v2");
 		});
 
-		it("should not use staticDispatch when a static route has chain links", async () => {
+		it("should not use the static fast path when a static route has chain links", async () => {
 			using server = serveApp(
 				new Module()
 					.middleware(async (_, next) => {
@@ -634,7 +663,6 @@ describe("usage: jit", () => {
 			const endpoint = server.app.methods.GET!.endpoints[0]!;
 			const source = endpoint.dispatch.toString();
 
-			expect(endpoint.dispatch).not.toBe(staticDispatch);
 			expect(endpoint.response).toBeUndefined();
 			expectNoContextAllocation(source);
 			expect(compactSource(source)).toContain(
@@ -1711,6 +1739,182 @@ describe("usage: jit", () => {
 			expect(result.status).toBe(401);
 			expect(validated).toBe(0);
 			expect(ran).toBe(0);
+		});
+	});
+
+	describe("compiled validators", () => {
+		const compiledApp = (
+			module: ConstructorParameters<typeof Cudenix>[0],
+			compiler?: ValidatorCompiler,
+		) => {
+			const app = new Cudenix(module);
+
+			app.memory.validator = asyncEcho;
+
+			if (compiler) {
+				app.memory.validatorCompiler = compiler;
+			}
+
+			app.compile();
+
+			return app;
+		};
+
+		it("should call the compiled slot instead of the runtime validator", () => {
+			const app = compiledApp(
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => ok("v1")),
+				compileEcho,
+			);
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const compact = compactSource(endpoint.dispatch.toString());
+
+			expect(compact).toContain("compiled[0].query(validatedQuery)");
+			expect(compact).not.toContain("validator(");
+			expect(compact).not.toContain("chain[0].request");
+			expect(endpoint.dispatch.toString()).not.toContain("await");
+			expect(isAsync(endpoint.dispatch)).toBe(false);
+		});
+
+		it("should link the compiled validators and drop the runtime validator", () => {
+			const compiled = compiledApp(
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => ok("v1")),
+				compileEcho,
+			);
+			const fallback = compiledApp(
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => ok("v1")),
+			);
+
+			expect(
+				inspectJitFactoryDependencies(
+					compiled,
+					compiled.methods.GET!.endpoints[0]!,
+				),
+			).toEqual([
+				"response",
+				"parseQuery",
+				"compiled",
+				"Empty",
+				"fail",
+				"handler",
+			]);
+			expect(
+				inspectJitFactoryDependencies(
+					fallback,
+					fallback.methods.GET!.endpoints[0]!,
+				),
+			).toEqual([
+				"response",
+				"parseQuery",
+				"validator",
+				"Empty",
+				"fail",
+				"chain",
+				"handler",
+			]);
+		});
+
+		it("should link both dependencies when only some slots compile", () => {
+			const app = compiledApp(
+				new Module()
+					.validator({ request: { headers: {}, query: {} } })
+					.route("GET", "/a", () => ok("v1")),
+				(schema, type) =>
+					type === "query" ? compileEcho(schema, type) : undefined,
+			);
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+
+			expect(inspectJitFactoryDependencies(app, endpoint)).toEqual([
+				"response",
+				"validator",
+				"Empty",
+				"parseQuery",
+				"compiled",
+				"fail",
+				"chain",
+				"handler",
+			]);
+			expect(isAsync(endpoint.dispatch)).toBe(true);
+		});
+
+		it("should key the factory cache by per-slot compilation in both orders", () => {
+			const queryModule = () =>
+				new Module()
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => ok("v1"));
+			const headersModule = () =>
+				new Module()
+					.validator({ request: { headers: {} } })
+					.route("GET", "/a", () => ok("v1"));
+
+			const fallbackFirst = compiledApp(queryModule());
+			const compiledSecond = compiledApp(queryModule(), compileEcho);
+			const compiledFirst = compiledApp(headersModule(), compileEcho);
+			const fallbackSecond = compiledApp(headersModule());
+
+			expect(
+				isAsync(fallbackFirst.methods.GET!.endpoints[0]!.dispatch),
+			).toBe(true);
+			expect(
+				isAsync(compiledSecond.methods.GET!.endpoints[0]!.dispatch),
+			).toBe(false);
+			expect(
+				isAsync(compiledFirst.methods.GET!.endpoints[0]!.dispatch),
+			).toBe(false);
+			expect(
+				isAsync(fallbackSecond.methods.GET!.endpoints[0]!.dispatch),
+			).toBe(true);
+		});
+
+		it("should keep an upstream middleware next callback in step with the compiled slots", async () => {
+			const app = compiledApp(
+				new Module()
+					.middleware((_context, next) => next())
+					.validator({ request: { query: {} } })
+					.route("GET", "/a", () => ok("v1")),
+				compileEcho,
+			);
+
+			const endpoint = app.methods.GET!.endpoints[0]!;
+			const compact = compactSource(endpoint.dispatch.toString());
+
+			expect(compact).toContain("constnext_0=()=>{");
+			expect(isAsync(endpoint.dispatch)).toBe(false);
+
+			const result = await app.fetch(new Request("http://localhost/a"));
+
+			expect(await result.text()).toBe("v1");
+		});
+
+		it("should compile a shared validator link once per compiler", () => {
+			const compiled: string[] = [];
+			const compiler: ValidatorCompiler = (schema, type) => {
+				compiled.push(type);
+
+				return compileEcho(schema, type);
+			};
+			const module = new Module()
+				.validator({ request: { query: {} } })
+				.route("GET", "/a", () => ok("v1"))
+				.route("GET", "/b", () => ok("v2"));
+
+			const first = compiledApp(module, compiler);
+			const second = compiledApp(module, compiler);
+
+			expect(compiled).toEqual(["query"]);
+			expect(isAsync(first.methods.GET!.endpoints[0]!.dispatch)).toBe(
+				false,
+			);
+			expect(isAsync(second.methods.GET!.endpoints[1]!.dispatch)).toBe(
+				false,
+			);
 		});
 	});
 

@@ -3,9 +3,10 @@ import { describe, expect, it } from "bun:test";
 import { Cudenix, type Plugin } from "@/core/cudenix";
 import { Module } from "@/core/module";
 import { ok } from "@/core/reply";
-import type { ValidatorPlugin } from "@/core/validator";
+import type { ValidatorCompiler, ValidatorPlugin } from "@/core/validator";
 import { initializeStandardSchema } from "@/ecosystem/plugins/standard-schema";
 import { isAsync } from "@/utils/functions/is-async";
+import type { StandardSchemaV1 } from "@/utils/types/standard-schema";
 
 import { serveApp } from "./helpers";
 
@@ -21,6 +22,73 @@ const accept =
 const reject =
 	(content: unknown): ValidatorPlugin =>
 	() => ({ content, success: false });
+
+/**
+ * A Standard Schema carrying the vendor's own asynchrony flag.
+ */
+interface TestSchema<Output> extends StandardSchemaV1<Output, Output> {
+	async: boolean;
+}
+
+interface TestSchemaOptions {
+	invalid?: boolean;
+	vendor?: string;
+}
+
+const validateInput = <Output>(input: unknown, invalid: boolean) =>
+	invalid ? { issues: [{ message: "v1" }] } : { value: input as Output };
+
+const syncSchema = <Output>({
+	invalid = false,
+	vendor = "a",
+}: TestSchemaOptions = {}): TestSchema<Output> => ({
+	"~standard": {
+		validate: (input) => validateInput<Output>(input, invalid),
+		vendor,
+		version: 1,
+	},
+	async: false,
+});
+
+const asyncSchema = <Output>({
+	invalid = false,
+	vendor = "a",
+}: TestSchemaOptions = {}): TestSchema<Output> => ({
+	"~standard": {
+		validate: async (input) => validateInput<Output>(input, invalid),
+		vendor,
+		version: 1,
+	},
+	async: true,
+});
+
+// compiles only the schemas the vendor marks as synchronous
+const compileSchema: ValidatorCompiler = (schema) =>
+	schema.async
+		? undefined
+		: {
+				run: (input) => {
+					const returned = schema["~standard"].validate(input);
+
+					return {
+						content: returned.issues ?? returned.value,
+						success: !returned.issues,
+					};
+				},
+				sync: true,
+			};
+
+const compileAwaitedSchema: ValidatorCompiler = (schema) => ({
+	run: async (input) => {
+		const returned = await schema["~standard"].validate(input);
+
+		return {
+			content: returned.issues ?? returned.value,
+			success: !returned.issues,
+		};
+	},
+	sync: false,
+});
 
 describe("usage: validators", () => {
 	describe("plugin contract", () => {
@@ -360,6 +428,326 @@ describe("usage: validators", () => {
 			expect(before.status).toBe(200);
 			expect(await before.text()).toBe("v1");
 			expect(after.status).toBe(422);
+		});
+	});
+
+	describe("compiled validators", () => {
+		it("should register no compiler when the plugin gets none", () => {
+			const app = new Cudenix(new Module());
+
+			initializeStandardSchema().call(app);
+
+			expect(app.memory.validator).toBeDefined();
+			expect(app.memory.validatorCompiler).toBeUndefined();
+		});
+
+		it("should stay inert when only a compiler is registered", async () => {
+			using server = serveApp(
+				new Module()
+					.validator({
+						request: { query: syncSchema<{ a: string }>() },
+					})
+					.route("GET", "/a", (context) =>
+						ok(typeof context.request.query),
+					),
+				{
+					plugins: [
+						function (this: Cudenix) {
+							this.memory.validatorCompiler = compileSchema;
+						},
+					],
+				},
+			);
+
+			const result = await server.fetch("/a?a=v1");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("undefined");
+		});
+
+		it("should dispatch a fully compiled route synchronously", async () => {
+			using server = serveApp(
+				new Module().route(
+					"GET",
+					"/a/:p1",
+					(context) =>
+						ok(
+							`${context.request.params.p1}:${context.request.query.a}`,
+						),
+					{
+						validator: {
+							request: {
+								params: syncSchema<{ p1: string }>(),
+								query: syncSchema<{ a: string }>(),
+							},
+						},
+					},
+				),
+				{
+					plugins: [
+						initializeStandardSchema({
+							compilers: { a: compileSchema },
+						}),
+					],
+				},
+			);
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+			const result = await server.fetch("/a/b?a=v1");
+
+			expect(isAsync(endpoint.dispatch)).toBe(false);
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("b:v1");
+		});
+
+		it("should fail identically through the compiled and the fallback path", async () => {
+			const module = () =>
+				new Module().route("GET", "/a", () => ok("v1"), {
+					validator: {
+						request: { query: syncSchema({ invalid: true }) },
+					},
+				});
+
+			using fallback = serveApp(module(), {
+				plugins: [initializeStandardSchema()],
+			});
+			using compiled = serveApp(module(), {
+				plugins: [
+					initializeStandardSchema({
+						compilers: { a: compileSchema },
+					}),
+				],
+			});
+
+			const fallbackResult = await fallback.fetch("/a");
+			const compiledResult = await compiled.fetch("/a");
+
+			expect(
+				isAsync(fallback.app.methods.GET!.endpoints[0]!.dispatch),
+			).toBe(true);
+			expect(
+				isAsync(compiled.app.methods.GET!.endpoints[0]!.dispatch),
+			).toBe(false);
+			expect(compiledResult.status).toBe(fallbackResult.status);
+			expect(compiledResult.status).toBe(422);
+			expect(await compiledResult.text()).toBe(
+				await fallbackResult.text(),
+			);
+		});
+
+		it("should mix a compiled slot and a fallback slot in one link", async () => {
+			using server = serveApp(
+				new Module().route(
+					"GET",
+					"/a",
+					(context) =>
+						ok(
+							`${context.request.headers.a}:${context.request.query.a}`,
+						),
+					{
+						validator: {
+							request: {
+								headers: asyncSchema<{ a: string }>(),
+								query: syncSchema<{ a: string }>(),
+							},
+						},
+					},
+				),
+				{
+					plugins: [
+						initializeStandardSchema({
+							compilers: { a: compileSchema },
+						}),
+					],
+				},
+			);
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+			const result = await server.fetch("/a?a=v1", {
+				headers: { a: "v2" },
+			});
+			const source = endpoint.dispatch.toString();
+
+			expect(isAsync(endpoint.dispatch)).toBe(true);
+			expect(source).toContain("await validator(");
+			expect(source).toContain("compiled[0].query(");
+			expect(source).not.toContain("await compiled");
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v2:v1");
+		});
+
+		it("should leave a schema from an unregistered vendor on the fallback", async () => {
+			using server = serveApp(
+				new Module().route(
+					"GET",
+					"/a",
+					(context) => ok(context.request.query.a),
+					{
+						validator: {
+							request: {
+								query: syncSchema<{ a: string }>({
+									vendor: "b",
+								}),
+							},
+						},
+					},
+				),
+				{
+					plugins: [
+						initializeStandardSchema({
+							compilers: { a: compileSchema },
+						}),
+					],
+				},
+			);
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+			const result = await server.fetch("/a?a=v1");
+
+			expect(isAsync(endpoint.dispatch)).toBe(true);
+			expect(endpoint.dispatch.toString()).toContain("validator(");
+			expect(endpoint.dispatch.toString()).not.toContain("compiled[");
+			expect(await result.text()).toBe("v1");
+		});
+
+		it("should not read an inherited key as a registered vendor", async () => {
+			using server = serveApp(
+				new Module().route(
+					"GET",
+					"/a",
+					(context) => ok(context.request.query.a),
+					{
+						validator: {
+							request: {
+								query: syncSchema<{ a: string }>({
+									vendor: "constructor",
+								}),
+							},
+						},
+					},
+				),
+				{
+					plugins: [
+						initializeStandardSchema({
+							compilers: { a: compileSchema },
+						}),
+					],
+				},
+			);
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+			const result = await server.fetch("/a?a=v1");
+
+			expect(isAsync(endpoint.dispatch)).toBe(true);
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v1");
+		});
+
+		it("should keep a compiled body slot asynchronous", async () => {
+			using server = serveApp(
+				new Module().route(
+					"POST",
+					"/a",
+					(context) => ok(context.request.body.a),
+					{
+						validator: {
+							request: { body: syncSchema<{ a: string }>() },
+						},
+					},
+				),
+				{
+					plugins: [
+						initializeStandardSchema({
+							compilers: { a: compileSchema },
+						}),
+					],
+				},
+			);
+
+			const endpoint = server.app.methods.POST!.endpoints[0]!;
+			const result = await server.fetch("/a", {
+				body: JSON.stringify({ a: "v1" }),
+				headers: { "content-type": "application/json" },
+				method: "POST",
+			});
+
+			const source = endpoint.dispatch.toString();
+
+			expect(isAsync(endpoint.dispatch)).toBe(true);
+			expect(source).toContain("compiled[0].body(");
+			expect(source).not.toContain("await compiled");
+			expect(source).not.toContain("validator(");
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("v1");
+		});
+
+		it("should await a compiled validator that declares itself asynchronous", async () => {
+			using server = serveApp(
+				new Module().route(
+					"GET",
+					"/a",
+					(context) => ok(context.request.query.a),
+					{
+						validator: {
+							request: { query: syncSchema<{ a: string }>() },
+						},
+					},
+				),
+				{
+					plugins: [
+						initializeStandardSchema({
+							compilers: { a: compileAwaitedSchema },
+						}),
+					],
+				},
+			);
+
+			const endpoint = server.app.methods.GET!.endpoints[0]!;
+			const result = await server.fetch("/a?a=v1");
+
+			expect(isAsync(endpoint.dispatch)).toBe(true);
+			expect(endpoint.dispatch.toString()).toContain(
+				"await compiled[0].query(",
+			);
+			expect(await result.text()).toBe("v1");
+		});
+
+		it("should compile each slot of a shared validator link once", async () => {
+			const compiled: string[] = [];
+			const compiler: ValidatorCompiler = (schema, type) => {
+				compiled.push(type);
+
+				return compileSchema(schema, type);
+			};
+
+			using server = serveApp(
+				new Module()
+					.validator({
+						request: { query: syncSchema<{ a: string }>() },
+					})
+					.route("GET", "/a", (context) =>
+						ok(context.request.query.a),
+					)
+					.route("GET", "/b", (context) =>
+						ok(context.request.query.a),
+					),
+				{
+					plugins: [
+						function (this: Cudenix) {
+							initializeStandardSchema().call(this);
+
+							this.memory.validatorCompiler = compiler;
+						},
+					],
+				},
+			);
+
+			const first = await server.fetch("/a?a=v1");
+			const second = await server.fetch("/b?a=v2");
+
+			expect(compiled).toEqual(["query"]);
+			expect(await first.text()).toBe("v1");
+			expect(await second.text()).toBe("v2");
 		});
 	});
 });

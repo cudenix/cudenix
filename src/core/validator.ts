@@ -46,6 +46,46 @@ export type ValidatorPlugin = (
 ) => MaybePromise<{ content: unknown; success: boolean }>;
 
 /**
+ * Validation function a {@link ValidatorCompiler} builds for a single schema.
+ *
+ * @example
+ * ```typescript
+ * const a: CompiledValidator = {
+ *   run: (input) => ({ content: input, success: true }),
+ *   sync: true,
+ * };
+ * ```
+ */
+export interface CompiledValidator {
+	/** Validates one request slot; dispatchers call it detached from `this`. */
+	run: (
+		input: unknown,
+	) => MaybePromise<{ content: unknown; success: boolean }>;
+	/** Whether `run` never returns a promise, so dispatchers skip `await`. */
+	sync: boolean;
+}
+
+/**
+ * Compiles a schema into a {@link CompiledValidator}, or returns `undefined` to
+ * leave the slot on the runtime {@link ValidatorPlugin}.
+ *
+ * @example
+ * ```typescript
+ * const a: ValidatorCompiler = (schema) =>
+ *   schema.check
+ *     ? {
+ *         run: (input) => ({ content: input, success: schema.check(input) }),
+ *         sync: true,
+ *       }
+ *     : undefined;
+ * ```
+ */
+export type ValidatorCompiler = (
+	schema: any,
+	type: keyof ValidatorRequest,
+) => CompiledValidator | undefined;
+
+/**
  * Infers a Standard Schema issue type.
  */
 type InferValidatorError<Type> = Type extends StandardSchemaV1

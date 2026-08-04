@@ -3,7 +3,13 @@ import type { Cudenix, Endpoint, EndpointChain } from "@/core/cudenix";
 import { fail, Reply } from "@/core/reply";
 import { response } from "@/core/response";
 import { stream } from "@/core/sse";
-import type { ValidatorPlugin, ValidatorRequest } from "@/core/validator";
+import type {
+	AnyValidator,
+	CompiledValidator,
+	ValidatorCompiler,
+	ValidatorPlugin,
+	ValidatorRequest,
+} from "@/core/validator";
 import { parseBody } from "@/utils/bodies/parse-body";
 import { parseCookies } from "@/utils/cookies/parse-cookies";
 import { isAsync } from "@/utils/functions/is-async";
@@ -28,12 +34,24 @@ const VALIDATION_KEYS = [
 ] as const satisfies readonly (keyof ValidatorRequest)[];
 
 /**
+ * Maps each validated request slot of a link to its compiled validator, or to
+ * `null` when the slot falls back to the runtime validator.
+ */
+type CompiledValidatorSlots = Record<string, CompiledValidator | null>;
+
+/**
+ * Maps each chain position to the compiled validation functions it calls.
+ */
+type CompiledValidatorRuns = Record<string, CompiledValidator["run"]>[];
+
+/**
  * Maps each dependency name to the value a dispatcher factory receives.
  */
 interface FactoryDependencyValues {
 	app: Cudenix;
 	CookieMap: typeof Bun.CookieMap;
 	chain: EndpointChain;
+	compiled: CompiledValidatorRuns;
 	decodePathParam: typeof decodePathParam;
 	Empty: typeof Empty;
 	fail: typeof fail;
@@ -95,6 +113,7 @@ interface DispatcherFactoryEntry {
 interface EndpointShape {
 	asyncMap: boolean[];
 	awaitMap: boolean[];
+	compiledSlots: (CompiledValidatorSlots | undefined)[] | undefined;
 	hasValidationState: boolean;
 	isChainAsync: boolean;
 	isRouteAsync: boolean;
@@ -247,11 +266,53 @@ const buildParamLayoutKey = (endpoint: Endpoint) => {
 };
 
 /**
+ * Stores compiled validators by compiler and validator link.
+ */
+const compiledValidators = new WeakMap<
+	ValidatorCompiler,
+	WeakMap<AnyValidator, CompiledValidatorSlots>
+>();
+
+/**
+ * Compiles the request slots of a validator link once per compiler.
+ */
+const compileValidatorSlots = (
+	compiler: ValidatorCompiler,
+	link: AnyValidator,
+	keys: readonly (keyof ValidatorRequest)[],
+) => {
+	let links = compiledValidators.get(compiler);
+
+	if (links === undefined) {
+		links = new WeakMap();
+
+		compiledValidators.set(compiler, links);
+	}
+
+	let slots = links.get(link);
+
+	if (slots === undefined) {
+		slots = new Empty() as CompiledValidatorSlots;
+
+		for (let i = 0; i < keys.length; i++) {
+			const key = keys[i]!;
+
+			slots[key] = compiler(link.request[key], key) ?? null;
+		}
+
+		links.set(link, slots);
+	}
+
+	return slots;
+};
+
+/**
  * Analyzes an endpoint for dispatcher generation.
  */
 const analyzeEndpoint = (
 	endpoint: Endpoint,
 	validator: ValidatorPlugin | undefined,
+	compiler: ValidatorCompiler | undefined,
 	handlerAnalysis: HandlerAnalysis,
 ): EndpointShape => {
 	const chain = endpoint.chain;
@@ -278,6 +339,7 @@ const analyzeEndpoint = (
 	let needsResponseHeaders = handlerAnalysis.needsResponseHeaders;
 	let needsServer = handlerAnalysis.needsServer;
 	let needsStore = handlerAnalysis.needsStore;
+	let compiledSlots: (CompiledValidatorSlots | undefined)[] | undefined;
 	let hasStore = false;
 	let hasValidationState = false;
 	let validatesParams = false;
@@ -324,9 +386,18 @@ const analyzeEndpoint = (
 			hasValidationKeys(link.keys)
 		) {
 			const keys = collectValidationKeys(link.keys);
+			const slots =
+				compiler === undefined
+					? undefined
+					: compileValidatorSlots(compiler, link, keys);
+
+			let hasFallbackSlot = false;
+			// one character per slot: compiled sync, compiled async, fallback
+			let slotBits = "";
 
 			for (let j = 0; j < keys.length; j++) {
 				const key = keys[j]!;
+				const compiled = slots?.[key];
 
 				validationKeySet.add(key);
 
@@ -335,15 +406,31 @@ const analyzeEndpoint = (
 				} else if (key === "params") {
 					validatesParams = true;
 				}
+
+				if (!compiled) {
+					hasFallbackSlot = true;
+					slotBits += "f";
+				} else if (compiled.sync) {
+					slotBits += "c";
+				} else {
+					isChainAsync = true;
+					slotBits += "C";
+				}
 			}
 
 			hasValidationState = true;
 
-			if (isValidatorAsync) {
+			// only fallback slots inherit the runtime validator's asynchrony
+			if (isValidatorAsync && hasFallbackSlot) {
 				isChainAsync = true;
 			}
 
-			tags[i] = `${validatorTag}${JSON.stringify(keys)}`;
+			if (slots !== undefined) {
+				compiledSlots ??= new Array(chainLength);
+				compiledSlots[i] = slots;
+			}
+
+			tags[i] = `${validatorTag}${JSON.stringify(keys)}${slotBits}`;
 
 			emitsBelow = true;
 		} else if (emitsBelow) {
@@ -376,6 +463,7 @@ const analyzeEndpoint = (
 	return {
 		asyncMap,
 		awaitMap,
+		compiledSlots,
 		hasValidationState,
 		isChainAsync,
 		isRouteAsync,
@@ -493,6 +581,7 @@ const generateDispatcherBody = (
 	const {
 		asyncMap,
 		awaitMap,
+		compiledSlots,
 		hasValidationState,
 		isRouteAsync,
 		isSse,
@@ -593,15 +682,17 @@ const generateDispatcherBody = (
 			hasValidationKeys(chainLink.keys)
 		) {
 			const keys = collectValidationKeys(chainLink.keys);
+			const slots = compiledSlots?.[index];
 			const errorTarget = `errors_${index}`;
 			const requestTarget = `request_${index}`;
 
+			let hasFallbackSlot = false;
 			let validations = "";
 
 			for (let i = 0; i < keys.length; i++) {
 				const key = keys[i]!;
 				const target = slotTarget(key);
-				const keyLiteral = JSON.stringify(key);
+				const compiled = slots?.[key];
 
 				// parse each slot the first time it is validated
 				if (!parsedKeys.has(key)) {
@@ -609,13 +700,26 @@ const generateDispatcherBody = (
 					validations += parsers[key]();
 				}
 
+				let call: string;
+
+				if (compiled) {
+					call = `${compiled.sync ? "" : "await "}${link("compiled")}[${index}].${key}(${target})`;
+				} else {
+					hasFallbackSlot = true;
+					call = `${isValidatorAsync ? "await " : ""}${link("validator")}(${requestTarget}.${key},${target},${JSON.stringify(key)})`;
+				}
+
 				// each slot gets its own block
-				validations += `{const validated=${isValidatorAsync ? "await " : ""}${link("validator")}(${requestTarget}.${key},${target},${keyLiteral});if(validated.success){${target}=validated.content}else{(${errorTarget}??=new ${link("Empty")}()).${key}=validated.content}}`;
+				validations += `{const validated=${call};if(validated.success){${target}=validated.content}else{(${errorTarget}??=new ${link("Empty")}()).${key}=validated.content}}`;
 			}
 
 			const failure = `${contentTarget}=${link("fail")}(${errorTarget},{status:422});${isNested ? "return;" : returnStatement}`;
+			// only fallback slots read the link's schemas
+			const request = hasFallbackSlot
+				? `const ${requestTarget}=${link("chain")}[${index}].request;`
+				: "";
 
-			return `{const ${requestTarget}=${link("chain")}[${index}].request;let ${errorTarget};${validations}if(${errorTarget}){${failure}}}${emit(index + 1, isNested)}`;
+			return `{${request}let ${errorTarget};${validations}if(${errorTarget}){${failure}}}${emit(index + 1, isNested)}`;
 		}
 
 		return emit(index + 1, isNested);
@@ -741,12 +845,49 @@ const createDispatcherFactoryPlan = (
 };
 
 /**
+ * Builds the compiled validation functions a dispatcher calls, by chain position.
+ */
+const buildCompiledRuns = (
+	compiledSlots: (CompiledValidatorSlots | undefined)[] | undefined,
+): CompiledValidatorRuns => {
+	if (compiledSlots === undefined) {
+		return [];
+	}
+
+	const runs: CompiledValidatorRuns = new Array(compiledSlots.length);
+
+	for (let i = 0; i < compiledSlots.length; i++) {
+		const slots = compiledSlots[i];
+
+		if (slots === undefined) {
+			continue;
+		}
+
+		const linkRuns = new Empty() as CompiledValidatorRuns[number];
+
+		for (const key in slots) {
+			const compiled = slots[key];
+
+			// a null slot falls back to the runtime validator
+			if (compiled) {
+				linkRuns[key] = compiled.run;
+			}
+		}
+
+		runs[i] = linkRuns;
+	}
+
+	return runs;
+};
+
+/**
  * Resolves a dependency name to the value injected into a factory.
  */
 const resolveFactoryDependency = (
 	name: FactoryDependencyName,
 	app: Cudenix,
 	endpoint: Endpoint,
+	shape: EndpointShape,
 	validator: ValidatorPlugin | undefined,
 ): FactoryDependencyValue => {
 	switch (name) {
@@ -758,6 +899,8 @@ const resolveFactoryDependency = (
 			return Headers;
 		case "chain":
 			return endpoint.chain;
+		case "compiled":
+			return buildCompiledRuns(shape.compiledSlots);
 		case "response":
 			return response;
 		case "Reply":
@@ -806,13 +949,21 @@ export const inspectJitFactoryDependencies = (
 ): readonly FactoryDependencyName[] => {
 	const handler = endpoint.route.handler;
 	const validator = app.memory.validator as ValidatorPlugin | undefined;
+	const compiler = app.memory.validatorCompiler as
+		| ValidatorCompiler
+		| undefined;
 	const handlerAnalysis = analyzeHandler(handler);
 
 	if (isDirectDispatch(endpoint, handlerAnalysis, validator !== undefined)) {
 		return ["response", "handler"];
 	}
 
-	const shape = analyzeEndpoint(endpoint, validator, handlerAnalysis);
+	const shape = analyzeEndpoint(
+		endpoint,
+		validator,
+		compiler,
+		handlerAnalysis,
+	);
 
 	return createDispatcherFactoryPlan(endpoint, shape).dependencies;
 };
@@ -830,6 +981,9 @@ export const inspectJitFactoryDependencies = (
 export const jit = (app: Cudenix, endpoint: Endpoint) => {
 	const handler = endpoint.route.handler;
 	const validator = app.memory.validator as ValidatorPlugin | undefined;
+	const compiler = app.memory.validatorCompiler as
+		| ValidatorCompiler
+		| undefined;
 	const handlerAnalysis = analyzeHandler(handler);
 
 	if (isDirectDispatch(endpoint, handlerAnalysis, validator !== undefined)) {
@@ -838,7 +992,12 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 			: directSyncFactory(response, handler);
 	}
 
-	const shape = analyzeEndpoint(endpoint, validator, handlerAnalysis);
+	const shape = analyzeEndpoint(
+		endpoint,
+		validator,
+		compiler,
+		handlerAnalysis,
+	);
 
 	let entry = factories.get(shape.key);
 
@@ -869,6 +1028,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 			dependency,
 			app,
 			endpoint,
+			shape,
 			validator,
 		);
 	}

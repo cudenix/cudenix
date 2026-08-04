@@ -239,25 +239,27 @@ describe("usage: routing", () => {
 				expect(server.app.routes["/a"]).toBeUndefined();
 			});
 
-			it("should keep a lowercase method out of Bun's table", async () => {
+			it("should normalize a lowercase method into Bun's table", async () => {
 				using server = serveApp(
 					new Module().route("get", "/a", () => ok("get")),
 				);
 
 				const result = await server.fetch("/a");
 
-				expect(result.status).toBe(404);
-				expect(server.app.routes["/a"]).toBeUndefined();
+				expect(result.status).toBe(200);
+				expect(await result.text()).toBe("get");
+				expect(server.app.routes["/a"]).toBeDefined();
 			});
 
-			it("should never match a lowercase method declared on a regexp-only path", async () => {
+			it("should normalize a lowercase method declared on a regexp-only path", async () => {
 				using server = serveApp(
 					new Module().route("get", "/a/...r1", () => ok("get")),
 				);
 
 				const result = await server.fetch("/a/b");
 
-				expect(result.status).toBe(404);
+				expect(result.status).toBe(200);
+				expect(await result.text()).toBe("get");
 			});
 		});
 	});
