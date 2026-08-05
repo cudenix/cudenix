@@ -10,6 +10,17 @@ import type { Merge } from "@/utils/types/merge";
 const PARAM_REGEX_REPLACE = /\/:(\w+\??)/g;
 const SPREAD_REGEX_REPLACE = /\/\.{3}(\w+\??)/g;
 
+/**
+ * Assigns one form entry onto the dictionary passed as `this`.
+ */
+function assignEntry(
+	this: Record<PropertyKey, unknown>,
+	value: FormDataEntryValue,
+	key: string,
+) {
+	this[key] = value;
+}
+
 type RequestOptions<Request> = Merge<
 	Omit<RequestInit, "method"> & {
 		headers?: Record<string, string | readonly string[]>;
@@ -70,18 +81,17 @@ const proxyHandler: ProxyHandler<any> = {
 		let url = `${resolved.url}/${path}`;
 
 		if (options.body) {
-			const keys = Object.keys(options.body);
+			// holds the original body so the multipart pass survives the reassignment
+			const body = options.body;
 
 			let hasFile = false;
 
-			for (let i = 0; i < keys.length; i++) {
-				const key = keys[i];
-
+			for (const key in body) {
 				if (!key) {
 					continue;
 				}
 
-				const value = options.body[key];
+				const value = body[key];
 
 				if (
 					value instanceof File ||
@@ -99,14 +109,12 @@ const proxyHandler: ProxyHandler<any> = {
 			if (hasFile) {
 				const formData = new FormData();
 
-				for (let i = 0; i < keys.length; i++) {
-					const key = keys[i];
-
+				for (const key in body) {
 					if (!key) {
 						continue;
 					}
 
-					const value = options.body[key];
+					const value = body[key];
 
 					if (Array.isArray(value)) {
 						for (let j = 0; j < value.length; j++) {
@@ -121,7 +129,7 @@ const proxyHandler: ProxyHandler<any> = {
 
 				options.body = formData;
 			} else {
-				options.body = JSON.stringify(options.body);
+				options.body = JSON.stringify(body);
 
 				options.headers["content-type"] = "application/json";
 			}
@@ -206,9 +214,7 @@ const proxyHandler: ProxyHandler<any> = {
 
 			const result = new Empty();
 
-			for (const [key, value] of formData) {
-				result[key] = value;
-			}
+			formData.forEach(assignEntry, result);
 
 			return result;
 		}
@@ -222,21 +228,39 @@ const proxyHandler: ProxyHandler<any> = {
 		return response.text();
 	},
 	get(target, prop: string) {
-		if (prop === "index") {
-			return createProxy(target._options, target._path, target._method);
+		let children = target._children;
+
+		if (!children) {
+			children = new Empty();
+
+			target._children = children;
+		}
+
+		const cached = children[prop];
+
+		if (cached) {
+			return cached;
 		}
 
 		const method = target._method;
 
-		return createProxy(
-			target._options,
-			method
-				? target._path
-					? `${target._path}/${method}`
-					: method
-				: target._path,
-			prop,
-		);
+		// "index" keeps the current path and method
+		const child =
+			prop === "index"
+				? createProxy(target._options, target._path, target._method)
+				: createProxy(
+						target._options,
+						method
+							? target._path
+								? `${target._path}/${method}`
+								: method
+							: target._path,
+						prop,
+					);
+
+		children[prop] = child;
+
+		return child;
 	},
 };
 
@@ -246,6 +270,8 @@ const createProxy = (globalOptions: ClientOptions, path = "", method = "") => {
 	target._options = globalOptions;
 	target._path = path;
 	target._method = method;
+	// caches one child proxy per property so each chain node is built once
+	target._children = undefined;
 
 	return new Proxy(target, proxyHandler);
 };
