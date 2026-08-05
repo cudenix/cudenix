@@ -1,6 +1,6 @@
 import { Module } from "@/core/module";
 import { ok } from "@/core/reply";
-import { processResponse } from "@/core/response";
+import { response } from "@/core/response";
 import { selectHeader } from "@/utils/headers/select-header";
 import { FrozenEmpty } from "@/utils/objects/empty";
 
@@ -8,6 +8,9 @@ const COMPRESSIBLE_REGEXP =
 	/^\s*(?:text\/(?!event-stream(?:[;\s]|$))[^;\s]+|application\/(?:json|javascript|xml|x-www-form-urlencoded)|[^;\s]+\/[^;\s]+\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
 
 const ENCODING_NAMES = ["br", "gzip", "deflate", "zstd"] as const;
+
+// matches the Vary token without allocating a lowercase copy
+const ACCEPT_ENCODING = /accept-encoding/i;
 
 const COMPRESSION_ALGORITHM = {
 	br: "brotli",
@@ -21,18 +24,22 @@ interface CompressOptions {
 }
 
 export const compress = ({ threshold = 1024 }: CompressOptions = FrozenEmpty) =>
-	new Module().middleware(async ({ request: { raw }, response }, next) => {
+	// a plain parameter lets the analyzer narrow the context this middleware needs
+	new Module().middleware(async (context, next) => {
 		await next();
 
+		const content = context.response.content;
+		const raw = context.request.raw;
+
 		if (
-			!response.content ||
+			!content ||
 			raw.method === "HEAD" ||
-			response.content instanceof ReadableStream
+			content instanceof ReadableStream
 		) {
 			return;
 		}
 
-		const responseHeaders = response.headers;
+		const responseHeaders = context.response.headers;
 
 		if (
 			responseHeaders.has("content-encoding") ||
@@ -67,7 +74,8 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FrozenEmpty) =>
 			return;
 		}
 
-		const processedResponse = processResponse(response);
+		// without cookies or headers this is exactly the content materialization
+		const processedResponse = response(content);
 
 		const processedHeaders = processedResponse.headers;
 		const contentType = processedHeaders.get("content-type");
@@ -93,10 +101,10 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FrozenEmpty) =>
 			}
 
 			if (encodingName === "gzip") {
-				compressed = Bun.gzipSync(new Uint8Array(buffer));
+				compressed = Bun.gzipSync(buffer);
 			} else if (encodingName === "zstd") {
 				compressed = Bun.zstdCompressSync(
-					new Uint8Array(buffer),
+					buffer,
 				) as Uint8Array<ArrayBuffer>;
 			} else {
 				compressed = new Blob([buffer]).stream().pipeThrough(
@@ -110,13 +118,14 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FrozenEmpty) =>
 
 		const vary = processedHeaders.get("vary");
 
-		if (!vary || vary.toLowerCase().indexOf("accept-encoding") === -1) {
+		if (!vary || !ACCEPT_ENCODING.test(vary)) {
 			processedHeaders.append("vary", "Accept-Encoding");
 		}
 
 		processedHeaders.set("content-encoding", encodingName);
 
-		response.content = ok(new Response(compressed, processedResponse), {
-			status: processedResponse.status,
-		});
+		context.response.content = ok(
+			new Response(compressed, processedResponse),
+			{ status: processedResponse.status },
+		);
 	});
