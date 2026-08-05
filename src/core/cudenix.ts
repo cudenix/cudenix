@@ -1,4 +1,4 @@
-import { compile, methodDispatchers } from "@/core/compile";
+import { compile, type MethodDispatch } from "@/core/compile";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
 import type { CompiledMount } from "@/core/mount";
@@ -59,10 +59,11 @@ export interface Endpoint {
  *
  * @example
  * ```typescript
- * const a: MethodData = { endpoints: [endpoint], regexp, table };
+ * const a: MethodData = { dispatch, endpoints: [endpoint], regexp, table };
  * ```
  */
 export interface MethodData {
+	dispatch?: MethodDispatch;
 	endpoints: Endpoint[];
 	regexp: RegExp;
 	table: Endpoint[];
@@ -187,7 +188,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 				return endpointTable[1]!.dispatch(request, match);
 			}
 
-			const compiledDispatch = methodDispatchers.get(methodData);
+			const compiledDispatch = methodData.dispatch;
 
 			// unrolled resolver for the remaining captures
 			if (compiledDispatch) {
