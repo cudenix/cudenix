@@ -249,11 +249,7 @@ export const openapi = ({ path }: OpenapiModuleOptions = FrozenEmpty) => {
 			if (!cachedHtml) {
 				cachedJson ??= JSON.stringify(memory.openapi);
 
-				cachedHtml = scalar(
-					"Cudenix Documentation",
-					cachedJson,
-					JSON.stringify({}),
-				);
+				cachedHtml = scalar("Cudenix Documentation", cachedJson, "{}");
 			}
 
 			return ok(cachedHtml);
