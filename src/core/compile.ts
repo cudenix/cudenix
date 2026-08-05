@@ -15,6 +15,13 @@ import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
 /**
+ * Placeholder endpoint dispatch replaced while compiling a method.
+ */
+const UNCOMPILED_DISPATCH = (): never => {
+	throw new Error("Endpoint dispatch not compiled");
+};
+
+/**
  * Shared empty arrays reused by endpoints without parameters.
  */
 const EMPTY_PARAM_FLAGS = Object.freeze([]) as unknown as number[];
@@ -39,14 +46,9 @@ const BUN_ROUTE_METHODS = new Set([
 const methodDispatchFactories = new Map<string, MethodDispatchFactory>();
 
 /**
- * Maps compiled method data to its fallback resolver.
- */
-export const methodDispatchers = new WeakMap<MethodData, MethodDispatch>();
-
-/**
  * Resolves a matched request to the dispatch of its capture group.
  */
-type MethodDispatch = (
+export type MethodDispatch = (
 	request: Request,
 	match: RegExpExecArray,
 ) => MaybePromise<Response>;
@@ -112,6 +114,8 @@ const flattenModuleTree = (
 				link.handler(groupModule),
 				[],
 				"",
+				// the literal is not aliased, so the callee can own it
+				true,
 			);
 
 			continue;
@@ -185,9 +189,7 @@ const flattenModuleTree = (
 
 		methodEndpoints.push({
 			chain,
-			dispatch: () => {
-				throw new Error("Endpoint dispatch not compiled");
-			},
+			dispatch: UNCOMPILED_DISPATCH,
 			matchOffset: 0,
 			paramFlags: EMPTY_PARAM_FLAGS,
 			paramKeys: EMPTY_PARAM_KEYS,
@@ -474,17 +476,17 @@ const compileMethod = (
 	}
 
 	const methodData: MethodData = {
+		// a single endpoint always matches through capture 1
+		dispatch:
+			fallbackEndpoints.length > 1
+				? compileMethodDispatch(fallbackEndpoints, fallbackTable)
+				: undefined,
 		endpoints: fallbackEndpoints,
 		regexp: new RegExp(
 			`^(?:https?:\\/\\/)[^\\s\\/]+(?:${fallbackPatterns.join("|")})(?![^?#])`,
 		),
 		table: fallbackTable,
 	};
-
-	methodDispatchers.set(
-		methodData,
-		compileMethodDispatch(fallbackEndpoints, fallbackTable),
-	);
 
 	app.methods[method] = methodData;
 };
@@ -543,6 +545,8 @@ export const compile = (app: Cudenix) => {
 		app.memory.module as AnyModule,
 		[],
 		"",
+		// the literal is not aliased, so the callee can own it
+		true,
 	);
 
 	for (const method in endpoints) {
