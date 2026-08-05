@@ -281,23 +281,24 @@ export const initializeI18n = async (
 };
 
 export const i18n = () =>
-	new Module().middleware(
-		({ request: { raw }, response: { cookies }, store }, next) => {
-			(store as Record<"i18n", Partial<I18n>>).i18n = {
-				language:
-					STORE.languages.length <= 1
-						? STORE.language
-						: (selectHeader(
-								(STORE.cookie
-									? cookies.get(STORE.cookie)
-									: undefined) ??
-									raw.headers.get(STORE.header!) ??
-									STORE.language,
-								STORE.languages,
-								PREFIX_MATCH_OPTIONS,
-							) ?? STORE.language),
-			};
+	// a plain parameter lets the analyzer narrow the context this middleware needs
+	new Module().middleware((context, next) => {
+		(context.store as Record<"i18n", Partial<I18n>>).i18n = {
+			language:
+				STORE.languages.length <= 1
+					? STORE.language
+					: (selectHeader(
+							(STORE.cookie
+								? context.response.cookies.get(STORE.cookie)
+								: undefined) ??
+								context.request.raw.headers.get(
+									STORE.header!,
+								) ??
+								STORE.language,
+							STORE.languages,
+							PREFIX_MATCH_OPTIONS,
+						) ?? STORE.language),
+		};
 
-			return next();
-		},
-	);
+		return next();
+	});
