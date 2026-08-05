@@ -23,6 +23,34 @@ const matchesMediaType = (
 };
 
 /**
+ * Reads a form body into a dictionary.
+ */
+const parseFormBody = async (request: Request) => {
+	const formData = await request.formData();
+
+	const body = new Empty();
+
+	// repeated form keys collapse into arrays
+	formData.forEach((value, key) => {
+		if (body[key] === undefined) {
+			body[key] = value;
+
+			return;
+		}
+
+		if (Array.isArray(body[key])) {
+			body[key].push(value);
+
+			return;
+		}
+
+		body[key] = [body[key], value];
+	});
+
+	return body;
+};
+
+/**
  * Parses a request body according to its content type.
  *
  * @example
@@ -36,7 +64,7 @@ const matchesMediaType = (
  * await parseBody(request); // { b: "v1" }
  * ```
  */
-export const parseBody = async (request: Request) => {
+export const parseBody = (request: Request) => {
 	const contentType = request.headers.get("content-type");
 
 	if (!contentType) {
@@ -103,28 +131,7 @@ export const parseBody = async (request: Request) => {
 	}
 
 	if (isForm) {
-		const formData = await request.formData();
-
-		const body = new Empty();
-
-		// repeated form keys collapse into arrays
-		formData.forEach((value, key) => {
-			if (body[key] === undefined) {
-				body[key] = value;
-
-				return;
-			}
-
-			if (Array.isArray(body[key])) {
-				body[key].push(value);
-
-				return;
-			}
-
-			body[key] = [body[key], value];
-		});
-
-		return body;
+		return parseFormBody(request);
 	}
 
 	return request.text();
