@@ -8,15 +8,9 @@ const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
 // regexp syntax plus "#"
 const STATIC_SEGMENT_SYNTAX = /[\\^$.*+?()[\]{}|#]/g;
 
-// escapes regexp syntax and percent-encodes "?" and "#"
-const escapeStaticSegment = (segment: string) =>
-	segment.replace(STATIC_SEGMENT_SYNTAX, (character) =>
-		character === "?"
-			? "%3F"
-			: character === "#"
-				? "%23"
-				: `\\${character}`,
-	);
+// escapes one regexp character and percent-encodes "?" and "#"
+const escapeStaticCharacter = (character: string) =>
+	character === "?" ? "%3F" : character === "#" ? "%23" : `\\${character}`;
 
 // segment specificity used to order routes: lower ranks match first
 const STATIC_RANK = 0;
@@ -143,7 +137,8 @@ export const pathToRegexp = (path: string) => {
 			// static segment
 			ranks.push(STATIC_RANK);
 
-			segment = `\\/${escapeStaticSegment(path.substring(i, contentEnd))}`;
+			// escape regexp syntax and percent-encode "?" and "#"
+			segment = `\\/${path.substring(i, contentEnd).replace(STATIC_SEGMENT_SYNTAX, escapeStaticCharacter)}`;
 		}
 
 		if (isOptional) {
