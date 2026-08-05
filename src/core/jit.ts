@@ -23,6 +23,19 @@ import { decodePathParam } from "@/utils/urls/decode-path-param";
 import { parseQuery } from "@/utils/urls/parse-query";
 
 /**
+ * Reads every enumerable property of a store result without keeping it.
+ */
+const drain = (source: Record<string, unknown>) => {
+	let value: unknown;
+
+	for (const key in source) {
+		value = source[key];
+	}
+
+	return value;
+};
+
+/**
  * Request validation slots in the order generated dispatchers declare them.
  */
 const VALIDATION_KEYS = [
@@ -53,6 +66,7 @@ interface FactoryDependencyValues {
 	chain: EndpointChain;
 	compiled: CompiledValidatorRuns;
 	decodePathParam: typeof decodePathParam;
+	drain: typeof drain;
 	Empty: typeof Empty;
 	fail: typeof fail;
 	Headers: typeof Headers;
@@ -664,14 +678,13 @@ const generateDispatcherBody = (
 			const call = `const ${returnedName}=${asyncMap[index] ? "await " : ""}${link("chain")}[${index}].handler(${linkArgument});`;
 			// a nested short circuit returns void
 			const shortCircuit = `${contentTarget}=${returnedName};${isNested ? "return;" : returnStatement}`;
-			const storeTarget = needsContext
-				? "context.store"
-				: needsStoreState
-					? "validatedStore"
-					: "";
+			const storeTarget = needsContext ? "context.store" : "";
+			// without a store object the result is only read for its side effects
 			const mergeStore = storeTarget
 				? `if(${returnedName}){${link("merge")}(${storeTarget},${returnedName})}`
-				: "";
+				: needsStoreState
+					? `if(${returnedName}){${link("drain")}(${returnedName})}`
+					: "";
 
 			return `{${call}if(${returnedName} instanceof ${link("Reply")}&&!${returnedName}.success){${shortCircuit}}${mergeStore}}${emit(index + 1, isNested)}`;
 		}
@@ -790,10 +803,6 @@ const generatePrelude = (
 			statements.push(
 				`let ${shape.validationKeys.map(slotTarget).join(",")};`,
 			);
-		}
-
-		if (shape.needsStoreState) {
-			statements.push(`const validatedStore=new ${link("Empty")}();`);
 		}
 	}
 
@@ -921,6 +930,8 @@ const resolveFactoryDependency = (
 			return parseQuery;
 		case "decodePathParam":
 			return decodePathParam;
+		case "drain":
+			return drain;
 		case "validator":
 			return validator;
 		case "handler":
