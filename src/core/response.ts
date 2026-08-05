@@ -2,6 +2,25 @@ import type { ContextResponse } from "@/core/context";
 
 const NOT_CONTENT = new Response(undefined, { status: 204 });
 
+const STREAM_INIT = {
+	headers: {
+		"cache-control": "no-cache",
+		connection: "keep-alive",
+		"content-type": "text/event-stream",
+	},
+};
+
+/**
+ * Applies one staged header to the response passed as `this`.
+ */
+function applyHeader(this: Response, value: string, name: string) {
+	if (name === "vary") {
+		this.headers.append(name, value);
+	} else {
+		this.headers.set(name, value);
+	}
+}
+
 /**
  * Applies staged cookies to a response.
  */
@@ -33,13 +52,7 @@ const applyHeaders = (
 		return result;
 	}
 
-	for (const [name, value] of headers) {
-		if (name === "vary") {
-			result.headers.append(name, value);
-		} else {
-			result.headers.set(name, value);
-		}
-	}
+	headers.forEach(applyHeader, result);
 
 	return result;
 };
@@ -53,13 +66,7 @@ const materialize = (content: ContextResponse["content"]): Response => {
 	}
 
 	if (content instanceof ReadableStream) {
-		return new Response(content, {
-			headers: {
-				"cache-control": "no-cache",
-				connection: "keep-alive",
-				"content-type": "text/event-stream",
-			},
-		});
+		return new Response(content, STREAM_INIT);
 	}
 
 	const inner = content.content;
@@ -68,6 +75,8 @@ const materialize = (content: ContextResponse["content"]): Response => {
 		return NOT_CONTENT.clone();
 	}
 
+	const status = content.status;
+
 	switch (inner.constructor?.name) {
 		case "Response":
 			return (inner as Response).clone();
@@ -75,10 +84,15 @@ const materialize = (content: ContextResponse["content"]): Response => {
 		case "Array":
 		case "Object":
 		case undefined:
-			return Response.json(inner, { status: content.status });
+			// 200 is the constructor default, and omitting the init skips parsing it
+			return status === 200
+				? Response.json(inner)
+				: Response.json(inner, { status });
 
 		default:
-			return new Response(inner as BodyInit, { status: content.status });
+			return status === 200
+				? new Response(inner as BodyInit)
+				: new Response(inner as BodyInit, { status });
 	}
 };
 
