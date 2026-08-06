@@ -3,6 +3,7 @@ import type {
 	RouteFnReturnGeneratorEnvelope,
 	RouteFnReturnGeneratorFrame,
 } from "@/core/route";
+import { peek, peekStatus } from "@/utils/promises/peek";
 
 const ENCODER = new TextEncoder();
 
@@ -60,7 +61,12 @@ export const stream = (generator: RouteFnReturnGenerator) => {
 			} catch {}
 		},
 		async pull(controller) {
-			const { done, value } = await iterator.next();
+			const stepped = iterator.next();
+			// a sync generator yields its frame instead of a promise
+			const { done, value } =
+				peekStatus(stepped) === "fulfilled"
+					? peek(stepped)
+					: await stepped;
 
 			if (done) {
 				if (value) {

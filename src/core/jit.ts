@@ -15,6 +15,7 @@ import { parseCookies } from "@/utils/cookies/parse-cookies";
 import { isAsync } from "@/utils/functions/is-async";
 import { Empty } from "@/utils/objects/empty";
 import { merge } from "@/utils/objects/merge";
+import { peek, peekStatus } from "@/utils/promises/peek";
 import {
 	PARAM_FLAG_OPTIONAL,
 	PARAM_FLAG_REST,
@@ -75,6 +76,8 @@ interface FactoryDependencyValues {
 	parseBody: typeof parseBody;
 	parseCookies: typeof parseCookies;
 	parseQuery: typeof parseQuery;
+	peek: typeof peek;
+	peekStatus: typeof peekStatus;
 	Reply: typeof Reply;
 	response: typeof response;
 	stream: typeof stream;
@@ -99,11 +102,23 @@ type LinkFactoryDependency = <Name extends FactoryDependencyName>(
 ) => Name;
 
 /**
- * Describes the prebuilt factory for a route that needs no generated dispatcher.
+ * Describes the prebuilt factory for a sync route that needs no generated
+ * dispatcher.
  */
-type DirectFactory = (
+type DirectSyncFactory = (
 	responseFn: typeof response,
 	handler: Endpoint["route"]["handler"],
+) => Endpoint["dispatch"];
+
+/**
+ * Describes the prebuilt factory for an async route that needs no generated
+ * dispatcher.
+ */
+type DirectAsyncFactory = (
+	responseFn: typeof response,
+	handler: Endpoint["route"]["handler"],
+	peekFn: typeof peek,
+	peekStatusFn: typeof peekStatus,
 ) => Endpoint["dispatch"];
 
 /**
@@ -213,7 +228,7 @@ const directSyncFactory = new Function(
 	"response",
 	"handler",
 	"return function(){return response(handler())}",
-) as DirectFactory;
+) as DirectSyncFactory;
 
 /**
  * Builds the dispatcher for an async route with no context and no chain.
@@ -221,8 +236,10 @@ const directSyncFactory = new Function(
 const directAsyncFactory = new Function(
 	"response",
 	"handler",
-	"return async function(){return response(await handler())}",
-) as DirectFactory;
+	"peek",
+	"peekStatus",
+	'return async function(){const returned=handler();return response(peekStatus(returned)==="fulfilled"?peek(returned):await returned)}',
+) as DirectAsyncFactory;
 
 /**
  * Returns whether an endpoint chain contains any link that executes.
@@ -390,7 +407,7 @@ const analyzeEndpoint = (
 			// cache-key tag for the link
 			tags[i] =
 				link.type === "MIDDLEWARE"
-					? `M${bit(isChainAsync)}${bit(awaitMap[i + 1])}`
+					? `M${bit(isChainAsync)}${bit(awaitMap[i + 1])}${bit(isHandlerAsync)}`
 					: `S${bit(isHandlerAsync)}`;
 
 			emitsBelow = true;
@@ -519,6 +536,12 @@ const createDependencyLinker = () => {
 
 	return { dependencies, link };
 };
+
+/**
+ * Emits the gate that reads a settled native promise instead of awaiting it.
+ */
+const gate = (name: string, link: LinkFactoryDependency) =>
+	`${link("peekStatus")}(${name})==="fulfilled"?${link("peek")}(${name}):await ${name}`;
 
 /**
  * Returns the generated local name for a request validation slot.
@@ -650,8 +673,16 @@ const generateDispatcherBody = (
 			);
 		}
 
+		if (!isRouteAsync) {
+			return terminate(
+				`${contentTarget}=${handlerName}(${routeArgument});`,
+				isNested,
+			);
+		}
+
+		// an async handler that never suspends settles before it is read
 		return terminate(
-			`${contentTarget}=${isRouteAsync ? "await " : ""}${handlerName}(${routeArgument});`,
+			`const handled=${handlerName}(${routeArgument});${contentTarget}=${gate("handled", link)};`,
 			isNested,
 		);
 	};
@@ -667,15 +698,22 @@ const generateDispatcherBody = (
 			const isTailAsync = awaitMap[index + 1];
 			const nextName = `next_${index}`;
 			const returnedName = `returned_${index}`;
+			// only an async link is known to return a native promise
+			const call = asyncMap[index]
+				? `let ${returnedName}=${link("chain")}[${index}].handler(${linkArgument},${nextName});${returnedName}=${gate(returnedName, link)};`
+				: `const ${returnedName}=${awaitMap[index] ? "await " : ""}${link("chain")}[${index}].handler(${linkArgument},${nextName});`;
 			// the next callback is async when the tail awaits
-			const block = `{const ${nextName}=${isTailAsync ? "async " : ""}()=>{${emit(index + 1, true)}};const ${returnedName}=${awaitMap[index] ? "await " : ""}${link("chain")}[${index}].handler(${linkArgument},${nextName});if(${returnedName}){${contentTarget}=${returnedName}}}`;
+			const block = `{const ${nextName}=${isTailAsync ? "async " : ""}()=>{${emit(index + 1, true)}};${call}if(${returnedName}){${contentTarget}=${returnedName}}}`;
 
 			return terminate(block, isNested);
 		}
 
 		if (chainLink?.type === "STORE") {
 			const returnedName = `returned_${index}`;
-			const call = `const ${returnedName}=${asyncMap[index] ? "await " : ""}${link("chain")}[${index}].handler(${linkArgument});`;
+			// only an async link is known to return a native promise
+			const call = asyncMap[index]
+				? `let ${returnedName}=${link("chain")}[${index}].handler(${linkArgument});${returnedName}=${gate(returnedName, link)};`
+				: `const ${returnedName}=${link("chain")}[${index}].handler(${linkArgument});`;
 			// a nested short circuit returns void
 			const shortCircuit = `${contentTarget}=${returnedName};${isNested ? "return;" : returnStatement}`;
 			const storeTarget = needsContext ? "context.store" : "";
@@ -714,16 +752,28 @@ const generateDispatcherBody = (
 				}
 
 				let call: string;
+				let prelude = "";
 
 				if (compiled) {
 					call = `${compiled.sync ? "" : "await "}${link("compiled")}[${index}].${key}(${target})`;
 				} else {
 					hasFallbackSlot = true;
-					call = `${isValidatorAsync ? "await " : ""}${link("validator")}(${requestTarget}.${key},${target},${JSON.stringify(key)})`;
+
+					const validatorCall = `${link("validator")}(${requestTarget}.${key},${target},${JSON.stringify(key)})`;
+
+					// an async validator that never suspends settles before it is read
+					if (isValidatorAsync) {
+						const slotName = `validated_${index}_${key}`;
+
+						prelude = `const ${slotName}=${validatorCall};`;
+						call = gate(slotName, link);
+					} else {
+						call = validatorCall;
+					}
 				}
 
 				// each slot gets its own block
-				validations += `{const validated=${call};if(validated.success){${target}=validated.content}else{(${errorTarget}??=new ${link("Empty")}()).${key}=validated.content}}`;
+				validations += `{${prelude}const validated=${call};if(validated.success){${target}=validated.content}else{(${errorTarget}??=new ${link("Empty")}()).${key}=validated.content}}`;
 			}
 
 			const failure = `${contentTarget}=${link("fail")}(${errorTarget},{status:422});${isNested ? "return;" : returnStatement}`;
@@ -932,6 +982,10 @@ const resolveFactoryDependency = (
 			return decodePathParam;
 		case "drain":
 			return drain;
+		case "peek":
+			return peek;
+		case "peekStatus":
+			return peekStatus;
 		case "validator":
 			return validator;
 		case "handler":
@@ -966,7 +1020,9 @@ export const inspectJitFactoryDependencies = (
 	const handlerAnalysis = analyzeHandler(handler);
 
 	if (isDirectDispatch(endpoint, handlerAnalysis, validator !== undefined)) {
-		return ["response", "handler"];
+		return handlerAnalysis.isAsync
+			? ["response", "handler", "peek", "peekStatus"]
+			: ["response", "handler"];
 	}
 
 	const shape = analyzeEndpoint(
@@ -999,7 +1055,7 @@ export const jit = (app: Cudenix, endpoint: Endpoint) => {
 
 	if (isDirectDispatch(endpoint, handlerAnalysis, validator !== undefined)) {
 		return handlerAnalysis.isAsync
-			? directAsyncFactory(response, handler)
+			? directAsyncFactory(response, handler, peek, peekStatus)
 			: directSyncFactory(response, handler);
 	}
 

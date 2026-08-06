@@ -32,6 +32,9 @@ const compileEcho: ValidatorCompiler = () => ({
 
 const compactSource = (source: string): string => source.replace(/\s+/g, "");
 
+const peekGate = (name: string): string =>
+	`peekStatus(${name})==="fulfilled"?peek(${name}):await${name}`;
+
 const expectNoContextAllocation = (source: string) => {
 	expect(compactSource(source)).not.toContain("constcontext=newEmpty()");
 };
@@ -353,7 +356,8 @@ describe("usage: jit", () => {
 
 			expect(source).not.toContain("\n");
 			expect(compactSource(source)).toContain("asyncfunction(){");
-			expect(compactSource(source)).toContain("awaithandler()");
+			expect(compactSource(source)).toContain("constreturned=handler()");
+			expect(compactSource(source)).toContain(peekGate("returned"));
 			expect(compactSource(source)).toContain("response(");
 			expect(compiled.length).toBe(0);
 
@@ -666,8 +670,9 @@ describe("usage: jit", () => {
 			expect(endpoint.response).toBeUndefined();
 			expectNoContextAllocation(source);
 			expect(compactSource(source)).toContain(
-				"awaitchain[0].handler(undefined,next_0)",
+				"letreturned_0=chain[0].handler(undefined,next_0)",
 			);
+			expect(compactSource(source)).toContain(peekGate("returned_0"));
 
 			const result = await server.fetch("/b");
 
@@ -687,8 +692,9 @@ describe("usage: jit", () => {
 
 			expectNoContextAllocation(source);
 			expect(compactSource(source)).toContain(
-				"awaitchain[0].handler(undefined,next_0)",
+				"letreturned_0=chain[0].handler(undefined,next_0)",
 			);
+			expect(compactSource(source)).toContain(peekGate("returned_0"));
 			expect(compactSource(source)).toContain("content=handler()");
 		});
 
@@ -1044,7 +1050,7 @@ describe("usage: jit", () => {
 			const asyncSource = jit(asyncServer.app, asyncEndpoint).toString();
 
 			expect(compactSource(asyncSource)).toContain(
-				"response(awaithandler())",
+				`response(${peekGate("returned")})`,
 			);
 			expect(asyncSource.startsWith("async")).toBe(true);
 
@@ -1129,8 +1135,12 @@ describe("usage: jit", () => {
 			expect(isAsync(middleware)).toBe(false);
 			expect(isAsync(endpoint.dispatch)).toBe(true);
 			expect(compact).toContain("constnext_0=async()=>");
+			// a sync link keeps its plain await
 			expect(compact).toContain("awaitchain[0].handler(context,next_0)");
-			expect(compact).toContain("awaitchain[1].handler(context)");
+			expect(compact).toContain(
+				"letreturned_1=chain[1].handler(context)",
+			);
+			expect(compact).toContain(peekGate("returned_1"));
 			expectNoDynamicPromiseAdoption(source);
 
 			const result = await app.fetch(new Request("http://localhost/a"));
@@ -1152,11 +1162,13 @@ describe("usage: jit", () => {
 			const source = jit(server.app, endpoint).toString();
 
 			expect(compactSource(source)).toContain(
-				"awaitchain[0].handler(context,next_0)",
+				"letreturned_0=chain[0].handler(context,next_0)",
 			);
+			expect(compactSource(source)).toContain(peekGate("returned_0"));
 			expect(compactSource(source)).toContain(
-				"awaitchain[1].handler(context)",
+				"letreturned_1=chain[1].handler(context)",
 			);
+			expect(compactSource(source)).toContain(peekGate("returned_1"));
 			expect(source).not.toContain("Promise");
 			expect(source).not.toContain(".then(");
 
@@ -1813,6 +1825,8 @@ describe("usage: jit", () => {
 				"response",
 				"parseQuery",
 				"validator",
+				"peekStatus",
+				"peek",
 				"Empty",
 				"fail",
 				"chain",
@@ -1834,6 +1848,8 @@ describe("usage: jit", () => {
 			expect(inspectJitFactoryDependencies(app, endpoint)).toEqual([
 				"response",
 				"validator",
+				"peekStatus",
+				"peek",
 				"Empty",
 				"parseQuery",
 				"compiled",

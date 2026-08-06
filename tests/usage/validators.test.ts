@@ -569,7 +569,8 @@ describe("usage: validators", () => {
 			const source = endpoint.dispatch.toString();
 
 			expect(isAsync(endpoint.dispatch)).toBe(true);
-			expect(source).toContain("await validator(");
+			expect(source).toContain("const validated_0_headers=validator(");
+			expect(source).toContain("await validated_0_headers");
 			expect(source).toContain("compiled[0].query(");
 			expect(source).not.toContain("await compiled");
 			expect(result.status).toBe(200);

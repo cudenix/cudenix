@@ -3,6 +3,7 @@ import { ok } from "@/core/reply";
 import { response } from "@/core/response";
 import { selectHeader } from "@/utils/headers/select-header";
 import { FrozenEmpty } from "@/utils/objects/empty";
+import { peek, peekStatus } from "@/utils/promises/peek";
 
 const COMPRESSIBLE_REGEXP =
 	/^\s*(?:text\/(?!event-stream(?:[;\s]|$))[^;\s]+|application\/(?:json|javascript|xml|x-www-form-urlencoded)|[^;\s]+\/[^;\s]+\+(?:json|text|xml|yaml))(?:[;\s]|$)/i;
@@ -26,7 +27,12 @@ interface CompressOptions {
 export const compress = ({ threshold = 1024 }: CompressOptions = FrozenEmpty) =>
 	// a plain parameter lets the analyzer narrow the context this middleware needs
 	new Module().middleware(async (context, next) => {
-		await next();
+		const returned = next();
+
+		// a chain that never suspends settles before it is read
+		if (peekStatus(returned) !== "fulfilled") {
+			await returned;
+		}
 
 		const content = context.response.content;
 		const raw = context.request.raw;
@@ -94,7 +100,10 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FrozenEmpty) =>
 				new CompressionStream(COMPRESSION_ALGORITHM[encodingName]),
 			);
 		} else {
-			const buffer = await processedResponse.arrayBuffer();
+			const read = processedResponse.arrayBuffer();
+			// a buffered body settles before it is read
+			const buffer =
+				peekStatus(read) === "fulfilled" ? peek(read) : await read;
 
 			if (buffer.byteLength < threshold) {
 				return;

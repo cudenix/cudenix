@@ -33,6 +33,34 @@ describe("usage: handlers", () => {
 			expect(await result.text()).toBe("async");
 		});
 
+		it("should resolve an asynchronous function handler that never suspends", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", async () => ok("async")),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(await result.text()).toBe("async");
+		});
+
+		it("should surface a rejection from an asynchronous function handler that never suspends", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", async () => {
+					throw new Error("v1");
+				}),
+				{
+					listen: {
+						error: () => new Response(undefined, { status: 500 }),
+					},
+				},
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(500);
+		});
+
 		it("should expose the raw request to the handler", async () => {
 			using server = serveApp(
 				new Module().route("GET", "/a", (context) =>
