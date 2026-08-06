@@ -42,16 +42,12 @@ const applyCookies = (
 };
 
 /**
- * Applies staged headers to a response.
+ * Applies staged headers to a response that already carries its own.
  */
 const applyHeaders = (
 	result: Response,
-	headers?: ContextResponse["headers"],
+	headers: ContextResponse["headers"],
 ) => {
-	if (!headers) {
-		return result;
-	}
-
 	headers.forEach(applyHeader, result);
 
 	return result;
@@ -97,6 +93,50 @@ const materialize = (content: ContextResponse["content"]): Response => {
 };
 
 /**
+ * Materializes response content, folding staged headers into construction.
+ *
+ * Mirrors the branches of {@link materialize}: every branch that builds a fresh
+ * response carries the headers in its init, and the two that inherit headers
+ * from elsewhere merge the staged ones on top instead.
+ */
+const materializeStaged = (
+	content: ContextResponse["content"],
+	headers: ContextResponse["headers"],
+) => {
+	if (!content) {
+		return new Response(undefined, { headers, status: 204 });
+	}
+
+	if (content instanceof ReadableStream) {
+		// the stream defaults are overridable, so staged headers land on top
+		return applyHeaders(new Response(content, STREAM_INIT), headers);
+	}
+
+	const inner = content.content;
+
+	if (inner === null || inner === undefined) {
+		return new Response(undefined, { headers, status: 204 });
+	}
+
+	const status = content.status;
+
+	switch (inner.constructor?.name) {
+		case "Response":
+			// the clone brings its own headers, so staged ones land on top
+			return applyHeaders((inner as Response).clone(), headers);
+
+		case "Array":
+		case "Object":
+		case undefined:
+			// one native copy, where a built response costs a crossing per header
+			return Response.json(inner, { headers, status });
+
+		default:
+			return new Response(inner as BodyInit, { headers, status });
+	}
+};
+
+/**
  * Materializes the content of a {@link ContextResponse}.
  *
  * @example
@@ -131,4 +171,11 @@ export const response = (
 	content: ContextResponse["content"],
 	cookies?: ContextResponse["cookies"],
 	headers?: ContextResponse["headers"],
-) => applyCookies(applyHeaders(materialize(content), headers), cookies);
+) =>
+	applyCookies(
+		// an empty staged set costs more to hand to an init than to skip
+		headers?.count
+			? materializeStaged(content, headers)
+			: materialize(content),
+		cookies,
+	);

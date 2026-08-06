@@ -221,6 +221,182 @@ describe("usage: responses", () => {
 		});
 	});
 
+	describe("staged headers", () => {
+		it("should carry a staged header onto a JSON response under its status", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.headers.set("x-a", "v1");
+					context.response.headers.set("x-b", "v2");
+
+					return ok({ a: "v1" }, { status: 201 });
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(201);
+			expect(result.headers.get("x-a")).toBe("v1");
+			expect(result.headers.get("x-b")).toBe("v2");
+			expect(result.headers.get("content-type")).toContain(
+				"application/json",
+			);
+			expect(await result.json()).toEqual({ a: "v1" });
+		});
+
+		it("should let a staged content-type override the JSON default", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.headers.set(
+						"content-type",
+						"application/vnd.api+json",
+					);
+
+					return ok({ a: "v1" });
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.headers.get("content-type")).toBe(
+				"application/vnd.api+json",
+			);
+			expect(await result.json()).toEqual({ a: "v1" });
+		});
+
+		it("should let a staged content-type override the one inferred from a text body", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.headers.set("content-type", "text/csv");
+
+					return ok("a,b,c");
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.headers.get("content-type")).toBe("text/csv");
+			expect(await result.text()).toBe("a,b,c");
+		});
+
+		it("should keep both values of a twice-appended vary", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.headers.append("vary", "origin");
+					context.response.headers.append("vary", "accept-encoding");
+
+					return ok({ a: "v1" });
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.headers.get("vary")).toBe("origin, accept-encoding");
+		});
+
+		it("should carry staged headers onto a 204", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.headers.set("x-a", "v1");
+
+					return ok(null);
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(204);
+			expect(result.headers.get("x-a")).toBe("v1");
+			expect(await result.text()).toBe("");
+		});
+
+		it("should keep every staged set-cookie header rather than only the last", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.headers.append("set-cookie", "a=v1");
+					context.response.headers.append("set-cookie", "b=v2");
+
+					return ok({ a: "v1" });
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.headers.getSetCookie()).toEqual(["a=v1", "b=v2"]);
+		});
+
+		it("should append staged cookies after staged headers", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.headers.set("x-a", "v1");
+					context.response.cookies.set("a", "v1");
+					context.response.cookies.set("b", "v2");
+
+					return ok({ a: "v1" });
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.headers.get("x-a")).toBe("v1");
+
+			const setCookie = result.headers.getSetCookie();
+
+			expect(setCookie).toHaveLength(2);
+			expect(setCookie[0]).toContain("a=v1");
+			expect(setCookie[1]).toContain("b=v2");
+		});
+
+		it("should merge staged headers onto a handler-returned Response", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.headers.set("x-a", "v1");
+					context.response.headers.append("vary", "accept-encoding");
+
+					return ok(
+						new Response("raw", {
+							headers: {
+								vary: "origin",
+								"x-a": "v2",
+								"x-b": "v2",
+							},
+							status: 207,
+						}),
+					);
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(207);
+			// a staged header replaces the one the response carried
+			expect(result.headers.get("x-a")).toBe("v1");
+			// one it did not stage survives untouched
+			expect(result.headers.get("x-b")).toBe("v2");
+			// vary accumulates instead of replacing
+			expect(result.headers.get("vary")).toBe("origin, accept-encoding");
+			expect(await result.text()).toBe("raw");
+		});
+
+		it("should leave the defaults alone when a handler reads headers without staging any", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", (context) => {
+					context.response.headers.get("x-a");
+
+					return ok({ a: "v1" });
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(200);
+			expect(result.headers.get("x-a")).toBeNull();
+			expect(result.headers.get("content-type")).toContain(
+				"application/json",
+			);
+			expect(await result.json()).toEqual({ a: "v1" });
+		});
+	});
+
 	describe("static handlers", () => {
 		it("should serialize a static object envelope as JSON under its status", async () => {
 			using server = serveApp(
