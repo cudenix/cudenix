@@ -583,7 +583,7 @@ const generateParamsParser = (
 			continue;
 		}
 
-		const matchGroupIndex = matchOffset + 1 + i;
+		const matchGroupIndex = matchOffset + i;
 		const keyLiteral = JSON.stringify(paramKey);
 		const valueName = `value_${i}`;
 		const flags = paramFlags?.[i];

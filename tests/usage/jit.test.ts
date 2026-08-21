@@ -2001,11 +2001,11 @@ describe("usage: jit", () => {
 				),
 			);
 
-			expect(required).toContain("decodePathParam(match[2])");
+			expect(required).toContain("decodePathParam(match[1])");
 			expect(compactSource(required)).not.toContain(
 				"value_0!==undefined",
 			);
-			expect(compactSource(optional)).toContain("constvalue_0=match[2]");
+			expect(compactSource(optional)).toContain("constvalue_0=match[1]");
 			expect(compactSource(optional)).toContain("value_0!==undefined");
 		});
 
@@ -2024,7 +2024,7 @@ describe("usage: jit", () => {
 
 			const source = jit(app, endpoint).toString();
 
-			expect(compactSource(source)).toContain("constvalue_0=match[2]");
+			expect(compactSource(source)).toContain("constvalue_0=match[1]");
 			expect(compactSource(source)).toContain("value_0!==undefined");
 		});
 
@@ -2046,7 +2046,7 @@ describe("usage: jit", () => {
 			);
 
 			expect(required).toContain(
-				'match[2].split("/").map(decodePathParam)',
+				'match[1].split("/").map(decodePathParam)',
 			);
 			expect(compactSource(required)).not.toContain(
 				"value_0!==undefined",
@@ -2056,10 +2056,10 @@ describe("usage: jit", () => {
 				'value_0.split("/").map(decodePathParam)',
 			);
 			expect(compactSource(duplicate)).toContain(
-				'params["same"]=decodePathParam(match[2])',
+				'params["same"]=decodePathParam(match[1])',
 			);
 			expect(compactSource(duplicate)).toContain(
-				'params["same"]=match[3].split("/").map(decodePathParam)',
+				'params["same"]=match[2].split("/").map(decodePathParam)',
 			);
 		});
 
