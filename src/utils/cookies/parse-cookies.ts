@@ -94,9 +94,8 @@ export const parseCookies = (header: string) => {
 					valueEnd--;
 				}
 
-				const name = isEncoded
-					? decodePathParam(header.substring(nameStart, nameEnd))
-					: header.substring(nameStart, nameEnd);
+				// RFC 6265 names are tokens: only the value is decoded
+				const name = header.substring(nameStart, nameEnd);
 
 				// first one wins
 				if (cookies[name] === undefined) {

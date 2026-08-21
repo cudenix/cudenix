@@ -102,11 +102,12 @@ describe("parseCookies", () => {
 			expect(result.b).toBe("2");
 		});
 
-		it("should percent-decode names", () => {
+		it("should leave names percent-encoded", () => {
+			// RFC 6265 names are tokens; Bun.CookieMap decodes values only
 			const result = parseCookies("a%20b=1");
 
-			expect(result["a b"]).toBe("1");
-			expect("a%20b" in result).toBe(false);
+			expect(result["a%20b"]).toBe("1");
+			expect("a b" in result).toBe(false);
 		});
 
 		it("should preserve whitespace inside values", () => {
@@ -235,9 +236,15 @@ describe("parseCookies", () => {
 			expect(parseCookies("a=1; a=").a).toBe("1");
 		});
 
-		it("should compare duplicate names after decoding them", () => {
-			expect(parseCookies("a%20b=v1; a b=v2")).toEqual({ "a b": "v1" });
-			expect(parseCookies("a b=v1; a%20b=v2")).toEqual({ "a b": "v1" });
+		it("should treat an encoded name as distinct from its decoded form", () => {
+			expect(parseCookies("a%20b=v1; a b=v2")).toEqual({
+				"a b": "v2",
+				"a%20b": "v1",
+			});
+			expect(parseCookies("a b=v1; a%20b=v2")).toEqual({
+				"a b": "v1",
+				"a%20b": "v2",
+			});
 		});
 
 		it("should not let a chunk without '=' reserve the name", () => {
