@@ -99,7 +99,7 @@ export const parseQuery = (url: string) => {
 
 		if (key.length > 0) {
 			if (flags & KEY_HAS_PLUS) {
-				key = key.replaceAll("+", " ");
+				key = key.split("+").join(" ");
 			}
 
 			if (flags & KEY_HAS_PERCENT) {
@@ -112,7 +112,7 @@ export const parseQuery = (url: string) => {
 
 			if (hasValue) {
 				if (flags & VALUE_HAS_PLUS) {
-					value = value.replaceAll("+", " ");
+					value = value.split("+").join(" ");
 					parsed = value;
 				}
 
