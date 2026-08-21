@@ -135,7 +135,8 @@ export const replace = <Translation extends string>(
 
 	while (i < length) {
 		if (
-			translation.charCodeAt(i) === 24 &&
+			// "$" (36) followed by "{" (0x7b) opens a placeholder
+			translation.charCodeAt(i) === 36 &&
 			i + 1 < length &&
 			translation.charCodeAt(i + 1) === 0x7b
 		) {
