@@ -131,7 +131,13 @@ const proxyHandler: ProxyHandler<any> = {
 			} else {
 				options.body = JSON.stringify(body);
 
-				options.headers["content-type"] = "application/json";
+				// copy rather than mutate: the spread on line 79 is shallow, so
+				// writing here would poison a headers object shared with the
+				// client's own options and with every later call
+				options.headers = {
+					...options.headers,
+					"content-type": "application/json",
+				};
 			}
 		}
 
