@@ -50,7 +50,7 @@ export const PARAM_FLAG_REST = 2;
  * paramKeys; // ["p1"]
  * paramFlags; // [0]
  * ranks; // [0, 1]
- * match[2]; // "v1"
+ * match[1]; // "v1"
  *
  * pathToRegexp("/a/...r1").restKeys; // ["r1"]
  * ```
@@ -60,8 +60,8 @@ export const pathToRegexp = (path: string) => {
 		return {
 			paramFlags: [],
 			paramKeys: [],
-			// the leading "()" marks which route matched
-			pattern: String.raw`()\/`,
+			// the trailing "()" marks which route matched
+			pattern: String.raw`\/()`,
 			ranks: [],
 			restKeys: [],
 		};
@@ -157,11 +157,11 @@ export const pathToRegexp = (path: string) => {
 	if (segments) {
 		// fully-optional patterns also match the bare "/" path
 		pattern = areAllSegmentsOptional
-			? `()(?:${segments}|\\/)`
-			: `()${segments}`;
+			? `(?:${segments}|\\/)()`
+			: `${segments}()`;
 	} else {
 		// a path of nothing but separators normalizes to the root
-		pattern = length ? String.raw`()\/` : "()";
+		pattern = length ? String.raw`\/()` : "()";
 	}
 
 	return { paramFlags, paramKeys, pattern, ranks, restKeys };
