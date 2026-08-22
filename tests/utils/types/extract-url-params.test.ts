@@ -23,7 +23,7 @@ const parseParams = (path: string, url: string) => {
 	for (let i = 0; i < paramKeys.length; i++) {
 		const key = paramKeys[i];
 		const flags = paramFlags[i];
-		const captured = match[2 + i];
+		const captured = match[1 + i];
 
 		if (key === undefined || flags === undefined) {
 			continue;
