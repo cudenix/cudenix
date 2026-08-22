@@ -19,10 +19,6 @@ const VALUE_HAS_PERCENT = 8;
 export const parseQuery = (url: string) => {
 	const params = new Empty() as Record<string, unknown>;
 
-	if (!url) {
-		return params;
-	}
-
 	const queryIndex = url.indexOf("?");
 
 	if (queryIndex === -1) {
