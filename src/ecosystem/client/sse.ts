@@ -27,11 +27,7 @@ export type AnySSE = SSE<any>;
 
 type Constructor = new (url: string | URL, options?: EventSourceInit) => AnySSE;
 
-export const SSE = function SSE(
-	this: AnySSE,
-	url: string | URL,
-	options?: EventSourceInit,
-) {
+export const SSE = function SSE(url: string | URL, options?: EventSourceInit) {
 	const listenerMap = new Map<string, (...args: any[]) => any>();
 	const wrapperMap = new Map<string, (...args: any[]) => any>();
 
