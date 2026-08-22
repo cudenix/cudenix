@@ -64,7 +64,6 @@ interface I18n {
 	header?: string;
 	language: string;
 	languages: string[];
-	path: string;
 	translations: Translation;
 }
 
@@ -249,7 +248,6 @@ export const initializeI18n = async (
 		header: header ?? "accept-language",
 		language,
 		languages,
-		path,
 		translations: new Empty() as Translation,
 	});
 
