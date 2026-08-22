@@ -10,6 +10,7 @@ import type { CompiledMount } from "@/core/mount";
 import { response } from "@/core/response";
 import { cloneAppend } from "@/utils/arrays/clone-append";
 import { Empty } from "@/utils/objects/empty";
+import { peek, peekStatus } from "@/utils/promises/peek";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
@@ -31,6 +32,7 @@ const EMPTY_PARAM_KEYS = Object.freeze([]) as unknown as string[];
  * Methods Bun's native router accepts.
  */
 const BUN_ROUTE_METHODS = new Set([
+	"CONNECT",
 	"DELETE",
 	"GET",
 	"HEAD",
@@ -38,6 +40,7 @@ const BUN_ROUTE_METHODS = new Set([
 	"PATCH",
 	"POST",
 	"PUT",
+	"TRACE",
 ]);
 
 /**
@@ -190,6 +193,7 @@ const flattenModuleTree = (
 		methodEndpoints.push({
 			chain,
 			dispatch: UNCOMPILED_DISPATCH,
+			markerOffset: 0,
 			matchOffset: 0,
 			paramFlags: EMPTY_PARAM_FLAGS,
 			paramKeys: EMPTY_PARAM_KEYS,
@@ -359,7 +363,7 @@ const compileMethodDispatch = (endpoints: Endpoint[], table: Endpoint[]) => {
 	let key = "";
 
 	for (let i = 1; i < endpoints.length; i++) {
-		const offset = endpoints[i]!.matchOffset;
+		const offset = endpoints[i]!.markerOffset;
 
 		key += `${offset},`;
 		dispatchCode += `if (match[${offset}] !== undefined) return table[${offset}].dispatch(request, match);\n`;
@@ -442,7 +446,9 @@ const compileMethod = (
 
 		const endpoint = analyzedEndpoint.endpoint;
 		const isStatic = endpoint.route.static && endpoint.chain.length === 0;
+		const markerOffset = matchOffset + endpoint.paramKeys.length;
 
+		endpoint.markerOffset = markerOffset;
 		endpoint.matchOffset = matchOffset;
 
 		if (isStatic) {
@@ -459,10 +465,10 @@ const compileMethod = (
 		fallbackEndpoints.push(endpoint);
 		fallbackPatterns.push(analyzedEndpoint.pattern);
 
-		fallbackTable[matchOffset] = endpoint;
+		fallbackTable[markerOffset] = endpoint;
 
-		// skip the marker and parameter captures
-		matchOffset += 1 + endpoint.paramKeys.length;
+		// skip past this endpoint's parameter captures and its marker
+		matchOffset = markerOffset + 1;
 
 		// only the first endpoint of each pattern reaches Bun's router
 		if (
@@ -475,13 +481,20 @@ const compileMethod = (
 		}
 	}
 
+	const firstEndpoint = fallbackEndpoints[0];
+
+	if (!firstEndpoint) {
+		return;
+	}
+
 	const methodData: MethodData = {
-		// a single endpoint always matches through capture 1
+		// a single endpoint always matches through its own marker
 		dispatch:
 			fallbackEndpoints.length > 1
 				? compileMethodDispatch(fallbackEndpoints, fallbackTable)
 				: undefined,
 		endpoints: fallbackEndpoints,
+		firstMarker: firstEndpoint.markerOffset,
 		regexp: new RegExp(
 			`^(?:https?:\\/\\/)[^\\s\\/]+(?:${fallbackPatterns.join("|")})(?![^?#])`,
 		),
