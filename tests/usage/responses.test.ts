@@ -397,6 +397,97 @@ describe("usage: responses", () => {
 		});
 	});
 
+	describe("content classification", () => {
+		// materialization dispatches on prototype identity for the shapes an app
+		// actually returns, and falls back to the constructor rule for the rest
+		it("should serialize an object delegating to a plain object as JSON", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", () =>
+					ok(
+						Object.assign(
+							Object.create({ inherited: "v1" }) as object,
+							{ own: "v2" },
+						),
+					),
+				),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.headers.get("content-type")).toContain(
+				"application/json",
+			);
+			expect(await result.json()).toEqual({ own: "v2" });
+		});
+
+		it("should serialize a null-prototype dictionary as JSON", async () => {
+			using server = serveApp(
+				new Module().route("GET", "/a", () => {
+					const dictionary = Object.create(null) as Record<
+						string,
+						string
+					>;
+
+					dictionary.a = "v1";
+
+					return ok(dictionary);
+				}),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.headers.get("content-type")).toContain(
+				"application/json",
+			);
+			expect(await result.json()).toEqual({ a: "v1" });
+		});
+
+		it("should serialize the store dictionary as JSON", async () => {
+			// context.store is an Empty, whose chain ends one link up
+			using server = serveApp(
+				new Module()
+					.store(() => ({ a: "v1" }))
+					.route("GET", "/a", (context) => ok(context.store)),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.headers.get("content-type")).toContain(
+				"application/json",
+			);
+			expect(await result.json()).toEqual({ a: "v1" });
+		});
+
+		it("should pass a Response subclass through instead of stringifying it", async () => {
+			class Redirected extends Response {}
+
+			using server = serveApp(
+				new Module().route("GET", "/a", () =>
+					ok(new Redirected("v1", { status: 201 })),
+				),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(result.status).toBe(201);
+			expect(await result.text()).toBe("v1");
+		});
+
+		it("should still send a class instance as a raw body", async () => {
+			class Point {
+				x = 1;
+			}
+
+			using server = serveApp(
+				new Module().route("GET", "/a", () => ok(new Point())),
+			);
+
+			const result = await server.fetch("/a");
+
+			expect(await result.text()).toBe("[object Object]");
+		});
+	});
+
 	describe("static handlers", () => {
 		it("should serialize a static object envelope as JSON under its status", async () => {
 			using server = serveApp(
@@ -414,6 +505,36 @@ describe("usage: responses", () => {
 				"application/json",
 			);
 			expect(await result.json()).toEqual({ a: "v1" });
+		});
+
+		it("should keep the inferred content-type on a static string envelope", async () => {
+			// the prebuilt response is re-backed with bytes so its clone is
+			// O(1), which must not cost the type Bun infers from a string body
+			using server = serveApp(new Module().route("GET", "/a", ok("v1")));
+
+			const result = await server.fetch("/a");
+
+			expect(result.headers.get("content-type")).toContain("text/plain");
+			expect(await result.text()).toBe("v1");
+		});
+
+		it("should serve a large static envelope identically on every request", async () => {
+			const payload = Array.from({ length: 500 }, (_, index) => ({
+				a: `v${index}`,
+			}));
+
+			using server = serveApp(
+				new Module().route("GET", "/a", ok(payload)),
+			);
+
+			const first = await server.fetch("/a");
+			const second = await server.fetch("/a");
+
+			expect(first.headers.get("content-type")).toContain(
+				"application/json",
+			);
+			expect(await first.json()).toEqual(payload);
+			expect(await second.json()).toEqual(payload);
 		});
 
 		it("should serve a static null envelope as a prebuilt 204", async () => {

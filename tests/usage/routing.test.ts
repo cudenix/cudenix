@@ -198,7 +198,7 @@ describe("usage: routing", () => {
 				expect(result.status).toBe(404);
 			});
 
-			it("should not implicitly answer HEAD or OPTIONS from a GET route", async () => {
+			it("should answer HEAD from a GET route without content, but not OPTIONS", async () => {
 				using server = serveApp(
 					new Module().route("GET", "/a", () => ok("get")),
 				);
@@ -208,8 +208,42 @@ describe("usage: routing", () => {
 				const options = await server.fetch("/a", { method: "OPTIONS" });
 
 				expect(get.status).toBe(200);
-				expect(head.status).toBe(404);
+				expect(head.status).toBe(200);
+				expect(await head.text()).toBe("");
 				expect(options.status).toBe(404);
+			});
+
+			it("should answer HEAD identically for native and fallback routes", async () => {
+				using server = serveApp(
+					new Module()
+						.route("GET", "/native", () => ok("v1"))
+						// a rest parameter keeps this off Bun's native router
+						.route("GET", "/fallback/...rest", () => ok("v2")),
+				);
+
+				const native = await server.fetch("/native", {
+					method: "HEAD",
+				});
+				const fallback = await server.fetch("/fallback/a/b", {
+					method: "HEAD",
+				});
+
+				expect(native.status).toBe(200);
+				expect(fallback.status).toBe(200);
+				expect(await native.text()).toBe("");
+				expect(await fallback.text()).toBe("");
+			});
+
+			it("should prefer a declared HEAD route over the one derived from GET", async () => {
+				using server = serveApp(
+					new Module()
+						.route("GET", "/a", () => ok("get"))
+						.route("HEAD", "/a", () => ok(null, { status: 204 })),
+				);
+
+				const result = await server.fetch("/a", { method: "HEAD" });
+
+				expect(result.status).toBe(204);
 			});
 		});
 
@@ -850,6 +884,97 @@ describe("usage: routing", () => {
 			expect(exact.status).toBe(200);
 			expect(await exact.text()).toBe("v1");
 			expect(trailing.status).toBe(404);
+		});
+	});
+
+	describe("capture layout", () => {
+		// the marker capture closes each pattern, so a route's parameters sit at
+		// matchOffset..matchOffset+n-1 and its marker at matchOffset+n. Getting
+		// that bookkeeping wrong silently routes a request to a sibling.
+		it("should route every endpoint of a large mixed table to its own handler", async () => {
+			let module = new Module();
+
+			const expected: [string, string][] = [];
+
+			for (let i = 0; i < 60; i++) {
+				const shape = i % 4;
+
+				if (shape === 0) {
+					module = module.route("GET", `/s${i}/leaf`, () =>
+						ok(`static-${i}`),
+					) as typeof module;
+
+					expected.push([`/s${i}/leaf`, `static-${i}`]);
+
+					continue;
+				}
+
+				if (shape === 1) {
+					module = module.route("GET", `/p${i}/:a/:b`, (context) =>
+						ok(
+							`param-${i}-${context.request.params.a}-${context.request.params.b}`,
+						),
+					) as typeof module;
+
+					expected.push([`/p${i}/x/y`, `param-${i}-x-y`]);
+
+					continue;
+				}
+
+				if (shape === 2) {
+					module = module.route("GET", `/r${i}/...rest`, (context) =>
+						ok(
+							`rest-${i}-${(context.request.params.rest as string[]).join("|")}`,
+						),
+					) as typeof module;
+
+					expected.push([`/r${i}/x/y/z`, `rest-${i}-x|y|z`]);
+
+					continue;
+				}
+
+				module = module.route("GET", `/o${i}/:a?`, (context) =>
+					ok(`optional-${i}-${context.request.params.a ?? "none"}`),
+				) as typeof module;
+
+				expected.push([`/o${i}/v`, `optional-${i}-v`]);
+				expected.push([`/o${i}`, `optional-${i}-none`]);
+			}
+
+			using server = serveApp(module);
+
+			for (const [path, body] of expected) {
+				const result = await server.fetch(path as `/${string}`);
+
+				expect(result.status).toBe(200);
+				expect(await result.text()).toBe(body);
+			}
+
+			const missing = await server.fetch("/wp-admin/setup-config.php");
+
+			expect(missing.status).toBe(404);
+		});
+
+		it("should resolve params identically through Bun's table and the fallback", async () => {
+			using server = serveApp(
+				new Module()
+					.route("GET", "/native/:a/:b", (context) =>
+						ok(
+							`${context.request.params.a}|${context.request.params.b}`,
+						),
+					)
+					.route("GET", "/fallback/:a/...b", (context) =>
+						ok(
+							`${context.request.params.a}|${(context.request.params.b as string[]).join(",")}`,
+						),
+					),
+			);
+
+			const native = await server.fetch("/native/v1/v2");
+			const fallback = await server.fetch("/fallback/v1/v2/v3");
+
+			expect(await native.text()).toBe("v1|v2");
+			expect(await fallback.text()).toBe("v1|v2,v3");
 		});
 	});
 });

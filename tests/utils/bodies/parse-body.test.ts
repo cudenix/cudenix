@@ -350,7 +350,7 @@ describe("parseBody", () => {
 			expect(result.b).toBe("v2");
 		});
 
-		it("should recognize a non canonical media type spelling and let Bun reject it", async () => {
+		it("should recognize a non canonical media type spelling", async () => {
 			const boundary = "v2";
 			const body = [
 				`--${boundary}`,
@@ -361,12 +361,12 @@ describe("parseBody", () => {
 				"",
 			].join("\r\n");
 
-			// formData() checks the header again case-sensitively and throws
-			await expect(
-				parseBody(
+			// formData() re-checks the header case-insensitively too
+			expect(
+				await parseBody(
 					request(body, `Multipart/Form-Data; boundary=${boundary}`),
 				),
-			).rejects.toThrow(TypeError);
+			).toEqual({ a: "v1" });
 
 			expect(
 				await parseBody(
@@ -494,10 +494,13 @@ describe("parseBody", () => {
 			expect(result).toBeInstanceOf(ArrayBuffer);
 		});
 
-		it("should match a case-insensitive urlencoded type and let Bun reject it", async () => {
-			await expect(
-				parseBody(request("a=v1", "APPLICATION/X-WWW-FORM-URLENCODED")),
-			).rejects.toThrow(TypeError);
+		it("should match a case-insensitive urlencoded type", async () => {
+			// formData() re-checks the header case-insensitively too
+			expect(
+				await parseBody(
+					request("a=v1", "APPLICATION/X-WWW-FORM-URLENCODED"),
+				),
+			).toEqual({ a: "v1" });
 
 			expect(
 				await parseBody(
