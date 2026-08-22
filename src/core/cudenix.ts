@@ -211,25 +211,19 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 		const match = methodData.regexp.exec(request.url);
 
 		if (match) {
-			const endpointTable = methodData.table;
+			// the marker of the highest-priority endpoint, past its own captures
+			const firstMarker = methodData.firstMarker;
 
-			// the first capture belongs to the highest-priority endpoint
-			if (match[1] !== undefined) {
-				return endpointTable[1]!.dispatch(request, match);
+			if (match[firstMarker] !== undefined) {
+				return methodData.table[firstMarker]!.dispatch(request, match);
 			}
 
 			const compiledDispatch = methodData.dispatch;
 
-			// unrolled resolver for the remaining captures
+			// unrolled resolver for the remaining markers, absent when the
+			// method holds the single endpoint the marker above already covers
 			if (compiledDispatch) {
 				return compiledDispatch(request, match);
-			}
-
-			// scan the remaining captures
-			for (let offset = 2; offset < match.length; offset++) {
-				if (match[offset] !== undefined) {
-					return endpointTable[offset]!.dispatch(request, match);
-				}
 			}
 		}
 	}
@@ -300,8 +294,6 @@ Cudenix.prototype.listen = function (this: Cudenix, options?: ListenOptions) {
 
 	this.server = Bun.serve<unknown, string>({
 		development: false,
-		// clustering opts in explicitly, so a port clash still reports EADDRINUSE
-		reusePort: IS_CLUSTER_WORKER,
 		...options,
 		fetch: (request) => this.fetch(request),
 		routes: this.routes,
