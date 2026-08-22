@@ -2,6 +2,9 @@ import type { ContextResponse } from "@/core/context";
 
 const NOT_CONTENT = new Response(undefined, { status: 204 });
 
+const ARRAY_PROTOTYPE = Array.prototype;
+const OBJECT_PROTOTYPE = Object.prototype;
+
 const STREAM_INIT = {
 	headers: {
 		"cache-control": "no-cache",
@@ -54,6 +57,58 @@ const applyHeaders = (
 };
 
 /**
+ * Content kinds {@link classifyContent} resolves to.
+ */
+const CONTENT_JSON = 0;
+const CONTENT_RESPONSE = 1;
+const CONTENT_BODY = 2;
+
+/**
+ * Resolves how content materializes.
+ *
+ * Replaces a `constructor?.name` switch. That call site sees every reply shape
+ * an app produces, so the property read is megamorphic and JSC cannot
+ * inline-cache it, and it then compares interned strings; the common cases here
+ * are pointer compares instead.
+ *
+ * The pointer compares settle the shapes an app actually returns; anything
+ * else falls through to the original `constructor` rule, so no reply changes
+ * how it serializes.
+ */
+const classifyContent = (inner: unknown) => {
+	if (typeof inner !== "object") {
+		return CONTENT_BODY;
+	}
+
+	const prototype = Object.getPrototypeOf(inner);
+
+	if (
+		prototype === OBJECT_PROTOTYPE ||
+		prototype === ARRAY_PROTOTYPE ||
+		prototype === null
+	) {
+		return CONTENT_JSON;
+	}
+
+	if (inner instanceof Response) {
+		return CONTENT_RESPONSE;
+	}
+
+	// everything else keeps the original rule, which resolved `constructor`
+	// through the whole chain: a value whose constructor is Object, Array or
+	// absent serializes as JSON. That covers Empty dictionaries, Bun's native
+	// route params, objects delegating to a plain object, and cross-realm
+	// arrays -- none of which the pointer compares above can see.
+	const name = (inner as object).constructor?.name;
+
+	if (name === undefined || name === "Object" || name === "Array") {
+		return CONTENT_JSON;
+	}
+
+	return name === "Response" ? CONTENT_RESPONSE : CONTENT_BODY;
+};
+
+/**
  * Materializes response content.
  */
 const materialize = (content: ContextResponse["content"]): Response => {
@@ -73,23 +128,22 @@ const materialize = (content: ContextResponse["content"]): Response => {
 
 	const status = content.status;
 
-	switch (inner.constructor?.name) {
-		case "Response":
-			return (inner as Response).clone();
+	const kind = classifyContent(inner);
 
-		case "Array":
-		case "Object":
-		case undefined:
-			// 200 is the constructor default, and omitting the init skips parsing it
-			return status === 200
-				? Response.json(inner)
-				: Response.json(inner, { status });
-
-		default:
-			return status === 200
-				? new Response(inner as BodyInit)
-				: new Response(inner as BodyInit, { status });
+	if (kind === CONTENT_JSON) {
+		// 200 is the constructor default, and omitting the init skips parsing it
+		return status === 200
+			? Response.json(inner)
+			: Response.json(inner, { status });
 	}
+
+	if (kind === CONTENT_RESPONSE) {
+		return (inner as Response).clone();
+	}
+
+	return status === 200
+		? new Response(inner as BodyInit)
+		: new Response(inner as BodyInit, { status });
 };
 
 /**
@@ -120,20 +174,19 @@ const materializeStaged = (
 
 	const status = content.status;
 
-	switch (inner.constructor?.name) {
-		case "Response":
-			// the clone brings its own headers, so staged ones land on top
-			return applyHeaders((inner as Response).clone(), headers);
+	const kind = classifyContent(inner);
 
-		case "Array":
-		case "Object":
-		case undefined:
-			// one native copy, where a built response costs a crossing per header
-			return Response.json(inner, { headers, status });
-
-		default:
-			return new Response(inner as BodyInit, { headers, status });
+	if (kind === CONTENT_JSON) {
+		// one native copy, where a built response costs a crossing per header
+		return Response.json(inner, { headers, status });
 	}
+
+	if (kind === CONTENT_RESPONSE) {
+		// the clone brings its own headers, so staged ones land on top
+		return applyHeaders((inner as Response).clone(), headers);
+	}
+
+	return new Response(inner as BodyInit, { headers, status });
 };
 
 /**
