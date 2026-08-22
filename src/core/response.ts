@@ -190,23 +190,6 @@ const materializeStaged = (
 };
 
 /**
- * Materializes the content of a {@link ContextResponse}.
- *
- * @example
- * ```typescript
- * const a = processResponse({
- *   content: ok({ a: "v1" }),
- *   cookies: new Bun.CookieMap(),
- *   headers: new Headers(),
- * });
- *
- * a.headers.get("content-type"); // "application/json;charset=utf-8"
- * ```
- */
-export const processResponse = (response: ContextResponse): Response =>
-	materialize(response.content);
-
-/**
  * Builds the final `Response` with staged cookies and headers.
  *
  * @example
