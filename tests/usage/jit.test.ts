@@ -2045,21 +2045,17 @@ describe("usage: jit", () => {
 				),
 			);
 
-			expect(required).toContain(
-				'match[1].split("/").map(decodePathParam)',
-			);
+			expect(required).toContain("decodeRestParam(match[1])");
 			expect(compactSource(required)).not.toContain(
 				"value_0!==undefined",
 			);
 			expect(compactSource(optional)).toContain("value_0!==undefined");
-			expect(optional).toContain(
-				'value_0.split("/").map(decodePathParam)',
-			);
+			expect(optional).toContain("decodeRestParam(value_0)");
 			expect(compactSource(duplicate)).toContain(
 				'params["same"]=decodePathParam(match[1])',
 			);
 			expect(compactSource(duplicate)).toContain(
-				'params["same"]=match[2].split("/").map(decodePathParam)',
+				'params["same"]=decodeRestParam(match[2])',
 			);
 		});
 
