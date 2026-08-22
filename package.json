@@ -82,9 +82,9 @@
 		"typecheck": "tsc --build tsconfig.json tests/tsconfig.json --noEmit --builders 8 --checkers 8"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.5.8",
-		"@types/bun": "1.3.14",
-		"tsc-alias": "1.9.1",
+		"@biomejs/biome": "2.5.10",
+		"@types/bun": "1.4.0",
+		"tsc-alias": "1.9.2",
 		"typescript": "7.0.2"
 	},
 	"publishConfig": {
