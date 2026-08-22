@@ -30,6 +30,7 @@ export type EndpointChain = (AnyMiddleware | AnyStore | AnyValidator)[];
  * const a: Endpoint = {
  *   chain: [],
  *   dispatch,
+ *   markerOffset: 1,
  *   matchOffset: 1,
  *   paramFlags: [],
  *   paramKeys: [],
@@ -45,6 +46,7 @@ export interface Endpoint {
 		request: Request,
 		match?: RegExpExecArray,
 	) => MaybePromise<Response>;
+	markerOffset: number;
 	matchOffset: number;
 	paramFlags?: number[];
 	paramKeys: string[];
@@ -59,12 +61,19 @@ export interface Endpoint {
  *
  * @example
  * ```typescript
- * const a: MethodData = { dispatch, endpoints: [endpoint], regexp, table };
+ * const a: MethodData = {
+ *   dispatch,
+ *   endpoints: [endpoint],
+ *   firstMarker: 1,
+ *   regexp,
+ *   table,
+ * };
  * ```
  */
 export interface MethodData {
 	dispatch?: MethodDispatch;
 	endpoints: Endpoint[];
+	firstMarker: number;
 	regexp: RegExp;
 	table: Endpoint[];
 }
@@ -77,9 +86,15 @@ export interface MethodData {
  * const a: Plugin = function () {
  *   this.memory.validator = someValidator;
  * };
+ *
+ * const b: Plugin = function () {
+ *   return () => {
+ *     this.memory.paths = Object.keys(this.methods);
+ *   };
+ * };
  * ```
  */
-export type Plugin = (this: Cudenix, ...options: any[]) => void;
+export type Plugin = (this: Cudenix, ...options: any[]) => void | (() => void);
 
 /**
  * Defines the options accepted when starting the application server.
@@ -148,15 +163,30 @@ Cudenix.prototype.compile = function (this: Cudenix) {
 		return;
 	}
 
+	let compiled: (() => void)[] | undefined;
+
 	if ("plugins" in this.memory) {
 		const plugins = this.memory.plugins as Plugin[];
 
 		for (let i = 0; i < plugins.length; i++) {
-			plugins[i]!.call(this);
+			const returned = plugins[i]!.call(this);
+
+			// a plugin that reads the route table defers until it exists
+			if (typeof returned === "function") {
+				compiled ??= [];
+
+				compiled.push(returned);
+			}
 		}
 	}
 
 	compile(this);
+
+	if (compiled) {
+		for (let i = 0; i < compiled.length; i++) {
+			compiled[i]!();
+		}
+	}
 
 	delete this.memory.module;
 	delete this.memory.plugins;
@@ -270,7 +300,8 @@ Cudenix.prototype.listen = function (this: Cudenix, options?: ListenOptions) {
 
 	this.server = Bun.serve<unknown, string>({
 		development: false,
-		reusePort: true,
+		// clustering opts in explicitly, so a port clash still reports EADDRINUSE
+		reusePort: IS_CLUSTER_WORKER,
 		...options,
 		fetch: (request) => this.fetch(request),
 		routes: this.routes,
