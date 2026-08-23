@@ -51,6 +51,15 @@ const malformedPercentCases = [
 	["%E2%82%GG", "��"],
 	["%C3%", "��"],
 	["%C3%A", "��A"],
+	// a "%" that runs into another one, which the fallback router receives
+	// whenever the url parser re-encodes the character after a literal "%"
+	["%%", "��"],
+	["%%%", "�"],
+	["%%22", "�2"],
+	["%2", "�2"],
+	["%20%", " �"],
+	["%aG", "�"],
+	["%Ga", "�"],
 ] as const;
 
 describe("decodePathParam", () => {
@@ -62,8 +71,31 @@ describe("decodePathParam", () => {
 		expect(decodePathParam("")).toBe("");
 	});
 
+	it("should decode escapes on both sides of a long literal run", () => {
+		const value = `%41${"b".repeat(200)}%41`;
+
+		expect(decodePathParam(value)).toBe(`A${"b".repeat(200)}A`);
+	});
+
+	it("should decode the same value at every length around 32 characters", () => {
+		// a length-gated fast path used to change the code path here
+		for (let padding = 26; padding <= 40; padding++) {
+			const value = `%20${"a".repeat(padding)}`;
+
+			expect(decodePathParam(value)).toBe(` ${"a".repeat(padding)}`);
+		}
+	});
+
+	it("should decode a run long enough to grow the shared byte buffer", () => {
+		// the pending-byte buffer starts at 64 bytes and doubles from there
+		const value = "%C3%A9".repeat(200);
+
+		expect(decodePathParam(value)).toBe("é".repeat(200));
+	});
+
 	it("should take the no-escape shortcut for long values", () => {
-		// longer than the 32 char threshold of the trailing "%" heuristic
+		// long enough that a length-gated fast path would have taken a
+		// different branch than a short value
 		const value = "a+b-c".repeat(8);
 
 		expect(value.length).toBeGreaterThanOrEqual(32);

@@ -1,34 +1,38 @@
-/**
- * Converts a hexadecimal character code to its value, or -1 if not hexadecimal.
- */
-const hexCharCodeToValue = (charCode: number) => {
+// hexadecimal digit values indexed by char code, -1 for every other character
+const HEX_VALUES = /* @__PURE__ */ (() => {
+	const values = new Int8Array(256).fill(-1);
+
 	// "0" (48) - "9" (57)
-	if (charCode >= 48 && charCode <= 57) {
-		return charCode - 48;
+	for (let charCode = 48; charCode <= 57; charCode++) {
+		values[charCode] = charCode - 48;
 	}
 
-	// "| 32" lowercases letters
-	const lowerCharCode = charCode | 32;
+	// 87 = "a" (97) - 10, mapping "a"-"f" to 10-15, and "- 32" uppercase
+	for (let charCode = 97; charCode <= 102; charCode++) {
+		values[charCode] = charCode - 87;
+		values[charCode - 32] = charCode - 87;
+	}
 
-	// 87 = "a" (97) - 10, mapping "a"-"f" to 10-15
-	return lowerCharCode >= 97 && lowerCharCode <= 102
-		? lowerCharCode - 87
-		: -1;
-};
+	return values;
+})();
+
+// pending percent-decoded bytes, flushed as UTF-8 when a run ends. one shared
+// buffer is enough because decodePathParam is synchronous and calls nothing
+// that can re-enter it, and it saves an allocation on every escaped value
+let pendingBytes = new Uint8Array(64);
 
 /**
- * Decodes a UTF-8 byte sequence.
+ * Decodes the first `count` pending bytes as a UTF-8 sequence.
  */
-const decodeUtf8Bytes = (bytes: number[]) => {
+const decodeUtf8Bytes = (count: number) => {
+	// hoisted so the loop does not reload the module binding on every read
+	const bytes = pendingBytes;
+
 	let decoded = "";
 	let i = 0;
 
-	while (i < bytes.length) {
-		const firstByte = bytes[i];
-
-		if (firstByte === undefined) {
-			break;
-		}
+	while (i < count) {
+		const firstByte = bytes[i]!;
 
 		let codePoint: number;
 		let minimumCodePoint: number;
@@ -56,14 +60,11 @@ const decodeUtf8Bytes = (bytes: number[]) => {
 
 		let sequenceEnd = i + 1;
 
-		while (sequenceEnd < i + sequenceLength && sequenceEnd < bytes.length) {
-			const continuationByte = bytes[sequenceEnd];
+		while (sequenceEnd < i + sequenceLength && sequenceEnd < count) {
+			const continuationByte = bytes[sequenceEnd]!;
 
 			// continuation bytes must match 10xxxxxx
-			if (
-				continuationByte === undefined ||
-				(continuationByte & 192) !== 128
-			) {
+			if ((continuationByte & 192) !== 128) {
 				break;
 			}
 
@@ -113,54 +114,47 @@ export const decodePathParam = (value: string) => {
 
 	const length = value.length;
 
-	let lastPercentIndex = length;
-
-	// long values: locate the last "%" (37)
-	if (length >= 32) {
-		// check the final 3 positions for the last "%"
-		if (value.charCodeAt(length - 1) === 37) {
-			lastPercentIndex = length - 1;
-		} else if (value.charCodeAt(length - 2) === 37) {
-			lastPercentIndex = length - 2;
-		} else if (value.charCodeAt(length - 3) === 37) {
-			lastPercentIndex = length - 3;
-		} else {
-			lastPercentIndex = value.lastIndexOf("%");
-		}
-	}
-
-	// pending percent-decoded bytes, flushed as UTF-8 when a run ends
-	const bytes: number[] = [];
-
 	let decoded = value.substring(0, firstPercentIndex);
 	let i = firstPercentIndex;
+	let pending = 0;
 
 	while (i < length) {
 		// literal character, not "%" (37)
 		if (value.charCodeAt(i) !== 37) {
-			if (bytes.length > 0) {
-				decoded += decodeUtf8Bytes(bytes);
-				bytes.length = 0;
+			if (pending > 0) {
+				decoded += decodeUtf8Bytes(pending);
+				pending = 0;
 			}
 
-			// past the last "%": append the rest in one substring
-			if (i > lastPercentIndex) {
-				decoded += value.substring(i);
+			const nextPercentIndex = value.indexOf("%", i);
+			const runEnd = nextPercentIndex === -1 ? length : nextPercentIndex;
 
+			// a run of more than three characters copies at once, because
+			// appending it one character at a time costs an append per
+			// character, while a shorter run is cheaper appended than sliced
+			if (runEnd - i > 3) {
+				decoded += value.substring(i, runEnd);
+				i = runEnd;
+			} else {
+				while (i < runEnd) {
+					decoded += value[i];
+					i++;
+				}
+			}
+
+			// no escape left, so the run above was the rest of the value
+			if (nextPercentIndex === -1) {
 				break;
 			}
-
-			decoded += value[i];
-			i++;
 
 			continue;
 		}
 
 		// truncated "%xx"
 		if (i + 2 >= length) {
-			if (bytes.length > 0) {
-				decoded += decodeUtf8Bytes(bytes);
-				bytes.length = 0;
+			if (pending > 0) {
+				decoded += decodeUtf8Bytes(pending);
+				pending = 0;
 			}
 
 			decoded += "�";
@@ -169,13 +163,14 @@ export const decodePathParam = (value: string) => {
 			continue;
 		}
 
-		const highNibble = hexCharCodeToValue(value.charCodeAt(i + 1));
-		const lowNibble = hexCharCodeToValue(value.charCodeAt(i + 2));
+		// a char code above 255 reads as undefined, which is not hexadecimal
+		const highNibble = HEX_VALUES[value.charCodeAt(i + 1)] ?? -1;
+		const lowNibble = HEX_VALUES[value.charCodeAt(i + 2)] ?? -1;
 
 		if (highNibble === -1 || lowNibble === -1) {
-			if (bytes.length > 0) {
-				decoded += decodeUtf8Bytes(bytes);
-				bytes.length = 0;
+			if (pending > 0) {
+				decoded += decodeUtf8Bytes(pending);
+				pending = 0;
 			}
 
 			decoded += "�";
@@ -188,21 +183,31 @@ export const decodePathParam = (value: string) => {
 
 		// ASCII decodes directly; higher bytes join a multi-byte run
 		if (byte <= 127) {
-			if (bytes.length > 0) {
-				decoded += decodeUtf8Bytes(bytes);
-				bytes.length = 0;
+			if (pending > 0) {
+				decoded += decodeUtf8Bytes(pending);
+				pending = 0;
 			}
 
 			decoded += String.fromCharCode(byte);
 		} else {
-			bytes.push(byte);
+			// a run is at most a third of the value, so the buffer grows with it
+			if (pending === pendingBytes.length) {
+				const grown = new Uint8Array(pending * 2);
+
+				grown.set(pendingBytes);
+
+				pendingBytes = grown;
+			}
+
+			pendingBytes[pending] = byte;
+			pending++;
 		}
 
 		i += 3;
 	}
 
-	if (bytes.length > 0) {
-		decoded += decodeUtf8Bytes(bytes);
+	if (pending > 0) {
+		decoded += decodeUtf8Bytes(pending);
 	}
 
 	return decoded;
