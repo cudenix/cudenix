@@ -6,6 +6,93 @@ const KEY_HAS_PERCENT = 2;
 const VALUE_HAS_PLUS = 4;
 const VALUE_HAS_PERCENT = 8;
 
+const encoder = new TextEncoder();
+
+// "ignoreBOM" keeps a decoded U+FEFF, which is what the URL parser does
+const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
+
+/**
+ * Converts a hexadecimal byte to its value, or -1 if not hexadecimal.
+ */
+const hexByteToValue = (byte: number) => {
+	// "0" (48) - "9" (57)
+	if (byte >= 48 && byte <= 57) {
+		return byte - 48;
+	}
+
+	// "| 32" lowercases letters
+	const lowerByte = byte | 32;
+
+	// 87 = "a" (97) - 10, mapping "a"-"f" to 10-15
+	return lowerByte >= 97 && lowerByte <= 102 ? lowerByte - 87 : -1;
+};
+
+/**
+ * Percent-decodes a query component the way the URL parser does.
+ *
+ * Runs only where `decodeURIComponent` throws, and never throws itself: a "%"
+ * without two hexadecimal digits after it stays literal, and invalid UTF-8
+ * becomes one replacement character per maximal subpart. That is what
+ * `URLSearchParams` does with a query, and unlike `decodeURIComponent` it
+ * still decodes the well-formed escapes standing next to a malformed one.
+ */
+const decodeQueryComponent = (component: string) => {
+	const input = encoder.encode(component);
+	const length = input.length;
+	const output = new Uint8Array(length);
+
+	let written = 0;
+
+	for (let i = 0; i < length; i++) {
+		const byte = input[i]!;
+
+		// "%" (37) only escapes when two hexadecimal digits follow it
+		if (byte === 37 && i + 2 < length) {
+			const highNibble = hexByteToValue(input[i + 1]!);
+			const lowNibble = hexByteToValue(input[i + 2]!);
+
+			if (highNibble !== -1 && lowNibble !== -1) {
+				output[written++] = (highNibble << 4) | lowNibble;
+				i += 2;
+
+				continue;
+			}
+		}
+
+		output[written++] = byte;
+	}
+
+	return decoder.decode(output.subarray(0, written));
+};
+
+/**
+ * Replaces every "+" in a query component with a space.
+ *
+ * @example
+ * ```typescript
+ * replacePlus("a+b"); // "a b"
+ * ```
+ */
+const replacePlus = (component: string) => {
+	const length = component.length;
+
+	let output = "";
+	let last = 0;
+
+	for (let i = 0; i < length; i++) {
+		// "+" (43) stands for a space in a query component
+		if (component.charCodeAt(i) === 43) {
+			output += `${component.substring(last, i)} `;
+			last = i + 1;
+		}
+	}
+
+	// "split"/"join" and "replaceAll" both allocate an intermediate array or a
+	// matcher for what is a single-character swap, so scanning by hand and
+	// slicing between the hits is around twice as fast
+	return last === 0 ? component : output + component.substring(last);
+};
+
 /**
  * Parses the query string from a URL.
  *
@@ -22,6 +109,13 @@ export const parseQuery = (url: string) => {
 	const queryIndex = url.indexOf("?");
 
 	if (queryIndex === -1) {
+		return params;
+	}
+
+	// a "?" behind a "#" (35) sits inside the fragment and starts no query, so
+	// "/a#c?b=v1" has no parameters at all, exactly like `new URL(url)` reads
+	// it; searching backwards bounds the extra scan by the path, not the query
+	if (url.lastIndexOf("#", queryIndex) !== -1) {
 		return params;
 	}
 
@@ -95,29 +189,37 @@ export const parseQuery = (url: string) => {
 
 		if (key.length > 0) {
 			if (flags & KEY_HAS_PLUS) {
-				key = key.split("+").join(" ");
+				key = replacePlus(key);
 			}
 
 			if (flags & KEY_HAS_PERCENT) {
 				try {
 					key = decodeURIComponent(key);
-				} catch {}
+				} catch {
+					// all-or-nothing: it threw on the first bad escape and
+					// discarded the good ones beside it, so redo the whole
+					// component with the decoder that tolerates them
+					key = decodeQueryComponent(key);
+				}
 			}
 
 			let parsed = value as unknown;
 
 			if (hasValue) {
 				if (flags & VALUE_HAS_PLUS) {
-					value = value.split("+").join(" ");
+					value = replacePlus(value);
 					parsed = value;
 				}
 
 				if (flags & VALUE_HAS_PERCENT) {
 					try {
 						value = decodeURIComponent(value);
-						parsed = value;
-						firstCharCode = value.charCodeAt(0);
-					} catch {}
+					} catch {
+						value = decodeQueryComponent(value);
+					}
+
+					parsed = value;
+					firstCharCode = value.charCodeAt(0);
 				}
 
 				// "{" (123) or "[" (91) suggests a JSON value

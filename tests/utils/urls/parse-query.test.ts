@@ -182,10 +182,10 @@ describe("parseQuery", () => {
 			expect(result["b%"]).toBe("v1");
 		});
 
-		it("should keep a truncated multibyte escape verbatim instead of throwing", () => {
+		it("should replace a truncated multibyte escape instead of throwing", () => {
 			const result = parseQuery("/a?b=%E0%A4%A");
 
-			expect(result.b).toBe("%E0%A4%A");
+			expect(result.b).toBe("\uFFFD%A");
 		});
 
 		it("should keep the plus-replaced value when a '%' escape is malformed", () => {
@@ -200,23 +200,54 @@ describe("parseQuery", () => {
 			expect(result["b c%"]).toBe("v1");
 		});
 
-		it("should keep a syntactically valid escape carrying invalid UTF-8 verbatim", () => {
+		it("should replace a syntactically valid escape carrying invalid UTF-8", () => {
 			const result = parseQuery("/a?b=%FF&c=v2");
 
-			expect(result.b).toBe("%FF");
+			expect(result.b).toBe("\uFFFD");
 			expect(result.c).toBe("v2");
 		});
 
-		it("should keep a key whose valid escape carries invalid UTF-8 verbatim", () => {
+		it("should replace invalid UTF-8 in a key too", () => {
 			const result = parseQuery("/a?b%FF=v1");
 
-			expect(result["b%FF"]).toBe("v1");
+			expect(result["b\uFFFD"]).toBe("v1");
 		});
 
-		it("should hand undecodable query bytes to consumers raw, unlike path params", () => {
-			// query keeps the raw escape, path param yields a replacement char
-			expect(parseQuery("/a?b=%FF").b).toBe("%FF");
-			expect(decodePathParam("%FF")).toBe("�");
+		it("should still decode the well-formed escapes beside a malformed one", () => {
+			// "decodeURIComponent" is all-or-nothing, so the fallback decoder
+			// exists to keep the "%20" here from surviving encoded
+			expect(parseQuery("/a?b=x%FFy%20z").b).toBe("x\uFFFDy z");
+			expect(parseQuery("/a?b=%ZZ%20").b).toBe("%ZZ ");
+		});
+
+		it("should reach the JSON branch once the fallback decoder runs", () => {
+			// "decodeURIComponent" threw on this before, so the value stayed
+			// percent-encoded and never looked like JSON to the probe below
+			expect(parseQuery("/a?b=%7B%22c%22%3A%221%FF%22%7D").b).toEqual({
+				c: "1\uFFFD",
+			});
+		});
+
+		it("should collapse two malformed spellings of one key into an array", () => {
+			// both spellings decode to the same key, so the repeat is seen
+			const result = parseQuery("/a?b%FF=v1&b%EF%BF%BD=v2");
+
+			expect(result["b\uFFFD"]).toEqual(["v1", "v2"]);
+		});
+
+		it("should keep a non-hex escape literal, unlike path params", () => {
+			// a "%" without two hex digits is not an escape to the URL parser,
+			// while Bun's route decoder replaces it
+			expect(parseQuery("/a?b=%ZZ").b).toBe("%ZZ");
+			expect(decodePathParam("%ZZ")).toBe("�");
+		});
+
+		it("should replace per maximal subpart, unlike path params", () => {
+			// the query follows "URLSearchParams", which emits one replacement
+			// per maximal subpart, while Bun's route decoder emits one per
+			// failed sequence
+			expect(parseQuery("/a?b=%ED%A0%80").b).toBe("���");
+			expect(decodePathParam("%ED%A0%80")).toBe("�");
 		});
 	});
 
@@ -373,10 +404,22 @@ describe("parseQuery", () => {
 			expect(result).toEqual({ b: "v1" });
 		});
 
-		it("should use Bun's first-'?' query boundary even when it follows '#'", () => {
-			for (const url of ["/a#c?b=v1", "http://localhost/a#c?b=v1"]) {
-				expect(parseQuery(url)).toEqual({ b: "v1" });
+		it("should find no query when the '?' sits inside the fragment", () => {
+			// "new URL(url).search" is empty for these, so reading a parameter
+			// out of them would let a client smuggle one past every URL reader
+			for (const url of [
+				"/a#c?b=v1",
+				"http://localhost/a#c?b=v1",
+				"http://localhost/a#?b=v1",
+			]) {
+				expect(parseQuery(url)).toEqual({});
 			}
+		});
+
+		it("should still read the query when the fragment follows it", () => {
+			expect(parseQuery("http://localhost/a?b=v1#c?d=v2")).toEqual({
+				b: "v1",
+			});
 		});
 	});
 
