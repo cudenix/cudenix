@@ -32,207 +32,225 @@ export const initializeOpenapi = (
 	}: OpenapiPluginOptions = FrozenEmpty,
 ) =>
 	function initializeOpenapi(this: Cudenix) {
-		const paths = new Empty();
-		const tags = new Set<string>();
-		const keys = Object.keys(this.methods);
+		// the route table only exists once the app has compiled
+		return () => {
+			const paths = new Empty();
+			const tags = new Set<string>();
+			const keys = Object.keys(this.methods);
 
-		for (let i = 0; i < keys.length; i++) {
-			const method = keys[i];
+			for (let i = 0; i < keys.length; i++) {
+				const method = keys[i];
 
-			if (!method) {
-				continue;
-			}
-
-			const methodData =
-				this.methods[method as keyof typeof this.methods];
-
-			if (!methodData) {
-				continue;
-			}
-
-			const lowerMethod = method.toLowerCase();
-
-			for (let j = 0; j < methodData.endpoints.length; j++) {
-				const endpoint = methodData.endpoints[j];
-
-				if (!endpoint) {
+				if (!method) {
 					continue;
 				}
 
-				let paramNames: string[] | undefined;
-				let paramOptional: boolean[] | undefined;
-				let paramSpread: boolean[] | undefined;
+				const methodData =
+					this.methods[method as keyof typeof this.methods];
 
-				const path = endpoint.path.replace(PARAM_RE, (match, name) => {
-					if (!paramNames) {
-						paramNames = [];
-						paramOptional = [];
-						paramSpread = [];
-					}
+				if (!methodData) {
+					continue;
+				}
 
-					paramNames.push(name);
-					paramOptional?.push(
-						match.charCodeAt(match.length - 1) === 63,
-					);
-					paramSpread?.push(match.charCodeAt(0) === 46);
+				const lowerMethod = method.toLowerCase();
 
-					return `{${name}}`;
-				});
+				for (let j = 0; j < methodData.endpoints.length; j++) {
+					const endpoint = methodData.endpoints[j];
 
-				const operation = new Empty();
-
-				for (let k = 0; k < endpoint.chain.length; k++) {
-					const link = endpoint.chain[k];
-
-					if (!link || link.type !== "VALIDATOR") {
+					// a HEAD derived from a GET route is implicit, not documented
+					if (!endpoint || endpoint.route.method !== method) {
 						continue;
 					}
 
-					const keys = link.keys;
+					let paramNames: string[] | undefined;
+					let paramOptional: boolean[] | undefined;
+					let paramSpread: boolean[] | undefined;
 
-					for (let l = 0; l < keys.length; l++) {
-						const key = keys[l];
+					const path = endpoint.path.replace(
+						PARAM_RE,
+						(match, name) => {
+							if (!paramNames) {
+								paramNames = [];
+								paramOptional = [];
+								paramSpread = [];
+							}
 
-						if (!key) {
+							paramNames.push(name);
+							paramOptional?.push(
+								match.charCodeAt(match.length - 1) === 63,
+							);
+							paramSpread?.push(match.charCodeAt(0) === 46);
+
+							return `{${name}}`;
+						},
+					);
+
+					const operation = new Empty();
+
+					for (let k = 0; k < endpoint.chain.length; k++) {
+						const link = endpoint.chain[k];
+
+						if (!link || link.type !== "VALIDATOR") {
 							continue;
 						}
 
-						if (key !== "body") {
-							const _in = PARAM_LOCATION[key] ?? key;
-							const schema = toJsonSchema(link.request[key]);
+						const keys = link.keys;
 
-							operation.parameters ??= [];
+						for (let l = 0; l < keys.length; l++) {
+							const key = keys[l];
 
-							if (schema.type === "object") {
-								const properties = schema.properties as Record<
-									string,
-									unknown
-								>;
-								const required = schema.required as
-									| string[]
-									| undefined;
+							if (!key) {
+								continue;
+							}
 
-								for (const propKey in properties) {
-									(
-										operation.parameters as Record<
+							if (key !== "body") {
+								const _in = PARAM_LOCATION[key] ?? key;
+								const schema = toJsonSchema(link.request[key]);
+
+								operation.parameters ??= [];
+
+								if (schema.type === "object") {
+									const properties =
+										schema.properties as Record<
 											string,
 											unknown
-										>[]
-									).push({
-										in: _in,
-										name: propKey,
-										required:
-											(required &&
-												required.indexOf(propKey) !==
-													-1) ||
-											false,
-										schema: properties[propKey],
-									});
+										>;
+									const required = schema.required as
+										| string[]
+										| undefined;
+
+									for (const propKey in properties) {
+										(
+											operation.parameters as Record<
+												string,
+												unknown
+											>[]
+										).push({
+											in: _in,
+											name: propKey,
+											required:
+												(required &&
+													required.indexOf(
+														propKey,
+													) !== -1) ||
+												false,
+											schema: properties[propKey],
+										});
+									}
+
+									continue;
 								}
+
+								(
+									operation.parameters as Record<
+										string,
+										unknown
+									>[]
+								).push({ in: _in, schema });
 
 								continue;
 							}
+
+							operation.requestBody ??= { content: new Empty() };
+
+							const bodySchema = toJsonSchema(link.request[key]);
+
+							const content = (
+								operation.requestBody as Record<string, unknown>
+							).content as Record<string, unknown>;
+
+							content["application/json"] = {
+								schema: bodySchema,
+							};
+							content["multipart/form-data"] = {
+								schema: bodySchema,
+							};
+							content["text/plain"] = { schema: bodySchema };
+						}
+					}
+
+					if (paramNames) {
+						for (let k = 0; k < paramNames.length; k++) {
+							const name = paramNames[k];
+
+							if (!name) {
+								continue;
+							}
+
+							const existing = operation.parameters as
+								| Record<string, unknown>[]
+								| undefined;
+
+							let found = false;
+
+							if (existing) {
+								for (let m = 0; m < existing.length; m++) {
+									const existingParam = existing[m];
+
+									if (
+										existingParam &&
+										existingParam.in === "path" &&
+										existingParam.name === name
+									) {
+										found = true;
+
+										break;
+									}
+								}
+							}
+
+							if (found) {
+								continue;
+							}
+
+							operation.parameters ??= [];
 
 							(
 								operation.parameters as Record<
 									string,
 									unknown
 								>[]
-							).push({ in: _in, schema });
-
-							continue;
+							).push({
+								in: "path",
+								name,
+								required: !paramOptional?.[k],
+								schema: {
+									pattern: paramSpread?.[k]
+										? ".*"
+										: undefined,
+									type: "string",
+								},
+							});
 						}
-
-						operation.requestBody ??= { content: new Empty() };
-
-						const bodySchema = toJsonSchema(link.request[key]);
-
-						const content = (
-							operation.requestBody as Record<string, unknown>
-						).content as Record<string, unknown>;
-
-						content["application/json"] = { schema: bodySchema };
-						content["multipart/form-data"] = { schema: bodySchema };
-						content["text/plain"] = { schema: bodySchema };
 					}
-				}
 
-				if (paramNames) {
-					for (let k = 0; k < paramNames.length; k++) {
-						const name = paramNames[k];
+					if (path.charCodeAt(1) !== 123) {
+						const slashIndex = path.indexOf("/", 1);
+						const tag =
+							slashIndex === -1
+								? path.substring(1)
+								: path.substring(1, slashIndex);
 
-						if (!name) {
-							continue;
+						if (tag) {
+							operation.tags = [tag];
+
+							tags.add(tag);
 						}
-
-						const existing = operation.parameters as
-							| Record<string, unknown>[]
-							| undefined;
-
-						let found = false;
-
-						if (existing) {
-							for (let m = 0; m < existing.length; m++) {
-								const existingParam = existing[m];
-
-								if (
-									existingParam &&
-									existingParam.in === "path" &&
-									existingParam.name === name
-								) {
-									found = true;
-
-									break;
-								}
-							}
-						}
-
-						if (found) {
-							continue;
-						}
-
-						operation.parameters ??= [];
-
-						(
-							operation.parameters as Record<string, unknown>[]
-						).push({
-							in: "path",
-							name,
-							required: !paramOptional?.[k],
-							schema: {
-								pattern: paramSpread?.[k] ? ".*" : undefined,
-								type: "string",
-							},
-						});
 					}
+
+					paths[path] ??= new Empty();
+
+					(paths[path] as Record<string, unknown>)[lowerMethod] =
+						operation;
 				}
-
-				if (path.charCodeAt(0) === 47 && path.charCodeAt(1) !== 123) {
-					const slashIndex = path.indexOf("/", 1);
-					const tag =
-						slashIndex === -1
-							? path.substring(1)
-							: path.substring(1, slashIndex);
-
-					if (tag) {
-						operation.tags = [tag];
-
-						tags.add(tag);
-					}
-				}
-
-				paths[path] ??= new Empty();
-
-				(paths[path] as Record<string, unknown>)[lowerMethod] =
-					operation;
 			}
-		}
 
-		this.memory.openapi = {
-			info: { description, title, version },
-			openapi: "3.1.0",
-			paths,
-			tags: Array.from(tags, (tag) => ({ name: tag })),
+			this.memory.openapi = {
+				info: { description, title, version },
+				openapi: "3.1.0",
+				paths,
+				tags: Array.from(tags, (tag) => ({ name: tag })),
+			};
 		};
 	};
 
