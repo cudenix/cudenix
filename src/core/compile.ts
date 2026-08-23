@@ -407,7 +407,7 @@ const registerNativeRoute = (
 
 	// the first endpoint registered for a method wins
 	if (!(method in pathRoutes)) {
-		// a bare `Response` under HEAD makes Bun 1.4 accept unknown method
+		// a bare `Response` under HEAD makes Bun accept unknown method
 		// tokens on the path and answer them as GET, so HEAD takes the
 		// dispatch instead
 		pathRoutes[method] =
