@@ -10,7 +10,6 @@ import type { CompiledMount } from "@/core/mount";
 import { response } from "@/core/response";
 import { cloneAppend } from "@/utils/arrays/clone-append";
 import { Empty } from "@/utils/objects/empty";
-import { peek, peekStatus } from "@/utils/promises/peek";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
@@ -81,11 +80,9 @@ const flattenModuleTree = (
 	module: AnyModule,
 	inheritedChain: EndpointChain,
 	inheritedPath: string,
-	shareInheritedChain = false,
 ) => {
-	const activeChain = shareInheritedChain
-		? inheritedChain
-		: inheritedChain.slice();
+	// every caller hands over an array it no longer aliases
+	const activeChain = inheritedChain;
 	const moduleChain = module.chain;
 	const modulePrefix: "" | `/${string}` =
 		module.prefix === "/" ? "" : module.prefix;
@@ -117,8 +114,6 @@ const flattenModuleTree = (
 				link.handler(groupModule),
 				[],
 				"",
-				// the literal is not aliased, so the callee can own it
-				true,
 			);
 
 			continue;
@@ -141,7 +136,6 @@ const flattenModuleTree = (
 				link,
 				activeChain,
 				`${inheritedPath}${activePrefix}`,
-				true,
 			);
 
 			if (activeChain.length !== beforeLength) {
@@ -150,7 +144,7 @@ const flattenModuleTree = (
 
 			if (nestedPrefix !== "/") {
 				propagatedPrefix = `${activePrefix}${nestedPrefix}`;
-				activePrefix = propagatedPrefix === "/" ? "" : propagatedPrefix;
+				activePrefix = propagatedPrefix;
 			}
 
 			continue;
@@ -250,6 +244,15 @@ const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 			charCode === 46 &&
 			path.charCodeAt(i + 1) === 46 &&
 			path.charCodeAt(i + 2) === 46
+		) {
+			return false;
+		} else if (
+			// Bun names a parameter after the last ":" (58) of its segment
+			// while `pathToRegexp` names it after the first, so a segment
+			// carrying more than one would resolve to two different keys
+			charCode === 58 &&
+			i !== segmentStart &&
+			path.charCodeAt(segmentStart) === 58
 		) {
 			return false;
 		}
@@ -404,11 +407,15 @@ const registerNativeRoute = (
 
 	// the first endpoint registered for a method wins
 	if (!(method in pathRoutes)) {
-		pathRoutes[method] = isStatic
-			? endpoint.response!
-			: (endpoint.dispatch as (
-					request: Request,
-				) => MaybePromise<Response>);
+		// a bare `Response` under HEAD makes Bun 1.4 accept unknown method
+		// tokens on the path and answer them as GET, so HEAD takes the
+		// dispatch instead
+		pathRoutes[method] =
+			isStatic && method !== "HEAD"
+				? endpoint.response!
+				: (endpoint.dispatch as (
+						request: Request,
+					) => MaybePromise<Response>);
 	}
 };
 
@@ -425,10 +432,6 @@ const compileMethod = (
 		methodEndpoints,
 		BUN_ROUTE_METHODS.has(method),
 	);
-
-	if (analyzedEndpoints.length === 0) {
-		return;
-	}
 
 	const fallbackEndpoints: Endpoint[] = [];
 	const fallbackPatterns: string[] = [];
@@ -470,9 +473,11 @@ const compileMethod = (
 		// skip past this endpoint's parameter captures and its marker
 		matchOffset = markerOffset + 1;
 
-		// only the first endpoint of each pattern reaches Bun's router
+		// only the first endpoint of each pattern reaches Bun's router, and a
+		// HEAD derived from a GET route is answered by Bun's table already
 		if (
 			analyzedEndpoint.native &&
+			endpoint.route.method === method &&
 			!nativePatterns.has(analyzedEndpoint.pattern)
 		) {
 			nativePatterns.add(analyzedEndpoint.pattern);
@@ -535,6 +540,49 @@ const compileMounts = (app: Cudenix, mounts: CompiledMount[]) => {
 };
 
 /**
+ * Mirrors Bun's route table, which answers `HEAD` from the `GET` handler
+ * registered for the same path, so the fallback router agrees with it instead
+ * of answering `404`.
+ *
+ * Returns `true` when every `HEAD` request resolves through the compiled `GET`
+ * data, which lets the caller alias it rather than compile a second copy.
+ */
+const deriveHeadEndpoints = (endpoints: Record<HttpMethod, Endpoint[]>) => {
+	const getEndpoints = endpoints.GET;
+
+	if (!getEndpoints || getEndpoints.length === 0) {
+		return false;
+	}
+
+	const headEndpoints = endpoints.HEAD;
+
+	// without a declared HEAD route the GET data answers every HEAD request
+	if (!headEndpoints || headEndpoints.length === 0) {
+		return true;
+	}
+
+	const declaredPaths = new Set<string>();
+
+	for (let i = 0; i < headEndpoints.length; i++) {
+		declaredPaths.add(headEndpoints[i]!.path);
+	}
+
+	for (let i = 0; i < getEndpoints.length; i++) {
+		const endpoint = getEndpoints[i]!;
+
+		// a declared HEAD route wins over the one derived from its GET
+		if (declaredPaths.has(endpoint.path)) {
+			continue;
+		}
+
+		// the copy carries its own capture offsets and dispatch
+		headEndpoints.push({ ...endpoint });
+	}
+
+	return false;
+};
+
+/**
  * Builds a {@link Cudenix} application's routing data from its module tree.
  *
  * @example
@@ -558,9 +606,9 @@ export const compile = (app: Cudenix) => {
 		app.memory.module as AnyModule,
 		[],
 		"",
-		// the literal is not aliased, so the callee can own it
-		true,
 	);
+
+	const aliasHead = deriveHeadEndpoints(endpoints);
 
 	for (const method in endpoints) {
 		const methodEndpoints = endpoints[method];
@@ -570,6 +618,15 @@ export const compile = (app: Cudenix) => {
 		}
 
 		compileMethod(app, routes, method, methodEndpoints);
+	}
+
+	if (aliasHead) {
+		const getData = app.methods.GET;
+
+		// the regexp carries no match state, so both methods can share it
+		if (getData) {
+			app.methods.HEAD = getData;
+		}
 	}
 
 	compileMounts(app, mounts);
