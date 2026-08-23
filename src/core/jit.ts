@@ -21,6 +21,7 @@ import {
 	PARAM_FLAG_REST,
 } from "@/utils/regexps/path-to-regexp";
 import { decodePathParam } from "@/utils/urls/decode-path-param";
+import { decodeRestParam } from "@/utils/urls/decode-rest-param";
 import { parseQuery } from "@/utils/urls/parse-query";
 
 /**
@@ -67,6 +68,7 @@ interface FactoryDependencyValues {
 	chain: EndpointChain;
 	compiled: CompiledValidatorRuns;
 	decodePathParam: typeof decodePathParam;
+	decodeRestParam: typeof decodeRestParam;
 	drain: typeof drain;
 	Empty: typeof Empty;
 	fail: typeof fail;
@@ -572,9 +574,9 @@ const generateParamsParser = (
 		return `let params=request.params;if(!params){params=new ${EmptyName}()}${target}=params;`;
 	}
 
-	const decodePathParamName = link("decodePathParam");
-
 	let assignmentsCode = "";
+	let decodePathParamName: string | undefined;
+	let decodeRestParamName: string | undefined;
 
 	for (let i = 0; i < paramKeys.length; i++) {
 		const paramKey = paramKeys[i];
@@ -592,10 +594,19 @@ const generateParamsParser = (
 		const valueExpression = isOptional
 			? valueName
 			: `match[${matchGroupIndex}]`;
-		const decodedValue = `${decodePathParamName}(${valueExpression})`;
-		const paramValueExpression = isRest
-			? `${valueExpression}.split("/").map(${decodePathParamName})`
-			: decodedValue;
+
+		// only the decoder a parameter actually reaches gets linked
+		let paramValueExpression: string;
+
+		if (isRest) {
+			decodeRestParamName ??= link("decodeRestParam");
+
+			paramValueExpression = `${decodeRestParamName}(${valueExpression})`;
+		} else {
+			decodePathParamName ??= link("decodePathParam");
+
+			paramValueExpression = `${decodePathParamName}(${valueExpression})`;
+		}
 
 		assignmentsCode += isOptional
 			? `const ${valueName}=match[${matchGroupIndex}];if(${valueName}!==undefined){params[${keyLiteral}]=${paramValueExpression}}`
@@ -980,6 +991,8 @@ const resolveFactoryDependency = (
 			return parseQuery;
 		case "decodePathParam":
 			return decodePathParam;
+		case "decodeRestParam":
+			return decodeRestParam;
 		case "drain":
 			return drain;
 		case "peek":
