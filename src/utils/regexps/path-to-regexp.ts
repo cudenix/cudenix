@@ -4,13 +4,42 @@ const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
 // same shape as rest but non-capturing, and matches zero segments too
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
+// a terminal "*" is the only wildcard Bun's router accepts, and it swallows
+// the whole remainder of the path, empty segments and a trailing "/" included,
+// so one greedy run mirrors it and leaves nothing to backtrack over
+const TERMINAL_WILDCARD = "\\/[^\\s?#]*";
 
-// regexp syntax plus "#"
-const STATIC_SEGMENT_SYNTAX = /[\\^$.*+?()[\]{}|#]/g;
+// regexp syntax, plus every character a url pathname carries percent-encoded
+const STATIC_SEGMENT_SYNTAX = /[^!-~]|["#$()*+.<>?[\\\]^`{|}]/gu;
 
-// escapes one regexp character and percent-encodes "?" and "#"
+// the url parser percent-encodes these, so a request url never holds them
+// literally and a pattern that did could not match one
+const URL_ENCODED_CHARACTER = /[^!-~]|["#<>?^`{}]/u;
+
+// percent-encodes what a request url carries encoded and escapes the rest,
+// "toWellFormed" standing in for the parser's own lone surrogate replacement
 const escapeStaticCharacter = (character: string) =>
-	character === "?" ? "%3F" : character === "#" ? "%23" : `\\${character}`;
+	URL_ENCODED_CHARACTER.test(character)
+		? encodeURIComponent(character.toWellFormed())
+		: `\\${character}`;
+
+/**
+ * Checks whether nothing but "/" separators follows a segment.
+ */
+const isTerminalSegment = (
+	path: string,
+	segmentEnd: number,
+	length: number,
+) => {
+	for (let i = segmentEnd; i < length; i++) {
+		// "/" (47) separators open no segment of their own
+		if (path.charCodeAt(i) !== 47) {
+			return false;
+		}
+	}
+
+	return true;
+};
 
 // segment specificity used to order routes: lower ranks match first
 const STATIC_RANK = 0;
@@ -114,7 +143,9 @@ export const pathToRegexp = (path: string) => {
 		) {
 			ranks.push(WILDCARD_RANK);
 
-			segment = WILDCARD;
+			segment = isTerminalSegment(path, segmentEnd, length)
+				? TERMINAL_WILDCARD
+				: WILDCARD;
 		} else if (
 			// "..." (46) rest param
 			firstCharCode === 46 &&
@@ -137,7 +168,7 @@ export const pathToRegexp = (path: string) => {
 			// static segment
 			ranks.push(STATIC_RANK);
 
-			// escape regexp syntax and percent-encode "?" and "#"
+			// escape regexp syntax and percent-encode what a url would
 			segment = `\\/${path.substring(i, contentEnd).replace(STATIC_SEGMENT_SYNTAX, escapeStaticCharacter)}`;
 		}
 

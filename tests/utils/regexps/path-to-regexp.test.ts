@@ -130,19 +130,8 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should escape additional regex-special characters in literals", () => {
-			const symbols = [
-				"(",
-				")",
-				"[",
-				"]",
-				"{",
-				"}",
-				"^",
-				"+",
-				"|",
-				"$",
-				"\\",
-			];
+			// "{", "}" and "^" are covered by the percent-encoded set instead
+			const symbols = ["(", ")", "[", "]", "+", "|", "$", "\\"];
 
 			for (let i = 0; i < symbols.length; i++) {
 				const path = `/a${symbols[i]}b`;
@@ -170,17 +159,9 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/acd")).toBe(false);
 		});
 
-		it("should keep constructor-safe punctuation and whitespace literal", () => {
-			const segments = [
-				"1abc",
-				"a-b",
-				"a,b",
-				"a b",
-				"a\nb",
-				"a\rb",
-				"a\u0000b",
-				"a\u2028b",
-			];
+		it("should keep constructor-safe punctuation literal", () => {
+			// the url parser rewrites none of these
+			const segments = ["1abc", "a-b", "a,b", "a;b", "a=b", "a@b", "a~b"];
 
 			for (let i = 0; i < segments.length; i++) {
 				const path = `/${segments[i]}`;
@@ -189,6 +170,36 @@ describe("pathToRegexp", () => {
 				expect(regex.test(path)).toBe(true);
 				expect(regex.test(`${path}x`)).toBe(false);
 			}
+		});
+
+		it("should compile whitespace and control characters to their escapes", () => {
+			// a request url can only ever carry these percent-encoded, so the
+			// literal spelling would compile to a pattern nothing can match
+			const segments = [
+				["a b", "a%20b"],
+				["a\nb", "a%0Ab"],
+				["a\rb", "a%0Db"],
+				["a\tb", "a%09b"],
+				["a\u0000b", "a%00b"],
+				["a\u007Fb", "a%7Fb"],
+				["a\u2028b", "a%E2%80%A8b"],
+			] as const;
+
+			for (let i = 0; i < segments.length; i++) {
+				const [path, encoded] = segments[i]!;
+				const { regex } = compile(`/${path}`);
+
+				expect(regex.test(`/${encoded}`)).toBe(true);
+				expect(regex.test(`/${path}`)).toBe(false);
+				expect(regex.test(`/${encoded}x`)).toBe(false);
+			}
+		});
+
+		it("should compile a lone surrogate the way the url parser replaces it", () => {
+			// "encodeURIComponent" would throw on it, so it is well-formed first
+			const { regex } = compile("/a\uD800b");
+
+			expect(regex.test("/a%EF%BF%BDb")).toBe(true);
 		});
 
 		it("should not treat '+' in a literal as regex repetition", () => {
@@ -248,13 +259,21 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/aXb")).toBe(false);
 		});
 
-		it("should preserve non-ASCII route spelling instead of encoding it implicitly", () => {
+		it("should compile non-ASCII route spelling to the utf-8 escapes a request carries", () => {
 			const { paramKeys, regex } = compile("/café");
 
 			expect(paramKeys).toEqual([]);
-			expect(regex.test("/café")).toBe(true);
-			expect(regex.test("/caf%C3%A9")).toBe(false);
+			expect(regex.test("/caf%C3%A9")).toBe(true);
+			expect(regex.test("/café")).toBe(false);
 			expect(regex.test("/cafe")).toBe(false);
+		});
+
+		it("should compile both spellings of the same non-ASCII route to one pattern", () => {
+			// the url parser percent-encodes the pathname before the pattern
+			// ever sees it, so a literal spelling would match nothing at all
+			expect(pathToRegexp("/café").pattern).toBe(
+				pathToRegexp("/caf%C3%A9").pattern,
+			);
 		});
 
 		it("should preserve the spelling and casing of an encoded route", () => {
@@ -266,12 +285,12 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/café")).toBe(false);
 		});
 
-		it("should leave spaces unencoded unless the route declares the encoding", () => {
+		it("should compile a space the same way whether or not the route declares the encoding", () => {
 			const raw = compile("/a b").regex;
 			const encoded = compile("/a%20b").regex;
 
-			expect(raw.test("/a b")).toBe(true);
-			expect(raw.test("/a%20b")).toBe(false);
+			expect(raw.test("/a%20b")).toBe(true);
+			expect(raw.test("/a b")).toBe(false);
 			expect(encoded.test("/a%20b")).toBe(true);
 			expect(encoded.test("/a b")).toBe(false);
 		});
@@ -751,6 +770,34 @@ describe("pathToRegexp", () => {
 			expect(regex.test("/v1/a")).toBe(true);
 			expect(regex.test("/a")).toBe(false);
 			expect(regex.test("//a")).toBe(true);
+		});
+
+		it("should swallow empty segments in a terminal wildcard, like Bun's router", () => {
+			// a terminal "*" is the only wildcard Bun's own table accepts, and
+			// it takes the whole remainder of the path, empty segments included
+			const { pattern, regex } = compile("/a/*");
+
+			expect(pattern).toBe(String.raw`\/a\/[^\s?#]*()`);
+			expect(regex.test("/a//v1")).toBe(true);
+			expect(regex.test("/a///")).toBe(true);
+		});
+
+		it("should keep requiring non-empty segments in a non-terminal wildcard", () => {
+			// Bun's router never sees this shape, so it stays as it was
+			const { pattern, regex } = compile("/a/*/b");
+
+			expect(pattern).toBe(
+				String.raw`\/a\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?\/b()`,
+			);
+			expect(regex.test("/a/v1/b")).toBe(true);
+			expect(regex.test("/a/v1/v2/b")).toBe(true);
+			expect(regex.test("/a//v1/b")).toBe(false);
+		});
+
+		it("should treat a wildcard followed only by separators as terminal", () => {
+			expect(pathToRegexp("/a/*/").pattern).toBe(
+				String.raw`\/a\/[^\s?#]*()`,
+			);
 		});
 	});
 
