@@ -13,8 +13,15 @@ const matchesMediaType = (
 	}
 
 	for (let i = 0; i < end; i++) {
-		// "| 32" lowercases letters
-		if ((contentType.charCodeAt(i) | 32) !== mediaType.charCodeAt(i)) {
+		const charCode = contentType.charCodeAt(i);
+
+		// "| 32" alone would also fold the control character 32 below a
+		// separator onto it, letting "application\x0Fjson" pass as json, so
+		// only "A" (65) - "Z" (90) are lowercased
+		if (
+			(charCode >= 65 && charCode <= 90 ? charCode | 32 : charCode) !==
+			mediaType.charCodeAt(i)
+		) {
 			return false;
 		}
 	}
@@ -71,11 +78,22 @@ export const parseBody = (request: Request) => {
 		return request.text();
 	}
 
-	// ";" (59) starts the media type parameters
-	let mediaTypeEnd = contentType.indexOf(";");
+	// ";" (59) starts the media type parameters, and "," (44) starts the next
+	// entry of the list Bun joins duplicate headers into, so the media type
+	// this request declares ends at whichever of the two comes first
+	const parametersIndex = contentType.indexOf(";");
+	const nextEntryIndex = contentType.indexOf(",");
 
-	if (mediaTypeEnd === -1) {
-		mediaTypeEnd = contentType.length;
+	let mediaTypeEnd: number;
+
+	if (parametersIndex === -1) {
+		mediaTypeEnd =
+			nextEntryIndex === -1 ? contentType.length : nextEntryIndex;
+	} else if (nextEntryIndex === -1) {
+		mediaTypeEnd = parametersIndex;
+	} else {
+		mediaTypeEnd =
+			parametersIndex < nextEntryIndex ? parametersIndex : nextEntryIndex;
 	}
 
 	// trim trailing " " (32) and "\t" (9)

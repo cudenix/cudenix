@@ -571,11 +571,136 @@ describe("parseBody", () => {
 			expect(await parseBody(request("a=v1", contentType))).toBe("a=v1");
 		});
 
+		it("should not accept a control character folded onto a separator", async () => {
+			// "| 32" lowercasing would map "\u000F" onto "/" and "\r" onto "-",
+			// so these are look-likes only an in-process caller can build
+			const lookLikes = [
+				"application\u000Fjson",
+				"application\u000Foctet-stream",
+				"application/x\rwww\rform\rurlencoded",
+				"multipart/form\rdata",
+			];
+
+			for (let i = 0; i < lookLikes.length; i++) {
+				const contentType = lookLikes[i]!;
+
+				let request: Request;
+
+				try {
+					request = new Request("http://localhost/a", {
+						body: "v1",
+						headers: { "content-type": contentType },
+						method: "POST",
+					});
+				} catch {
+					// "\r" is rejected by Headers, so it never reaches parseBody
+					continue;
+				}
+
+				expect(await parseBody(request)).toBe("v1");
+			}
+		});
+
 		it("should fall back to text for a non-form-data multipart type whose length equals the form-data match window", async () => {
 			// same length as "multipart/form-data"
 			const contentType = "multipart/form-dat0";
 
 			expect(await parseBody(request("v1", contentType))).toBe("v1");
+		});
+	});
+
+	describe("joined duplicate content types", () => {
+		// Bun joins duplicate request headers with ", " per the Fetch
+		// spec, so a repeated `Content-Type` reaches the parser as a list
+		it("should match json when a duplicate header repeats the same type", async () => {
+			const result = await parseBody(
+				request(
+					JSON.stringify({ a: "v1" }),
+					"application/json, application/json",
+				),
+			);
+
+			expect(result).toEqual({ a: "v1" });
+		});
+
+		it("should match the first type when a duplicate header adds a different one", async () => {
+			const result = await parseBody(
+				request(
+					JSON.stringify({ a: "v1" }),
+					"application/json, text/plain",
+				),
+			);
+
+			expect(result).toEqual({ a: "v1" });
+		});
+
+		it("should stop at the earlier of the parameter and list separators", async () => {
+			expect(
+				await parseBody(
+					request(
+						JSON.stringify({ a: "v1" }),
+						"application/json;charset=utf-8, application/json",
+					),
+				),
+			).toEqual({ a: "v1" });
+
+			expect(
+				await parseBody(
+					request(
+						JSON.stringify({ a: "v1" }),
+						"application/json, application/json;charset=utf-8",
+					),
+				),
+			).toEqual({ a: "v1" });
+		});
+
+		it("should trim the whitespace a joined list leaves before the separator", async () => {
+			const result = await parseBody(
+				request(
+					JSON.stringify({ a: "v1" }),
+					"application/json , text/plain",
+				),
+			);
+
+			expect(result).toEqual({ a: "v1" });
+		});
+
+		it("should match a duplicated octet-stream type", async () => {
+			const result = await parseBody(
+				request(
+					"v1",
+					"application/octet-stream, application/octet-stream",
+				),
+			);
+
+			expect(result).toBeInstanceOf(ArrayBuffer);
+		});
+
+		it("should match a duplicated urlencoded type", async () => {
+			const result = await parseBody(
+				request(
+					"a=v1",
+					"application/x-www-form-urlencoded, application/x-www-form-urlencoded",
+				),
+			);
+
+			expect(result).toEqual({ a: "v1" });
+		});
+
+		it("should still fall back to text when no entry of the list matches", async () => {
+			const result = await parseBody(
+				request("v1", "text/plain, application/json"),
+			);
+
+			expect(result).toBe("v1");
+		});
+
+		it("should not treat a type whose name contains a comma as a match", async () => {
+			const result = await parseBody(
+				request(JSON.stringify({ a: "v1" }), ",application/json"),
+			);
+
+			expect(result).toBe(JSON.stringify({ a: "v1" }));
 		});
 	});
 
