@@ -17,6 +17,21 @@ const validCases = [
 	["%F4%8F%BF%BF", "\u{10FFFF}"],
 	["%2F", "/"],
 	["%252F", "%2F"],
+	// hexadecimal digits decode the same in either case
+	["%C3%A9", "é"],
+	// a delimiter arrives decoded and reopens no parsing of its own
+	["%3F", "?"],
+	["%23", "#"],
+	["%26", "&"],
+	["%3D", "="],
+	["%2B", "+"],
+	["%3B", ";"],
+	// control characters survive the round trip
+	["%09", "\t"],
+	["%0A", "\n"],
+	["%0D", "\r"],
+	["%7F", "\u007F"],
+	["a%00b", "a\u0000b"],
 ] as const;
 
 const malformedUtf8Cases = [
