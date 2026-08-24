@@ -6,6 +6,15 @@ const KEY_HAS_PERCENT = 2;
 const VALUE_HAS_PLUS = 4;
 const VALUE_HAS_PERCENT = 8;
 
+// a component longer than this stops being cheaper to walk one character at a
+// time than to hand to the vectorized searches, which cost a call each but
+// then run far below a character per step
+const SCAN_LIMIT = 64;
+
+// the same trade for the "+" swap, which pays for one search rather than four
+const REPLACE_ALL_LENGTH = 128;
+
+// the encoder and decoder are reused across calls to avoid allocating them per query
 const encoder = new TextEncoder();
 
 // "ignoreBOM" keeps a decoded U+FEFF, which is what the URL parser does
@@ -25,6 +34,49 @@ const hexByteToValue = (byte: number) => {
 
 	// 87 = "a" (97) - 10, mapping "a"-"f" to 10-15
 	return lowerByte >= 97 && lowerByte <= 102 ? lowerByte - 87 : -1;
+};
+
+/**
+ * Finds where a long query component ends and which decode steps it needs.
+ */
+const scanComponent = (
+	url: string,
+	from: number,
+	urlLength: number,
+	isKey: boolean,
+) => {
+	// "&" (38) closes the pair, "#" (35) the whole query
+	let end = url.indexOf("&", from);
+
+	if (end === -1) {
+		end = urlLength;
+	}
+
+	const hashIndex = url.indexOf("#", from);
+
+	if (hashIndex !== -1 && hashIndex < end) {
+		end = hashIndex;
+	}
+
+	// "=" (61) closes a key, but never a value
+	if (isKey) {
+		const equalsIndex = url.indexOf("=", from);
+
+		if (equalsIndex !== -1 && equalsIndex < end) {
+			end = equalsIndex;
+		}
+	}
+
+	const plusIndex = url.indexOf("+", from);
+	const percentIndex = url.indexOf("%", from);
+
+	return {
+		end,
+		// in the KEY_HAS_* positions, which the value caller shifts onto its own
+		flags:
+			(plusIndex !== -1 && plusIndex < end ? KEY_HAS_PLUS : 0) |
+			(percentIndex !== -1 && percentIndex < end ? KEY_HAS_PERCENT : 0),
+	};
 };
 
 /**
@@ -76,6 +128,13 @@ const decodeQueryComponent = (component: string) => {
 const replacePlus = (component: string) => {
 	const length = component.length;
 
+	// "replaceAll" allocates a matcher for what is a single-character swap, so
+	// scanning by hand and slicing between the hits is around twice as fast up
+	// to this length, past which its vectorized search pulls ahead instead
+	if (length > REPLACE_ALL_LENGTH) {
+		return component.replaceAll("+", " ");
+	}
+
 	let output = "";
 	let last = 0;
 
@@ -87,9 +146,6 @@ const replacePlus = (component: string) => {
 		}
 	}
 
-	// "split"/"join" and "replaceAll" both allocate an intermediate array or a
-	// matcher for what is a single-character swap, so scanning by hand and
-	// slicing between the hits is around twice as fast
 	return last === 0 ? component : output + component.substring(last);
 };
 
@@ -129,8 +185,15 @@ export const parseQuery = (url: string) => {
 		const keyStart = i;
 
 		let flags = 0;
+		// bounding the loop rather than testing the bound inside it keeps the
+		// short components, which are the common ones, on the same step cost
+		let scanEnd = keyStart + SCAN_LIMIT;
 
-		while (i < urlLength) {
+		if (scanEnd > urlLength) {
+			scanEnd = urlLength;
+		}
+
+		while (i < scanEnd) {
 			const charCode = url.charCodeAt(i);
 
 			// stop at "=" (61), "&" (38) or "#" (35)
@@ -146,6 +209,14 @@ export const parseQuery = (url: string) => {
 			}
 
 			i++;
+		}
+
+		// the key outran the bound, so the rest of it goes to the searches
+		if (i === scanEnd && scanEnd !== urlLength) {
+			const scanned = scanComponent(url, i, urlLength, true);
+
+			i = scanned.end;
+			flags |= scanned.flags;
 		}
 
 		// "=" (61) starts the value
@@ -164,7 +235,13 @@ export const parseQuery = (url: string) => {
 				firstCharCode = url.charCodeAt(i);
 			}
 
-			while (i < urlLength) {
+			let valueScanEnd = valueStart + SCAN_LIMIT;
+
+			if (valueScanEnd > urlLength) {
+				valueScanEnd = urlLength;
+			}
+
+			while (i < valueScanEnd) {
 				const charCode = url.charCodeAt(i);
 
 				// stop at "&" (38) or "#" (35)
@@ -180,6 +257,15 @@ export const parseQuery = (url: string) => {
 				}
 
 				i++;
+			}
+
+			// the value outran the bound, so the rest of it goes to the
+			// searches, whose key flags shift onto the value ones
+			if (i === valueScanEnd && valueScanEnd !== urlLength) {
+				const scanned = scanComponent(url, i, urlLength, false);
+
+				i = scanned.end;
+				flags |= scanned.flags << 2;
 			}
 
 			value = url.substring(valueStart, i);

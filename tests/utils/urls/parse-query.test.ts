@@ -554,6 +554,125 @@ describe("parseQuery", () => {
 		});
 	});
 
+	describe("long components", () => {
+		// a component longer than the scan limit finishes on the native
+		// searches instead of the per-character loop, so every boundary below
+		// has to read the same as the loop would have
+		const lengths = Array.from({ length: 86 }, (_, index) => index + 55);
+
+		it.each(lengths)(
+			"should read a %i character value the same either side of the scan limit",
+			(length) => {
+				const value = "v".repeat(length);
+
+				expect(parseQuery(`/a?b=${value}`).b).toBe(value);
+				expect(parseQuery(`/a?b=${value}&c=v2`).b).toBe(value);
+				expect(parseQuery(`/a?b=${value}#f`).b).toBe(value);
+			},
+		);
+
+		it.each(lengths)(
+			"should read a %i character key the same either side of the scan limit",
+			(length) => {
+				const key = "k".repeat(length);
+
+				expect(parseQuery(`/a?${key}=v1`)[key]).toBe("v1");
+				expect(parseQuery(`/a?${key}`)[key]).toBe("");
+				expect(parseQuery(`/a?${key}&c=v2`)[key]).toBe("");
+			},
+		);
+
+		it.each(lengths)(
+			"should decode a '+' past character %i of a value",
+			(length) => {
+				const value = `${"v".repeat(length)}+x`;
+
+				expect(parseQuery(`/a?b=${value}`).b).toBe(
+					`${"v".repeat(length)} x`,
+				);
+			},
+		);
+
+		it.each(lengths)(
+			"should decode an escape past character %i of a value",
+			(length) => {
+				const value = `${"v".repeat(length)}%20x`;
+
+				expect(parseQuery(`/a?b=${value}`).b).toBe(
+					`${"v".repeat(length)} x`,
+				);
+			},
+		);
+
+		it.each(lengths)(
+			"should decode a '+' past character %i of a key",
+			(length) => {
+				const key = `${"k".repeat(length)}+x`;
+
+				expect(
+					parseQuery(`/a?${key}=v1`)[`${"k".repeat(length)} x`],
+				).toBe("v1");
+			},
+		);
+
+		it("should replace every '+' of a value long enough to take the native swap", () => {
+			const value = `${"a".repeat(200)}+${"b".repeat(200)}+c`;
+
+			expect(parseQuery(`/x?b=${value}`).b).toBe(
+				`${"a".repeat(200)} ${"b".repeat(200)} c`,
+			);
+		});
+
+		it("should decode a long value made only of escapes", () => {
+			expect(parseQuery(`/a?b=${"%41".repeat(200)}`).b).toBe(
+				"A".repeat(200),
+			);
+		});
+
+		it("should decode a long value carrying a malformed escape", () => {
+			expect(parseQuery(`/a?b=${"a".repeat(200)}%FF`).b).toBe(
+				`${"a".repeat(200)}�`,
+			);
+		});
+
+		it("should stop a long value at the fragment", () => {
+			const value = "v".repeat(200);
+
+			expect(parseQuery(`/a?b=${value}#${"f".repeat(200)}`).b).toBe(
+				value,
+			);
+		});
+
+		it("should keep a long key and a long value apart", () => {
+			const key = "k".repeat(200);
+			const value = "v".repeat(200);
+
+			expect(parseQuery(`/a?${key}=${value}`)[key]).toBe(value);
+		});
+
+		it("should parse a pair after a long one", () => {
+			const result = parseQuery(`/a?b=${"v".repeat(200)}&c=v2`);
+
+			expect(result.c).toBe("v2");
+			expect(Object.keys(result)).toEqual(["b", "c"]);
+		});
+
+		it("should collect a long value repeated under one key", () => {
+			const value = "v".repeat(200);
+
+			expect(parseQuery(`/a?b=${value}&b=${value}`).b).toEqual([
+				value,
+				value,
+			]);
+		});
+
+		it("should parse a long JSON value", () => {
+			const result = parseQuery(`/a?b={"c":"${"x".repeat(200)}"}`);
+
+			expect(result.b).toEqual({ c: "x".repeat(200) });
+		});
+	});
+
 	describe("return shape", () => {
 		describe("with query '?b=v1'", () => {
 			let result: ReturnType<typeof parseQuery>;
