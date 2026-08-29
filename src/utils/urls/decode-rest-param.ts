@@ -9,7 +9,7 @@ import { decodePathParam } from "@/utils/urls/decode-path-param";
  * ```
  */
 export const decodeRestParam = (value: string) =>
-	// nothing to decode, so the segments are the substrings themselves
+	// nothing to decode
 	value.indexOf("%") === -1
 		? value.split("/")
 		: value.split("/").map(decodePathParam);
