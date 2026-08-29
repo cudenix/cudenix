@@ -48,6 +48,25 @@ describe("decodeRestParam", () => {
 		it("should replace a truncated escape", () => {
 			expect(decodeRestParam("a/%2")).toEqual(["a", "�2"]);
 		});
+
+		it("should decode a segment long enough to grow the shared byte buffer", () => {
+			// a grown run must not leak bytes into an earlier segment
+			expect(decodeRestParam(`a/${"%FF".repeat(600)}`)).toEqual([
+				"a",
+				"�".repeat(600),
+			]);
+		});
+
+		it("should replace a surrogate pair without recombining it", () => {
+			expect(decodeRestParam("%ED%A0%80%ED%B0%80/a")).toEqual([
+				"��",
+				"a",
+			]);
+		});
+
+		it("should keep the character after a malformed escape", () => {
+			expect(decodeRestParam("a/%é/b")).toEqual(["a", "�é", "b"]);
+		});
 	});
 
 	describe("degenerate input", () => {
