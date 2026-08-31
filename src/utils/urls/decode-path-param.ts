@@ -16,16 +16,14 @@ const HEX_VALUES = /* @__PURE__ */ (() => {
 	return values;
 })();
 
-// pending percent-decoded bytes, flushed as UTF-8 when a run ends. one shared
-// buffer is enough because decodePathParam is synchronous and calls nothing
-// that can re-enter it, and it saves an allocation on every escaped value
+// pending percent-decoded bytes, flushed as UTF-8 when a run ends
 let pendingBytes = new Uint8Array(64);
 
 /**
  * Decodes the first `count` pending bytes as a UTF-8 sequence.
  */
 const decodeUtf8Bytes = (count: number) => {
-	// hoisted so the loop does not reload the module binding on every read
+	// hoisted out of the loop
 	const bytes = pendingBytes;
 
 	let decoded = "";
@@ -38,7 +36,7 @@ const decodeUtf8Bytes = (count: number) => {
 		let minimumCodePoint: number;
 		let sequenceLength: number;
 
-		// lead byte determines the sequence length: 110xxxxx = 2, 1110xxxx = 3, 11110xxx = 4
+		// lead byte gives the sequence length: 2, 3 or 4 bytes
 		if (firstByte >= 192 && firstByte <= 223) {
 			codePoint = firstByte & 31;
 			minimumCodePoint = 128;
@@ -80,7 +78,7 @@ const decodeUtf8Bytes = (count: number) => {
 			continue;
 		}
 
-		// reject overlong encodings, code points above U+10FFFF and U+D800-U+DFFF surrogates
+		// reject overlong encodings, code points above U+10FFFF and surrogates
 		if (
 			codePoint < minimumCodePoint ||
 			codePoint > 1_114_111 ||
@@ -100,9 +98,13 @@ const decodeUtf8Bytes = (count: number) => {
 /**
  * Decodes a percent-encoded route parameter.
  *
+ * Never throws: one rejected escape or UTF-8 sequence becomes one replacement
+ * character.
+ *
  * @example
  * ```typescript
  * decodePathParam("a%20b"); // "a b"
+ * decodePathParam("%ED%A0%80"); // "�"
  * ```
  */
 export const decodePathParam = (value: string) => {
@@ -129,10 +131,8 @@ export const decodePathParam = (value: string) => {
 			const nextPercentIndex = value.indexOf("%", i);
 			const runEnd = nextPercentIndex === -1 ? length : nextPercentIndex;
 
-			// a run of more than three characters copies at once, because
-			// appending it one character at a time costs an append per
-			// character, while a shorter run is cheaper appended than sliced
-			if (runEnd - i > 3) {
+			// a run of more than two characters copies at once
+			if (runEnd - i > 2) {
 				decoded += value.substring(i, runEnd);
 				i = runEnd;
 			} else {
@@ -164,8 +164,10 @@ export const decodePathParam = (value: string) => {
 		}
 
 		// a char code above 255 reads as undefined, which is not hexadecimal
-		const highNibble = HEX_VALUES[value.charCodeAt(i + 1)] ?? -1;
-		const lowNibble = HEX_VALUES[value.charCodeAt(i + 2)] ?? -1;
+		const highCharCode = value.charCodeAt(i + 1);
+		const highNibble = HEX_VALUES[highCharCode] ?? -1;
+		const lowCharCode = value.charCodeAt(i + 2);
+		const lowNibble = HEX_VALUES[lowCharCode] ?? -1;
 
 		if (highNibble === -1 || lowNibble === -1) {
 			if (pending > 0) {
@@ -174,7 +176,9 @@ export const decodePathParam = (value: string) => {
 			}
 
 			decoded += "�";
-			i += 3;
+
+			// a non-ASCII character closes no escape, so it is left unconsumed
+			i += highCharCode > 127 ? 1 : lowCharCode > 127 ? 2 : 3;
 
 			continue;
 		}
@@ -190,7 +194,7 @@ export const decodePathParam = (value: string) => {
 
 			decoded += String.fromCharCode(byte);
 		} else {
-			// a run is at most a third of the value, so the buffer grows with it
+			// grow the buffer to fit the run
 			if (pending === pendingBytes.length) {
 				const grown = new Uint8Array(pending * 2);
 

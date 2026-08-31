@@ -19,7 +19,10 @@ const validCases = [
 	["%252F", "%2F"],
 	// hexadecimal digits decode the same in either case
 	["%C3%A9", "é"],
-	// a delimiter arrives decoded and reopens no parsing of its own
+	// and the case may change inside one multi-byte sequence
+	["%e2%9C%93", "✓"],
+	["%c3%A9", "é"],
+	// delimiters arrive decoded
 	["%3F", "?"],
 	["%23", "#"],
 	["%26", "&"],
@@ -51,6 +54,12 @@ const malformedUtf8Cases = [
 	["%F8%80%80%80%80", "�����"],
 	["%E2%28%A1", "�(�"],
 	["%E2%82%41", "�A"],
+	// two surrogate sequences must not recombine
+	["%ED%A0%80%ED%B0%80", "��"],
+	// the second overlong two-byte lead
+	["%C1%BF", "�"],
+	// a six-byte FSS-UTF lead
+	["%FC%84%80%80%80%80", "������"],
 ] as const;
 
 const malformedPercentCases = [
@@ -66,8 +75,7 @@ const malformedPercentCases = [
 	["%E2%82%GG", "��"],
 	["%C3%", "��"],
 	["%C3%A", "��A"],
-	// a "%" that runs into another one, which the fallback router receives
-	// whenever the url parser re-encodes the character after a literal "%"
+	// a "%" that runs into another one
 	["%%", "��"],
 	["%%%", "�"],
 	["%%22", "�2"],
@@ -75,6 +83,22 @@ const malformedPercentCases = [
 	["%20%", " �"],
 	["%aG", "�"],
 	["%Ga", "�"],
+] as const;
+
+// a non-ASCII character closes no escape and survives it
+const malformedPercentNonAsciiCases = [
+	["%é", "�é"],
+	["%1é", "�é"],
+	["%[é", "�é"],
+	["%✓", "�✓"],
+	["%😀", "�😀"],
+	["a%✓b", "a�✓b"],
+	// while a multi-byte run is still pending
+	["%C3%A9%é", "é�é"],
+	// a char code above 255 reads as undefined in the hexadecimal table
+	["%Ā", "�Ā"],
+	["%０１", "�０１"],
+	["%2Ā", "�Ā"],
 ] as const;
 
 describe("decodePathParam", () => {
@@ -93,7 +117,7 @@ describe("decodePathParam", () => {
 	});
 
 	it("should decode the same value at every length around 32 characters", () => {
-		// a length-gated fast path used to change the code path here
+		// lengths around the old fast-path threshold
 		for (let padding = 26; padding <= 40; padding++) {
 			const value = `%20${"a".repeat(padding)}`;
 
@@ -108,9 +132,26 @@ describe("decodePathParam", () => {
 		expect(decodePathParam(value)).toBe("é".repeat(200));
 	});
 
+	it("should grow the shared byte buffer on a run of invalid bytes", () => {
+		// the longest run in this file, since the buffer outlives every test
+		expect(decodePathParam("%FF".repeat(600))).toBe("�".repeat(600));
+	});
+
+	it("should decode a run that alternates valid and invalid bytes", () => {
+		// an invalid byte joins the pending run rather than flushing it
+		expect(decodePathParam("%C3%A9%FF".repeat(240))).toBe("é�".repeat(240));
+	});
+
+	it("should flush a grown buffer around a literal run", () => {
+		const run = "%C3%A9".repeat(200);
+
+		expect(decodePathParam(`${run}zzz${run}`)).toBe(
+			`${"é".repeat(200)}zzz${"é".repeat(200)}`,
+		);
+	});
+
 	it("should take the no-escape shortcut for long values", () => {
-		// long enough that a length-gated fast path would have taken a
-		// different branch than a short value
+		// long enough to pass any length-gated fast path
 		const value = "a+b-c".repeat(8);
 
 		expect(value.length).toBeGreaterThanOrEqual(32);
@@ -146,6 +187,13 @@ describe("decodePathParam", () => {
 
 	it.each(malformedPercentCases)(
 		"should replace the malformed percent escape %j with %j like Bun's native router",
+		(encoded, expected) => {
+			expect(decodePathParam(encoded)).toBe(expected);
+		},
+	);
+
+	it.each(malformedPercentNonAsciiCases)(
+		"should replace the malformed percent escape %j with %j without dropping the character after it",
 		(encoded, expected) => {
 			expect(decodePathParam(encoded)).toBe(expected);
 		},
