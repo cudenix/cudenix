@@ -572,8 +572,7 @@ describe("parseBody", () => {
 		});
 
 		it("should not accept a control character folded onto a separator", async () => {
-			// "| 32" lowercasing would map "\u000F" onto "/" and "\r" onto "-",
-			// so these are look-likes only an in-process caller can build
+			// "| 32" maps "\u000F" onto "/" and "\r" onto "-"
 			const lookLikes = [
 				"application\u000Fjson",
 				"application\u000Foctet-stream",
@@ -610,8 +609,7 @@ describe("parseBody", () => {
 	});
 
 	describe("joined duplicate content types", () => {
-		// Bun joins duplicate request headers with ", " per the Fetch
-		// spec, so a repeated `Content-Type` reaches the parser as a list
+		// Bun joins duplicate request headers with ", "
 		it("should match json when a duplicate header repeats the same type", async () => {
 			const result = await parseBody(
 				request(

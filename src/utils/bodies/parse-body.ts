@@ -12,12 +12,15 @@ const matchesMediaType = (
 		return false;
 	}
 
+	// fast path for an already-lowercase media type
+	if (contentType.startsWith(mediaType)) {
+		return true;
+	}
+
 	for (let i = 0; i < end; i++) {
 		const charCode = contentType.charCodeAt(i);
 
-		// "| 32" alone would also fold the control character 32 below a
-		// separator onto it, letting "application\x0Fjson" pass as json, so
-		// only "A" (65) - "Z" (90) are lowercased
+		// lowercase only "A" (65) - "Z" (90)
 		if (
 			(charCode >= 65 && charCode <= 90 ? charCode | 32 : charCode) !==
 			mediaType.charCodeAt(i)
@@ -78,9 +81,7 @@ export const parseBody = (request: Request) => {
 		return request.text();
 	}
 
-	// ";" (59) starts the media type parameters, and "," (44) starts the next
-	// entry of the list Bun joins duplicate headers into, so the media type
-	// this request declares ends at whichever of the two comes first
+	// the media type ends at ";" (59) or "," (44), whichever comes first
 	const parametersIndex = contentType.indexOf(";");
 	const nextEntryIndex = contentType.indexOf(",");
 
