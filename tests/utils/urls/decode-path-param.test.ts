@@ -85,7 +85,7 @@ const malformedPercentCases = [
 	["%Ga", "�"],
 ] as const;
 
-// a non-ASCII character closes no escape and survives it
+// a non-ASCII character closes no escape
 const malformedPercentNonAsciiCases = [
 	["%é", "�é"],
 	["%1é", "�é"],
@@ -95,7 +95,7 @@ const malformedPercentNonAsciiCases = [
 	["a%✓b", "a�✓b"],
 	// while a multi-byte run is still pending
 	["%C3%A9%é", "é�é"],
-	// a char code above 255 reads as undefined in the hexadecimal table
+	// a char code above 255 reads as undefined
 	["%Ā", "�Ā"],
 	["%０１", "�０１"],
 	["%2Ā", "�Ā"],
@@ -117,7 +117,7 @@ describe("decodePathParam", () => {
 	});
 
 	it("should decode the same value at every length around 32 characters", () => {
-		// lengths around the old fast-path threshold
+		// lengths around the fast-path threshold
 		for (let padding = 26; padding <= 40; padding++) {
 			const value = `%20${"a".repeat(padding)}`;
 
@@ -133,7 +133,7 @@ describe("decodePathParam", () => {
 	});
 
 	it("should grow the shared byte buffer on a run of invalid bytes", () => {
-		// the longest run in this file, since the buffer outlives every test
+		// the longest run in this file
 		expect(decodePathParam("%FF".repeat(600))).toBe("�".repeat(600));
 	});
 

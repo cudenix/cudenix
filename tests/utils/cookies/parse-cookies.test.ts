@@ -124,7 +124,6 @@ describe("parseCookies", () => {
 		});
 
 		it("should leave names percent-encoded", () => {
-			// RFC 6265 names are tokens; Bun.CookieMap decodes values only
 			const result = parseCookies("a%20b=1");
 
 			expect(result["a%20b"]).toBe("1");

@@ -400,7 +400,6 @@ describe("parseQuery", () => {
 		});
 
 		it("should find no query when the '?' sits inside the fragment", () => {
-			// "new URL(url).search" is empty for these
 			for (const url of [
 				"/a#c?b=v1",
 				"http://localhost/a#c?b=v1",

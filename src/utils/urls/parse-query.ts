@@ -79,9 +79,6 @@ const scanComponent = (
 
 /**
  * Percent-decodes a query component the way the URL parser does.
- *
- * Never throws: a "%" without two hexadecimal digits after it stays literal,
- * and invalid UTF-8 becomes one replacement character per maximal subpart.
  */
 const decodeQueryComponent = (component: string) => {
 	const input = encoder.encode(component);
@@ -123,7 +120,7 @@ const decodeQueryComponent = (component: string) => {
 const replacePlus = (component: string) => {
 	const length = component.length;
 
-	// past this length one split beats scanning and slicing by hand
+	// long components go to "split"/"join"
 	if (length > REPLACE_ALL_LENGTH) {
 		return component.split("+").join(" ");
 	}
@@ -161,7 +158,7 @@ export const parseQuery = (url: string) => {
 		return params;
 	}
 
-	// a "?" behind a "#" (35) sits in the fragment and starts no query
+	// a "?" behind a "#" (35) starts no query
 	if (url.lastIndexOf("#", queryIndex) !== -1) {
 		return params;
 	}
@@ -201,7 +198,7 @@ export const parseQuery = (url: string) => {
 			i++;
 		}
 
-		// the key outran the bound, so the rest of it goes to the searches
+		// the rest of the key goes to the searches
 		if (i === scanEnd && scanEnd !== urlLength) {
 			const scanned = scanComponent(url, i, urlLength, true);
 
@@ -249,7 +246,7 @@ export const parseQuery = (url: string) => {
 				i++;
 			}
 
-			// the value outran the bound, so the rest goes to the searches
+			// the rest of the value goes to the searches
 			if (i === valueScanEnd && valueScanEnd !== urlLength) {
 				const scanned = scanComponent(url, i, urlLength, false);
 

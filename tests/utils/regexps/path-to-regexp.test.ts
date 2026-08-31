@@ -827,7 +827,6 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should keep requiring non-empty segments in a non-terminal wildcard", () => {
-			// a non-terminal wildcard keeps requiring non-empty segments
 			const { pattern, regex } = compile("/a/*/b");
 
 			expect(pattern).toBe(
@@ -1085,7 +1084,6 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should rank a terminal wildcard behind every other segment kind", () => {
-			// a terminal wildcard pins nothing behind it
 			expect(pathToRegexp("/a/*").ranks).toEqual([0, 4]);
 			expect(pathToRegexp("/a/*?").ranks).toEqual([0, 4]);
 			expect(pathToRegexp("/*").ranks).toEqual([4]);

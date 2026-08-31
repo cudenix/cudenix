@@ -98,9 +98,6 @@ const decodeUtf8Bytes = (count: number) => {
 /**
  * Decodes a percent-encoded route parameter.
  *
- * Never throws: one rejected escape or UTF-8 sequence becomes one replacement
- * character.
- *
  * @example
  * ```typescript
  * decodePathParam("a%20b"); // "a b"
@@ -142,7 +139,7 @@ export const decodePathParam = (value: string) => {
 				}
 			}
 
-			// no escape left, so the run above was the rest of the value
+			// no escape left: the run above ended the value
 			if (nextPercentIndex === -1) {
 				break;
 			}
@@ -163,7 +160,7 @@ export const decodePathParam = (value: string) => {
 			continue;
 		}
 
-		// a char code above 255 reads as undefined, which is not hexadecimal
+		// a char code above 255 reads as undefined
 		const highCharCode = value.charCodeAt(i + 1);
 		const highNibble = HEX_VALUES[highCharCode] ?? -1;
 		const lowCharCode = value.charCodeAt(i + 2);
@@ -177,7 +174,7 @@ export const decodePathParam = (value: string) => {
 
 			decoded += "�";
 
-			// a non-ASCII character closes no escape, so it is left unconsumed
+			// a non-ASCII character closes no escape
 			i += highCharCode > 127 ? 1 : lowCharCode > 127 ? 2 : 3;
 
 			continue;

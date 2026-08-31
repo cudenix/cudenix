@@ -39,12 +39,12 @@ const isTerminalSegment = (
 	return true;
 };
 
-// segment specificity used to order routes: lower ranks match first
+// segment ranks, lower matching first
 const STATIC_RANK = 0;
 const PARAM_RANK = 1;
 const WILDCARD_RANK = 2;
 const REST_RANK = 3;
-// a terminal "*" pins nothing behind it, so it is matched last
+// a terminal "*" matches last
 const TERMINAL_WILDCARD_RANK = 4;
 
 /**
@@ -69,9 +69,6 @@ export const PARAM_FLAG_REST = 2;
 
 /**
  * Compiles a route pattern for matching and parameter extraction.
- *
- * A "\\" separates segments the way a "/" does, so both spellings of a path
- * compile to one pattern.
  *
  * @example
  * ```typescript

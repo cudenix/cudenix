@@ -21,7 +21,7 @@ export const parseCookies = (header: string) => {
 	}
 
 	const length = header.length;
-	// one scan decides whether any pair needs decoding
+	// a "%" anywhere means some value needs decoding
 	const isEncoded = header.indexOf("%") !== -1;
 
 	let start = 0;
@@ -94,7 +94,7 @@ export const parseCookies = (header: string) => {
 					valueEnd--;
 				}
 
-				// RFC 6265 names are tokens: only the value is decoded
+				// only the value is decoded
 				const name = header.substring(nameStart, nameEnd);
 
 				// first one wins

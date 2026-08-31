@@ -386,7 +386,7 @@ describe("parseBody", () => {
 				unknown
 			>;
 
-			// the nameless part never survives the multipart decoding round trip
+			// the nameless part is dropped
 			expect(Object.keys(result)).toEqual(["a"]);
 			expect(Object.hasOwn(result, "")).toBe(false);
 			expect(result.a).toBe("v2");
@@ -592,7 +592,7 @@ describe("parseBody", () => {
 						method: "POST",
 					});
 				} catch {
-					// "\r" is rejected by Headers, so it never reaches parseBody
+					// "\r" is rejected by Headers
 					continue;
 				}
 

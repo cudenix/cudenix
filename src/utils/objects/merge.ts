@@ -7,7 +7,6 @@
  *
  * merge(config, { b: 2 }); // config is now { a: "v1", b: 2 }
  *
- * // shallow: the nested object is replaced, not merged
  * const nested = { a: { keep: true, x: 1 } };
  *
  * merge(nested, { a: { x: 2 } }); // nested is now { a: { x: 2 } }

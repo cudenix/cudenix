@@ -18,5 +18,5 @@ export type HttpMethod =
 	| "PUT"
 	| "QUERY"
 	| "TRACE"
-	// keeps autocomplete for the literals while accepting any method
+	// accepts any method while keeping autocomplete
 	| (string & NonNullable<unknown>);
