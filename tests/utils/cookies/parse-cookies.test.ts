@@ -76,6 +76,27 @@ describe("parseCookies", () => {
 			expect(result.a).toBe("a b=c");
 		});
 
+		it.each([
+			["a=%é", "�é"],
+			["a=%1é", "�é"],
+			["a=%[é", "�é"],
+			["a=%✓", "�✓"],
+			["a=%Ā", "�Ā"],
+		] as const)(
+			"should keep the character after the malformed escape in %j",
+			(header, expected) => {
+				// the escape stops before a non-ASCII character
+				expect(parseCookies(header).a).toBe(expected);
+			},
+		);
+
+		it("should keep the pair boundary after a malformed escape", () => {
+			const result = parseCookies("a=%😀; b=v1");
+
+			expect(result.a).toBe("�😀");
+			expect(result.b).toBe("v1");
+		});
+
 		it("should replace a malformed escape instead of throwing", () => {
 			expect(parseCookies("a=%ZZ").a).toBe("�");
 			expect(parseCookies("a=%E0%A4%A").a).toBe("��A");
