@@ -6,18 +6,16 @@ const KEY_HAS_PERCENT = 2;
 const VALUE_HAS_PLUS = 4;
 const VALUE_HAS_PERCENT = 8;
 
-// a component longer than this stops being cheaper to walk one character at a
-// time than to hand to the vectorized searches, which cost a call each but
-// then run far below a character per step
+// length past which a component goes to the native searches
 const SCAN_LIMIT = 64;
 
-// the same trade for the "+" swap, which pays for one search rather than four
+// length past which the "+" swap goes to "split"/"join"
 const REPLACE_ALL_LENGTH = 128;
 
-// the encoder and decoder are reused across calls to avoid allocating them per query
+// reused across calls
 const encoder = new TextEncoder();
 
-// "ignoreBOM" keeps a decoded U+FEFF, which is what the URL parser does
+// "ignoreBOM" keeps a decoded U+FEFF
 const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 
 /**
@@ -72,7 +70,7 @@ const scanComponent = (
 
 	return {
 		end,
-		// in the KEY_HAS_* positions, which the value caller shifts onto its own
+		// in the KEY_HAS_* positions, shifted by the value caller
 		flags:
 			(plusIndex !== -1 && plusIndex < end ? KEY_HAS_PLUS : 0) |
 			(percentIndex !== -1 && percentIndex < end ? KEY_HAS_PERCENT : 0),
@@ -82,11 +80,8 @@ const scanComponent = (
 /**
  * Percent-decodes a query component the way the URL parser does.
  *
- * Runs only where `decodeURIComponent` throws, and never throws itself: a "%"
- * without two hexadecimal digits after it stays literal, and invalid UTF-8
- * becomes one replacement character per maximal subpart. That is what
- * `URLSearchParams` does with a query, and unlike `decodeURIComponent` it
- * still decodes the well-formed escapes standing next to a malformed one.
+ * Never throws: a "%" without two hexadecimal digits after it stays literal,
+ * and invalid UTF-8 becomes one replacement character per maximal subpart.
  */
 const decodeQueryComponent = (component: string) => {
 	const input = encoder.encode(component);
@@ -128,11 +123,9 @@ const decodeQueryComponent = (component: string) => {
 const replacePlus = (component: string) => {
 	const length = component.length;
 
-	// "replaceAll" allocates a matcher for what is a single-character swap, so
-	// scanning by hand and slicing between the hits is around twice as fast up
-	// to this length, past which its vectorized search pulls ahead instead
+	// past this length one split beats scanning and slicing by hand
 	if (length > REPLACE_ALL_LENGTH) {
-		return component.replaceAll("+", " ");
+		return component.split("+").join(" ");
 	}
 
 	let output = "";
@@ -168,9 +161,7 @@ export const parseQuery = (url: string) => {
 		return params;
 	}
 
-	// a "?" behind a "#" (35) sits inside the fragment and starts no query, so
-	// "/a#c?b=v1" has no parameters at all, exactly like `new URL(url)` reads
-	// it; searching backwards bounds the extra scan by the path, not the query
+	// a "?" behind a "#" (35) sits in the fragment and starts no query
 	if (url.lastIndexOf("#", queryIndex) !== -1) {
 		return params;
 	}
@@ -185,8 +176,7 @@ export const parseQuery = (url: string) => {
 		const keyStart = i;
 
 		let flags = 0;
-		// bounding the loop rather than testing the bound inside it keeps the
-		// short components, which are the common ones, on the same step cost
+		// the scan bound is hoisted out of the loop
 		let scanEnd = keyStart + SCAN_LIMIT;
 
 		if (scanEnd > urlLength) {
@@ -259,8 +249,7 @@ export const parseQuery = (url: string) => {
 				i++;
 			}
 
-			// the value outran the bound, so the rest of it goes to the
-			// searches, whose key flags shift onto the value ones
+			// the value outran the bound, so the rest goes to the searches
 			if (i === valueScanEnd && valueScanEnd !== urlLength) {
 				const scanned = scanComponent(url, i, urlLength, false);
 
@@ -282,9 +271,7 @@ export const parseQuery = (url: string) => {
 				try {
 					key = decodeURIComponent(key);
 				} catch {
-					// all-or-nothing: it threw on the first bad escape and
-					// discarded the good ones beside it, so redo the whole
-					// component with the decoder that tolerates them
+					// redo the whole component with the tolerant decoder
 					key = decodeQueryComponent(key);
 				}
 			}

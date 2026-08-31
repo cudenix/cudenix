@@ -214,38 +214,33 @@ describe("parseQuery", () => {
 		});
 
 		it("should still decode the well-formed escapes beside a malformed one", () => {
-			// "decodeURIComponent" is all-or-nothing, so the fallback decoder
-			// exists to keep the "%20" here from surviving encoded
+			// the fallback decoder handles the whole component
 			expect(parseQuery("/a?b=x%FFy%20z").b).toBe("x\uFFFDy z");
 			expect(parseQuery("/a?b=%ZZ%20").b).toBe("%ZZ ");
 		});
 
 		it("should reach the JSON branch once the fallback decoder runs", () => {
-			// "decodeURIComponent" threw on this before, so the value stayed
-			// percent-encoded and never looked like JSON to the probe below
+			// the fallback decoder leaves the value looking like JSON
 			expect(parseQuery("/a?b=%7B%22c%22%3A%221%FF%22%7D").b).toEqual({
 				c: "1\uFFFD",
 			});
 		});
 
 		it("should collapse two malformed spellings of one key into an array", () => {
-			// both spellings decode to the same key, so the repeat is seen
+			// both spellings decode to the same key
 			const result = parseQuery("/a?b%FF=v1&b%EF%BF%BD=v2");
 
 			expect(result["b\uFFFD"]).toEqual(["v1", "v2"]);
 		});
 
 		it("should keep a non-hex escape literal, unlike path params", () => {
-			// a "%" without two hex digits is not an escape to the URL parser,
-			// while Bun's route decoder replaces it
+			// a "%" without two hex digits is no escape to the URL parser
 			expect(parseQuery("/a?b=%ZZ").b).toBe("%ZZ");
 			expect(decodePathParam("%ZZ")).toBe("�");
 		});
 
 		it("should replace per maximal subpart, unlike path params", () => {
-			// the query follows "URLSearchParams", which emits one replacement
-			// per maximal subpart, while Bun's route decoder emits one per
-			// failed sequence
+			// the query follows "URLSearchParams"
 			expect(parseQuery("/a?b=%ED%A0%80").b).toBe("���");
 			expect(decodePathParam("%ED%A0%80")).toBe("�");
 		});
@@ -405,8 +400,7 @@ describe("parseQuery", () => {
 		});
 
 		it("should find no query when the '?' sits inside the fragment", () => {
-			// "new URL(url).search" is empty for these, so reading a parameter
-			// out of them would let a client smuggle one past every URL reader
+			// "new URL(url).search" is empty for these
 			for (const url of [
 				"/a#c?b=v1",
 				"http://localhost/a#c?b=v1",
@@ -555,9 +549,7 @@ describe("parseQuery", () => {
 	});
 
 	describe("long components", () => {
-		// a component longer than the scan limit finishes on the native
-		// searches instead of the per-character loop, so every boundary below
-		// has to read the same as the loop would have
+		// lengths on both sides of the scan limit
 		const lengths = Array.from({ length: 86 }, (_, index) => index + 55);
 
 		it.each(lengths)(
@@ -671,6 +663,37 @@ describe("parseQuery", () => {
 
 			expect(result.b).toEqual({ c: "x".repeat(200) });
 		});
+
+		it("should turn a run of adjacent '+' into the same run of spaces", () => {
+			expect(parseQuery("/a?b=a++b").b).toBe("a  b");
+			expect(parseQuery("/a?b=+++").b).toBe("   ");
+		});
+
+		it("should turn a leading and a trailing '+' into a space", () => {
+			expect(parseQuery("/a?b=+a+").b).toBe(" a ");
+			expect(parseQuery("/a?+b+=v1")).toEqual({ " b ": "v1" });
+		});
+
+		it.each([63, 64, 65, 127, 128, 129, 256])(
+			"should turn a %i character run of '+' into the same run of spaces",
+			(length) => {
+				// lengths on both sides of the swap threshold
+				expect(parseQuery(`/a?b=${"+".repeat(length)}`).b).toBe(
+					" ".repeat(length),
+				);
+			},
+		);
+
+		it.each([127, 128, 129, 256])(
+			"should swap every '+' of a %i character dense value",
+			(length) => {
+				const value = "a+".repeat(length >> 1);
+
+				expect(parseQuery(`/a?b=${value}`).b).toBe(
+					"a ".repeat(length >> 1),
+				);
+			},
+		);
 	});
 
 	describe("return shape", () => {
