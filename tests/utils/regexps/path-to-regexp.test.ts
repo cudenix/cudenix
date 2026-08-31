@@ -131,7 +131,7 @@ describe("pathToRegexp", () => {
 
 		it("should escape additional regex-special characters in literals", () => {
 			// "{", "}" and "^" are covered by the percent-encoded set instead
-			const symbols = ["(", ")", "[", "]", "+", "|", "$", "\\"];
+			const symbols = ["(", ")", "[", "]", "+", "|", "$"];
 
 			for (let i = 0; i < symbols.length; i++) {
 				const path = `/a${symbols[i]}b`;
@@ -142,6 +142,53 @@ describe("pathToRegexp", () => {
 				expect(regex.test("/aXb")).toBe(false);
 				expect(regex.test("/ab")).toBe(false);
 			}
+		});
+
+		describe("'\\' separator", () => {
+			it("should compile a '\\' exactly like a '/'", () => {
+				// the url parser folds "\\" into "/" for a special scheme
+				expect(pathToRegexp("/a\\b").pattern).toBe(
+					pathToRegexp("/a/b").pattern,
+				);
+				expect(pathToRegexp("/a\\b").ranks).toEqual([0, 0]);
+			});
+
+			it("should match the pathname the parser builds from a '\\' path", () => {
+				const { regex } = compile("/a\\b");
+
+				expect(
+					regex.test(new URL("http://localhost/a\\b").pathname),
+				).toBe(true);
+				expect(regex.test("/a/b")).toBe(true);
+			});
+
+			it("should collide with the '/' spelling of the same path", () => {
+				// the two spellings compile to one pattern
+				const backslash = pathToRegexp("/a\\b/:p1");
+				const slash = pathToRegexp("/a/b/:p1");
+
+				expect(backslash.pattern).toBe(slash.pattern);
+				expect(backslash.paramKeys).toEqual(slash.paramKeys);
+				expect(backslash.ranks).toEqual(slash.ranks);
+			});
+
+			it("should read a parameter that follows a '\\'", () => {
+				const { paramKeys } = compile("/a\\:p1");
+
+				expect(paramKeys).toEqual(["p1"]);
+				expect(pathToRegexp("/a\\:p1").ranks).toEqual([0, 1]);
+			});
+
+			it("should treat a trailing '\\' as a trailing separator", () => {
+				expect(pathToRegexp("/a\\").pattern).toBe(
+					pathToRegexp("/a/").pattern,
+				);
+			});
+
+			it("should normalize a path of nothing but separators to the root", () => {
+				expect(pathToRegexp("\\\\").pattern).toBe(String.raw`\/()`);
+				expect(pathToRegexp("/\\/").pattern).toBe(String.raw`\/()`);
+			});
 		});
 
 		it("should escape balanced parentheses without adding a capture group", () => {
@@ -173,8 +220,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should compile whitespace and control characters to their escapes", () => {
-			// a request url can only ever carry these percent-encoded, so the
-			// literal spelling would compile to a pattern nothing can match
+			// a request url only ever carries these percent-encoded
 			const segments = [
 				["a b", "a%20b"],
 				["a\nb", "a%0Ab"],
@@ -196,7 +242,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should compile a lone surrogate the way the url parser replaces it", () => {
-			// "encodeURIComponent" would throw on it, so it is well-formed first
+			// the value is made well-formed before encoding
 			const { regex } = compile("/a\uD800b");
 
 			expect(regex.test("/a%EF%BF%BDb")).toBe(true);
@@ -269,8 +315,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should compile both spellings of the same non-ASCII route to one pattern", () => {
-			// the url parser percent-encodes the pathname before the pattern
-			// ever sees it, so a literal spelling would match nothing at all
+			// the url parser percent-encodes the pathname first
 			expect(pathToRegexp("/café").pattern).toBe(
 				pathToRegexp("/caf%C3%A9").pattern,
 			);
@@ -773,8 +818,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should swallow empty segments in a terminal wildcard, like Bun's router", () => {
-			// a terminal "*" is the only wildcard Bun's own table accepts, and
-			// it takes the whole remainder of the path, empty segments included
+			// a terminal "*" takes the whole remainder of the path
 			const { pattern, regex } = compile("/a/*");
 
 			expect(pattern).toBe(String.raw`\/a\/[^\s?#]*()`);
@@ -783,7 +827,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should keep requiring non-empty segments in a non-terminal wildcard", () => {
-			// Bun's router never sees this shape, so it stays as it was
+			// a non-terminal wildcard keeps requiring non-empty segments
 			const { pattern, regex } = compile("/a/*/b");
 
 			expect(pattern).toBe(
@@ -975,6 +1019,53 @@ describe("pathToRegexp", () => {
 			);
 		});
 
+		it.each([..."\"$%&'()*+,-./:;<=>@[\\]^_`{|}~ !"])(
+			"should match the pathname the parser builds for the literal %j",
+			(character) => {
+				const regex = embed(`/a${character}b`);
+				const { pathname } = new URL(`http://localhost/a${character}b`);
+
+				expect(regex.test(`http://localhost${pathname}`)).toBe(true);
+			},
+		);
+
+		it.each(["\t", "\n", "\r", "?", "#"])(
+			"should compile the literal %j only in its encoded spelling",
+			(character) => {
+				// a pathname holds none of these literally
+				const regex = embed(`/a${character}b`);
+				const { pathname } = new URL(`http://localhost/a${character}b`);
+
+				expect(
+					regex.test(
+						`http://localhost/a${encodeURIComponent(character)}b`,
+					),
+				).toBe(true);
+				expect(regex.test(`http://localhost${pathname}`)).toBe(false);
+			},
+		);
+
+		it("should match a fully optional pattern the same cold and hot", () => {
+			// a fully optional route emits a mid-empty alternative
+			const regex = embed("/:p1?");
+
+			let matchedRoot = 0;
+			let matchedParam = 0;
+
+			for (let i = 0; i < 50_000; i++) {
+				if (regex.test("http://localhost/")) {
+					matchedRoot++;
+				}
+
+				if (regex.exec("http://localhost/v1")?.[1] === "v1") {
+					matchedParam++;
+				}
+			}
+
+			expect(matchedRoot).toBe(50_000);
+			expect(matchedParam).toBe(50_000);
+		});
+
 		it("should not match when unconsumed path segments remain", () => {
 			expect(embed("/a/:p1").test("http://localhost/a/v1/v2")).toBe(
 				false,
@@ -991,6 +1082,19 @@ describe("pathToRegexp", () => {
 			expect(pathToRegexp("/a?/:p1?/*?/...r1?").ranks).toEqual([
 				0, 1, 2, 3,
 			]);
+		});
+
+		it("should rank a terminal wildcard behind every other segment kind", () => {
+			// a terminal wildcard pins nothing behind it
+			expect(pathToRegexp("/a/*").ranks).toEqual([0, 4]);
+			expect(pathToRegexp("/a/*?").ranks).toEqual([0, 4]);
+			expect(pathToRegexp("/*").ranks).toEqual([4]);
+		});
+
+		it("should keep a non-terminal wildcard ahead of a rest parameter", () => {
+			expect(pathToRegexp("/a/*/b").ranks).toEqual([0, 2, 0]);
+			expect(pathToRegexp("/a/...r1").ranks).toEqual([0, 3]);
+			expect(pathToRegexp("/a/*/*").ranks).toEqual([0, 2, 4]);
 		});
 
 		it("should return no ranks for the root path", () => {

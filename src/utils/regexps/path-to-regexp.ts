@@ -4,20 +4,16 @@ const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
 // same shape as rest but non-capturing, and matches zero segments too
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
-// a terminal "*" is the only wildcard Bun's router accepts, and it swallows
-// the whole remainder of the path, empty segments and a trailing "/" included,
-// so one greedy run mirrors it and leaves nothing to backtrack over
+// the whole remainder of the path, empty segments included
 const TERMINAL_WILDCARD = "\\/[^\\s?#]*";
 
 // regexp syntax, plus every character a url pathname carries percent-encoded
 const STATIC_SEGMENT_SYNTAX = /[^!-~]|["#$()*+.<>?[\\\]^`{|}]/gu;
 
-// the url parser percent-encodes these, so a request url never holds them
-// literally and a pattern that did could not match one
+// characters a request url never carries literally in its pathname
 const URL_ENCODED_CHARACTER = /[^!-~]|["#<>?^`{}]/u;
 
-// percent-encodes what a request url carries encoded and escapes the rest,
-// "toWellFormed" standing in for the parser's own lone surrogate replacement
+// percent-encodes what a request url carries encoded and escapes the rest
 const escapeStaticCharacter = (character: string) =>
 	URL_ENCODED_CHARACTER.test(character)
 		? encodeURIComponent(character.toWellFormed())
@@ -32,8 +28,10 @@ const isTerminalSegment = (
 	length: number,
 ) => {
 	for (let i = segmentEnd; i < length; i++) {
-		// "/" (47) separators open no segment of their own
-		if (path.charCodeAt(i) !== 47) {
+		const charCode = path.charCodeAt(i);
+
+		// "/" (47) and "\" (92) separators open no segment of their own
+		if (charCode !== 47 && charCode !== 92) {
 			return false;
 		}
 	}
@@ -46,6 +44,8 @@ const STATIC_RANK = 0;
 const PARAM_RANK = 1;
 const WILDCARD_RANK = 2;
 const REST_RANK = 3;
+// a terminal "*" pins nothing behind it, so it is matched last
+const TERMINAL_WILDCARD_RANK = 4;
 
 /**
  * Marks an optional route parameter in `paramFlags`.
@@ -69,6 +69,9 @@ export const PARAM_FLAG_REST = 2;
 
 /**
  * Compiles a route pattern for matching and parameter extraction.
+ *
+ * A "\\" separates segments the way a "/" does, so both spellings of a path
+ * compile to one pattern.
  *
  * @example
  * ```typescript
@@ -108,14 +111,26 @@ export const pathToRegexp = (path: string) => {
 	let i = 0;
 
 	while (i < length) {
-		// skip "/" (47) separators
-		if (path.charCodeAt(i) === 47) {
+		const separatorCode = path.charCodeAt(i);
+
+		// "\" (92) opens the same segment as "/" (47)
+		if (separatorCode === 47 || separatorCode === 92) {
 			i++;
 
 			continue;
 		}
 
 		let segmentEnd = path.indexOf("/", i);
+
+		const backslashIndex = path.indexOf("\\", i);
+
+		// whichever separator comes first closes the segment
+		if (
+			segmentEnd === -1 ||
+			(backslashIndex !== -1 && backslashIndex < segmentEnd)
+		) {
+			segmentEnd = backslashIndex;
+		}
 
 		if (segmentEnd === -1) {
 			segmentEnd = length;
@@ -141,11 +156,11 @@ export const pathToRegexp = (path: string) => {
 			firstCharCode === 42 &&
 			contentEnd - i === 1
 		) {
-			ranks.push(WILDCARD_RANK);
+			const isTerminal = isTerminalSegment(path, segmentEnd, length);
 
-			segment = isTerminalSegment(path, segmentEnd, length)
-				? TERMINAL_WILDCARD
-				: WILDCARD;
+			ranks.push(isTerminal ? TERMINAL_WILDCARD_RANK : WILDCARD_RANK);
+
+			segment = isTerminal ? TERMINAL_WILDCARD : WILDCARD;
 		} else if (
 			// "..." (46) rest param
 			firstCharCode === 46 &&
