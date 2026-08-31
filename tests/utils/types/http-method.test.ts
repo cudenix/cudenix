@@ -4,6 +4,12 @@ import type { HttpMethod } from "@/utils/types/http-method";
 
 describe("HttpMethod", () => {
 	describe("named members", () => {
+		it("should keep `CONNECT` extractable from the union", () => {
+			expectTypeOf<
+				Extract<HttpMethod, "CONNECT">
+			>().toEqualTypeOf<"CONNECT">();
+		});
+
 		it("should keep `DELETE` extractable from the union", () => {
 			expectTypeOf<
 				Extract<HttpMethod, "DELETE">
@@ -42,6 +48,12 @@ describe("HttpMethod", () => {
 			expectTypeOf<
 				Extract<HttpMethod, "QUERY">
 			>().toEqualTypeOf<"QUERY">();
+		});
+
+		it("should keep `TRACE` extractable from the union", () => {
+			expectTypeOf<
+				Extract<HttpMethod, "TRACE">
+			>().toEqualTypeOf<"TRACE">();
 		});
 
 		it("should not surface an unnamed verb as a literal member", () => {

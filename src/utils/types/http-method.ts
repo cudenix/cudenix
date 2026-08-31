@@ -8,6 +8,7 @@
  * ```
  */
 export type HttpMethod =
+	| "CONNECT"
 	| "DELETE"
 	| "GET"
 	| "HEAD"
@@ -16,5 +17,6 @@ export type HttpMethod =
 	| "POST"
 	| "PUT"
 	| "QUERY"
+	| "TRACE"
 	// keeps autocomplete for the literals while accepting any method
 	| (string & NonNullable<unknown>);
