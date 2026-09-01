@@ -111,11 +111,6 @@ const decodeQueryComponent = (component: string) => {
 
 /**
  * Replaces every "+" in a query component with a space.
- *
- * @example
- * ```typescript
- * replacePlus("a+b"); // "a b"
- * ```
  */
 const replacePlus = (component: string) => {
 	const length = component.length;
