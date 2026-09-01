@@ -737,4 +737,172 @@ describe("parseQuery", () => {
 			expect(result.b).toBe("v3");
 		});
 	});
+	describe("parity with URLSearchParams", () => {
+		// what URLSearchParams yields, collapsed the way parseQuery collapses
+		const searchParams = (query: string) => {
+			const params: Record<string, unknown> = {};
+
+			for (const [key, value] of new URLSearchParams(query)) {
+				const existing = params[key];
+
+				if (existing === undefined) {
+					params[key] = value;
+				} else if (Array.isArray(existing)) {
+					existing.push(value);
+				} else {
+					params[key] = [existing, value];
+				}
+			}
+
+			return params;
+		};
+
+		const parityCases = [
+			"b=v1",
+			"b=v1&c=v2",
+			"b=v1&b=v2",
+			"b=v1&b=v2&b=v3",
+			"b=",
+			"b",
+			"b=&c=",
+			"b=a+b",
+			"b=a%20b",
+			"b+c=v1",
+			"b%20c=v1",
+			"%2F=%2F",
+			"b=%2Fa%2Fb",
+			"b=Jos%C3%A9",
+			"b=%F0%9F%8E%89",
+			"b=%E2%82%AC",
+			// malformed escapes stay literal, exactly as the spec decoder does
+			"b=%",
+			"b=%z",
+			"b=%zz",
+			"b=%2",
+			"b=a%%20b",
+			// invalid utf-8 becomes replacement characters
+			"b=%C3",
+			"b=%ED%A0%80",
+			"b=%C0%80",
+			"b=%FF",
+			"b=%80",
+			"b=%F5%80%80%80",
+			// separators and empty pairs
+			"&&b=v1&&",
+			"b==v2",
+			"b=v1&",
+			"&b=v1",
+			"b=v1&c",
+			// reserved characters that survive undecoded
+			"b=a&c=b%26c",
+			"b=%3D",
+			"b=%23",
+			"b=v1%2Bv2",
+			// long components cross the internal scan limit
+			`b=${"v".repeat(200)}`,
+			`${"k".repeat(200)}=v1`,
+			`b=${"a+b+".repeat(50)}`,
+			`b=${"%20".repeat(50)}`,
+		];
+
+		for (const query of parityCases) {
+			it(`should match URLSearchParams for ${JSON.stringify(query)}`, () => {
+				expect({ ...parseQuery(`/a?${query}`) }).toEqual(
+					searchParams(query),
+				);
+			});
+		}
+
+		it("should match URLSearchParams on generated queries", () => {
+			// seeded xorshift over pair-shaped fragments
+			const fragments = [
+				"b",
+				"c",
+				"v1",
+				"v2",
+				"=",
+				"&",
+				"+",
+				"%20",
+				"%",
+				"%zz",
+				"%C3",
+				"%C3%A9",
+				"%ED%A0%80",
+				"%2F",
+				"%3D",
+				"%26",
+				"a",
+				"1",
+			];
+
+			let seed = 0x9e3779b1;
+
+			const next = (bound: number) => {
+				seed ^= seed << 13;
+				seed >>>= 0;
+				seed ^= seed >> 17;
+				seed ^= seed << 5;
+				seed >>>= 0;
+
+				return seed % bound;
+			};
+
+			const differences: {
+				cudenix: unknown;
+				query: string;
+				spec: unknown;
+			}[] = [];
+
+			for (let i = 0; i < 3000; i++) {
+				const parts = 1 + next(8);
+
+				let query = "";
+
+				for (let part = 0; part < parts; part++) {
+					query += fragments[next(fragments.length)];
+				}
+
+				// a "#" would end the query, and json values diverge by design
+				if (query.includes("#")) {
+					continue;
+				}
+
+				const cudenix = { ...parseQuery(`/a?${query}`) };
+				const spec = searchParams(query);
+
+				// parseQuery drops the empty key URLSearchParams keeps
+				delete spec[""];
+
+				if (!Bun.deepEquals(cudenix, spec, true)) {
+					differences.push({ cudenix, query, spec });
+				}
+			}
+
+			expect(differences).toEqual([]);
+		});
+
+		describe("documented divergences", () => {
+			it("should parse a json object value URLSearchParams leaves a string", () => {
+				expect(parseQuery('/a?b={"c":1}').b).toEqual({ c: 1 });
+				expect(searchParams('b={"c":1}').b).toBe('{"c":1}');
+			});
+
+			it("should parse a json array value URLSearchParams leaves a string", () => {
+				expect(parseQuery("/a?b=[1,2]").b).toEqual([1, 2]);
+				expect(searchParams("b=[1,2]").b).toBe("[1,2]");
+			});
+
+			it("should parse a percent-encoded json value the same way", () => {
+				expect(parseQuery("/a?b=%7B%22c%22%3A1%7D").b).toEqual({
+					c: 1,
+				});
+			});
+
+			it("should drop the empty key URLSearchParams keeps", () => {
+				expect(parseQuery("/a?=v1")).toEqual({});
+				expect(searchParams("=v1")).toEqual({ "": "v1" });
+			});
+		});
+	});
 });

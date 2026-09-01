@@ -596,4 +596,67 @@ describe("parseCookies", () => {
 			});
 		});
 	});
+	describe("bun duplicate cookie headers", () => {
+		// bun joins duplicate headers with ", ", but keeps the "; " the fetch
+		// spec reserves for "Cookie"
+		it("should join duplicate cookie headers with '; '", () => {
+			const headers = new Headers();
+
+			headers.append("cookie", "a=v1");
+			headers.append("cookie", "b=v2");
+
+			expect(headers.get("cookie")).toBe("a=v1; b=v2");
+		});
+
+		it("should parse a joined duplicate cookie header", () => {
+			const headers = new Headers();
+
+			headers.append("cookie", "a=v1");
+			headers.append("cookie", "b=v2");
+
+			expect(parseCookies(headers.get("cookie") ?? "")).toEqual({
+				a: "v1",
+				b: "v2",
+			});
+		});
+
+		it("should keep the first value when a duplicate header repeats a name", () => {
+			const headers = new Headers();
+
+			headers.append("cookie", "a=v1");
+			headers.append("cookie", "a=v2");
+
+			expect(parseCookies(headers.get("cookie") ?? "")).toEqual({
+				a: "v1",
+			});
+		});
+
+		it("should match the cookies a server received over the wire", async () => {
+			const server = Bun.serve({
+				development: false,
+				fetch: (request) =>
+					Response.json({
+						cookies: parseCookies(
+							request.headers.get("cookie") ?? "",
+						),
+						raw: request.headers.get("cookie"),
+					}),
+				port: 0,
+			});
+
+			const response = await fetch(`http://localhost:${server.port}/a`, {
+				headers: [
+					["cookie", "a=v1"],
+					["cookie", "b=a%20b"],
+				],
+			});
+
+			expect(await response.json()).toEqual({
+				cookies: { a: "v1", b: "a b" },
+				raw: "a=v1; b=a%20b",
+			});
+
+			server.stop(true);
+		});
+	});
 });

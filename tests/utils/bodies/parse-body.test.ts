@@ -852,4 +852,114 @@ describe("parseBody", () => {
 			expect(a).not.toBe(b);
 		});
 	});
+	describe("bun header semantics", () => {
+		// bun joins duplicate headers with ", " instead of keeping the last,
+		// and reads a single empty value as "" instead of null
+		const appended = (body: BodyInit, values: readonly string[]) => {
+			const headers = new Headers();
+
+			for (const value of values) {
+				headers.append("content-type", value);
+			}
+
+			return new Request("http://localhost/a", {
+				body,
+				headers,
+				method: "POST",
+			});
+		};
+
+		it("should join duplicate content types with ', '", () => {
+			const headers = new Headers();
+
+			headers.append("content-type", "application/json");
+			headers.append("content-type", "text/plain");
+
+			expect(headers.get("content-type")).toBe(
+				"application/json, text/plain",
+			);
+		});
+
+		it("should match the first type of a joined duplicate header", async () => {
+			expect(
+				await parseBody(
+					appended(JSON.stringify({ a: "v1" }), [
+						"application/json",
+						"text/plain",
+					]),
+				),
+			).toEqual({ a: "v1" });
+		});
+
+		it("should fall back to text when the first joined type is not known", async () => {
+			expect(
+				await parseBody(
+					appended("v1", ["text/plain", "application/json"]),
+				),
+			).toBe("v1");
+		});
+
+		it("should read a single empty content type as an empty string", () => {
+			const headers = new Headers();
+
+			headers.append("content-type", "");
+
+			expect(headers.get("content-type")).toBe("");
+		});
+
+		it("should fall back to text on an empty content type", async () => {
+			expect(await parseBody(appended("v1", [""]))).toBe("v1");
+		});
+
+		it("should fall back to text on a joined pair of empty content types", async () => {
+			expect(await parseBody(appended("v1", ["", ""]))).toBe("v1");
+		});
+
+		it("should match json when an empty value precedes it", async () => {
+			const headers = new Headers();
+
+			headers.append("content-type", "");
+			headers.append("content-type", "application/json");
+
+			// the join leaves a leading ", " the media type scan stops on
+			expect(headers.get("content-type")).toBe(", application/json");
+			expect(
+				await parseBody(
+					new Request("http://localhost/a", {
+						body: JSON.stringify({ a: "v1" }),
+						headers,
+						method: "POST",
+					}),
+				),
+			).toBe('{"a":"v1"}');
+		});
+
+		it("should read the content type a server received over the wire", async () => {
+			const server = Bun.serve({
+				development: false,
+				fetch: async (received) =>
+					Response.json({
+						body: await parseBody(received),
+						contentType: received.headers.get("content-type"),
+					}),
+				port: 0,
+			});
+
+			const response = await fetch(`http://localhost:${server.port}/a`, {
+				body: JSON.stringify({ a: "v1" }),
+				headers: [
+					["content-type", "application/json"],
+					["content-type", "application/json"],
+				],
+				method: "POST",
+			});
+
+			expect(await response.json()).toEqual({
+				body: { a: "v1" },
+				contentType: "application/json, application/json",
+			});
+
+			server.stop(true);
+		});
+	});
 });
