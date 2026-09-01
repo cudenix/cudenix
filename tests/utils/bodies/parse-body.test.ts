@@ -361,7 +361,7 @@ describe("parseBody", () => {
 				"",
 			].join("\r\n");
 
-			// formData() re-checks the header case-insensitively too
+			// formData() re-checks the header case-insensitively
 			expect(
 				await parseBody(
 					request(body, `Multipart/Form-Data; boundary=${boundary}`),
@@ -495,7 +495,7 @@ describe("parseBody", () => {
 		});
 
 		it("should match a case-insensitive urlencoded type", async () => {
-			// formData() re-checks the header case-insensitively too
+			// formData() re-checks the header case-insensitively
 			expect(
 				await parseBody(
 					request("a=v1", "APPLICATION/X-WWW-FORM-URLENCODED"),

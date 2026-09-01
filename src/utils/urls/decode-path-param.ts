@@ -1,4 +1,4 @@
-// hexadecimal digit values indexed by char code, -1 for every other character
+// hexadecimal digit values indexed by char code
 const HEX_VALUES = /* @__PURE__ */ (() => {
 	const values = new Int8Array(256).fill(-1);
 
@@ -7,7 +7,7 @@ const HEX_VALUES = /* @__PURE__ */ (() => {
 		values[charCode] = charCode - 48;
 	}
 
-	// 87 = "a" (97) - 10, mapping "a"-"f" to 10-15, and "- 32" uppercase
+	// "a"-"f" map to 10-15, "- 32" for uppercase
 	for (let charCode = 97; charCode <= 102; charCode++) {
 		values[charCode] = charCode - 87;
 		values[charCode - 32] = charCode - 87;
@@ -16,7 +16,7 @@ const HEX_VALUES = /* @__PURE__ */ (() => {
 	return values;
 })();
 
-// pending percent-decoded bytes, flushed as UTF-8 when a run ends
+// pending percent-decoded bytes
 let pendingBytes = new Uint8Array(64);
 
 /**
@@ -70,7 +70,7 @@ const decodeUtf8Bytes = (count: number) => {
 			sequenceEnd++;
 		}
 
-		// sequence cut short: end of input or an invalid continuation byte
+		// sequence cut short
 		if (sequenceEnd !== i + sequenceLength) {
 			decoded += "�";
 			i = sequenceEnd;
@@ -78,7 +78,7 @@ const decodeUtf8Bytes = (count: number) => {
 			continue;
 		}
 
-		// reject overlong encodings, code points above U+10FFFF and surrogates
+		// reject overlongs, surrogates and out-of-range
 		if (
 			codePoint < minimumCodePoint ||
 			codePoint > 1_114_111 ||
@@ -139,7 +139,7 @@ export const decodePathParam = (value: string) => {
 				}
 			}
 
-			// no escape left: the run above ended the value
+			// no escape left
 			if (nextPercentIndex === -1) {
 				break;
 			}
@@ -182,7 +182,7 @@ export const decodePathParam = (value: string) => {
 
 		const byte = (highNibble << 4) | lowNibble;
 
-		// ASCII decodes directly; higher bytes join a multi-byte run
+		// ASCII decodes directly, higher bytes go pending
 		if (byte <= 127) {
 			if (pending > 0) {
 				decoded += decodeUtf8Bytes(pending);

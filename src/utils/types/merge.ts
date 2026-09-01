@@ -2,7 +2,7 @@
  * Identifies properties replaced during a type merge.
  */
 type ReplacedKeys<U> = {
-	// NonNullable<unknown> ({}) extends Pick<U, K> only when K is optional
+	// {} extends Pick<U, K> only when K is optional
 	[K in keyof U]-?: NonNullable<unknown> extends Pick<U, K> ? never : K;
 }[keyof U];
 
@@ -10,7 +10,7 @@ type ReplacedKeys<U> = {
  * Identifies explicitly declared properties in a type.
  */
 type DeclaredKeys<T> = {
-	// {} extends Record<K, 1> only when K is an index signature
+	// {} extends Record<K, 1> only for index signatures
 	[K in keyof T]-?: NonNullable<unknown> extends Record<K, 1> ? never : K;
 }[keyof T];
 
@@ -25,7 +25,7 @@ type DeclaredKeys<T> = {
  */
 export type Merge<T extends object, U extends object> = T extends unknown
 	? U extends unknown
-		? // both key sets are classified once here
+		? // classify both key sets
 			ReplacedKeys<U> extends infer Replaced
 			? DeclaredKeys<T> extends infer Declared
 				? {

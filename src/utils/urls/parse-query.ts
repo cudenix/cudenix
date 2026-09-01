@@ -1,12 +1,12 @@
 import { Empty } from "@/utils/objects/empty";
 
-// scan flags marking which decode steps a key/value needs
+// decode steps a key or value needs
 const KEY_HAS_PLUS = 1;
 const KEY_HAS_PERCENT = 2;
 const VALUE_HAS_PLUS = 4;
 const VALUE_HAS_PERCENT = 8;
 
-// length past which a component goes to the native searches
+// length past which a component goes to indexOf
 const SCAN_LIMIT = 64;
 
 // length past which the "+" swap goes to "split"/"join"
@@ -19,7 +19,7 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 
 /**
- * Converts a hexadecimal byte to its value, or -1 if not hexadecimal.
+ * Converts a hexadecimal byte to its value.
  */
 const hexByteToValue = (byte: number) => {
 	// "0" (48) - "9" (57)
@@ -30,12 +30,12 @@ const hexByteToValue = (byte: number) => {
 	// "| 32" lowercases letters
 	const lowerByte = byte | 32;
 
-	// 87 = "a" (97) - 10, mapping "a"-"f" to 10-15
+	// "a"-"f" map to 10-15
 	return lowerByte >= 97 && lowerByte <= 102 ? lowerByte - 87 : -1;
 };
 
 /**
- * Finds where a long query component ends and which decode steps it needs.
+ * Finds a query component's end and its decode flags.
  */
 const scanComponent = (
 	url: string,
@@ -70,7 +70,7 @@ const scanComponent = (
 
 	return {
 		end,
-		// in the KEY_HAS_* positions, shifted by the value caller
+		// in the KEY_HAS_* positions
 		flags:
 			(plusIndex !== -1 && plusIndex < end ? KEY_HAS_PLUS : 0) |
 			(percentIndex !== -1 && percentIndex < end ? KEY_HAS_PERCENT : 0),
@@ -78,7 +78,7 @@ const scanComponent = (
 };
 
 /**
- * Percent-decodes a query component the way the URL parser does.
+ * Percent-decodes a query component.
  */
 const decodeQueryComponent = (component: string) => {
 	const input = encoder.encode(component);
@@ -90,7 +90,7 @@ const decodeQueryComponent = (component: string) => {
 	for (let i = 0; i < length; i++) {
 		const byte = input[i]!;
 
-		// "%" (37) only escapes when two hexadecimal digits follow it
+		// "%" (37) escapes only with two hex digits
 		if (byte === 37 && i + 2 < length) {
 			const highNibble = hexByteToValue(input[i + 1]!);
 			const lowNibble = hexByteToValue(input[i + 2]!);
@@ -173,7 +173,7 @@ export const parseQuery = (url: string) => {
 		const keyStart = i;
 
 		let flags = 0;
-		// the scan bound is hoisted out of the loop
+		// scan bound hoisted out of the loop
 		let scanEnd = keyStart + SCAN_LIMIT;
 
 		if (scanEnd > urlLength) {
@@ -268,7 +268,7 @@ export const parseQuery = (url: string) => {
 				try {
 					key = decodeURIComponent(key);
 				} catch {
-					// redo the whole component with the tolerant decoder
+					// retry with the tolerant decoder
 					key = decodeQueryComponent(key);
 				}
 			}

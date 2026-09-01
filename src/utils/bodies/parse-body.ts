@@ -81,7 +81,7 @@ export const parseBody = (request: Request) => {
 		return request.text();
 	}
 
-	// the media type ends at ";" (59) or "," (44), whichever comes first
+	// the media type ends at ";" or ","
 	const parametersIndex = contentType.indexOf(";");
 	const nextEntryIndex = contentType.indexOf(",");
 

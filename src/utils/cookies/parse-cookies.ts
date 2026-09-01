@@ -21,13 +21,13 @@ export const parseCookies = (header: string) => {
 	}
 
 	const length = header.length;
-	// a "%" anywhere means some value needs decoding
+	// a "%" anywhere means a value needs decoding
 	const isEncoded = header.indexOf("%") !== -1;
 
 	let start = 0;
 
 	while (start < length) {
-		// each pair ends at the next ";" (59) or at the end of the header
+		// each pair ends at the next ";" (59)
 		let end = header.indexOf(";", start);
 
 		if (end === -1) {
@@ -49,12 +49,12 @@ export const parseCookies = (header: string) => {
 
 		let equalsIndex = nameStart;
 
-		// scan the name, ending at "=" (61) or at the pair boundary
+		// scan the name up to "=" (61)
 		while (equalsIndex < end && header.charCodeAt(equalsIndex) !== 61) {
 			equalsIndex++;
 		}
 
-		// ignore pairs without an "=" of their own
+		// ignore pairs without an "="
 		if (equalsIndex < end) {
 			let nameEnd = equalsIndex;
 

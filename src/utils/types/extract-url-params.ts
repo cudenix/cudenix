@@ -39,7 +39,7 @@ type Override<
 	: never;
 
 /**
- * Walks the path without rechecking the accumulator constraint.
+ * Walks the path collecting its parameters.
  */
 type ExtractUrlParamsInternal<
 	Path extends string,
@@ -73,7 +73,7 @@ export type ExtractUrlParams<
 		string,
 		string | string[] | undefined
 	> = NonNullable<unknown>,
-	// skip the segment walk when the path carries no capture marker
+	// skip the walk without a capture marker
 > = Path extends `${string}:${string}` | `${string}...${string}`
 	? ExtractUrlParamsInternal<Path, Accumulated>
 	: Accumulated;

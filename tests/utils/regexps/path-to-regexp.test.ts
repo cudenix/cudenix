@@ -130,7 +130,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should escape additional regex-special characters in literals", () => {
-			// "{", "}" and "^" are covered by the percent-encoded set instead
+			// "{", "}" and "^" are percent-encoded instead
 			const symbols = ["(", ")", "[", "]", "+", "|", "$"];
 
 			for (let i = 0; i < symbols.length; i++) {
@@ -220,7 +220,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should compile whitespace and control characters to their escapes", () => {
-			// a request url only ever carries these percent-encoded
+			// a url carries these percent-encoded only
 			const segments = [
 				["a b", "a%20b"],
 				["a\nb", "a%0Ab"],
@@ -267,7 +267,7 @@ describe("pathToRegexp", () => {
 		it("should compile a '?' in the middle of a segment to its percent-encoding", () => {
 			const { pattern, regex } = compile("/a?b");
 
-			// "?" matches only percent-encoded, with exact hex casing
+			// "?" matches only percent-encoded, exact hex casing
 			expect(pattern).toBe(String.raw`\/a%3Fb()`);
 			expect(regex.test("/a%3Fb")).toBe(true);
 			expect(regex.test("/a%3fb")).toBe(false);
@@ -290,7 +290,7 @@ describe("pathToRegexp", () => {
 				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${shadowing}|${real})(?![^?#])`,
 			);
 
-			// group 1 is the shadowing route's marker, group 2 the real one
+			// group 1 is the shadowing marker, group 2 the real one
 			expect(combined.exec("http://localhost/a?b=1")?.[2]).toBe("");
 			expect(
 				combined.exec("http://localhost/a?b=1")?.[1],
@@ -641,13 +641,13 @@ describe("pathToRegexp", () => {
 			expect(paramKeys).toEqual(["r1", "r2"]);
 			expect(restKeys).toEqual(["r1", "r2"]);
 
-			// the greedy first rest gives back only the last segment
+			// the greedy first rest gives back one segment
 			const match = "/v1/v2/v3".match(regex);
 
 			expect(match?.[1]).toBe("v1/v2");
 			expect(match?.[2]).toBe("v3");
 
-			// the parameter captures now sit before the trailing marker
+			// the param captures sit before the trailing marker
 			expect("/v1/v2".match(regex)?.slice(1, -1)).toEqual(["v1", "v2"]);
 			expect(regex.test("/v1")).toBe(false);
 		});
@@ -679,7 +679,7 @@ describe("pathToRegexp", () => {
 			const match = "/v1/v2/a/v3".match(regex);
 
 			expect(match).not.toBeNull();
-			// the marker closes the pattern, after both rest captures
+			// the marker closes the pattern after both captures
 			expect(match?.[3]).toBe("");
 			expect(match?.[1]).toBe("v1/v2");
 			expect(match?.[2]).toBe("v3");
@@ -818,7 +818,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should swallow empty segments in a terminal wildcard, like Bun's router", () => {
-			// a terminal "*" takes the whole remainder of the path
+			// a terminal "*" takes the whole remainder
 			const { pattern, regex } = compile("/a/*");
 
 			expect(pattern).toBe(String.raw`\/a\/[^\s?#]*()`);
@@ -914,7 +914,7 @@ describe("pathToRegexp", () => {
 
 			const match = "/a/v1/v2/v3".match(regex);
 
-			// the wildcard consumes segments without adding a capture group
+			// the wildcard adds no capture group
 			expect(match?.length).toBe(3);
 			expect(match?.[1]).toBe("v3");
 			expect("/a/v1/v2".match(regex)?.[1]).toBe("v2");
@@ -930,7 +930,7 @@ describe("pathToRegexp", () => {
 
 			expect(match?.length).toBe(4);
 			expect(match?.[1]).toBe("v1");
-			// the greedy wildcard leaves only the last segment to the rest param
+			// the greedy wildcard leaves the rest one segment
 			expect(match?.[2]).toBe("v4");
 		});
 
@@ -947,7 +947,7 @@ describe("pathToRegexp", () => {
 			expect(match).not.toBeNull();
 			expect(paramKeys).toHaveLength(2);
 			expect(match?.length).toBe(1 + 1 + paramKeys.length);
-			// the marker closes the pattern, after both param captures
+			// the marker closes the pattern after both captures
 			expect(match?.[3]).toBe("");
 			expect(match?.[1]).toBe("v1");
 			expect(match?.[2]).toBe("v2");
@@ -975,7 +975,7 @@ describe("pathToRegexp", () => {
 	});
 
 	describe("embedded in the combined request-url pattern", () => {
-		// mirrors how src/core/compile.ts embeds a pattern in a request url
+		// mirrors how src/core/compile.ts embeds a pattern
 		const embed = (path: string) =>
 			new RegExp(
 				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${pathToRegexp(path).pattern})(?![^?#])`,

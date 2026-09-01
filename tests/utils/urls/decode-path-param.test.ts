@@ -17,9 +17,9 @@ const validCases = [
 	["%F4%8F%BF%BF", "\u{10FFFF}"],
 	["%2F", "/"],
 	["%252F", "%2F"],
-	// hexadecimal digits decode the same in either case
+	// hexadecimal digits decode in either case
 	["%C3%A9", "é"],
-	// and the case may change inside one multi-byte sequence
+	// mixed case inside one sequence
 	["%e2%9C%93", "✓"],
 	["%c3%A9", "é"],
 	// delimiters arrive decoded
@@ -126,7 +126,7 @@ describe("decodePathParam", () => {
 	});
 
 	it("should decode a run long enough to grow the shared byte buffer", () => {
-		// the pending-byte buffer starts at 64 bytes and doubles from there
+		// the pending-byte buffer starts at 64 bytes
 		const value = "%C3%A9".repeat(200);
 
 		expect(decodePathParam(value)).toBe("é".repeat(200));
@@ -138,7 +138,7 @@ describe("decodePathParam", () => {
 	});
 
 	it("should decode a run that alternates valid and invalid bytes", () => {
-		// an invalid byte joins the pending run rather than flushing it
+		// an invalid byte joins the pending run
 		expect(decodePathParam("%C3%A9%FF".repeat(240))).toBe("é�".repeat(240));
 	});
 

@@ -21,19 +21,19 @@ type RemoveLeadingSlash<Path extends string> = Path extends `/${infer Rest}`
 	: Path;
 
 /**
- * Normalizes a path type the way the router normalizes a request path.
+ * Normalizes a path body.
  */
 type NormalizeBody<Path extends `/${string}`> = Path extends `/${infer Body}`
 	? RemoveTrailingSlash<CollapseSlashes<RemoveLeadingSlash<Body>>>
 	: string;
 
 /**
- * Rebuilds the leading "/" outside the conditional.
+ * Rebuilds the leading "/".
  */
 type Normalize<Path extends `/${string}`> = `/${NormalizeBody<Path>}`;
 
 /**
- * Joins normalized path types while retaining the root cases.
+ * Joins two normalized path types.
  */
 type JoinNormalized<
 	Prefix extends `/${string}`,

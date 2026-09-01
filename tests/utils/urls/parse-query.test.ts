@@ -220,7 +220,7 @@ describe("parseQuery", () => {
 		});
 
 		it("should reach the JSON branch once the fallback decoder runs", () => {
-			// the fallback decoder leaves the value looking like JSON
+			// the fallback decoder leaves the value as JSON
 			expect(parseQuery("/a?b=%7B%22c%22%3A%221%FF%22%7D").b).toEqual({
 				c: "1\uFFFD",
 			});
@@ -234,7 +234,7 @@ describe("parseQuery", () => {
 		});
 
 		it("should keep a non-hex escape literal, unlike path params", () => {
-			// a "%" without two hex digits is no escape to the URL parser
+			// a "%" without two hex digits is no escape
 			expect(parseQuery("/a?b=%ZZ").b).toBe("%ZZ");
 			expect(decodePathParam("%ZZ")).toBe("�");
 		});
@@ -542,7 +542,7 @@ describe("parseQuery", () => {
 			expect(Object.hasOwn(result, "b")).toBe(true);
 			expect(Object.hasOwn(result.b as object, "__proto__")).toBe(true);
 
-			// the payload survives as an own key on a normal object
+			// the payload lands as an own key
 			expect(Object.getPrototypeOf(result.b)).toBe(Object.prototype);
 		});
 	});

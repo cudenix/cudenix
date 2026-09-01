@@ -1,5 +1,5 @@
 /**
- * Checks one object-union branch without distributing over its members.
+ * Checks every property in one object-union branch.
  */
 type AllPropertiesAreUnknownInBranch<T extends object> = {
 	[K in keyof T]: unknown extends T[K] ? true : false;

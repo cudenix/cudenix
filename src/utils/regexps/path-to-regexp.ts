@@ -1,19 +1,19 @@
 // a single segment, captured
 const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
-// one or more "/"-separated segments, captured as one string
+// one or more segments, captured as one string
 const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
-// same shape as rest but non-capturing, and matches zero segments too
+// non-capturing, matches zero segments too
 const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
-// the whole remainder of the path, empty segments included
+// the whole remainder of the path
 const TERMINAL_WILDCARD = "\\/[^\\s?#]*";
 
-// regexp syntax, plus every character a url pathname carries percent-encoded
+// regexp syntax and url-encoded characters
 const STATIC_SEGMENT_SYNTAX = /[^!-~]|["#$()*+.<>?[\\\]^`{|}]/gu;
 
-// characters a request url never carries literally in its pathname
+// characters a url carries percent-encoded
 const URL_ENCODED_CHARACTER = /[^!-~]|["#<>?^`{}]/u;
 
-// percent-encodes what a request url carries encoded and escapes the rest
+// percent-encodes or escapes a static character
 const escapeStaticCharacter = (character: string) =>
 	URL_ENCODED_CHARACTER.test(character)
 		? encodeURIComponent(character.toWellFormed())
@@ -30,7 +30,7 @@ const isTerminalSegment = (
 	for (let i = segmentEnd; i < length; i++) {
 		const charCode = path.charCodeAt(i);
 
-		// "/" (47) and "\" (92) separators open no segment of their own
+		// "/" (47) and "\" (92) open no segment
 		if (charCode !== 47 && charCode !== 92) {
 			return false;
 		}
@@ -180,7 +180,7 @@ export const pathToRegexp = (path: string) => {
 			// static segment
 			ranks.push(STATIC_RANK);
 
-			// escape regexp syntax and percent-encode what a url would
+			// escape regexp syntax and percent-encode
 			segment = `\\/${path.substring(i, contentEnd).replace(STATIC_SEGMENT_SYNTAX, escapeStaticCharacter)}`;
 		}
 
@@ -198,12 +198,12 @@ export const pathToRegexp = (path: string) => {
 	let pattern: string;
 
 	if (segments) {
-		// fully-optional patterns also match the bare "/" path
+		// fully-optional patterns match the bare "/" too
 		pattern = areAllSegmentsOptional
 			? `(?:${segments}|\\/)()`
 			: `${segments}()`;
 	} else {
-		// a path of nothing but separators normalizes to the root
+		// a path of only separators becomes the root
 		pattern = length ? String.raw`\/()` : "()";
 	}
 

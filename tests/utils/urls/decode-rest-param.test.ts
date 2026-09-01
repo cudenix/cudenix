@@ -50,7 +50,7 @@ describe("decodeRestParam", () => {
 		});
 
 		it("should decode a segment long enough to grow the shared byte buffer", () => {
-			// a grown run must not leak bytes into an earlier segment
+			// a grown run leaks no bytes across segments
 			expect(decodeRestParam(`a/${"%FF".repeat(600)}`)).toEqual([
 				"a",
 				"�".repeat(600),
