@@ -146,7 +146,6 @@ describe("pathToRegexp", () => {
 
 		describe("'\\' separator", () => {
 			it("should compile a '\\' exactly like a '/'", () => {
-				// the url parser folds "\\" into "/" for a special scheme
 				expect(pathToRegexp("/a\\b").pattern).toBe(
 					pathToRegexp("/a/b").pattern,
 				);
@@ -163,7 +162,6 @@ describe("pathToRegexp", () => {
 			});
 
 			it("should collide with the '/' spelling of the same path", () => {
-				// the two spellings compile to one pattern
 				const backslash = pathToRegexp("/a\\b/:p1");
 				const slash = pathToRegexp("/a/b/:p1");
 
@@ -207,7 +205,6 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should keep constructor-safe punctuation literal", () => {
-			// the url parser rewrites none of these
 			const segments = ["1abc", "a-b", "a,b", "a;b", "a=b", "a@b", "a~b"];
 
 			for (let i = 0; i < segments.length; i++) {
@@ -220,7 +217,6 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should compile whitespace and control characters to their escapes", () => {
-			// a url carries these percent-encoded only
 			const segments = [
 				["a b", "a%20b"],
 				["a\nb", "a%0Ab"],
@@ -242,7 +238,6 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should compile a lone surrogate the way the url parser replaces it", () => {
-			// the value is made well-formed before encoding
 			const { regex } = compile("/a\uD800b");
 
 			expect(regex.test("/a%EF%BF%BDb")).toBe(true);
@@ -315,7 +310,6 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should compile both spellings of the same non-ASCII route to one pattern", () => {
-			// the url parser percent-encodes the pathname first
 			expect(pathToRegexp("/café").pattern).toBe(
 				pathToRegexp("/caf%C3%A9").pattern,
 			);
@@ -324,7 +318,6 @@ describe("pathToRegexp", () => {
 		it("should preserve the spelling and casing of an encoded route", () => {
 			const { regex } = compile("/caf%C3%A9");
 
-			// encoded escapes are compared byte-for-byte
 			expect(regex.test("/caf%C3%A9")).toBe(true);
 			expect(regex.test("/caf%c3%a9")).toBe(false);
 			expect(regex.test("/café")).toBe(false);
@@ -1031,7 +1024,6 @@ describe("pathToRegexp", () => {
 		it.each(["\t", "\n", "\r", "?", "#"])(
 			"should compile the literal %j only in its encoded spelling",
 			(character) => {
-				// a pathname holds none of these literally
 				const regex = embed(`/a${character}b`);
 				const { pathname } = new URL(`http://localhost/a${character}b`);
 

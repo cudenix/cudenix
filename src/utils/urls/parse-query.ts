@@ -173,7 +173,6 @@ export const parseQuery = (url: string) => {
 		const keyStart = i;
 
 		let flags = 0;
-		// scan bound hoisted out of the loop
 		let scanEnd = keyStart + SCAN_LIMIT;
 
 		if (scanEnd > urlLength) {

@@ -20,10 +20,9 @@ const HEX_VALUES = /* @__PURE__ */ (() => {
 let pendingBytes = new Uint8Array(64);
 
 /**
- * Decodes the first `count` pending bytes as a UTF-8 sequence.
+ * Decodes the pending bytes as UTF-8 sequences.
  */
 const decodeUtf8Bytes = (count: number) => {
-	// hoisted out of the loop
 	const bytes = pendingBytes;
 
 	let decoded = "";
@@ -36,7 +35,7 @@ const decodeUtf8Bytes = (count: number) => {
 		let minimumCodePoint: number;
 		let sequenceLength: number;
 
-		// lead byte gives the sequence length: 2, 3 or 4 bytes
+		// the lead byte gives the sequence length
 		if (firstByte >= 192 && firstByte <= 223) {
 			codePoint = firstByte & 31;
 			minimumCodePoint = 128;

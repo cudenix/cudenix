@@ -1,7 +1,7 @@
 import { Empty } from "@/utils/objects/empty";
 
 /**
- * Compares a media type region against a lowercase name, ignoring case.
+ * Compares a media type region against a lowercase name.
  */
 const matchesMediaType = (
 	contentType: string,

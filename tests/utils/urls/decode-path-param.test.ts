@@ -133,7 +133,6 @@ describe("decodePathParam", () => {
 	});
 
 	it("should grow the shared byte buffer on a run of invalid bytes", () => {
-		// the longest run in this file
 		expect(decodePathParam("%FF".repeat(600))).toBe("�".repeat(600));
 	});
 
@@ -151,7 +150,6 @@ describe("decodePathParam", () => {
 	});
 
 	it("should take the no-escape shortcut for long values", () => {
-		// long enough to pass any length-gated fast path
 		const value = "a+b-c".repeat(8);
 
 		expect(value.length).toBeGreaterThanOrEqual(32);

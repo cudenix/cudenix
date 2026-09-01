@@ -227,7 +227,6 @@ describe("parseQuery", () => {
 		});
 
 		it("should collapse two malformed spellings of one key into an array", () => {
-			// both spellings decode to the same key
 			const result = parseQuery("/a?b%FF=v1&b%EF%BF%BD=v2");
 
 			expect(result["b\uFFFD"]).toEqual(["v1", "v2"]);

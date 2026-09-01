@@ -243,7 +243,6 @@ describe("parseCookies", () => {
 	});
 
 	describe("duplicate names", () => {
-		// first one wins
 		it("should keep the first value when a name appears multiple times", () => {
 			const result = parseCookies("a=1; a=2; a=3");
 

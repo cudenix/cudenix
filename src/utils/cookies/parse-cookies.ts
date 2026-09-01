@@ -94,7 +94,6 @@ export const parseCookies = (header: string) => {
 					valueEnd--;
 				}
 
-				// only the value is decoded
 				const name = header.substring(nameStart, nameEnd);
 
 				// first one wins

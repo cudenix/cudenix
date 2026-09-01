@@ -7,7 +7,6 @@
  * peek("v1"); // "v1"
  * ```
  */
-// narrows the return type to the fulfilled value
 export const peek = Bun.peek as <T>(value: T | Promise<T>) => T;
 
 /**

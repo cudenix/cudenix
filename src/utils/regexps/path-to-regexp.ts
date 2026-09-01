@@ -20,7 +20,7 @@ const escapeStaticCharacter = (character: string) =>
 		: `\\${character}`;
 
 /**
- * Checks whether nothing but "/" separators follows a segment.
+ * Checks whether only separators follow a segment.
  */
 const isTerminalSegment = (
 	path: string,
