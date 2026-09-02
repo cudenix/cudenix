@@ -16,6 +16,9 @@ const HEX_VALUES = /* @__PURE__ */ (() => {
 	return values;
 })();
 
+// tail length past which a dense non-ASCII run goes native
+const NATIVE_DECODE_MIN_LENGTH = 24;
+
 // pending percent-decoded bytes
 let pendingBytes = new Uint8Array(64);
 
@@ -111,6 +114,22 @@ export const decodePathParam = (value: string) => {
 	}
 
 	const length = value.length;
+
+	// a dense run: a byte of 128 or more (high nibble of 8 or more) opening
+	// three escapes in a row, and an escape closing the tail
+	if (
+		length - firstPercentIndex >= NATIVE_DECODE_MIN_LENGTH &&
+		(HEX_VALUES[value.charCodeAt(firstPercentIndex + 1)] ?? -1) >= 8 &&
+		value.charCodeAt(firstPercentIndex + 3) === 37 &&
+		value.charCodeAt(firstPercentIndex + 6) === 37 &&
+		value.charCodeAt(length - 3) === 37
+	) {
+		try {
+			return decodeURIComponent(value);
+		} catch {
+			// malformed escapes take the tolerant decoder below
+		}
+	}
 
 	let decoded = value.substring(0, firstPercentIndex);
 	let i = firstPercentIndex;

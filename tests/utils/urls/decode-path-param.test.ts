@@ -1,6 +1,21 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 
 import { decodePathParam } from "@/utils/urls/decode-path-param";
+
+/**
+ * Runs a decode while counting the calls that reach the native decoder.
+ */
+const countNativeCalls = (value: string) => {
+	const spy = spyOn(globalThis, "decodeURIComponent");
+
+	try {
+		const decoded = decodePathParam(value);
+
+		return { calls: spy.mock.calls.length, decoded };
+	} finally {
+		spy.mockRestore();
+	}
+};
 
 const validCases = [
 	["a%20b", "a b"],
@@ -244,5 +259,102 @@ describe("decodePathParam", () => {
 		expect(decodePathParam(`${prefix}%C3%A9${suffix}`)).toBe(
 			`${prefix}é${suffix}`,
 		);
+	});
+
+	// a tail of 24 or more characters that opens on three escapes in a row,
+	// the first one non-ASCII, and closes on an escape goes to the native
+	// decoder
+	describe("native decoder path", () => {
+		const cjk = "%E6%97%A5%E6%9C%AC%E8%AA%9E";
+
+		it("should decode a dense non-ASCII run natively", () => {
+			expect(countNativeCalls(cjk)).toEqual({
+				calls: 1,
+				decoded: "日本語",
+			});
+			expect(countNativeCalls(`user/${cjk}`)).toEqual({
+				calls: 1,
+				decoded: "user/日本語",
+			});
+			expect(countNativeCalls("%F0%9F%98%80".repeat(2))).toEqual({
+				calls: 1,
+				decoded: "😀😀",
+			});
+			expect(countNativeCalls(`${"%C3%A9".repeat(3)}abc%41`)).toEqual({
+				calls: 1,
+				decoded: "éééabcA",
+			});
+		});
+
+		it("should keep a short run on the tolerant decoder", () => {
+			expect(countNativeCalls("%C3%A9%C3%A9")).toEqual({
+				calls: 0,
+				decoded: "éé",
+			});
+			expect(countNativeCalls(`${"%C3%A9".repeat(3)}ab%41`)).toEqual({
+				calls: 0,
+				decoded: "éééabA",
+			});
+		});
+
+		it("should keep a run opening on an ASCII escape on the tolerant decoder", () => {
+			expect(countNativeCalls(`%20${cjk}`)).toEqual({
+				calls: 0,
+				decoded: " 日本語",
+			});
+			expect(countNativeCalls(`%2F${cjk}`)).toEqual({
+				calls: 0,
+				decoded: "/日本語",
+			});
+		});
+
+		it("should keep a sparse run on the tolerant decoder", () => {
+			const literal = "a".repeat(40);
+
+			expect(countNativeCalls(`%C3%A9${literal}`)).toEqual({
+				calls: 0,
+				decoded: `é${literal}`,
+			});
+			expect(countNativeCalls(`%C3%A9${literal}%C3%A9`)).toEqual({
+				calls: 0,
+				decoded: `é${literal}é`,
+			});
+			expect(countNativeCalls(`${"%C3%A9".repeat(4)}${literal}`)).toEqual(
+				{ calls: 0, decoded: `éééé${literal}` },
+			);
+			expect(
+				countNativeCalls(
+					"caf%C3%A9%20au%20lait%2C%20s%27il%20vous%20pla%C3%AEt",
+				),
+			).toEqual({ calls: 0, decoded: "café au lait, s'il vous plaît" });
+		});
+
+		it("should not switch on a non-hexadecimal escape", () => {
+			expect(countNativeCalls(`%ZZ${cjk}`)).toEqual({
+				calls: 0,
+				decoded: "�日本語",
+			});
+			expect(countNativeCalls(`%é${cjk}`)).toEqual({
+				calls: 0,
+				decoded: "�é日本語",
+			});
+		});
+
+		it("should fall back to the tolerant decoder when the native one throws", () => {
+			for (const [value, expected] of [
+				[`${"%E2%82%AC".repeat(7)}%ED%A0%80`, "€€€€€€€�"],
+				["%C0%80".repeat(4), "����"],
+				[`${"%F0%9F%98%80".repeat(2)}%C0%80`, "😀😀�"],
+				[`${cjk}%E2%82`, "日本語�"],
+				[`${cjk}%FF%FE`, "日本語��"],
+				[`${cjk}%E2%82%41`, "日本語�A"],
+				[`${"%F4%90%80%80".repeat(2)}`, "��"],
+			] as const) {
+				expect(countNativeCalls(value)).toEqual({
+					calls: 1,
+					decoded: expected,
+				});
+			}
+		});
 	});
 });
