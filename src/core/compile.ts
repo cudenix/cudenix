@@ -10,6 +10,7 @@ import type { CompiledMount } from "@/core/mount";
 import { response } from "@/core/response";
 import { cloneAppend } from "@/utils/arrays/clone-append";
 import { Empty } from "@/utils/objects/empty";
+import { peekStatus } from "@/utils/promises/peek";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
@@ -477,7 +478,15 @@ const compileMethod = (
 		) {
 			nativePatterns.add(analyzedEndpoint.pattern);
 
-			registerNativeRoute(routes, method, endpoint, isStatic);
+			// only a buffered static response enters Bun's table
+			registerNativeRoute(
+				routes,
+				method,
+				endpoint,
+				isStatic &&
+					peekStatus(endpoint.response!.clone().blob()) ===
+						"fulfilled",
+			);
 		}
 	}
 
@@ -495,8 +504,9 @@ const compileMethod = (
 				: undefined,
 		endpoints: fallbackEndpoints,
 		firstMarker: firstEndpoint.markerOffset,
+		// matches with or without the origin
 		regexp: new RegExp(
-			`^(?:https?:\\/\\/)[^\\s\\/]+(?:${fallbackPatterns.join("|")})(?![^?#])`,
+			`^(?:https?:\\/\\/[^\\s\\/]+)?(?:${fallbackPatterns.join("|")})(?![^?#])`,
 		),
 		table: fallbackTable,
 	};
