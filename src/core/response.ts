@@ -65,15 +65,6 @@ const CONTENT_BODY = 2;
 
 /**
  * Resolves how content materializes.
- *
- * Replaces a `constructor?.name` switch. That call site sees every reply shape
- * an app produces, so the property read is megamorphic and JSC cannot
- * inline-cache it, and it then compares interned strings; the common cases here
- * are pointer compares instead.
- *
- * The pointer compares settle the shapes an app actually returns; anything
- * else falls through to the original `constructor` rule, so no reply changes
- * how it serializes.
  */
 const classifyContent = (inner: unknown) => {
 	if (typeof inner !== "object") {
@@ -94,11 +85,7 @@ const classifyContent = (inner: unknown) => {
 		return CONTENT_RESPONSE;
 	}
 
-	// everything else keeps the original rule, which resolved `constructor`
-	// through the whole chain: a value whose constructor is Object, Array or
-	// absent serializes as JSON. That covers Empty dictionaries, Bun's native
-	// route params, objects delegating to a plain object, and cross-realm
-	// arrays -- none of which the pointer compares above can see.
+	// a constructor named Object, Array or absent serializes as JSON
 	const name = (inner as object).constructor?.name;
 
 	if (name === undefined || name === "Object" || name === "Array") {
@@ -131,7 +118,7 @@ const materialize = (content: ContextResponse["content"]): Response => {
 	const kind = classifyContent(inner);
 
 	if (kind === CONTENT_JSON) {
-		// 200 is the constructor default, and omitting the init skips parsing it
+		// omit the init at the default status
 		return status === 200
 			? Response.json(inner)
 			: Response.json(inner, { status });
@@ -148,10 +135,6 @@ const materialize = (content: ContextResponse["content"]): Response => {
 
 /**
  * Materializes response content, folding staged headers into construction.
- *
- * Mirrors the branches of {@link materialize}: every branch that builds a fresh
- * response carries the headers in its init, and the two that inherit headers
- * from elsewhere merge the staged ones on top instead.
  */
 const materializeStaged = (
 	content: ContextResponse["content"],
@@ -162,7 +145,7 @@ const materializeStaged = (
 	}
 
 	if (content instanceof ReadableStream) {
-		// the stream defaults are overridable, so staged headers land on top
+		// staged headers land on top of the stream defaults
 		return applyHeaders(new Response(content, STREAM_INIT), headers);
 	}
 
@@ -177,12 +160,12 @@ const materializeStaged = (
 	const kind = classifyContent(inner);
 
 	if (kind === CONTENT_JSON) {
-		// one native copy, where a built response costs a crossing per header
+		// the init carries the staged headers
 		return Response.json(inner, { headers, status });
 	}
 
 	if (kind === CONTENT_RESPONSE) {
-		// the clone brings its own headers, so staged ones land on top
+		// staged headers land on top of the clone's
 		return applyHeaders((inner as Response).clone(), headers);
 	}
 
@@ -209,7 +192,7 @@ export const response = (
 	headers?: ContextResponse["headers"],
 ) =>
 	applyCookies(
-		// an empty staged set costs more to hand to an init than to skip
+		// empty staged headers take the plain path
 		headers?.count
 			? materializeStaged(content, headers)
 			: materialize(content),

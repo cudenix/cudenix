@@ -220,8 +220,7 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 
 			const compiledDispatch = methodData.dispatch;
 
-			// unrolled resolver for the remaining markers, absent when the
-			// method holds the single endpoint the marker above already covers
+			// unrolled resolver for the remaining markers
 			if (compiledDispatch) {
 				return compiledDispatch(request, match);
 			}

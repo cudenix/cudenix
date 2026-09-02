@@ -20,8 +20,7 @@ export type MiddlewareFn<
 ) => Return;
 
 /**
- * Any {@link MiddlewareFn} regardless of its return, store, or validator
- * generics.
+ * Any {@link MiddlewareFn} regardless of its generics.
  *
  * @example
  * ```typescript
@@ -43,8 +42,7 @@ interface Middleware<
 }
 
 /**
- * Any {@link Middleware} regardless of its return, store, or validator
- * generics.
+ * Any {@link Middleware} regardless of its generics.
  *
  * @example
  * ```typescript

@@ -24,8 +24,7 @@ export interface GroupOptions<Prefix extends `/${string}`> {
 export type AnyGroupOptions = GroupOptions<any>;
 
 /**
- * Factory that receives the group's inner module and returns the module whose
- * routes merge into the parent.
+ * Factory that builds a group's module from its inner module.
  *
  * @example
  * ```typescript

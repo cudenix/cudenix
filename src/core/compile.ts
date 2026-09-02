@@ -81,7 +81,7 @@ const flattenModuleTree = (
 	inheritedChain: EndpointChain,
 	inheritedPath: string,
 ) => {
-	// every caller hands over an array it no longer aliases
+	// the inherited chain is reused without copying
 	const activeChain = inheritedChain;
 	const moduleChain = module.chain;
 	const modulePrefix: "" | `/${string}` =
@@ -247,9 +247,7 @@ const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 		) {
 			return false;
 		} else if (
-			// Bun names a parameter after the last ":" (58) of its segment
-			// while `pathToRegexp` names it after the first, so a segment
-			// carrying more than one would resolve to two different keys
+			// a second ":" (58) in a segment requires the fallback router
 			charCode === 58 &&
 			i !== segmentStart &&
 			path.charCodeAt(segmentStart) === 58
@@ -407,9 +405,7 @@ const registerNativeRoute = (
 
 	// the first endpoint registered for a method wins
 	if (!(method in pathRoutes)) {
-		// a bare `Response` under HEAD makes Bun accept unknown method
-		// tokens on the path and answer them as GET, so HEAD takes the
-		// dispatch instead
+		// HEAD registers the dispatch even for a static endpoint
 		pathRoutes[method] =
 			isStatic && method !== "HEAD"
 				? endpoint.response!
@@ -473,8 +469,7 @@ const compileMethod = (
 		// skip past this endpoint's parameter captures and its marker
 		matchOffset = markerOffset + 1;
 
-		// only the first endpoint of each pattern reaches Bun's router, and a
-		// HEAD derived from a GET route is answered by Bun's table already
+		// only the first declared endpoint of each pattern reaches Bun's router
 		if (
 			analyzedEndpoint.native &&
 			endpoint.route.method === method &&
@@ -540,12 +535,7 @@ const compileMounts = (app: Cudenix, mounts: CompiledMount[]) => {
 };
 
 /**
- * Mirrors Bun's route table, which answers `HEAD` from the `GET` handler
- * registered for the same path, so the fallback router agrees with it instead
- * of answering `404`.
- *
- * Returns `true` when every `HEAD` request resolves through the compiled `GET`
- * data, which lets the caller alias it rather than compile a second copy.
+ * Derives undeclared `HEAD` endpoints from the `GET` endpoints.
  */
 const deriveHeadEndpoints = (endpoints: Record<HttpMethod, Endpoint[]>) => {
 	const getEndpoints = endpoints.GET;
@@ -623,7 +613,7 @@ export const compile = (app: Cudenix) => {
 	if (aliasHead) {
 		const getData = app.methods.GET;
 
-		// the regexp carries no match state, so both methods can share it
+		// HEAD shares the GET data
 		if (getData) {
 			app.methods.HEAD = getData;
 		}

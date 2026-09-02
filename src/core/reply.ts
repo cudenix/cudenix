@@ -24,8 +24,7 @@ export interface Reply<
 }
 
 /**
- * Any {@link Reply} regardless of its content, status, or discriminant
- * generics.
+ * Any {@link Reply} regardless of its generics.
  */
 type AnyReply = Reply<any, any, any>;
 
@@ -48,8 +47,7 @@ export type Fail<Content, Status extends number = 400> = Reply<
 >;
 
 /**
- * Any error-direction {@link Reply} (`success: false`) regardless of its
- * content or status generics.
+ * Any {@link Fail} regardless of its generics.
  *
  * @example
  * ```typescript
@@ -79,8 +77,7 @@ export type Ok<Content, Status extends number = 200> = Reply<
 >;
 
 /**
- * Any success-direction {@link Reply} (`success: true`) regardless of its
- * content or status generics.
+ * Any {@link Ok} regardless of its generics.
  *
  * @example
  * ```typescript

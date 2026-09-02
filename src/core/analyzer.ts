@@ -7,8 +7,7 @@ const EMPTY_PARAMETERS =
 	/^\s*(?:async(?=\s|\*)\s*)?(?:function\s*\*?\s*(?:[A-Za-z_$][\w$]*)?|\*\s*[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*)?\(\s*\)/;
 
 /**
- * Captures a plain first parameter name: group 1 inside a parameter list,
- * group 2 for a bare arrow parameter.
+ * Captures a plain first parameter name in a list or as a bare arrow parameter.
  */
 const FIRST_PARAMETER =
 	/^\s*(?:(?:async(?=\s|\*)\s*)?(?:function\s*\*?\s*(?:[A-Za-z_$][\w$]*)?|\*\s*[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*)?\(\s*([A-Za-z_]\w*)\s*[,)]|(?:async\s+)?([A-Za-z_]\w*)\s*=>)/;
@@ -81,8 +80,7 @@ const isWordCharacter = (code: number) =>
 	(code >= 97 && code <= 122);
 
 /**
- * Detects a property-name character: a word character, `$`, or anything
- * beyond ASCII.
+ * Detects a property-name character: a word character, `$`, or non-ASCII.
  */
 const isPropertyCharacter = (code: number) =>
 	// "$" (36) or a code unit above DEL (127)

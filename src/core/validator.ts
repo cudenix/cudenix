@@ -57,17 +57,16 @@ export type ValidatorPlugin = (
  * ```
  */
 export interface CompiledValidator {
-	/** Validates one request slot; dispatchers call it detached from `this`. */
+	/** Validates one request slot. */
 	run: (
 		input: unknown,
 	) => MaybePromise<{ content: unknown; success: boolean }>;
-	/** Whether `run` never returns a promise, so dispatchers skip `await`. */
+	/** Whether `run` never returns a promise. */
 	sync: boolean;
 }
 
 /**
- * Compiles a schema into a {@link CompiledValidator}, or returns `undefined` to
- * leave the slot on the runtime {@link ValidatorPlugin}.
+ * Compiles a schema into a {@link CompiledValidator}.
  *
  * @example
  * ```typescript
@@ -135,8 +134,7 @@ type InferValidatorOutput<Type> = Type extends StandardSchemaV1
 	: Type;
 
 /**
- * Map each request slot in `T` to the output type its Standard Schema
- * produces.
+ * Map each request slot in `T` to its Standard Schema output type.
  *
  * @example
  * ```typescript

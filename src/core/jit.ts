@@ -49,8 +49,7 @@ const VALIDATION_KEYS = [
 ] as const satisfies readonly (keyof ValidatorRequest)[];
 
 /**
- * Maps each validated request slot of a link to its compiled validator, or to
- * `null` when the slot falls back to the runtime validator.
+ * Maps each validated request slot of a link to a compiled validator or `null`.
  */
 type CompiledValidatorSlots = Record<string, CompiledValidator | null>;
 
@@ -104,8 +103,7 @@ type LinkFactoryDependency = <Name extends FactoryDependencyName>(
 ) => Name;
 
 /**
- * Describes the prebuilt factory for a sync route that needs no generated
- * dispatcher.
+ * Prebuilt factory for a sync route without a generated dispatcher.
  */
 type DirectSyncFactory = (
 	responseFn: typeof response,
@@ -113,8 +111,7 @@ type DirectSyncFactory = (
 ) => Endpoint["dispatch"];
 
 /**
- * Describes the prebuilt factory for an async route that needs no generated
- * dispatcher.
+ * Prebuilt factory for an async route without a generated dispatcher.
  */
 type DirectAsyncFactory = (
 	responseFn: typeof response,
@@ -691,7 +688,7 @@ const generateDispatcherBody = (
 			);
 		}
 
-		// an async handler that never suspends settles before it is read
+		// gate the handler result instead of awaiting it
 		return terminate(
 			`const handled=${handlerName}(${routeArgument});${contentTarget}=${gate("handled", link)};`,
 			isNested,
@@ -709,7 +706,7 @@ const generateDispatcherBody = (
 			const isTailAsync = awaitMap[index + 1];
 			const nextName = `next_${index}`;
 			const returnedName = `returned_${index}`;
-			// only an async link is known to return a native promise
+			// an async link is gated instead of awaited
 			const call = asyncMap[index]
 				? `let ${returnedName}=${link("chain")}[${index}].handler(${linkArgument},${nextName});${returnedName}=${gate(returnedName, link)};`
 				: `const ${returnedName}=${awaitMap[index] ? "await " : ""}${link("chain")}[${index}].handler(${linkArgument},${nextName});`;
@@ -721,7 +718,7 @@ const generateDispatcherBody = (
 
 		if (chainLink?.type === "STORE") {
 			const returnedName = `returned_${index}`;
-			// only an async link is known to return a native promise
+			// an async link is gated instead of awaited
 			const call = asyncMap[index]
 				? `let ${returnedName}=${link("chain")}[${index}].handler(${linkArgument});${returnedName}=${gate(returnedName, link)};`
 				: `const ${returnedName}=${link("chain")}[${index}].handler(${linkArgument});`;
@@ -772,7 +769,7 @@ const generateDispatcherBody = (
 
 					const validatorCall = `${link("validator")}(${requestTarget}.${key},${target},${JSON.stringify(key)})`;
 
-					// an async validator that never suspends settles before it is read
+					// gate the validator result instead of awaiting it
 					if (isValidatorAsync) {
 						const slotName = `validated_${index}_${key}`;
 

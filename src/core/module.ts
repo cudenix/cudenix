@@ -148,7 +148,7 @@ export interface Module<
 			| RouteFnReturnGenerator,
 		const RouteValidatorRequest extends
 			Partial<ValidatorRequest> = NonNullable<unknown>,
-		// defaulted, never inferred: the path merge runs once
+		// the path merge runs once as a default
 		MergedPath extends `/${string}` = MergePaths<Prefix, RoutePath>,
 	>(
 		method: RouteMethod,
