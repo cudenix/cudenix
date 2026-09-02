@@ -124,7 +124,7 @@ const replacePlus = (component: string) => {
 	let last = 0;
 
 	for (let i = 0; i < length; i++) {
-		// "+" (43) stands for a space in a query component
+		// "+" (43) becomes a space
 		if (component.charCodeAt(i) === 43) {
 			output += `${component.substring(last, i)} `;
 			last = i + 1;

@@ -853,8 +853,7 @@ describe("parseBody", () => {
 		});
 	});
 	describe("bun header semantics", () => {
-		// bun joins duplicate headers with ", " instead of keeping the last,
-		// and reads a single empty value as "" instead of null
+		// bun joins duplicate headers with ", " and reads an empty one as ""
 		const appended = (body: BodyInit, values: readonly string[]) => {
 			const headers = new Headers();
 
@@ -921,7 +920,7 @@ describe("parseBody", () => {
 			headers.append("content-type", "");
 			headers.append("content-type", "application/json");
 
-			// the join leaves a leading ", " the media type scan stops on
+			// the join leaves a leading ", "
 			expect(headers.get("content-type")).toBe(", application/json");
 			expect(
 				await parseBody(

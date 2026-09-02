@@ -261,9 +261,7 @@ describe("decodePathParam", () => {
 		);
 	});
 
-	// a tail of 24 or more characters that opens on three escapes in a row,
-	// the first one non-ASCII, and closes on an escape goes to the native
-	// decoder
+	// a dense non-ASCII tail goes to the native decoder
 	describe("native decoder path", () => {
 		const cjk = "%E6%97%A5%E6%9C%AC%E8%AA%9E";
 

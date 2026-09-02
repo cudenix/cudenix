@@ -597,8 +597,7 @@ describe("parseCookies", () => {
 		});
 	});
 	describe("bun duplicate cookie headers", () => {
-		// bun joins duplicate headers with ", ", but keeps the "; " the fetch
-		// spec reserves for "Cookie"
+		// bun joins duplicate cookie headers with "; "
 		it("should join duplicate cookie headers with '; '", () => {
 			const headers = new Headers();
 

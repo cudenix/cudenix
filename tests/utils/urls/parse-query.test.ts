@@ -774,7 +774,7 @@ describe("parseQuery", () => {
 			"b=Jos%C3%A9",
 			"b=%F0%9F%8E%89",
 			"b=%E2%82%AC",
-			// malformed escapes stay literal, exactly as the spec decoder does
+			// malformed escapes stay literal
 			"b=%",
 			"b=%z",
 			"b=%zz",
@@ -863,7 +863,7 @@ describe("parseQuery", () => {
 					query += fragments[next(fragments.length)];
 				}
 
-				// a "#" would end the query, and json values diverge by design
+				// a "#" would end the query
 				if (query.includes("#")) {
 					continue;
 				}

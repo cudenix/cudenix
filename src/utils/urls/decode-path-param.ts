@@ -115,8 +115,7 @@ export const decodePathParam = (value: string) => {
 
 	const length = value.length;
 
-	// a dense run: a byte of 128 or more (high nibble of 8 or more) opening
-	// three escapes in a row, and an escape closing the tail
+	// a dense non-ASCII run goes to the native decoder
 	if (
 		length - firstPercentIndex >= NATIVE_DECODE_MIN_LENGTH &&
 		(HEX_VALUES[value.charCodeAt(firstPercentIndex + 1)] ?? -1) >= 8 &&
