@@ -232,9 +232,13 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
 	// unmatched requests fall back to the mounts
 	if (mounts) {
 		const url = request.url;
-		const pathnameStart = url.indexOf("/", 8); // skip scheme and authority
+		// "/" (47) first is an origin-less url, else the pathname follows the authority
+		const pathnameStart =
+			url.charCodeAt(0) === 47 ? -1 : url.indexOf("/", 8);
+		// prefixed mounts skip an origin-less url
+		const mountCount = pathnameStart === -1 ? 0 : mounts.length;
 
-		for (let i = 0; i < mounts.length; i++) {
+		for (let i = 0; i < mountCount; i++) {
 			const mount = mounts[i]!;
 			const mountPath = mount.path;
 
