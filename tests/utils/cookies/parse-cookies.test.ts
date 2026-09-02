@@ -659,4 +659,55 @@ describe("parseCookies", () => {
 			server.stop(true);
 		});
 	});
+
+	// `context.response.cookies` reads the same header through `Bun.CookieMap`
+	describe("bun cookie map parity", () => {
+		it("should agree on plain, encoded, and whitespace-padded pairs", () => {
+			for (const header of [
+				"a=v1",
+				"a=v1; b=v2",
+				"a=v1;b=v2",
+				" a = v1 ; b=v2",
+				"c=a%20b",
+				"c=%C3%A9",
+				"c=%ZZ",
+				"c=%",
+				"c=a+b",
+				'c="quoted"',
+				"a=b=c",
+				"a=;b=v2",
+				"=v1; b=v2",
+				"novalue; b=v2",
+				"a=v1;;b=v2",
+				"constructor=v1",
+				"__proto__=v1; b=v2",
+			]) {
+				expect(parseCookies(header)).toEqual(
+					new Bun.CookieMap(header).toJSON(),
+				);
+			}
+		});
+
+		it("should keep the first value of a repeated name like Bun.CookieMap, which also keeps every duplicate", () => {
+			const header = "a=v1; a=v2; b=v3";
+			const map = new Bun.CookieMap(header);
+
+			expect(parseCookies(header)).toEqual({ a: "v1", b: "v3" });
+			expect(map.get("a")).toBe("v1");
+			expect(map.toJSON()).toEqual({ a: "v1", b: "v3" });
+
+			// only the map still exposes the duplicate
+			expect(map.size).toBe(3);
+			expect([...map.keys()]).toEqual(["a", "a", "b"]);
+		});
+
+		it("should keep a '__proto__' cookie as an own key like Bun.CookieMap", () => {
+			const header = "__proto__=v1; b=v2";
+			const cookies = parseCookies(header);
+
+			expect(Object.hasOwn(cookies, "__proto__")).toBe(true);
+			expect(cookies.b).toBe("v2");
+			expect(new Bun.CookieMap(header).get("__proto__")).toBe("v1");
+		});
+	});
 });
