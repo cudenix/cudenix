@@ -1,10 +1,9 @@
 /**
  * Checks every property in one object-union branch.
  */
-type AllPropertiesAreUnknownInBranch<T extends object> = {
-	[K in keyof T]: unknown extends T[K] ? true : false;
-	// "| undefined" covers optional properties
-}[keyof T] extends true | undefined
+type AllPropertiesAreUnknownInBranch<T extends object> = keyof {
+	[K in keyof T as unknown extends T[K] ? never : K]: T[K];
+} extends never
 	? true
 	: false;
 

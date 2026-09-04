@@ -53,6 +53,45 @@ describe("AllPropertiesAreUnknown", () => {
 	});
 
 	describe("index signatures", () => {
+		it("should inspect declared properties under an unknown or any string index", () => {
+			interface A {
+				a: string;
+				[key: string]: unknown;
+			}
+			interface B {
+				a?: number;
+				[key: string]: any;
+			}
+
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
+			expectTypeOf<AllPropertiesAreUnknown<B>>().toEqualTypeOf<false>();
+		});
+
+		it("should inspect declared numeric, symbol and template keys under unknown indexes", () => {
+			const sym = Symbol("known");
+			type Numeric = Record<number, unknown> & { 0: string };
+			type Symbolic = Record<symbol, unknown> & { [sym]: number };
+			type Pattern = Record<`x-${string}`, unknown> & { "x-a": boolean };
+
+			expectTypeOf<
+				AllPropertiesAreUnknown<Numeric>
+			>().toEqualTypeOf<false>();
+			expectTypeOf<
+				AllPropertiesAreUnknown<Symbolic>
+			>().toEqualTypeOf<false>();
+			expectTypeOf<
+				AllPropertiesAreUnknown<Pattern>
+			>().toEqualTypeOf<false>();
+		});
+
+		it("should reject a union with a concrete property hidden by an index", () => {
+			type A =
+				| Record<string, unknown>
+				| (Record<string, unknown> & { a: string });
+
+			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
+		});
+
 		it("should resolve to true for a string-keyed unknown index signature", () => {
 			type A = Record<string, unknown>;
 
