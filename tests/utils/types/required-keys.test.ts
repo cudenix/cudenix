@@ -217,6 +217,35 @@ describe("RequiredKeys", () => {
 	});
 
 	describe("index signatures", () => {
+		it("should retain required declarations under an unknown string index", () => {
+			interface A {
+				a: string;
+				b?: number;
+				c: boolean | undefined;
+				[key: string]: unknown;
+			}
+
+			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<"a">();
+		});
+
+		it("should retain required numeric, symbol and template declarations", () => {
+			const sym = Symbol("required");
+			type Numeric = Record<number, unknown> & { 0: string; 1?: number };
+			type Symbolic = Record<symbol, unknown> & { [sym]: number };
+			type Pattern = Record<`x-${string}`, unknown> & { "x-a": boolean };
+
+			expectTypeOf<RequiredKeys<Numeric>>().toEqualTypeOf<0>();
+			expectTypeOf<RequiredKeys<Symbolic>>().toEqualTypeOf<typeof sym>();
+			expectTypeOf<RequiredKeys<Pattern>>().toEqualTypeOf<"x-a">();
+		});
+
+		it("should retain only common required declarations in indexed unions", () => {
+			type A = Record<string, unknown> & { a: string; b: number };
+			type B = Record<string, unknown> & { a: string; c: boolean };
+
+			expectTypeOf<RequiredKeys<A | B>>().toEqualTypeOf<"a">();
+		});
+
 		it("should reduce a string index signature to its key type", () => {
 			interface A {
 				[key: string]: string;
