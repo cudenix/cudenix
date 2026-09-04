@@ -13,6 +13,21 @@ const FIRST_PARAMETER =
 	/^\s*(?:(?:async(?=\s|\*)\s*)?(?:function\s*\*?\s*(?:[A-Za-z_$][\w$]*)?|\*\s*[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*)?\(\s*([A-Za-z_]\w*)\s*[,)]|(?:async\s+)?([A-Za-z_]\w*)\s*=>)/;
 
 /**
+ * Matches opaque or indirect argument access.
+ */
+const OPAQUE_ACCESS = /\[native code\]|arguments|eval|\\u/;
+
+/**
+ * A property-name character: a word character, `$`, or a code unit above DEL.
+ */
+const PROPERTY_CHARACTER = "[\\w$\\u0080-\\uffff]";
+
+/**
+ * A `.` or `?.` access surrounded by tab, LF, CR, or space.
+ */
+const PROPERTY_ACCESS = "[\\t\\n\\r ]*(?:\\?\\.|\\.)[\\t\\n\\r ]*";
+
+/**
  * Bit flags for each context feature a handler can access.
  */
 const CONTEXT_MEMORY = 1;
@@ -38,6 +53,11 @@ const CONTEXT_ALL =
 	CONTEXT_SERVER |
 	CONTEXT_STORE |
 	RESPONSE_METADATA;
+
+/**
+ * Flag set once the first parameter is referenced at all.
+ */
+const PARAMETER_REFERENCED = 128;
 
 /**
  * Handler features inferred from its source.
@@ -69,80 +89,9 @@ interface FirstParameter {
 }
 
 /**
- * Detects an ASCII word character (`0-9`, `A-Z`, `_`, `a-z`).
- */
-const isWordCharacter = (code: number) =>
-	// "0" (48) - "9" (57), "A" (65) - "Z" (90)
-	(code >= 48 && code <= 57) ||
-	(code >= 65 && code <= 90) ||
-	// "_" (95), "a" (97) - "z" (122)
-	code === 95 ||
-	(code >= 97 && code <= 122);
-
-/**
- * Detects a property-name character: a word character, `$`, or non-ASCII.
- */
-const isPropertyCharacter = (code: number) =>
-	// "$" (36) or a code unit above DEL (127)
-	isWordCharacter(code) || code === 36 || code > 127;
-
-/**
- * Detects whitespace accepted around property access (tab, LF, CR, space).
- */
-const isWhitespace = (code: number) =>
-	// tab (9), LF (10), CR (13), space (32)
-	code === 9 || code === 10 || code === 13 || code === 32;
-
-/**
- * Skips whitespace from a source offset.
- */
-const skipWhitespace = (source: string, start: number) => {
-	let index = start;
-
-	while (isWhitespace(source.charCodeAt(index))) {
-		index++;
-	}
-
-	return index;
-};
-
-/**
- * Reads the property behind a `.` or `?.` access at a source offset.
- */
-const getDirectProperty = (source: string, start: number) => {
-	let propertyStart = skipWhitespace(source, start);
-
-	if (source.startsWith("?.", propertyStart)) {
-		propertyStart += 2;
-	} else if (
-		// "." (46) direct property access
-		source.charCodeAt(propertyStart) === 46
-	) {
-		propertyStart++;
-	} else {
-		return;
-	}
-
-	propertyStart = skipWhitespace(source, propertyStart);
-
-	let propertyEnd = propertyStart;
-
-	while (isPropertyCharacter(source.charCodeAt(propertyEnd))) {
-		propertyEnd++;
-	}
-
-	if (propertyEnd !== propertyStart) {
-		return {
-			end: propertyEnd,
-			name: source.slice(propertyStart, propertyEnd),
-		};
-	}
-};
-
-/**
  * Reads a plain first parameter from function source.
  */
-const getFirstParameter = (source: string) => {
+const getFirstParameter = (source: string): FirstParameter | undefined => {
 	const match = FIRST_PARAMETER.exec(source);
 	const name = match?.[1] ?? match?.[2];
 
@@ -154,113 +103,67 @@ const getFirstParameter = (source: string) => {
 };
 
 /**
- * Checks whether an occurrence is a complete parameter reference.
+ * Memoizes the reference matcher of each parameter name.
  */
-const isParameterReference = (source: string, index: number, length: number) =>
-	!isWordCharacter(source.charCodeAt(index - 1)) &&
-	!isWordCharacter(source.charCodeAt(index + length));
+const referenceMatchers = new Map<string, RegExp>();
 
 /**
- * Finds a reference to the first parameter.
+ * Builds the matcher of a parameter reference and the context field behind it.
  */
-const hasParameterReference = (source: string, parameter: FirstParameter) => {
-	let index = source.indexOf(parameter.name, parameter.scanStart);
+const getReferenceMatcher = (name: string) => {
+	let matcher = referenceMatchers.get(name);
 
-	while (index !== -1) {
-		if (isParameterReference(source, index, parameter.name.length)) {
-			return true;
-		}
+	if (!matcher) {
+		// group 1 is a direct field, group 2 `response`, group 3 its field
+		matcher = new RegExp(
+			`(?<![0-9A-Za-z_])${name}(?![0-9A-Za-z_])(?:${PROPERTY_ACCESS}(?:(memory|request|server|store)(?!${PROPERTY_CHARACTER})|(response)(?!${PROPERTY_CHARACTER})(?:${PROPERTY_ACCESS}(content|cookies|headers)(?!${PROPERTY_CHARACTER}))?|${PROPERTY_CHARACTER}+))?`,
+			"g",
+		);
 
-		index = source.indexOf(parameter.name, index + parameter.name.length);
+		referenceMatchers.set(name, matcher);
 	}
 
-	return false;
+	return matcher;
 };
 
 /**
- * Detects opaque or indirect argument access.
- */
-const hasOpaqueSourceAccess = (source: string) =>
-	source.indexOf("[native code]") !== -1 ||
-	source.indexOf("arguments") !== -1 ||
-	source.indexOf("eval") !== -1 ||
-	source.indexOf("\\u") !== -1;
-
-/**
- * Detects whether function source needs context.
- */
-const needsContextFromSource = (
-	source: string,
-	arity: number,
-	parameter: FirstParameter | undefined,
-	hasOpaqueAccess: boolean,
-) => {
-	if (arity === 0) {
-		return !EMPTY_PARAMETERS.test(source) || hasOpaqueAccess;
-	}
-
-	return (
-		parameter === undefined ||
-		hasParameterReference(source, parameter) ||
-		hasOpaqueAccess
-	);
-};
-
-/**
- * Collects directly accessed context fields.
+ * Collects the context fields accessed through the first parameter.
  */
 const getPropertyUsage = (source: string, parameter: FirstParameter) => {
+	const matcher = getReferenceMatcher(parameter.name);
+
+	matcher.lastIndex = parameter.scanStart;
+
 	let usage = 0;
-	let index = source.indexOf(parameter.name, parameter.scanStart);
+	let match = matcher.exec(source);
 
-	while (index !== -1) {
-		if (isParameterReference(source, index, parameter.name.length)) {
-			const property = getDirectProperty(
-				source,
-				index + parameter.name.length,
-			);
+	while (match !== null) {
+		const field = match[1];
+		const responseField = match[3];
 
-			switch (property?.name) {
-				case "memory":
-					usage |= CONTEXT_MEMORY;
-					break;
-				case "request":
-					usage |= CONTEXT_REQUEST;
-					break;
-				case "server":
-					usage |= CONTEXT_SERVER;
-					break;
-				case "store":
-					usage |= CONTEXT_STORE;
-					break;
-				case "response": {
-					const responseProperty = getDirectProperty(
-						source,
-						property.end,
-					);
-
-					switch (responseProperty?.name) {
-						case "content":
-							usage |= RESPONSE_CONTENT;
-							break;
-						case "cookies":
-							usage |= RESPONSE_COOKIES;
-							break;
-						case "headers":
-							usage |= RESPONSE_HEADERS;
-							break;
-						default:
-							return CONTEXT_ALL;
-					}
-
-					break;
-				}
-				default:
-					return CONTEXT_ALL;
-			}
+		if (field !== undefined) {
+			usage |=
+				field === "memory"
+					? CONTEXT_MEMORY
+					: field === "request"
+						? CONTEXT_REQUEST
+						: field === "server"
+							? CONTEXT_SERVER
+							: CONTEXT_STORE;
+		} else if (responseField !== undefined) {
+			usage |=
+				responseField === "content"
+					? RESPONSE_CONTENT
+					: responseField === "cookies"
+						? RESPONSE_COOKIES
+						: RESPONSE_HEADERS;
+		} else {
+			// an escaping or unknown access assumes every feature
+			return CONTEXT_ALL | PARAMETER_REFERENCED;
 		}
 
-		index = source.indexOf(parameter.name, index + parameter.name.length);
+		usage |= PARAMETER_REFERENCED;
+		match = matcher.exec(source);
 	}
 
 	return usage;
@@ -292,23 +195,18 @@ export const analyzeHandler = (handler: AnalyzableHandler): HandlerAnalysis => {
 
 	const source = handler.toString();
 	const parameter = getFirstParameter(source);
-	const hasOpaqueAccess = hasOpaqueSourceAccess(source);
-	const needsContext = needsContextFromSource(
-		source,
-		handler.length,
-		parameter,
-		hasOpaqueAccess,
-	);
-
-	let propertyUsage = 0;
-
-	if (needsContext) {
-		// unnarrowable sources assume every feature
-		propertyUsage =
-			hasOpaqueAccess || parameter === undefined
-				? CONTEXT_ALL
-				: getPropertyUsage(source, parameter);
-	}
+	const hasOpaqueAccess = OPAQUE_ACCESS.test(source);
+	// unnarrowable sources assume every feature
+	const usage =
+		hasOpaqueAccess || parameter === undefined
+			? CONTEXT_ALL | PARAMETER_REFERENCED
+			: getPropertyUsage(source, parameter);
+	// a zero-arity handler needs context unless its source declares no parameter
+	const needsContext =
+		handler.length === 0
+			? !EMPTY_PARAMETERS.test(source) || hasOpaqueAccess
+			: (usage & PARAMETER_REFERENCED) !== 0;
+	const propertyUsage = needsContext ? usage & CONTEXT_ALL : 0;
 
 	const analysis = Object.freeze({
 		isAsync: isAsync(handler),
