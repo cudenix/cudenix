@@ -547,11 +547,11 @@ describe("parseQuery", () => {
 	});
 
 	describe("long components", () => {
-		// lengths on both sides of the scan limit
+		// Include the former 64-character scan boundary.
 		const lengths = Array.from({ length: 86 }, (_, index) => index + 55);
 
 		it.each(lengths)(
-			"should read a %i character value the same either side of the scan limit",
+			"should read a %i character value up to its delimiter",
 			(length) => {
 				const value = "v".repeat(length);
 
@@ -562,7 +562,7 @@ describe("parseQuery", () => {
 		);
 
 		it.each(lengths)(
-			"should read a %i character key the same either side of the scan limit",
+			"should read a %i character key up to its delimiter",
 			(length) => {
 				const key = "k".repeat(length);
 
@@ -654,6 +654,27 @@ describe("parseQuery", () => {
 				value,
 				value,
 			]);
+		});
+
+		it("should collect thousands of long components with no decode markers", () => {
+			const value = "v".repeat(64);
+			const values = Array<string>(4096).fill(value);
+			const query = values.map((item) => `k=${item}`).join("&");
+
+			expect(parseQuery(`/?${query}`).k).toEqual(values);
+		});
+
+		it("should keep decode markers and fragments local to each long component", () => {
+			const key = "k".repeat(128);
+			const value = "v".repeat(128);
+			const query = Array<string>(512).fill(`${key}=${value}`).join("&");
+			const result = parseQuery(
+				`/?${query}&${key}%20x=${value}+%26%3D#ignored=+%20`,
+			);
+
+			expect(result[key]).toEqual(Array<string>(512).fill(value));
+			expect(result[`${key} x`]).toBe(`${value} &=`);
+			expect(Object.keys(result)).toEqual([key, `${key} x`]);
 		});
 
 		it("should parse a long JSON value", () => {
@@ -798,7 +819,7 @@ describe("parseQuery", () => {
 			"b=%3D",
 			"b=%23",
 			"b=v1%2Bv2",
-			// long components cross the internal scan limit
+			// long components with and without decoding
 			`b=${"v".repeat(200)}`,
 			`${"k".repeat(200)}=v1`,
 			`b=${"a+b+".repeat(50)}`,

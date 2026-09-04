@@ -6,9 +6,6 @@ const KEY_HAS_PERCENT = 2;
 const VALUE_HAS_PLUS = 4;
 const VALUE_HAS_PERCENT = 8;
 
-// length past which a component goes to indexOf
-const SCAN_LIMIT = 64;
-
 // length past which the "+" swap goes to "split"/"join"
 const REPLACE_ALL_LENGTH = 128;
 
@@ -32,49 +29,6 @@ const hexByteToValue = (byte: number) => {
 
 	// "a"-"f" map to 10-15
 	return lowerByte >= 97 && lowerByte <= 102 ? lowerByte - 87 : -1;
-};
-
-/**
- * Finds a query component's end and its decode flags.
- */
-const scanComponent = (
-	url: string,
-	from: number,
-	urlLength: number,
-	isKey: boolean,
-) => {
-	// "&" (38) closes the pair, "#" (35) the whole query
-	let end = url.indexOf("&", from);
-
-	if (end === -1) {
-		end = urlLength;
-	}
-
-	const hashIndex = url.indexOf("#", from);
-
-	if (hashIndex !== -1 && hashIndex < end) {
-		end = hashIndex;
-	}
-
-	// "=" (61) closes a key, but never a value
-	if (isKey) {
-		const equalsIndex = url.indexOf("=", from);
-
-		if (equalsIndex !== -1 && equalsIndex < end) {
-			end = equalsIndex;
-		}
-	}
-
-	const plusIndex = url.indexOf("+", from);
-	const percentIndex = url.indexOf("%", from);
-
-	return {
-		end,
-		// in the KEY_HAS_* positions
-		flags:
-			(plusIndex !== -1 && plusIndex < end ? KEY_HAS_PLUS : 0) |
-			(percentIndex !== -1 && percentIndex < end ? KEY_HAS_PERCENT : 0),
-	};
 };
 
 /**
@@ -168,13 +122,8 @@ export const parseQuery = (url: string) => {
 		const keyStart = i;
 
 		let flags = 0;
-		let scanEnd = keyStart + SCAN_LIMIT;
 
-		if (scanEnd > urlLength) {
-			scanEnd = urlLength;
-		}
-
-		while (i < scanEnd) {
+		while (i < urlLength) {
 			const charCode = url.charCodeAt(i);
 
 			// stop at "=" (61), "&" (38) or "#" (35)
@@ -190,14 +139,6 @@ export const parseQuery = (url: string) => {
 			}
 
 			i++;
-		}
-
-		// the rest of the key goes to the searches
-		if (i === scanEnd && scanEnd !== urlLength) {
-			const scanned = scanComponent(url, i, urlLength, true);
-
-			i = scanned.end;
-			flags |= scanned.flags;
 		}
 
 		// "=" (61) starts the value
@@ -216,13 +157,7 @@ export const parseQuery = (url: string) => {
 				firstCharCode = url.charCodeAt(i);
 			}
 
-			let valueScanEnd = valueStart + SCAN_LIMIT;
-
-			if (valueScanEnd > urlLength) {
-				valueScanEnd = urlLength;
-			}
-
-			while (i < valueScanEnd) {
+			while (i < urlLength) {
 				const charCode = url.charCodeAt(i);
 
 				// stop at "&" (38) or "#" (35)
@@ -238,14 +173,6 @@ export const parseQuery = (url: string) => {
 				}
 
 				i++;
-			}
-
-			// the rest of the value goes to the searches
-			if (i === valueScanEnd && valueScanEnd !== urlLength) {
-				const scanned = scanComponent(url, i, urlLength, false);
-
-				i = scanned.end;
-				flags |= scanned.flags << 2;
 			}
 
 			value = url.substring(valueStart, i);
