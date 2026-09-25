@@ -4,7 +4,7 @@ export default defineConfig({
 	arrowParens: "always",
 	bracketSameLine: false,
 	bracketSpacing: true,
-	ignorePatterns: ["**/.gen", "**/*.gen.*", "**/.agents/**", "**/.claude/**"],
+	ignorePatterns: ["**/.agents/**", "**/.claude/**"],
 	objectWrap: "collapse",
 	printWidth: 80,
 	quoteProps: "as-needed",
