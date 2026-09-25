@@ -103,7 +103,9 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FrozenEmpty) =>
 			const read = processedResponse.arrayBuffer();
 			// a buffered body settles before it is read
 			const buffer =
-				peekStatus(read) === "fulfilled" ? peek(read) : await read;
+				peekStatus(read) === "fulfilled"
+					? (peek(read) as Awaited<typeof read>)
+					: await read;
 
 			if (buffer.byteLength < threshold) {
 				return;

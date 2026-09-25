@@ -47,6 +47,53 @@ const parseParams = (path: string, url: string) => {
 };
 
 describe("ExtractUrlParams", () => {
+	describe("backslash separators", () => {
+		it("should recognize a parameter after a backslash", () => {
+			const params: ExtractUrlParams<"/a\\:id"> = { id: "123" };
+
+			expectTypeOf<typeof params>().toEqualTypeOf<{ id: string }>();
+			expect(parseParams("/a\\:id", "/a/123")).toEqual(params);
+		});
+
+		it("should end a parameter name at a backslash", () => {
+			expectTypeOf<ExtractUrlParams<"/:id\\tail">>().toEqualTypeOf<{
+				id: string;
+			}>();
+		});
+
+		it("should preserve optional and rest captures with mixed separators", () => {
+			type Params = ExtractUrlParams<"/a\\:id?//\\...parts">;
+			const params: Params = { parts: ["b", "c"] };
+
+			expectTypeOf<Params>().toEqualTypeOf<{
+				id?: string | undefined;
+				parts: RestParam;
+			}>();
+			expect(parseParams("/a\\:id?//\\...parts", "/a/b/c")).toEqual({
+				id: "b",
+				parts: ["c"],
+			});
+			expect(parseParams("/a\\:id?//\\...parts", "/a/b")).toEqual({
+				parts: [params.parts[0]],
+			});
+		});
+
+		it("should apply duplicate-name overrides across either separator", () => {
+			expectTypeOf<ExtractUrlParams<"/:id\\...id">>().toEqualTypeOf<{
+				id: RestParam;
+			}>();
+			expectTypeOf<ExtractUrlParams<"/:id\\...id?">>().toEqualTypeOf<{
+				id: string | RestParam;
+			}>();
+		});
+
+		it("should distribute over paths using different separators", () => {
+			expectTypeOf<
+				ExtractUrlParams<"/a\\:id" | "/b/:name">
+			>().toEqualTypeOf<{ id: string } | { name: string }>();
+		});
+	});
+
 	describe("root path '/'", () => {
 		it("should resolve to an empty record", () => {
 			expectTypeOf<ExtractUrlParams<"/">>().branded.toEqualTypeOf<

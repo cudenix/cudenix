@@ -1,4 +1,20 @@
 /**
+ * Filter properties before taking keyof so index signatures cannot hide them.
+ */
+type UnchangedProperties<T extends object, U> = {
+	[K in keyof T as [U extends T[K] ? K : never] extends [never]
+		? K
+		: never]: T[K];
+};
+
+/**
+ * Filter properties of a type that are optional based on a given marker.
+ */
+type OptionalProperties<T extends object, U> = {
+	[K in keyof T as U extends T[K] ? K : never]?: T[K];
+};
+
+/**
  * Marks as optional every property whose type accepts a given marker.
  *
  * @example
@@ -16,12 +32,9 @@
 export type ConditionallyOptional<T extends object, U> = T extends unknown
 	? T extends readonly unknown[]
 		? T
-		: {
-					[K in keyof T]-?: U extends T[K] ? K : never;
-					// narrows OptionalKeys to keys of T
-				}[keyof T] extends infer OptionalKeys extends keyof T
-			? Omit<T, OptionalKeys> & {
-					[K in OptionalKeys]?: T[K];
-				}
-			: never
+		: keyof OptionalProperties<T, U> extends never
+			? T
+			: keyof UnchangedProperties<T, U> extends never
+				? Partial<T>
+				: UnchangedProperties<T, U> & OptionalProperties<T, U>
 	: never;

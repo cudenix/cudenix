@@ -159,6 +159,49 @@ describe("ConditionallyOptional", () => {
 	});
 
 	describe("index signatures", () => {
+		it("should preserve declared types and modifiers under an unknown string index", () => {
+			interface A {
+				readonly a: string;
+				b: number | undefined;
+				c?: boolean;
+				[key: string]: unknown;
+			}
+			type Result = ConditionallyOptional<A, undefined>;
+
+			expectTypeOf<Pick<Result, "a">>().toEqualTypeOf<{
+				readonly a: string;
+			}>();
+			expectTypeOf<Pick<Result, "b" | "c">>().toEqualTypeOf<{
+				b?: number | undefined;
+				c?: boolean;
+			}>();
+			expectTypeOf<NonNullable<unknown>>().not.toExtend<Result>();
+			expectTypeOf<{ a: string; extra: number }>().toExtend<Result>();
+		});
+
+		it("should preserve declared keys under numeric, symbol and template indexes", () => {
+			const sym = Symbol("required");
+			type Numeric = ConditionallyOptional<
+				Record<number, unknown> & { 0: string },
+				undefined
+			>;
+			type Symbolic = ConditionallyOptional<
+				Record<symbol, unknown> & { [sym]: number },
+				undefined
+			>;
+			type Pattern = ConditionallyOptional<
+				Record<`x-${string}`, unknown> & { "x-a": boolean },
+				undefined
+			>;
+
+			expectTypeOf<Numeric[0]>().toEqualTypeOf<string>();
+			expectTypeOf<Symbolic[typeof sym]>().toEqualTypeOf<number>();
+			expectTypeOf<Pattern["x-a"]>().toEqualTypeOf<boolean>();
+			expectTypeOf<NonNullable<unknown>>().not.toExtend<Numeric>();
+			expectTypeOf<NonNullable<unknown>>().not.toExtend<Symbolic>();
+			expectTypeOf<NonNullable<unknown>>().not.toExtend<Pattern>();
+		});
+
 		it("should leave a record untouched when its value type does not admit the marker", () => {
 			type A = Record<string, number>;
 

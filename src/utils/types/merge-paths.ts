@@ -1,3 +1,5 @@
+import type { NormalizePathSeparators } from "@/utils/types/normalize-path-separators";
+
 /**
  * Collapses runs of "/" into a single separator.
  */
@@ -24,7 +26,9 @@ type RemoveLeadingSlash<Path extends string> = Path extends `/${infer Rest}`
  * Normalizes a path body.
  */
 type NormalizeBody<Path extends `/${string}`> = Path extends `/${infer Body}`
-	? RemoveTrailingSlash<CollapseSlashes<RemoveLeadingSlash<Body>>>
+	? RemoveTrailingSlash<
+			CollapseSlashes<RemoveLeadingSlash<NormalizePathSeparators<Body>>>
+		>
 	: string;
 
 /**

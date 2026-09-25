@@ -7,7 +7,9 @@
  * peek("v1"); // "v1"
  * ```
  */
-export const peek = Bun.peek as <T>(value: T | Promise<T>) => T;
+export const peek = Bun.peek as <T>(
+	value: T,
+) => T extends Promise<unknown> ? unknown : T;
 
 /**
  * Reads the state of a promise.

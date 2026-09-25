@@ -4,6 +4,37 @@ import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { MergePaths } from "@/utils/types/merge-paths";
 
 describe("MergePaths", () => {
+	describe("backslash separators", () => {
+		it("should normalize backslashes in both operands", () => {
+			expectTypeOf<
+				MergePaths<"/a\\b", "/c\\d">
+			>().toEqualTypeOf<"/a/b/c/d">();
+		});
+
+		it("should collapse mixed separators at the join and at the ends", () => {
+			const merged: MergePaths<"/\\a/\\", "/\\b\\/"> = "/a/b";
+
+			expect(pathToRegexp("/\\a/\\/\\b\\/").pattern).toBe(
+				pathToRegexp(merged).pattern,
+			);
+		});
+
+		it("should recognize a root made of either separator", () => {
+			expectTypeOf<MergePaths<"/\\/", "/b\\">>().toEqualTypeOf<"/b">();
+			expectTypeOf<MergePaths<"/a\\", "/\\">>().toEqualTypeOf<"/a">();
+			expectTypeOf<MergePaths<"/\\", "/\\">>().toEqualTypeOf<"/">();
+		});
+
+		it("should normalize union members and preserve generic path tails", () => {
+			expectTypeOf<MergePaths<"/a\\b" | "/c\\d", "/:id">>().toEqualTypeOf<
+				"/a/b/:id" | "/c/d/:id"
+			>();
+			expectTypeOf<
+				MergePaths<`/a\\${string}`, "/b">
+			>().toEqualTypeOf<`/a/${string}/b`>();
+		});
+	});
+
 	describe("typical concatenation", () => {
 		it("should join a non-root prefix with a non-root path", () => {
 			expectTypeOf<MergePaths<"/a", "/b">>().toEqualTypeOf<"/a/b">();

@@ -65,7 +65,7 @@ export const stream = (generator: RouteFnReturnGenerator) => {
 			// a sync generator yields its frame instead of a promise
 			const { done, value } =
 				peekStatus(stepped) === "fulfilled"
-					? peek(stepped)
+					? (peek(stepped) as Awaited<typeof stepped>)
 					: await stepped;
 
 			if (done) {

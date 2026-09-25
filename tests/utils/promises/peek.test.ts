@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, expectTypeOf, it } from "bun:test";
 
 import { peek, peekStatus } from "@/utils/promises/peek";
 
@@ -17,6 +17,10 @@ const rejects = async () => {
 };
 
 describe("peek", () => {
+	it("should retain Bun's native function without a wrapper", () => {
+		expect(Object.is(peek, Bun.peek)).toBe(true);
+	});
+
 	describe("fulfilled promises", () => {
 		it("should return the value of a resolved promise", () => {
 			const promise = Promise.resolve("v1");
@@ -48,13 +52,27 @@ describe("peek", () => {
 		it("should return the promise itself", () => {
 			const promise = suspends();
 
-			expect(peek(promise)).toBe(promise as never);
+			const result = peek(promise);
+
+			expectTypeOf<typeof result>().toBeUnknown();
+			expect(result).toBe(promise);
 
 			return promise;
 		});
 	});
 
 	describe("rejected promises", () => {
+		it("should allow a rejection reason unrelated to the fulfilled value type", async () => {
+			const promise = Promise.reject<string>(42);
+
+			await promise.catch(() => {});
+
+			const result = peek(promise);
+
+			expectTypeOf<typeof result>().toBeUnknown();
+			expect(result).toBe(42);
+		});
+
 		it("should return the reason instead of throwing it", async () => {
 			const promise = rejects();
 
@@ -77,6 +95,7 @@ describe("peek", () => {
 			const value = { a: "v1" };
 
 			expect(peek(value)).toBe(value);
+			expectTypeOf(peek(value)).toEqualTypeOf<typeof value>();
 		});
 
 		it("should return a thenable without running its then", () => {

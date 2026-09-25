@@ -1,3 +1,4 @@
+import type { NormalizePathSeparators } from "@/utils/types/normalize-path-separators";
 import type { Prettify } from "@/utils/types/prettify";
 
 /**
@@ -75,5 +76,5 @@ export type ExtractUrlParams<
 	> = NonNullable<unknown>,
 	// skip the walk without a capture marker
 > = Path extends `${string}:${string}` | `${string}...${string}`
-	? ExtractUrlParamsInternal<Path, Accumulated>
+	? ExtractUrlParamsInternal<NormalizePathSeparators<Path>, Accumulated>
 	: Accumulated;
