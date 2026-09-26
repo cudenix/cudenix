@@ -2,7 +2,6 @@ import { defineConfig } from "oxfmt";
 
 export default defineConfig({
 	arrowParens: "always",
-	bracketSameLine: false,
 	bracketSpacing: true,
 	ignorePatterns: ["**/.agents/**", "**/.claude/**"],
 	objectWrap: "collapse",
