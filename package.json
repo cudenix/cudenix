@@ -34,10 +34,6 @@
 			"types": "./dist/ecosystem/client/index.d.ts",
 			"import": "./dist/ecosystem/client/index.js"
 		},
-		"./cluster": {
-			"types": "./dist/ecosystem/plugins/cluster/index.d.ts",
-			"import": "./dist/ecosystem/plugins/cluster/index.js"
-		},
 		"./compress": {
 			"types": "./dist/ecosystem/plugins/compress/index.d.ts",
 			"import": "./dist/ecosystem/plugins/compress/index.js"
@@ -46,30 +42,10 @@
 			"types": "./dist/ecosystem/plugins/cors/index.d.ts",
 			"import": "./dist/ecosystem/plugins/cors/index.js"
 		},
-		"./events": {
-			"types": "./dist/ecosystem/plugins/events/index.d.ts",
-			"import": "./dist/ecosystem/plugins/events/index.js"
-		},
-		"./global-request-context": {
-			"types": "./dist/ecosystem/plugins/global-request-context/index.d.ts",
-			"import": "./dist/ecosystem/plugins/global-request-context/index.js"
-		},
-		"./i18n": {
-			"types": "./dist/ecosystem/plugins/i18n/index.d.ts",
-			"import": "./dist/ecosystem/plugins/i18n/index.js"
-		},
-		"./openapi": {
-			"types": "./dist/ecosystem/plugins/openapi/index.d.ts",
-			"import": "./dist/ecosystem/plugins/openapi/index.js"
-		},
 		"./package.json": "./package.json",
 		"./standard-schema": {
 			"types": "./dist/ecosystem/plugins/standard-schema/index.d.ts",
 			"import": "./dist/ecosystem/plugins/standard-schema/index.js"
-		},
-		"./try-catch": {
-			"types": "./dist/ecosystem/plugins/try-catch/index.d.ts",
-			"import": "./dist/ecosystem/plugins/try-catch/index.js"
 		}
 	},
 	"main": "dist/index.js",
