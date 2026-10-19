@@ -26,7 +26,10 @@
 	"sideEffects": false,
 	"type": "module",
 	"exports": {
-		".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
 		"./client": {
 			"types": "./dist/ecosystem/client/index.d.ts",
 			"import": "./dist/ecosystem/client/index.js"
@@ -82,12 +85,12 @@
 		"typecheck": "tsc --build tsconfig.json tests/tsconfig.json --noEmit --builders 8 --checkers 8"
 	},
 	"devDependencies": {
-		"@types/bun": "1.4.0",
-		"@oxlint/plugins": "1.85.0",
-		"tsc-alias": "1.9.2",
-		"oxfmt": "0.70.0",
-		"oxlint": "1.85.0",
-		"oxlint-tsgolint": "7.0.2003",
+		"@types/bun": "1.4.3",
+		"@oxlint/plugins": "1.89.0",
+		"tsc-alias": "1.9.8",
+		"oxfmt": "0.74.0",
+		"oxlint": "1.89.0",
+		"oxlint-tsgolint": "7.0.2004",
 		"eslint-plugin-perfectionist": "5.12.1",
 		"typescript": "7.0.2"
 	},
