@@ -3,9 +3,9 @@
 	"version": "0.0.65",
 	"description": "cudenix",
 	"keywords": [
-		"cudenix",
 		"api",
 		"bun",
+		"cudenix",
 		"framework",
 		"http",
 		"server",
@@ -17,14 +17,20 @@
 		"url": "https://github.com/cudenix/cudenix/issues",
 		"email": "security@cudenix.com"
 	},
+	"license": "MIT",
+	"author": "cudenix <contact@cudenix.com> (https://cudenix.com)",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/cudenix/cudenix.git"
 	},
-	"license": "MIT",
-	"author": "cudenix <contact@cudenix.com> (https://cudenix.com)",
-	"sideEffects": false,
+	"files": [
+		"dist"
+	],
 	"type": "module",
+	"sideEffects": false,
+	"main": "dist/index.js",
+	"module": "dist/index.js",
+	"types": "dist/index.d.ts",
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
@@ -48,10 +54,10 @@
 			"import": "./dist/ecosystem/plugins/standard-schema/index.js"
 		}
 	},
-	"main": "dist/index.js",
-	"module": "dist/index.js",
-	"types": "dist/index.d.ts",
-	"files": ["dist"],
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org"
+	},
 	"scripts": {
 		"build": "bun check && bun typecheck && tsc-alias",
 		"check": "oxfmt --check && oxlint",
@@ -61,18 +67,14 @@
 		"typecheck": "tsc --build tsconfig.json tests/tsconfig.json --noEmit --builders 8 --checkers 8"
 	},
 	"devDependencies": {
-		"@types/bun": "1.4.3",
 		"@oxlint/plugins": "1.89.0",
-		"tsc-alias": "1.9.8",
+		"@types/bun": "1.4.3",
+		"eslint-plugin-perfectionist": "5.12.1",
 		"oxfmt": "0.74.0",
 		"oxlint": "1.89.0",
 		"oxlint-tsgolint": "7.0.2004",
-		"eslint-plugin-perfectionist": "5.12.1",
+		"tsc-alias": "1.9.8",
 		"typescript": "7.0.2"
-	},
-	"publishConfig": {
-		"access": "public",
-		"registry": "https://registry.npmjs.org"
 	},
 	"trustedDependencies": []
 }
