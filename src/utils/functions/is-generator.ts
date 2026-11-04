@@ -13,7 +13,7 @@ const ASYNC_GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(
  * isGenerator(() => {}); // false
  * ```
  */
-export const isGenerator = (fn: (...args: any[]) => unknown) => {
+export const isGenerator = (fn: (...args: any[]) => unknown): boolean => {
 	const prototype = Object.getPrototypeOf(fn);
 
 	return (

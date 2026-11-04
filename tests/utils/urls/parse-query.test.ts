@@ -1,6 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 
-import { Empty } from "@/utils/objects/empty";
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 import { parseQuery } from "@/utils/urls/parse-query";
 
@@ -490,7 +489,7 @@ describe("parseQuery", () => {
 		it("should return an empty dictionary when the URL has no '?'", () => {
 			const result = parseQuery("/a");
 
-			expect(result).toBeInstanceOf(Empty);
+			expect(Object.getPrototypeOf(result)).toBeNull();
 			expect(Object.keys(result)).toHaveLength(0);
 		});
 
@@ -522,9 +521,7 @@ describe("parseQuery", () => {
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
 			expect(result.__proto__).toBe("v1");
 			expect(result.b).toBe("v2");
-			expect(
-				Object.getPrototypeOf(Object.getPrototypeOf(result)),
-			).toBeNull();
+			expect(Object.getPrototypeOf(result)).toBeNull();
 		});
 
 		it("should store `constructor` as a real own key without invoking inheritance", () => {
@@ -706,10 +703,10 @@ describe("parseQuery", () => {
 		it.each([127, 128, 129, 256])(
 			"should swap every '+' of a %i character dense value",
 			(length) => {
-				const value = "a+".repeat(length >> 1);
+				const value = "a+".repeat(Math.floor(length / 2));
 
 				expect(parseQuery(`/a?b=${value}`).b).toBe(
-					"a ".repeat(length >> 1),
+					"a ".repeat(Math.floor(length / 2)),
 				);
 			},
 		);
@@ -723,14 +720,11 @@ describe("parseQuery", () => {
 				result = parseQuery("/a?b=v1");
 			});
 
-			it("should return a dictionary inheriting from Empty", () => {
-				expect(result).toBeInstanceOf(Empty);
+			it("should return a null-prototype dictionary", () => {
+				expect(Object.getPrototypeOf(result)).toBeNull();
 			});
 
-			it("should have a null prototype root (no Object.prototype methods)", () => {
-				expect(
-					Object.getPrototypeOf(Object.getPrototypeOf(result)),
-				).toBeNull();
+			it("should inherit no Object.prototype methods", () => {
 				expect("toString" in result).toBe(false);
 				expect("hasOwnProperty" in result).toBe(false);
 			});
@@ -760,7 +754,7 @@ describe("parseQuery", () => {
 	});
 	describe("parity with URLSearchParams", () => {
 		// what URLSearchParams yields, collapsed the way parseQuery collapses
-		const searchParams = (query: string) => {
+		const searchParams = (query: string): Record<string, unknown> => {
 			const params: Record<string, unknown> = {};
 
 			for (const [key, value] of new URLSearchParams(query)) {
@@ -835,7 +829,7 @@ describe("parseQuery", () => {
 		}
 
 		it("should match URLSearchParams on generated queries", () => {
-			// seeded xorshift over pair-shaped fragments
+			// seeded Park-Miller over pair-shaped fragments
 			const fragments = [
 				"b",
 				"c",
@@ -857,14 +851,10 @@ describe("parseQuery", () => {
 				"1",
 			];
 
-			let seed = 0x9e3779b1;
+			let seed = 1_234_567;
 
-			const next = (bound: number) => {
-				seed ^= seed << 13;
-				seed >>>= 0;
-				seed ^= seed >> 17;
-				seed ^= seed << 5;
-				seed >>>= 0;
+			const next = (bound: number): number => {
+				seed = (seed * 48_271) % 2_147_483_647;
 
 				return seed % bound;
 			};

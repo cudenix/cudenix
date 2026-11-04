@@ -1,14 +1,15 @@
 import { describe, expect, it } from "bun:test";
 
-import { analyzeHandler } from "@/core/analyzer";
+import { analyzeHandler, type HandlerAnalysis } from "@/core/analyzer";
 
 type AnalyzableHandler = (...args: any[]) => unknown;
 
-const analyze = (handler: AnalyzableHandler) => analyzeHandler(handler);
-const asFn = (value: unknown) => value as AnalyzableHandler;
-const usesContext = (handler: AnalyzableHandler) =>
+const analyze = (handler: AnalyzableHandler): HandlerAnalysis =>
+	analyzeHandler(handler);
+const asFn = (value: unknown): AnalyzableHandler => value as AnalyzableHandler;
+const usesContext = (handler: AnalyzableHandler): boolean =>
 	analyze(handler).needsContext;
-const usesResponseMetadata = (handler: AnalyzableHandler) =>
+const usesResponseMetadata = (handler: AnalyzableHandler): boolean =>
 	analyze(handler).needsResponseMetadata;
 
 describe("usesContext", () => {
@@ -27,7 +28,7 @@ describe("usesContext", () => {
 
 		it("should return true for a function expression with a parameter", () => {
 			// biome-ignore lint/complexity/useArrowFunction: Testing function expressions
-			const fn = function (context: unknown) {
+			const fn = function (context: unknown): unknown {
 				return context;
 			};
 
@@ -35,7 +36,7 @@ describe("usesContext", () => {
 		});
 
 		it("should return true for a function declaration with a parameter", () => {
-			function fn(context: unknown) {
+			function fn(context: unknown): unknown {
 				return context;
 			}
 
@@ -47,7 +48,7 @@ describe("usesContext", () => {
 		});
 
 		it("should return true for a generator function with a parameter", () => {
-			function* gen(context: unknown) {
+			function* gen(context: unknown): Generator<unknown, void, unknown> {
 				yield context;
 			}
 
@@ -56,7 +57,7 @@ describe("usesContext", () => {
 
 		it("should return true for a method with a parameter on an object literal", () => {
 			const obj = {
-				method(context: unknown) {
+				method(context: unknown): unknown {
 					return context;
 				},
 			};
@@ -66,7 +67,9 @@ describe("usesContext", () => {
 
 		it("should return true for a bound function that keeps a parameter", () => {
 			expect(
-				usesContext(((context: unknown) => context).bind(null)),
+				usesContext(
+					((context: unknown): unknown => context).bind(null),
+				),
 			).toBe(true);
 		});
 
@@ -102,14 +105,18 @@ describe("usesContext", () => {
 
 		it("should not depend on an underscore naming convention", () => {
 			// biome-ignore lint/correctness/noUnusedFunctionParameters: Testing the unused parameter name
-			const fn = (context: unknown, next: () => unknown) => next();
+			const fn = (context: unknown, next: () => unknown): unknown =>
+				next();
 
 			expect(usesContext(fn)).toBe(false);
 		});
 
 		it("should return false for an unused function-expression parameter", () => {
 			// biome-ignore lint/complexity/useArrowFunction: Testing function expressions
-			const fn = function (_context: unknown, next: () => unknown) {
+			const fn = function (
+				_context: unknown,
+				next: () => unknown,
+			): unknown {
 				return next();
 			};
 
@@ -118,7 +125,7 @@ describe("usesContext", () => {
 
 		it("should return false for an unused method parameter", () => {
 			const obj = {
-				method(_context: unknown, next: () => unknown) {
+				method(_context: unknown, next: () => unknown): unknown {
 					return next();
 				},
 			};
@@ -127,7 +134,7 @@ describe("usesContext", () => {
 		});
 
 		it("should return false for an unused generator parameter", () => {
-			function* gen(_context: unknown) {
+			function* gen(_context: unknown): Generator<number, void, unknown> {
 				yield 1;
 			}
 
@@ -182,13 +189,17 @@ describe("usesContext", () => {
 
 		it("should detect a first parameter used by a later default", () => {
 			expect(
-				usesContext((context: unknown, next = () => context) => next()),
+				usesContext((context: unknown, next = (): unknown => context) =>
+					next(),
+				),
 			).toBe(true);
 		});
 
 		it("should return false for a later default that does not use the first parameter", () => {
 			expect(
-				usesContext((_context: unknown, next = () => 1) => next()),
+				usesContext((_context: unknown, next = (): number => 1) =>
+					next(),
+				),
 			).toBe(false);
 		});
 
@@ -199,7 +210,10 @@ describe("usesContext", () => {
 		});
 
 		it("should return false for an unused async function parameter", () => {
-			async function fn(_context: unknown, next: () => unknown) {
+			async function fn(
+				_context: unknown,
+				next: () => unknown,
+			): Promise<unknown> {
 				return next();
 			}
 
@@ -208,7 +222,9 @@ describe("usesContext", () => {
 
 		it("should return false for an unused async generator-method parameter", () => {
 			const obj = {
-				async *method(_context: unknown) {
+				async *method(
+					_context: unknown,
+				): AsyncGenerator<number, void, unknown> {
 					yield 1;
 				},
 			};
@@ -228,7 +244,7 @@ describe("usesContext", () => {
 
 		it("should return false for a function expression with no parameters", () => {
 			// biome-ignore lint/complexity/useArrowFunction: Testing function expressions
-			const fn = function () {
+			const fn = function (): number {
 				return 1;
 			};
 
@@ -236,7 +252,7 @@ describe("usesContext", () => {
 		});
 
 		it("should return false for a function declaration with no parameters", () => {
-			function fn() {
+			function fn(): number {
 				return 1;
 			}
 
@@ -244,7 +260,7 @@ describe("usesContext", () => {
 		});
 
 		it("should return false for a sync generator with no parameters", () => {
-			function* gen() {
+			function* gen(): Generator<number, void, unknown> {
 				yield 1;
 			}
 
@@ -252,7 +268,7 @@ describe("usesContext", () => {
 		});
 
 		it("should return false for an async generator with no parameters", () => {
-			async function* gen() {
+			async function* gen(): AsyncGenerator<number, void, unknown> {
 				yield 1;
 			}
 
@@ -265,7 +281,7 @@ describe("usesContext", () => {
 
 		it("should return false for a paramless method shorthand", () => {
 			const obj = {
-				method() {
+				method(): number {
 					return 1;
 				},
 			};
@@ -275,7 +291,7 @@ describe("usesContext", () => {
 
 		it("should return false for a paramless async generator method", () => {
 			const obj = {
-				async *method() {
+				async *method(): AsyncGenerator<number, void, unknown> {
 					yield 1;
 				},
 			};
@@ -304,7 +320,7 @@ describe("usesContext", () => {
 		});
 
 		it("should return true for a function reaching the argument through `arguments`", () => {
-			function fn() {
+			function fn(): unknown {
 				// biome-ignore lint/complexity/noArguments: Testing the `arguments` fallback
 				return arguments[0];
 			}
@@ -313,7 +329,7 @@ describe("usesContext", () => {
 		});
 
 		it("should return true when a declared parameter is reached through `arguments`", () => {
-			function fn(_context: unknown) {
+			function fn(_context: unknown): unknown {
 				// biome-ignore lint/complexity/noArguments: Testing the `arguments` fallback
 				return arguments[0];
 			}
@@ -326,12 +342,12 @@ describe("usesContext", () => {
 		});
 
 		it("should return true for a bound function whose source is opaque", () => {
-			expect(usesContext((() => 1).bind(null))).toBe(true);
+			expect(usesContext(((): number => 1).bind(null))).toBe(true);
 		});
 
 		it("should return true for a callable proxy whose source is opaque", () => {
 			const fn = new Proxy(() => 1, {
-				apply(_target, _thisArgument, args) {
+				apply(_target, _thisArgument, args): unknown {
 					return args[0];
 				},
 			});
@@ -358,7 +374,9 @@ describe("usesContext", () => {
 		});
 
 		it("should return true for an escaped reference to the first parameter", () => {
-			const fn = asFn(new Function("context", "return cont\\u0065xt"));
+			const fn = asFn(
+				new Function("context", String.raw`return cont\u0065xt`),
+			);
 
 			expect(usesContext(fn)).toBe(true);
 		});
@@ -366,9 +384,10 @@ describe("usesContext", () => {
 
 	describe("memoization", () => {
 		it("should honor toString overrides before analysis and preserve cached verdicts", () => {
-			const cached = () => 1;
-			const fresh = () => 1;
-			const spoofedSource = () => "function () { return arguments[0]; }";
+			const cached = (): number => 1;
+			const fresh = (): number => 1;
+			const spoofedSource = (): string =>
+				"function () { return arguments[0]; }";
 
 			expect(usesContext(cached)).toBe(false);
 
@@ -458,7 +477,7 @@ describe("usesResponseMetadata", () => {
 		});
 
 		it("should return true for arguments, eval, native, and bound functions", () => {
-			function throughArguments(_context: unknown) {
+			function throughArguments(_context: unknown): unknown {
 				// biome-ignore lint/complexity/noArguments: Testing the `arguments` fallback
 				return arguments[0];
 			}
@@ -470,17 +489,21 @@ describe("usesResponseMetadata", () => {
 			expect(usesResponseMetadata(throughArguments)).toBe(true);
 			expect(usesResponseMetadata(throughEval)).toBe(true);
 			expect(usesResponseMetadata(Math.random)).toBe(true);
-			expect(usesResponseMetadata((() => "v1").bind(null))).toBe(true);
+			expect(usesResponseMetadata(((): string => "v1").bind(null))).toBe(
+				true,
+			);
 		});
 	});
 
 	describe("memoization", () => {
 		it("should honor toString overrides before analysis and preserve cached verdicts", () => {
-			const cached = (context: { request: unknown }) => context.request;
+			const cached = (context: { request: unknown }): unknown =>
+				context.request;
 			const responseHandler = (context: {
 				response: { headers: unknown };
-			}) => context.response.headers;
-			const spoofedSource = () => "context => context.request.raw";
+			}): unknown => context.response.headers;
+			const spoofedSource = (): string =>
+				"context => context.request.raw";
 
 			expect(usesResponseMetadata(cached)).toBe(false);
 
@@ -560,7 +583,10 @@ describe("analyzeHandler", () => {
 
 	it("should detect an asynchronous handler", () => {
 		expect(analyze(async () => undefined).isAsync).toBe(true);
-		expect(analyze((async () => undefined).bind(null)).isAsync).toBe(true);
+		expect(
+			analyze((async (): Promise<undefined> => undefined).bind(null))
+				.isAsync,
+		).toBe(true);
 		expect(analyze(() => undefined).isAsync).toBe(false);
 		expect(analyze(asFn(function* () {})).isAsync).toBe(false);
 		expect(analyze(asFn(async function* () {})).isAsync).toBe(false);

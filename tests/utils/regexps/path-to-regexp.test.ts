@@ -6,14 +6,22 @@ import {
 	pathToRegexp,
 } from "@/utils/regexps/path-to-regexp";
 
-const compile = (path: string) => {
+const compile = (
+	path: string,
+): {
+	paramFlags: number[];
+	paramKeys: string[];
+	pattern: string;
+	regex: RegExp;
+	restKeys: string[];
+} => {
 	const { paramFlags, paramKeys, pattern, restKeys } = pathToRegexp(path);
 
 	return {
 		paramFlags,
 		paramKeys,
 		pattern,
-		regex: new RegExp(`^${pattern}$`),
+		regex: new RegExp(`^${pattern}$`, "u"),
 		restKeys,
 	};
 };
@@ -144,25 +152,30 @@ describe("pathToRegexp", () => {
 			}
 		});
 
-		describe("'\\' separator", () => {
-			it("should compile a '\\' exactly like a '/'", () => {
-				expect(pathToRegexp("/a\\b").pattern).toBe(
+		describe(String.raw`'\' separator`, () => {
+			it(String.raw`should compile a '\' exactly like a '/'`, () => {
+				expect(pathToRegexp(String.raw`/a\b`).pattern).toBe(
 					pathToRegexp("/a/b").pattern,
 				);
-				expect(pathToRegexp("/a\\b").ranks).toEqual([0, 0]);
+				expect(pathToRegexp(String.raw`/a\b`).ranks).toEqual([0, 0]);
 			});
 
-			it("should match the pathname the parser builds from a '\\' path", () => {
-				const { regex } = compile("/a\\b");
+			it(
+				String.raw`should match the pathname the parser builds from a '\' path`,
+				() => {
+					const { regex } = compile(String.raw`/a\b`);
 
-				expect(
-					regex.test(new URL("http://localhost/a\\b").pathname),
-				).toBe(true);
-				expect(regex.test("/a/b")).toBe(true);
-			});
+					expect(
+						regex.test(
+							new URL(String.raw`http://localhost/a\b`).pathname,
+						),
+					).toBe(true);
+					expect(regex.test("/a/b")).toBe(true);
+				},
+			);
 
 			it("should collide with the '/' spelling of the same path", () => {
-				const backslash = pathToRegexp("/a\\b/:p1");
+				const backslash = pathToRegexp(String.raw`/a\b/:p1`);
 				const slash = pathToRegexp("/a/b/:p1");
 
 				expect(backslash.pattern).toBe(slash.pattern);
@@ -170,22 +183,29 @@ describe("pathToRegexp", () => {
 				expect(backslash.ranks).toEqual(slash.ranks);
 			});
 
-			it("should read a parameter that follows a '\\'", () => {
-				const { paramKeys } = compile("/a\\:p1");
+			it(String.raw`should read a parameter that follows a '\'`, () => {
+				const { paramKeys } = compile(String.raw`/a\:p1`);
 
 				expect(paramKeys).toEqual(["p1"]);
-				expect(pathToRegexp("/a\\:p1").ranks).toEqual([0, 1]);
+				expect(pathToRegexp(String.raw`/a\:p1`).ranks).toEqual([0, 1]);
 			});
 
-			it("should treat a trailing '\\' as a trailing separator", () => {
-				expect(pathToRegexp("/a\\").pattern).toBe(
-					pathToRegexp("/a/").pattern,
-				);
-			});
+			it(
+				String.raw`should treat a trailing '\' as a trailing separator`,
+				() => {
+					expect(pathToRegexp("/a\\").pattern).toBe(
+						pathToRegexp("/a/").pattern,
+					);
+				},
+			);
 
 			it("should normalize a path of nothing but separators to the root", () => {
-				expect(pathToRegexp("\\\\").pattern).toBe(String.raw`\/()`);
-				expect(pathToRegexp("/\\/").pattern).toBe(String.raw`\/()`);
+				expect(pathToRegexp(String.raw`\\`).pattern).toBe(
+					String.raw`\/()`,
+				);
+				expect(pathToRegexp(String.raw`/\/`).pattern).toBe(
+					String.raw`\/()`,
+				);
 			});
 		});
 
@@ -283,6 +303,7 @@ describe("pathToRegexp", () => {
 			const real = pathToRegexp("/a").pattern;
 			const combined = new RegExp(
 				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${shadowing}|${real})(?![^?#])`,
+				"u",
 			);
 
 			// group 1 is the shadowing marker, group 2 the real one
@@ -969,9 +990,10 @@ describe("pathToRegexp", () => {
 
 	describe("embedded in the combined request-url pattern", () => {
 		// mirrors how src/core/compile.ts embeds a pattern
-		const embed = (path: string) =>
+		const embed = (path: string): RegExp =>
 			new RegExp(
 				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${pathToRegexp(path).pattern})(?![^?#])`,
+				"u",
 			);
 
 		it("should stop a param capture right before the query string", () => {
@@ -1103,10 +1125,17 @@ describe("pathToRegexp", () => {
 	});
 
 	describe("param flags", () => {
-		it("should expose the flags as disjoint bits", () => {
+		it("should expose flags whose sums stay distinct", () => {
 			expect(PARAM_FLAG_OPTIONAL).toBe(1);
 			expect(PARAM_FLAG_REST).toBe(2);
-			expect(PARAM_FLAG_OPTIONAL & PARAM_FLAG_REST).toBe(0);
+			expect(
+				new Set([
+					0,
+					PARAM_FLAG_OPTIONAL,
+					PARAM_FLAG_REST,
+					PARAM_FLAG_REST + PARAM_FLAG_OPTIONAL,
+				]).size,
+			).toBe(4);
 		});
 
 		it("should align required and optional flags with duplicate names", () => {

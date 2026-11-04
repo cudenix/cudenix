@@ -3,7 +3,6 @@ import type {
 	RouteFnReturnGeneratorEnvelope,
 	RouteFnReturnGeneratorFrame,
 } from "@/core/route";
-import { peek, peekStatus } from "@/utils/promises/peek";
 
 const ENCODER = new TextEncoder();
 
@@ -12,7 +11,7 @@ const NEWLINES = /[\r\n]/g;
 /**
  * Serializes an SSE frame.
  */
-const chunk = (frame: RouteFnReturnGeneratorFrame) => {
+const chunk = (frame: RouteFnReturnGeneratorFrame): string => {
 	let fields = "";
 
 	if (frame.id !== undefined) {
@@ -48,27 +47,29 @@ const chunk = (frame: RouteFnReturnGeneratorFrame) => {
  * a instanceof ReadableStream; // true
  * ```
  */
-export const stream = (generator: RouteFnReturnGenerator) => {
+export const stream = (
+	generator: RouteFnReturnGenerator,
+): ReadableStream<Uint8Array> => {
 	const iterator = generator as unknown as AsyncIterator<
 		RouteFnReturnGeneratorFrame,
 		RouteFnReturnGeneratorEnvelope | undefined
 	>;
+	// only an async generator steps through promises
+	const isAsync = Symbol.asyncIterator in generator;
 
 	return new ReadableStream<Uint8Array>({
-		async cancel() {
+		async cancel(): Promise<void> {
 			try {
 				await iterator.return?.();
 			} catch {}
 		},
-		async pull(controller) {
+		async pull(controller): Promise<void> {
 			const stepped = iterator.next();
-			// a sync generator yields its frame instead of a promise
-			const { done, value } =
-				peekStatus(stepped) === "fulfilled"
-					? (peek(stepped) as Awaited<typeof stepped>)
-					: await stepped;
+			const { done, value } = isAsync
+				? await stepped
+				: (stepped as unknown as Awaited<typeof stepped>);
 
-			if (done) {
+			if (done === true) {
 				if (value) {
 					controller.enqueue(ENCODER.encode(chunk({ data: value })));
 				}

@@ -34,7 +34,7 @@ export const SSE = function SSE(url: string | URL, options?: EventSourceInit) {
 	const eventSource = new EventSource(url, options);
 
 	return new Proxy(eventSource, {
-		get(target, prop) {
+		get(target, prop): unknown {
 			if (typeof prop !== "string" || !prop.startsWith("on")) {
 				const value = Reflect.get(target, prop);
 
@@ -47,7 +47,7 @@ export const SSE = function SSE(url: string | URL, options?: EventSourceInit) {
 
 			return listenerMap.get(prop);
 		},
-		set(target, prop, value) {
+		set(target, prop, value): boolean {
 			if (typeof prop !== "string" || !prop.startsWith("on")) {
 				return Reflect.set(target, prop, value);
 			}
@@ -74,7 +74,7 @@ export const SSE = function SSE(url: string | URL, options?: EventSourceInit) {
 				return true;
 			}
 
-			const wrapper = (event: MessageEvent) => {
+			const wrapper = (event: MessageEvent): void => {
 				const parsed = Object.create(event);
 
 				Object.defineProperty(parsed, "data", {
@@ -96,4 +96,4 @@ export const SSE = function SSE(url: string | URL, options?: EventSourceInit) {
 export const sse = <const Generator extends AnyGeneratorSSE>(
 	url: string | URL,
 	options?: EventSourceInit,
-) => new SSE(url, options) as SSE<Generator>;
+): SSE<Generator> => new SSE(url, options);

@@ -213,7 +213,7 @@ describe("merge", () => {
 			class A {
 				a = "v1";
 
-				b() {
+				b(): string {
 					return "v2";
 				}
 			}

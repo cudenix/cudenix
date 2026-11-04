@@ -387,7 +387,7 @@ Module.prototype.group = function (
 	this: AnyModule,
 	handler: AnyGroupFn,
 	{ prefix = "" }: AnyGroupOptions = FrozenEmpty,
-) {
+): AnyModule {
 	this.chain.push({ handler, prefix, type: "GROUP" as const });
 
 	return this;
@@ -406,7 +406,7 @@ Module.prototype.group = function (
 Module.prototype.middleware = function (
 	this: AnyModule,
 	handler: AnyMiddlewareFn,
-) {
+): AnyModule {
 	this.chain.push({ handler, type: "MIDDLEWARE" as const });
 
 	return this;
@@ -422,7 +422,10 @@ Module.prototype.middleware = function (
  * );
  * ```
  */
-Module.prototype.use = function (this: AnyModule, module: AnyModule) {
+Module.prototype.use = function (
+	this: AnyModule,
+	module: AnyModule,
+): AnyModule {
 	this.chain.push(module);
 
 	return this;
@@ -442,7 +445,7 @@ Module.prototype.mount = function (
 	this: AnyModule,
 	fetch: MountFn,
 	{ prefix = "/" }: MountOptions = FrozenEmpty,
-) {
+): AnyModule {
 	this.chain.push({ fetch, path: prefix, type: "MOUNT" as const });
 
 	return this;
@@ -466,13 +469,13 @@ Module.prototype.route = function (
 	path: `/${string}`,
 	handler: AnyRouteHandler,
 	{ validator }: AnyRouteOptions = FrozenEmpty,
-) {
+): AnyModule {
 	const isFn = typeof handler === "function";
 
 	this.chain.push({
 		handler: isFn
 			? (handler as AnyRouteFn)
-			: () => handler as AnyFail | AnyOk,
+			: (): AnyFail | AnyOk => handler as AnyFail | AnyOk,
 		method: method.toUpperCase(),
 		path,
 		sse: isFn && isGenerator(handler as AnyRouteFn),
@@ -500,7 +503,10 @@ Module.prototype.route = function (
  * const a = new Module().store(() => ({ a: "v1" }));
  * ```
  */
-Module.prototype.store = function (this: AnyModule, handler: AnyStoreFn) {
+Module.prototype.store = function (
+	this: AnyModule,
+	handler: AnyStoreFn,
+): AnyModule {
 	this.chain.push({ handler, type: "STORE" as const });
 
 	return this;
@@ -517,7 +523,7 @@ Module.prototype.store = function (this: AnyModule, handler: AnyStoreFn) {
 Module.prototype.validator = function (
 	this: AnyModule,
 	options: AnyValidatorOptions,
-) {
+): AnyModule {
 	this.chain.push({
 		keys: Object.keys(options.request) as (keyof ValidatorRequest)[],
 		request: options.request,

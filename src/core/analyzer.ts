@@ -20,12 +20,12 @@ const OPAQUE_ACCESS = /\[native code\]|arguments|eval|\\u/;
 /**
  * A property-name character: a word character, `$`, or a code unit above DEL.
  */
-const PROPERTY_CHARACTER = "[\\w$\\u0080-\\uffff]";
+const PROPERTY_CHARACTER = String.raw`[\w$\u0080-\uffff]`;
 
 /**
  * A `.` or `?.` access surrounded by tab, LF, CR, or space.
  */
-const PROPERTY_ACCESS = "[\\t\\n\\r ]*(?:\\?\\.|\\.)[\\t\\n\\r ]*";
+const PROPERTY_ACCESS = String.raw`[\t\n\r ]*(?:\?\.|\.)[\t\n\r ]*`;
 
 /**
  * Bit flags for each context feature a handler can access.
@@ -95,7 +95,7 @@ const getFirstParameter = (source: string): FirstParameter | undefined => {
 	const match = FIRST_PARAMETER.exec(source);
 	const name = match?.[1] ?? match?.[2];
 
-	if (!match || !name) {
+	if (!match || name === undefined || name === "") {
 		return;
 	}
 
@@ -110,7 +110,7 @@ const referenceMatchers = new Map<string, RegExp>();
 /**
  * Builds the matcher of a parameter reference and the context field behind it.
  */
-const getReferenceMatcher = (name: string) => {
+const getReferenceMatcher = (name: string): RegExp => {
 	let matcher = referenceMatchers.get(name);
 
 	if (!matcher) {
@@ -129,7 +129,10 @@ const getReferenceMatcher = (name: string) => {
 /**
  * Collects the context fields accessed through the first parameter.
  */
-const getPropertyUsage = (source: string, parameter: FirstParameter) => {
+const getPropertyUsage = (
+	source: string,
+	parameter: FirstParameter,
+): number => {
 	const matcher = getReferenceMatcher(parameter.name);
 
 	matcher.lastIndex = parameter.scanStart;

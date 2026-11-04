@@ -253,15 +253,13 @@ describe("pushAll", () => {
 			expect(target).toHaveLength(2);
 		});
 
-		it("should grow a sealed target's length before throwing a TypeError, leaving holes", () => {
+		it("should throw a TypeError and leave a sealed target unchanged", () => {
 			const target = Object.seal([1, 2]);
 
 			expect(() => pushAll(target, [3, 4])).toThrow(TypeError);
 
-			expect(target).toHaveLength(4);
+			expect(target).toHaveLength(2);
 			expect(Object.keys(target)).toEqual(["0", "1"]);
-			expect(2 in target).toBe(false);
-			expect(3 in target).toBe(false);
 			expect(target[0]).toBe(1);
 			expect(target[1]).toBe(2);
 		});

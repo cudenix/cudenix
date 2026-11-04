@@ -7,19 +7,8 @@ import type { AnyGeneratorSSE } from "@/utils/types/generator-sse";
 import type { MaybeFunction } from "@/utils/types/maybe-function";
 import type { Merge } from "@/utils/types/merge";
 
-const PARAM_REGEX_REPLACE = /\/:(\w+\??)/g;
-const SPREAD_REGEX_REPLACE = /\/\.{3}(\w+\??)/g;
-
-/**
- * Assigns one form entry onto the dictionary passed as `this`.
- */
-function assignEntry(
-	this: Record<PropertyKey, unknown>,
-	value: FormDataEntryValue,
-	key: string,
-) {
-	this[key] = value;
-}
+const PARAM_REGEX_REPLACE = /\/:(\w+\??)/gu;
+const SPREAD_REGEX_REPLACE = /\/\.{3}(\w+\??)/gu;
 
 type RequestOptions<Request> = Merge<
 	Omit<RequestInit, "method"> & {
@@ -149,7 +138,7 @@ const proxyHandler: ProxyHandler<any> = {
 			for (let i = 0; i < keys.length; i++) {
 				const key = keys[i];
 
-				if (!key) {
+				if (key === undefined || key === "") {
 					continue;
 				}
 
@@ -177,17 +166,17 @@ const proxyHandler: ProxyHandler<any> = {
 			}
 		}
 
-		if (url.indexOf("/:") !== -1) {
+		if (url.includes("/:")) {
 			url = url.replaceAll(PARAM_REGEX_REPLACE, (_, key: string) => {
 				const param = options.params?.[
 					key.endsWith("?") ? key.slice(0, -1) : key
 				] as string | undefined;
 
-				return param ? `/${param}` : "";
+				return param !== undefined && param !== "" ? `/${param}` : "";
 			});
 		}
 
-		if (url.indexOf("/...") !== -1) {
+		if (url.includes("/...")) {
 			url = url.replaceAll(SPREAD_REGEX_REPLACE, (_, key: string) => {
 				const params = options.params?.[
 					key.endsWith("?") ? key.slice(0, -1) : key
@@ -207,25 +196,27 @@ const proxyHandler: ProxyHandler<any> = {
 			return response.text();
 		}
 
-		if (contentType.indexOf("application/json") !== -1) {
+		if (contentType.includes("application/json")) {
 			return response.json();
 		}
 
-		if (contentType.indexOf("application/octet-stream") !== -1) {
+		if (contentType.includes("application/octet-stream")) {
 			return response.arrayBuffer();
 		}
 
-		if (contentType.indexOf("multipart/form-data") !== -1) {
+		if (contentType.includes("multipart/form-data")) {
 			const formData = await response.formData();
 
 			const result = new Empty();
 
-			formData.forEach(assignEntry, result);
+			formData.forEach((value, key) => {
+				result[key] = value;
+			});
 
 			return result;
 		}
 
-		if (contentType.indexOf("text/event-stream") !== -1) {
+		if (contentType.includes("text/event-stream")) {
 			return (await import("@/ecosystem/client/sse")).sse(response.url, {
 				withCredentials: true,
 			});
@@ -270,7 +261,11 @@ const proxyHandler: ProxyHandler<any> = {
 	},
 };
 
-const createProxy = (globalOptions: ClientOptions, path = "", method = "") => {
+const createProxy = (
+	globalOptions: ClientOptions,
+	path = "",
+	method = "",
+): unknown => {
 	const target = (() => {}) as any;
 
 	target._options = globalOptions;
@@ -282,5 +277,7 @@ const createProxy = (globalOptions: ClientOptions, path = "", method = "") => {
 	return new Proxy(target, proxyHandler);
 };
 
-export const client = <const App extends AnyModule>(options: ClientOptions) =>
-	createProxy(options) as unknown as ClientChain<App["routes"]>;
+export const client = <const App extends AnyModule>(
+	options: ClientOptions,
+): ClientChain<App["routes"]> =>
+	createProxy(options) as ClientChain<App["routes"]>;

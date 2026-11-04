@@ -1,44 +1,19 @@
-import { Empty } from "@/utils/objects/empty";
-
-/**
- * Compares a media type region against a lowercase name.
- */
-const matchesMediaType = (
-	contentType: string,
-	end: number,
-	mediaType: string,
-) => {
-	if (end !== mediaType.length) {
-		return false;
-	}
-
-	// fast path for an already-lowercase media type
-	if (contentType.startsWith(mediaType)) {
-		return true;
-	}
-
-	for (let i = 0; i < end; i++) {
-		const charCode = contentType.charCodeAt(i);
-
-		// lowercase only "A" (65) - "Z" (90)
-		if (
-			(charCode >= 65 && charCode <= 90 ? charCode | 32 : charCode) !==
-			mediaType.charCodeAt(i)
-		) {
-			return false;
-		}
-	}
-
-	return true;
-};
+// ASCII case-insensitive media types, ending at ";", "," or the end
+const JSON_MEDIA_TYPE = /^application\/json[\t ]*(?:[,;]|$)/i;
+const BINARY_MEDIA_TYPE = /^application\/octet-stream[\t ]*(?:[,;]|$)/i;
+const URLENCODED_MEDIA_TYPE =
+	/^application\/x-www-form-urlencoded[\t ]*(?:[,;]|$)/i;
+const MULTIPART_MEDIA_TYPE = /^multipart\/form-data[\t ]*(?:[,;]|$)/i;
 
 /**
  * Reads a form body into a dictionary.
  */
-const parseFormBody = async (request: Request) => {
+const parseFormBody = async (
+	request: Request,
+): Promise<Record<PropertyKey, unknown>> => {
 	const formData = await request.formData();
 
-	const body = new Empty();
+	const body = Object.create(null) as Record<PropertyKey, unknown>;
 
 	// repeated form keys collapse into arrays
 	formData.forEach((value, key) => {
@@ -74,82 +49,25 @@ const parseFormBody = async (request: Request) => {
  * await parseBody(request); // { b: "v1" }
  * ```
  */
-export const parseBody = (request: Request) => {
+export const parseBody = (request: Request): Promise<unknown> => {
 	const contentType = request.headers.get("content-type");
 
 	if (!contentType) {
 		return request.text();
 	}
 
-	// the media type ends at ";" or ","
-	const parametersIndex = contentType.indexOf(";");
-	const nextEntryIndex = contentType.indexOf(",");
-
-	let mediaTypeEnd: number;
-
-	if (parametersIndex === -1) {
-		mediaTypeEnd =
-			nextEntryIndex === -1 ? contentType.length : nextEntryIndex;
-	} else if (nextEntryIndex === -1) {
-		mediaTypeEnd = parametersIndex;
-	} else {
-		mediaTypeEnd =
-			parametersIndex < nextEntryIndex ? parametersIndex : nextEntryIndex;
+	if (JSON_MEDIA_TYPE.test(contentType)) {
+		return request.json() as Promise<unknown>;
 	}
 
-	// trim trailing " " (32) and "\t" (9)
-	while (mediaTypeEnd > 0) {
-		const charCode = contentType.charCodeAt(mediaTypeEnd - 1);
-
-		if (charCode !== 32 && charCode !== 9) {
-			break;
-		}
-
-		mediaTypeEnd--;
+	if (BINARY_MEDIA_TYPE.test(contentType)) {
+		return request.arrayBuffer();
 	}
 
-	// "| 32" lowercases
-	const firstCharCode = contentType.charCodeAt(0) | 32;
-
-	let isForm = false;
-
-	// "a" (97) application/*
-	if (firstCharCode === 97) {
-		if (matchesMediaType(contentType, mediaTypeEnd, "application/json")) {
-			return request.json() as Promise<unknown>;
-		}
-
-		if (
-			matchesMediaType(
-				contentType,
-				mediaTypeEnd,
-				"application/octet-stream",
-			)
-		) {
-			return request.arrayBuffer();
-		}
-
-		if (
-			matchesMediaType(
-				contentType,
-				mediaTypeEnd,
-				"application/x-www-form-urlencoded",
-			)
-		) {
-			isForm = true;
-		}
-	} else if (
-		// "m" (109) multipart/*
-		firstCharCode === 109
+	if (
+		URLENCODED_MEDIA_TYPE.test(contentType) ||
+		MULTIPART_MEDIA_TYPE.test(contentType)
 	) {
-		if (
-			matchesMediaType(contentType, mediaTypeEnd, "multipart/form-data")
-		) {
-			isForm = true;
-		}
-	}
-
-	if (isForm) {
 		return parseFormBody(request);
 	}
 

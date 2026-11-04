@@ -489,7 +489,7 @@ describe("FrozenEmpty", () => {
 		});
 
 		it("should keep destructuring defaults read through FrozenEmpty stable", () => {
-			const fn = ({ a = 1 }: { a?: number } = FrozenEmpty) => a;
+			const fn = ({ a = 1 }: { a?: number } = FrozenEmpty): number => a;
 
 			expect(fn()).toBe(1);
 
@@ -518,7 +518,7 @@ describe("FrozenEmpty", () => {
 		}: {
 			a?: boolean;
 			b?: number;
-		} = FrozenEmpty) => ({ a, b });
+		} = FrozenEmpty): { a: boolean; b: number } => ({ a, b });
 
 		it("should fall back to defaults when no options are passed", () => {
 			expect(fn()).toEqual({ a: false, b: 0 });

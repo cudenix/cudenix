@@ -3,8 +3,8 @@ import { describe, expect, it } from "bun:test";
 import type { AnyContext } from "@/core/context";
 import { Cudenix, type Plugin } from "@/core/cudenix";
 import { inspectJitFactoryDependencies, jit } from "@/core/jit";
-import { Module } from "@/core/module";
-import { fail, ok } from "@/core/reply";
+import { type AnyModule, Module } from "@/core/module";
+import { type Fail, fail, type Ok, ok } from "@/core/reply";
 import type { ValidatorCompiler, ValidatorPlugin } from "@/core/validator";
 import { isAsync } from "@/utils/functions/is-async";
 
@@ -30,16 +30,16 @@ const compileEcho: ValidatorCompiler = () => ({
 	sync: true,
 });
 
-const compactSource = (source: string): string => source.replace(/\s+/g, "");
+const compactSource = (source: string): string => source.replace(/\s+/gu, "");
 
 const peekGate = (name: string): string =>
 	`peekStatus(${name})==="fulfilled"?peek(${name}):await${name}`;
 
-const expectNoContextAllocation = (source: string) => {
+const expectNoContextAllocation = (source: string): void => {
 	expect(compactSource(source)).not.toContain("constcontext=newEmpty()");
 };
 
-const expectNoDynamicPromiseAdoption = (source: string) => {
+const expectNoDynamicPromiseAdoption = (source: string): void => {
 	const compact = compactSource(source);
 
 	expect(compact).not.toContain("settle(");
@@ -62,7 +62,7 @@ const jitSource = (
 const jitDependencies = (
 	module: ConstructorParameters<typeof Cudenix>[0],
 	validator?: ValidatorPlugin,
-) => {
+): ReturnType<typeof inspectJitFactoryDependencies> => {
 	const app = new Cudenix(module);
 
 	if (validator) {
@@ -191,7 +191,7 @@ describe("usage: jit", () => {
 			const expectOnly = (
 				source: string,
 				expected: keyof typeof assignments,
-			) => {
+			): void => {
 				const compact = compactSource(source);
 
 				expect(compact).toContain("constcontext=newEmpty()");
@@ -941,7 +941,7 @@ describe("usage: jit", () => {
 		});
 
 		it("should honor a handler's toString override when selecting metadata", async () => {
-			const handler = (context: AnyContext) => {
+			const handler = (context: AnyContext): Ok<"v1"> => {
 				const responseState = context.response;
 
 				responseState.headers.set("x-value", "v1");
@@ -949,7 +949,8 @@ describe("usage: jit", () => {
 				return ok("v1");
 			};
 
-			handler.toString = () => "context => context.response.headers";
+			handler.toString = (): string =>
+				"context => context.response.headers";
 
 			const app = new Cudenix(new Module().route("GET", "/a", handler));
 
@@ -968,7 +969,7 @@ describe("usage: jit", () => {
 
 		it("should fail closed for aliasing, destructuring, and computed access", () => {
 			const dynamicKey = Date.now() > 0 ? "request" : "response";
-			const identity = <Value>(value: Value) => value;
+			const identity = <Value>(value: Value): Value => value;
 			const aliased = jitSource(
 				new Module().route("GET", "/a", (context) =>
 					ok(identity(context).request.raw.method),
@@ -1002,7 +1003,7 @@ describe("usage: jit", () => {
 
 		it("should materialize every context field for opaque calls", async () => {
 			let app: Cudenix;
-			const inspect = (context: AnyContext) => {
+			const inspect = (context: AnyContext): Ok<string> => {
 				context.response.headers.set("x-value", "v1");
 				context.response.cookies.set("outgoing", "v1");
 
@@ -1066,7 +1067,8 @@ describe("usage: jit", () => {
 		});
 
 		it("should not adopt a Promise returned by a route without an async declaration", () => {
-			const handler = () => Promise.resolve(ok("unsupported"));
+			const handler = (): Promise<Ok<"unsupported">> =>
+				Promise.resolve(ok("unsupported"));
 			const app = new Cudenix(new Module().route("GET", "/a", handler));
 
 			app.compile();
@@ -1084,8 +1086,10 @@ describe("usage: jit", () => {
 		});
 
 		it("should classify Promise-producing chain callbacks only by their async declaration", () => {
-			const middleware = () => Promise.resolve(ok("unsupported"));
-			const store = () => Promise.resolve({ a: "unsupported" });
+			const middleware = (): Promise<Ok<"unsupported">> =>
+				Promise.resolve(ok("unsupported"));
+			const store = (): Promise<{ a: string }> =>
+				Promise.resolve({ a: "unsupported" });
 			const validator: ValidatorPlugin = (_schema, input) =>
 				Promise.resolve({ content: input, success: true });
 			const app = new Cudenix(
@@ -1118,7 +1122,7 @@ describe("usage: jit", () => {
 			const middleware = (
 				_context: unknown,
 				next: () => void | Promise<void>,
-			) => next();
+			): Promise<void> | void => next();
 			const app = new Cudenix(
 				new Module()
 					.middleware(middleware)
@@ -1268,7 +1272,9 @@ describe("usage: jit", () => {
 		});
 
 		it("should await a bound async route handler whose source text is not 'async'", async () => {
-			const handler = (async () => ok("v1")).bind(null);
+			const handler = (async (): Promise<Ok<"v1">> => ok("v1")).bind(
+				null,
+			);
 
 			using server = serveApp(new Module().route("GET", "/a", handler));
 
@@ -1285,9 +1291,8 @@ describe("usage: jit", () => {
 		it("should short-circuit on a failing bound async store", async () => {
 			let ran = 0;
 
-			const store = (async () => fail("denied", { status: 401 })).bind(
-				null,
-			);
+			const store = (async (): Promise<Fail<"denied", 401>> =>
+				fail("denied", { status: 401 })).bind(null);
 
 			using server = serveApp(
 				new Module().store(store).route("GET", "/a", () => {
@@ -1464,7 +1469,7 @@ describe("usage: jit", () => {
 			expect(inputs).toEqual([{ value: "first" }, { step: 1 }]);
 			expect(source).not.toContain("validatedRequest");
 			expect(source).toContain("validatedQuery");
-			expect((source.match(/parseQuery/g) ?? []).length).toBe(1);
+			expect((source.match(/parseQuery/gu) ?? []).length).toBe(1);
 		});
 
 		it("should pass a transformed lean slot into a failing validator", async () => {
@@ -1516,10 +1521,10 @@ describe("usage: jit", () => {
 					}),
 			);
 
-			app.memory.validator = async () => ({
-				content: ["bad"],
-				success: false,
-			});
+			app.memory.validator = async (): Promise<{
+				content: string[];
+				success: boolean;
+			}> => ({ content: ["bad"], success: false });
 
 			app.compile();
 
@@ -1736,7 +1741,10 @@ describe("usage: jit", () => {
 					}),
 			);
 
-			app.memory.validator = () => {
+			app.memory.validator = (): {
+				content: unknown;
+				success: boolean;
+			} => {
 				validated++;
 
 				return { content: {}, success: true };
@@ -1758,7 +1766,7 @@ describe("usage: jit", () => {
 		const compiledApp = (
 			module: ConstructorParameters<typeof Cudenix>[0],
 			compiler?: ValidatorCompiler,
-		) => {
+		): Cudenix => {
 			const app = new Cudenix(module);
 
 			app.memory.validator = asyncEcho;
@@ -1861,11 +1869,11 @@ describe("usage: jit", () => {
 		});
 
 		it("should key the factory cache by per-slot compilation in both orders", () => {
-			const queryModule = () =>
+			const queryModule = (): AnyModule =>
 				new Module()
 					.validator({ request: { query: {} } })
 					.route("GET", "/a", () => ok("v1"));
-			const headersModule = () =>
+			const headersModule = (): AnyModule =>
 				new Module()
 					.validator({ request: { headers: {} } })
 					.route("GET", "/a", () => ok("v1"));
@@ -2144,7 +2152,7 @@ describe("usage: jit", () => {
 					.route("GET", "/a", () => ok("v1")),
 			);
 
-			expect((source.match(/parseBody/g) ?? []).length).toBe(1);
+			expect((source.match(/parseBody/gu) ?? []).length).toBe(1);
 		});
 
 		it("should parse the body and hand it to the validator", async () => {

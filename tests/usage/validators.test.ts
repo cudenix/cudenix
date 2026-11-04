@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import { Cudenix, type Plugin } from "@/core/cudenix";
-import { Module } from "@/core/module";
+import { type AnyModule, Module } from "@/core/module";
 import { ok } from "@/core/reply";
 import type { ValidatorCompiler, ValidatorPlugin } from "@/core/validator";
 import { initializeStandardSchema } from "@/ecosystem/plugins/standard-schema";
@@ -35,7 +35,10 @@ interface TestSchemaOptions {
 	vendor?: string;
 }
 
-const validateInput = <Output>(input: unknown, invalid: boolean) =>
+const validateInput = <Output>(
+	input: unknown,
+	invalid: boolean,
+): { issues: { message: string }[] } | { value: Output } =>
 	invalid ? { issues: [{ message: "v1" }] } : { value: input as Output };
 
 const syncSchema = <Output>({
@@ -100,7 +103,9 @@ describe("usage: validators", () => {
 			const validator = app.memory.validator as ValidatorPlugin;
 			const schema = {
 				"~standard": {
-					validate: async (input: unknown) => ({ value: input }),
+					validate: async (
+						input: unknown,
+					): Promise<{ value: unknown }> => ({ value: input }),
 				},
 			};
 
@@ -452,7 +457,7 @@ describe("usage: validators", () => {
 					),
 				{
 					plugins: [
-						function (this: Cudenix) {
+						function (this: Cudenix): void {
 							this.memory.validatorCompiler = compileSchema;
 						},
 					],
@@ -501,7 +506,7 @@ describe("usage: validators", () => {
 		});
 
 		it("should fail identically through the compiled and the fallback path", async () => {
-			const module = () =>
+			const module = (): AnyModule =>
 				new Module().route("GET", "/a", () => ok("v1"), {
 					validator: {
 						request: { query: syncSchema({ invalid: true }) },
@@ -734,7 +739,7 @@ describe("usage: validators", () => {
 					),
 				{
 					plugins: [
-						function (this: Cudenix) {
+						function (this: Cudenix): void {
 							initializeStandardSchema().call(this);
 
 							this.memory.validatorCompiler = compiler;

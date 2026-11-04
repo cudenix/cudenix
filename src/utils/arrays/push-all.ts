@@ -8,20 +8,16 @@
  * pushAll(target, [3, 4, 5]); // target is now [1, 2, 3, 4, 5]
  * ```
  */
-export const pushAll = <T>(target: T[], source: readonly T[]) => {
+export const pushAll = <T>(target: T[], source: readonly T[]): void => {
+	// read once, before any push
 	const sourceLength = source.length;
 
-	// nothing to append
-	if (sourceLength === 0) {
-		return;
+	// an oversized result throws before any push
+	if (target.length + sourceLength > 4_294_967_295) {
+		throw new RangeError("Invalid array length");
 	}
 
-	const baseLength = target.length;
-
-	// presize once, then fill
-	target.length = baseLength + sourceLength;
-
 	for (let i = 0; i < sourceLength; i++) {
-		target[baseLength + i] = source[i]!;
+		target.push(source[i]!);
 	}
 };

@@ -158,7 +158,7 @@ export const Cudenix = function (this: Cudenix, module: AnyModule) {
  * a.compile();
  * ```
  */
-Cudenix.prototype.compile = function (this: Cudenix) {
+Cudenix.prototype.compile = function (this: Cudenix): void {
 	if (!("module" in this.memory)) {
 		return;
 	}
@@ -204,7 +204,10 @@ Cudenix.prototype.compile = function (this: Cudenix) {
  * (await a.fetch(new Request("http://localhost/a"))).status; // 200
  * ```
  */
-Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
+Cudenix.prototype.fetch = function (
+	this: Cudenix,
+	request: Request,
+): MaybePromise<Response> {
 	const methodData = this.methods[request.method as HttpMethod];
 
 	if (methodData) {
@@ -292,7 +295,10 @@ Cudenix.prototype.fetch = function (this: Cudenix, request: Request) {
  * a.listen({ port: 3000 }); // a.server?.port is now 3000
  * ```
  */
-Cudenix.prototype.listen = function (this: Cudenix, options?: ListenOptions) {
+Cudenix.prototype.listen = function (
+	this: Cudenix,
+	options?: ListenOptions,
+): Cudenix {
 	this.compile();
 
 	this.server = Bun.serve<unknown, string>({
@@ -325,7 +331,10 @@ Cudenix.prototype.listen = function (this: Cudenix, options?: ListenOptions) {
  * ]);
  * ```
  */
-Cudenix.prototype.plugins = function (this: Cudenix, plugins: Plugin[]) {
+Cudenix.prototype.plugins = function (
+	this: Cudenix,
+	plugins: Plugin[],
+): Cudenix {
 	if (!("plugins" in this.memory)) {
 		this.memory.plugins = [];
 	}

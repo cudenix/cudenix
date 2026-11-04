@@ -5,7 +5,9 @@ import { decodePathParam } from "@/utils/urls/decode-path-param";
 /**
  * Runs a decode while counting the calls that reach the native decoder.
  */
-const countNativeCalls = (value: string) => {
+const countNativeCalls = (
+	value: string,
+): { calls: number; decoded: string } => {
 	const spy = spyOn(globalThis, "decodeURIComponent");
 
 	try {

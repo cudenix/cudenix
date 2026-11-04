@@ -64,7 +64,7 @@ export const compress = ({ threshold = 1024 }: CompressOptions = FrozenEmpty) =>
 
 		const cacheControl = responseHeaders.get("cache-control");
 
-		if (cacheControl && cacheControl.indexOf("no-transform") !== -1) {
+		if (cacheControl && cacheControl.includes("no-transform")) {
 			return;
 		}
 

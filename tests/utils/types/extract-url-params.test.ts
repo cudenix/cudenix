@@ -10,9 +10,12 @@ import { decodePathParam } from "@/utils/urls/decode-path-param";
 
 type RestParam = [string, ...string[]];
 
-const parseParams = (path: string, url: string) => {
+const parseParams = (
+	path: string,
+	url: string,
+): Record<string, string | string[]> => {
 	const { paramFlags, paramKeys, pattern } = pathToRegexp(path);
-	const match = new RegExp(`^${pattern}$`).exec(url);
+	const match = new RegExp(`^${pattern}$`, "u").exec(url);
 
 	if (!match) {
 		throw new Error(`Expected "${url}" to match "${path}"`);
@@ -29,7 +32,11 @@ const parseParams = (path: string, url: string) => {
 			continue;
 		}
 
-		if (captured === undefined && (flags & PARAM_FLAG_OPTIONAL) !== 0) {
+		if (
+			captured === undefined &&
+			(flags === PARAM_FLAG_OPTIONAL ||
+				flags === PARAM_FLAG_REST + PARAM_FLAG_OPTIONAL)
+		) {
 			continue;
 		}
 
@@ -38,8 +45,8 @@ const parseParams = (path: string, url: string) => {
 		}
 
 		params[key] =
-			(flags & PARAM_FLAG_REST) !== 0
-				? captured.split("/").map(decodePathParam)
+			flags >= PARAM_FLAG_REST
+				? captured.split("/").map((segment) => decodePathParam(segment))
 				: decodePathParam(captured);
 	}
 
@@ -52,7 +59,7 @@ describe("ExtractUrlParams", () => {
 			const params: ExtractUrlParams<"/a\\:id"> = { id: "123" };
 
 			expectTypeOf<typeof params>().toEqualTypeOf<{ id: string }>();
-			expect(parseParams("/a\\:id", "/a/123")).toEqual(params);
+			expect(parseParams(String.raw`/a\:id`, "/a/123")).toEqual(params);
 		});
 
 		it("should end a parameter name at a backslash", () => {
@@ -69,13 +76,12 @@ describe("ExtractUrlParams", () => {
 				id?: string | undefined;
 				parts: RestParam;
 			}>();
-			expect(parseParams("/a\\:id?//\\...parts", "/a/b/c")).toEqual({
-				id: "b",
-				parts: ["c"],
-			});
-			expect(parseParams("/a\\:id?//\\...parts", "/a/b")).toEqual({
-				parts: [params.parts[0]],
-			});
+			expect(
+				parseParams(String.raw`/a\:id?//\...parts`, "/a/b/c"),
+			).toEqual({ id: "b", parts: ["c"] });
+			expect(parseParams(String.raw`/a\:id?//\...parts`, "/a/b")).toEqual(
+				{ parts: [params.parts[0]] },
+			);
 		});
 
 		it("should apply duplicate-name overrides across either separator", () => {

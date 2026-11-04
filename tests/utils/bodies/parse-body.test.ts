@@ -1,9 +1,8 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 
 import { parseBody } from "@/utils/bodies/parse-body";
-import { Empty } from "@/utils/objects/empty";
 
-const request = (body: BodyInit, contentType?: string) =>
+const request = (body: BodyInit, contentType?: string): Request =>
 	new Request(
 		"http://localhost/a",
 		contentType === undefined
@@ -111,7 +110,7 @@ describe("parseBody", () => {
 			it("should preserve the body bytes", () => {
 				const bytes = new Uint8Array(result as ArrayBuffer);
 
-				expect(Array.from(bytes)).toEqual([1, 2, 3]);
+				expect([...bytes]).toEqual([1, 2, 3]);
 			});
 		});
 
@@ -214,7 +213,7 @@ describe("parseBody", () => {
 				request("", "application/x-www-form-urlencoded"),
 			);
 
-			expect(result).toBeInstanceOf(Empty);
+			expect(Object.getPrototypeOf(result)).toBeNull();
 			expect(Object.keys(result as object)).toHaveLength(0);
 		});
 
@@ -344,7 +343,7 @@ describe("parseBody", () => {
 				request(body, `multipart/form-data; boundary=${boundary}`),
 			)) as Record<string, unknown>;
 
-			expect(result).toBeInstanceOf(Empty);
+			expect(Object.getPrototypeOf(result)).toBeNull();
 			expect(Object.keys(result)).toEqual(["a", "b"]);
 			expect(result.a).toBe("v1");
 			expect(result.b).toBe("v2");
@@ -406,7 +405,7 @@ describe("parseBody", () => {
 		it("should resolve to an empty dictionary for a multipart body with no entries", async () => {
 			const result = await parseBody(request(new FormData()));
 
-			expect(result).toBeInstanceOf(Empty);
+			expect(Object.getPrototypeOf(result)).toBeNull();
 			expect(Object.keys(result as object)).toHaveLength(0);
 		});
 	});
@@ -744,9 +743,7 @@ describe("parseBody", () => {
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
 			expect(result.__proto__).toBe("v1");
 			expect(result.a).toBe("v2");
-			expect(
-				Object.getPrototypeOf(Object.getPrototypeOf(result)),
-			).toBeNull();
+			expect(Object.getPrototypeOf(result)).toBeNull();
 		});
 
 		it("should store `constructor` as a real own key without invoking inheritance", async () => {
@@ -776,9 +773,7 @@ describe("parseBody", () => {
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
 			expect(result.__proto__).toBe("v1");
 			expect(result.a).toBe("v2");
-			expect(
-				Object.getPrototypeOf(Object.getPrototypeOf(result)),
-			).toBeNull();
+			expect(Object.getPrototypeOf(result)).toBeNull();
 		});
 
 		it("should store a multipart `constructor` field as a real own key without invoking inheritance", async () => {
@@ -808,14 +803,11 @@ describe("parseBody", () => {
 				)) as object;
 			});
 
-			it("should return a dictionary inheriting from Empty", () => {
-				expect(result).toBeInstanceOf(Empty);
+			it("should return a null-prototype dictionary", () => {
+				expect(Object.getPrototypeOf(result)).toBeNull();
 			});
 
-			it("should have a null prototype root (no Object.prototype methods)", () => {
-				expect(
-					Object.getPrototypeOf(Object.getPrototypeOf(result)),
-				).toBeNull();
+			it("should inherit no Object.prototype methods", () => {
 				expect("toString" in result).toBe(false);
 				expect("hasOwnProperty" in result).toBe(false);
 			});
@@ -830,8 +822,8 @@ describe("parseBody", () => {
 				)) as object;
 			});
 
-			it("should not return a dictionary inheriting from Empty", () => {
-				expect(result).not.toBeInstanceOf(Empty);
+			it("should not return a null-prototype dictionary", () => {
+				expect(Object.getPrototypeOf(result)).not.toBeNull();
 			});
 
 			it("should inherit from Object.prototype, unlike form bodies", () => {
@@ -854,7 +846,10 @@ describe("parseBody", () => {
 	});
 	describe("bun header semantics", () => {
 		// bun joins duplicate headers with ", " and reads an empty one as ""
-		const appended = (body: BodyInit, values: readonly string[]) => {
+		const appended = (
+			body: BodyInit,
+			values: readonly string[],
+		): Request => {
 			const headers = new Headers();
 
 			for (const value of values) {

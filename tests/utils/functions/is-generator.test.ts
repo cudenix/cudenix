@@ -3,12 +3,14 @@ import { runInNewContext } from "node:vm";
 
 import { isGenerator } from "@/utils/functions/is-generator";
 
-const asFn = (value: unknown) => value as (...args: any[]) => unknown;
+type Fn = Parameters<typeof isGenerator>[0];
+
+const asFn = (value: unknown): Fn => value as Fn;
 
 describe("isGenerator", () => {
 	describe("synchronous generator functions", () => {
 		it("should return true for a generator function declaration", () => {
-			function* gen() {
+			function* gen(): Generator<number, void, unknown> {
 				yield 1;
 			}
 
@@ -16,7 +18,7 @@ describe("isGenerator", () => {
 		});
 
 		it("should return true for a generator function expression", () => {
-			const gen = function* () {
+			const gen = function* (): Generator<number, void, unknown> {
 				yield 1;
 			};
 
@@ -25,7 +27,7 @@ describe("isGenerator", () => {
 
 		it("should return true for a generator method on an object literal", () => {
 			const obj = {
-				*gen() {
+				*gen(): Generator<number, void, unknown> {
 					yield 1;
 				},
 			};
@@ -36,7 +38,7 @@ describe("isGenerator", () => {
 
 	describe("asynchronous generator functions", () => {
 		it("should return true for an async generator function declaration", () => {
-			async function* gen() {
+			async function* gen(): AsyncGenerator<number, void, unknown> {
 				yield 1;
 			}
 
@@ -44,7 +46,11 @@ describe("isGenerator", () => {
 		});
 
 		it("should return true for an async generator function expression", () => {
-			const gen = async function* () {
+			const gen = async function* (): AsyncGenerator<
+				number,
+				void,
+				unknown
+			> {
 				yield 1;
 			};
 
@@ -53,7 +59,7 @@ describe("isGenerator", () => {
 
 		it("should return true for an async generator method on an object literal", () => {
 			const obj = {
-				async *gen() {
+				async *gen(): AsyncGenerator<number, void, unknown> {
 					yield 1;
 				},
 			};
@@ -70,11 +76,11 @@ describe("isGenerator", () => {
 
 		beforeAll(() => {
 			class A {
-				*a() {
+				*a(): Generator<number, void, unknown> {
 					yield 1;
 				}
 
-				async *b() {
+				async *b(): AsyncGenerator<number, void, unknown> {
 					yield 1;
 				}
 			}
@@ -93,7 +99,7 @@ describe("isGenerator", () => {
 
 	describe("regular (non-generator) functions", () => {
 		it("should return false for a function declaration", () => {
-			function regular() {
+			function regular(): number {
 				return 1;
 			}
 
@@ -102,7 +108,7 @@ describe("isGenerator", () => {
 
 		it("should return false for a function expression", () => {
 			// biome-ignore lint/complexity/useArrowFunction: Testing regular function expressions
-			const regular = function () {
+			const regular = function (): number {
 				return 1;
 			};
 
@@ -110,14 +116,14 @@ describe("isGenerator", () => {
 		});
 
 		it("should return false for an arrow function", () => {
-			const arrow = () => 1;
+			const arrow = (): number => 1;
 
 			expect(isGenerator(arrow)).toBe(false);
 		});
 
 		it("should return false for a regular method on an object literal", () => {
 			const obj = {
-				method() {
+				method(): number {
 					return 1;
 				},
 			};
@@ -132,7 +138,7 @@ describe("isGenerator", () => {
 
 	describe("async (non-generator) functions", () => {
 		it("should return false for an async function declaration", () => {
-			async function asyncFn() {
+			async function asyncFn(): Promise<number> {
 				return 1;
 			}
 
@@ -141,7 +147,7 @@ describe("isGenerator", () => {
 
 		it("should return false for an async function expression", () => {
 			// biome-ignore lint/complexity/useArrowFunction: Testing async function expressions
-			const asyncFn = async function () {
+			const asyncFn = async function (): Promise<number> {
 				return 1;
 			};
 
@@ -149,7 +155,7 @@ describe("isGenerator", () => {
 		});
 
 		it("should return false for an async arrow function", () => {
-			const asyncArrow = async () => 1;
+			const asyncArrow = async (): Promise<number> => 1;
 
 			expect(isGenerator(asyncArrow)).toBe(false);
 		});
@@ -163,7 +169,7 @@ describe("isGenerator", () => {
 		});
 
 		it("should return false for a bound function", () => {
-			function regular() {
+			function regular(): number {
 				return 1;
 			}
 
@@ -171,7 +177,7 @@ describe("isGenerator", () => {
 		});
 
 		it("should return true for a bound sync generator function", () => {
-			function* gen() {
+			function* gen(): Generator<number, void, unknown> {
 				yield 1;
 			}
 
@@ -179,7 +185,7 @@ describe("isGenerator", () => {
 		});
 
 		it("should return true for a bound async generator function", () => {
-			async function* gen() {
+			async function* gen(): AsyncGenerator<number, void, unknown> {
 				yield 1;
 			}
 
@@ -236,7 +242,7 @@ describe("isGenerator", () => {
 		});
 
 		it("should return false for a generator object instance (not the function)", () => {
-			function* gen() {
+			function* gen(): Generator<number, void, unknown> {
 				yield 1;
 			}
 
@@ -244,7 +250,7 @@ describe("isGenerator", () => {
 		});
 
 		it("should return false for an async generator object instance (not the function)", () => {
-			async function* gen() {
+			async function* gen(): AsyncGenerator<number, void, unknown> {
 				yield 1;
 			}
 

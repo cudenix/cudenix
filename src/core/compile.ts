@@ -31,7 +31,7 @@ const EMPTY_PARAM_KEYS = Object.freeze([]) as unknown as string[];
 /**
  * Methods Bun's native router accepts.
  */
-const BUN_ROUTE_METHODS = new Set([
+const BUN_ROUTE_METHODS = [
 	"CONNECT",
 	"DELETE",
 	"GET",
@@ -41,7 +41,7 @@ const BUN_ROUTE_METHODS = new Set([
 	"POST",
 	"PUT",
 	"TRACE",
-]);
+];
 
 /**
  * Stores fallback route resolver factories by their capture layout.
@@ -81,7 +81,7 @@ const flattenModuleTree = (
 	module: AnyModule,
 	inheritedChain: EndpointChain,
 	inheritedPath: string,
-) => {
+): `/${string}` => {
 	// the inherited chain is reused without copying
 	const activeChain = inheritedChain;
 	const moduleChain = module.chain;
@@ -107,7 +107,7 @@ const flattenModuleTree = (
 				prefix: `${inheritedPath}${activePrefix}${link.prefix === "/" ? "" : link.prefix}` as `/${string}`,
 			});
 
-			groupModule.chain = activeChain.slice();
+			groupModule.chain = [...activeChain];
 
 			flattenModuleTree(
 				endpoints,
@@ -180,7 +180,7 @@ const flattenModuleTree = (
 		} else if (cachedChain) {
 			chain = cachedChain;
 		} else {
-			chain = activeChain.slice();
+			chain = [...activeChain];
 
 			cachedChain = chain;
 		}
@@ -206,7 +206,7 @@ const flattenModuleTree = (
 /**
  * Checks whether a path is compatible with Bun's native route semantics.
  */
-const isBunNativeRoute = (path: string, paramKeys: string[]) => {
+const isBunNativeRoute = (path: string, paramKeys: string[]): boolean => {
 	if (path === "/") {
 		return true;
 	}
@@ -270,7 +270,7 @@ const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 
 	const firstParamKey = paramKeys[0];
 
-	if (!firstParamKey) {
+	if (firstParamKey === undefined || firstParamKey === "") {
 		return false;
 	}
 
@@ -284,7 +284,11 @@ const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 	for (let i = 1; i < paramCount; i++) {
 		const paramKey = paramKeys[i];
 
-		if (!paramKey || uniqueParamKeys.has(paramKey)) {
+		if (
+			paramKey === undefined ||
+			paramKey === "" ||
+			uniqueParamKeys.has(paramKey)
+		) {
 			return false;
 		}
 
@@ -297,7 +301,10 @@ const isBunNativeRoute = (path: string, paramKeys: string[]) => {
 /**
  * Orders analyzed endpoints using Bun's route specificity rules.
  */
-const compareAnalyzedEndpoints = (a: AnalyzedEndpoint, b: AnalyzedEndpoint) => {
+const compareAnalyzedEndpoints = (
+	a: AnalyzedEndpoint,
+	b: AnalyzedEndpoint,
+): number => {
 	if (a.native !== b.native) {
 		return a.native ? -1 : 1;
 	}
@@ -325,7 +332,7 @@ const compareAnalyzedEndpoints = (a: AnalyzedEndpoint, b: AnalyzedEndpoint) => {
 const analyzeMethodEndpoints = (
 	methodEndpoints: Endpoint[],
 	isBunMethod: boolean,
-) => {
+): AnalyzedEndpoint[] => {
 	const analyzedEndpoints: AnalyzedEndpoint[] = [];
 
 	for (let i = 0; i < methodEndpoints.length; i++) {
@@ -360,7 +367,10 @@ const analyzeMethodEndpoints = (
 /**
  * Builds an unrolled resolver for the endpoint capture groups after the first.
  */
-const compileMethodDispatch = (endpoints: Endpoint[], table: Endpoint[]) => {
+const compileMethodDispatch = (
+	endpoints: Endpoint[],
+	table: Endpoint[],
+): MethodDispatch => {
 	let dispatchCode = "";
 	let key = "";
 
@@ -393,7 +403,7 @@ const registerNativeRoute = (
 	method: HttpMethod,
 	endpoint: Endpoint,
 	isStatic: boolean,
-) => {
+): void => {
 	const path = endpoint.path;
 
 	let pathRoutes = routes[path];
@@ -424,10 +434,10 @@ const compileMethod = (
 	routes: Cudenix["routes"],
 	method: HttpMethod,
 	methodEndpoints: Endpoint[],
-) => {
+): void => {
 	const analyzedEndpoints = analyzeMethodEndpoints(
 		methodEndpoints,
-		BUN_ROUTE_METHODS.has(method),
+		BUN_ROUTE_METHODS.indexOf(method) !== -1,
 	);
 
 	const fallbackEndpoints: Endpoint[] = [];
@@ -457,7 +467,7 @@ const compileMethod = (
 			);
 
 			// clone the static response per request
-			endpoint.dispatch = () => endpoint.response!.clone();
+			endpoint.dispatch = (): Response => endpoint.response!.clone();
 		} else {
 			endpoint.dispatch = jit(app, endpoint);
 		}
@@ -507,6 +517,7 @@ const compileMethod = (
 		// matches with or without the origin
 		regexp: new RegExp(
 			`^(?:https?:\\/\\/[^\\s\\/]+)?(?:${fallbackPatterns.join("|")})(?![^?#])`,
+			"u",
 		),
 		table: fallbackTable,
 	};
@@ -517,7 +528,7 @@ const compileMethod = (
 /**
  * Stores root and prefixed mounts on the application.
  */
-const compileMounts = (app: Cudenix, mounts: CompiledMount[]) => {
+const compileMounts = (app: Cudenix, mounts: CompiledMount[]): void => {
 	if (mounts.length === 0) {
 		return;
 	}
@@ -547,7 +558,9 @@ const compileMounts = (app: Cudenix, mounts: CompiledMount[]) => {
 /**
  * Derives undeclared `HEAD` endpoints from the `GET` endpoints.
  */
-const deriveHeadEndpoints = (endpoints: Record<HttpMethod, Endpoint[]>) => {
+const deriveHeadEndpoints = (
+	endpoints: Record<HttpMethod, Endpoint[]>,
+): boolean => {
 	const getEndpoints = endpoints.GET;
 
 	if (!getEndpoints || getEndpoints.length === 0) {
@@ -594,7 +607,7 @@ const deriveHeadEndpoints = (endpoints: Record<HttpMethod, Endpoint[]>) => {
  * a.routes["/a"]; // { GET: (request) => ... }
  * ```
  */
-export const compile = (app: Cudenix) => {
+export const compile = (app: Cudenix): void => {
 	const routes = app.routes;
 
 	const endpoints = new Empty() as Record<HttpMethod, Endpoint[]>;
@@ -611,6 +624,10 @@ export const compile = (app: Cudenix) => {
 	const aliasHead = deriveHeadEndpoints(endpoints);
 
 	for (const method in endpoints) {
+		if (!Object.hasOwn(endpoints, method)) {
+			continue;
+		}
+
 		const methodEndpoints = endpoints[method];
 
 		if (!methodEndpoints || methodEndpoints.length === 0) {

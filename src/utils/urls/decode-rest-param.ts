@@ -8,8 +8,8 @@ import { decodePathParam } from "@/utils/urls/decode-path-param";
  * decodeRestParam("a/b%20c"); // ["a", "b c"]
  * ```
  */
-export const decodeRestParam = (value: string) =>
-	// nothing to decode
-	value.indexOf("%") === -1
-		? value.split("/")
-		: value.split("/").map(decodePathParam);
+export const decodeRestParam = (value: string): string[] =>
+	// only an escaped value needs decoding
+	value.includes("%")
+		? value.split("/").map((segment) => decodePathParam(segment))
+		: value.split("/");

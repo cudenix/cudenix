@@ -59,13 +59,15 @@ interface StandardSchemaOptions {
 export const initializeStandardSchema = ({
 	compilers,
 }: StandardSchemaOptions = FrozenEmpty) =>
-	function initializeStandardSchema(this: Cudenix) {
-		this.memory.validator = async (schema: any, input: unknown) => {
+	function initializeStandardSchema(this: Cudenix): void {
+		this.memory.validator = async (
+			schema: any,
+			input: unknown,
+		): Promise<{ content: unknown; success: boolean }> => {
 			const validated = schema["~standard"].validate(input);
 			// a synchronous schema returns its result instead of a promise
-			const returned = !(validated instanceof Promise)
-				? validated
-				: peekStatus(validated) === "fulfilled"
+			const returned =
+				peekStatus(validated) === "fulfilled"
 					? peek(validated)
 					: await validated;
 

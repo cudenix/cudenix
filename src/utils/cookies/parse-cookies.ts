@@ -1,4 +1,3 @@
-import { Empty } from "@/utils/objects/empty";
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 
 /**
@@ -13,8 +12,8 @@ import { decodePathParam } from "@/utils/urls/decode-path-param";
  * cookies.c; // "a b"
  * ```
  */
-export const parseCookies = (header: string) => {
-	const cookies = new Empty() as Record<string, string>;
+export const parseCookies = (header: string): Record<string, string> => {
+	const cookies = Object.create(null) as Record<string, string>;
 
 	if (!header) {
 		return cookies;
@@ -22,7 +21,7 @@ export const parseCookies = (header: string) => {
 
 	const length = header.length;
 	// a "%" anywhere means a value needs decoding
-	const isEncoded = header.indexOf("%") !== -1;
+	const isEncoded = header.includes("%");
 
 	let start = 0;
 
@@ -94,16 +93,12 @@ export const parseCookies = (header: string) => {
 					valueEnd--;
 				}
 
-				const name = header.substring(nameStart, nameEnd);
+				const name = header.slice(nameStart, nameEnd);
 
 				// first one wins
-				if (cookies[name] === undefined) {
-					cookies[name] = isEncoded
-						? decodePathParam(
-								header.substring(valueStart, valueEnd),
-							)
-						: header.substring(valueStart, valueEnd);
-				}
+				cookies[name] ??= isEncoded
+					? decodePathParam(header.slice(valueStart, valueEnd))
+					: header.slice(valueStart, valueEnd);
 			}
 		}
 

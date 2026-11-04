@@ -1,7 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 
 import { parseCookies } from "@/utils/cookies/parse-cookies";
-import { Empty } from "@/utils/objects/empty";
 
 describe("parseCookies", () => {
 	describe("typical headers", () => {
@@ -366,10 +365,10 @@ describe("parseCookies", () => {
 			expect(Reflect.ownKeys(result)).toHaveLength(0);
 		});
 
-		it("should return an Empty-shaped dictionary when the header has no pairs", () => {
+		it("should return a null-prototype dictionary when the header has no pairs", () => {
 			const result = parseCookies("a");
 
-			expect(result).toBeInstanceOf(Empty);
+			expect(Object.getPrototypeOf(result)).toBeNull();
 			expect(Object.keys(result)).toHaveLength(0);
 		});
 
@@ -406,9 +405,7 @@ describe("parseCookies", () => {
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
 			expect(result.__proto__).toBe("v1");
 			expect(result.a).toBe("v2");
-			expect(
-				Object.getPrototypeOf(Object.getPrototypeOf(result)),
-			).toBeNull();
+			expect(Object.getPrototypeOf(result)).toBeNull();
 		});
 
 		it("should keep `__proto__` as data instead of rewiring the prototype chain", () => {
@@ -439,14 +436,11 @@ describe("parseCookies", () => {
 				result = parseCookies("a=v1");
 			});
 
-			it("should return a dictionary inheriting from Empty", () => {
-				expect(result).toBeInstanceOf(Empty);
+			it("should return a null-prototype dictionary", () => {
+				expect(Object.getPrototypeOf(result)).toBeNull();
 			});
 
-			it("should have a null prototype root (no Object.prototype methods)", () => {
-				expect(
-					Object.getPrototypeOf(Object.getPrototypeOf(result)),
-				).toBeNull();
+			it("should inherit no Object.prototype methods", () => {
 				expect("toString" in result).toBe(false);
 				expect("hasOwnProperty" in result).toBe(false);
 			});
@@ -550,10 +544,10 @@ describe("parseCookies", () => {
 
 			let seed = 987654321;
 
-			const random = () => {
-				seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+			const random = (): number => {
+				seed = (seed * 48_271) % 2_147_483_647;
 
-				return seed / 0x7fffffff;
+				return seed / 2_147_483_647;
 			};
 
 			for (let iteration = 0; iteration < 5000; iteration++) {

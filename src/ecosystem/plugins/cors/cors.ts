@@ -33,17 +33,18 @@ export const cors = ({
 		optionsPairs.push("access-control-max-age", maxAge);
 	}
 
-	if (allowHeaders) {
+	if (allowHeaders !== undefined && allowHeaders !== "") {
 		optionsPairs.push("access-control-allow-headers", allowHeaders);
 	}
 
 	optionsPairs.push("content-length", "0");
 
 	const optionsPairsLength = optionsPairs.length;
-	const needsMirrorHeaders = !allowHeaders;
+	const needsMirrorHeaders =
+		allowHeaders === undefined || allowHeaders === "";
 	const isStringOrigin = typeof origin === "string";
 
-	const handlePreflight = (headers: Headers, rawHeaders: Headers) => {
+	const handlePreflight = (headers: Headers, rawHeaders: Headers): void => {
 		for (let i = 0; i < optionsPairsLength; i += 2) {
 			headers.set(optionsPairs[i]!, optionsPairs[i + 1]!);
 		}
@@ -84,7 +85,7 @@ export const cors = ({
 
 					headers.set("access-control-allow-credentials", "true");
 
-					if (exposeHeaders) {
+					if (exposeHeaders !== undefined && exposeHeaders !== "") {
 						headers.set(
 							"access-control-expose-headers",
 							exposeHeaders,
@@ -112,11 +113,11 @@ export const cors = ({
 					headers.append("vary", "Origin");
 				}
 
-				if (credentials) {
+				if (credentials === true) {
 					headers.set("access-control-allow-credentials", "true");
 				}
 
-				if (exposeHeaders) {
+				if (exposeHeaders !== undefined && exposeHeaders !== "") {
 					headers.set("access-control-expose-headers", exposeHeaders);
 				}
 
@@ -136,8 +137,7 @@ export const cors = ({
 			const headers = context.response.headers;
 			const rawOrigin = raw.headers.get("origin");
 			const resolvedOrigin =
-				origin(rawOrigin !== null ? rawOrigin : undefined, context) ??
-				"*";
+				origin(rawOrigin ?? undefined, context) ?? "*";
 
 			headers.set("access-control-allow-origin", resolvedOrigin);
 
@@ -145,11 +145,11 @@ export const cors = ({
 				headers.append("vary", "Origin");
 			}
 
-			if (credentials) {
+			if (credentials === true) {
 				headers.set("access-control-allow-credentials", "true");
 			}
 
-			if (exposeHeaders) {
+			if (exposeHeaders !== undefined && exposeHeaders !== "") {
 				headers.set("access-control-expose-headers", exposeHeaders);
 			}
 

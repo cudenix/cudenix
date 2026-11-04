@@ -3,12 +3,14 @@ import vm from "node:vm";
 
 import { isAsync } from "@/utils/functions/is-async";
 
-const asFn = (value: unknown) => value as (...args: any[]) => unknown;
+type Fn = Parameters<typeof isAsync>[0];
+
+const asFn = (value: unknown): Fn => value as Fn;
 
 describe("isAsync", () => {
 	describe("async functions", () => {
 		it("should return true for an async function declaration", () => {
-			async function asyncFn() {
+			async function asyncFn(): Promise<number> {
 				return 1;
 			}
 
@@ -17,7 +19,7 @@ describe("isAsync", () => {
 
 		it("should return true for an async function expression", () => {
 			// biome-ignore lint/complexity/useArrowFunction: Testing async function expressions
-			const asyncFn = async function () {
+			const asyncFn = async function (): Promise<number> {
 				return 1;
 			};
 
@@ -25,14 +27,14 @@ describe("isAsync", () => {
 		});
 
 		it("should return true for an async arrow function", () => {
-			const asyncArrow = async () => 1;
+			const asyncArrow = async (): Promise<number> => 1;
 
 			expect(isAsync(asyncArrow)).toBe(true);
 		});
 
 		it("should return true for an async method on an object literal", () => {
 			const obj = {
-				async method() {
+				async method(): Promise<number> {
 					return 1;
 				},
 			};
@@ -44,7 +46,7 @@ describe("isAsync", () => {
 	describe("async methods on a class", () => {
 		it("should return true for an async instance method", () => {
 			class A {
-				async a() {
+				async a(): Promise<number> {
 					return 1;
 				}
 			}
@@ -54,7 +56,7 @@ describe("isAsync", () => {
 
 		it("should return true for an async static method", () => {
 			class A {
-				static async a() {
+				static async a(): Promise<number> {
 					return 1;
 				}
 			}
@@ -65,7 +67,7 @@ describe("isAsync", () => {
 
 	describe("regular (non-async) functions", () => {
 		it("should return false for a function declaration", () => {
-			function regular() {
+			function regular(): number {
 				return 1;
 			}
 
@@ -74,7 +76,7 @@ describe("isAsync", () => {
 
 		it("should return false for a function expression", () => {
 			// biome-ignore lint/complexity/useArrowFunction: Testing regular function expressions
-			const regular = function () {
+			const regular = function (): number {
 				return 1;
 			};
 
@@ -82,14 +84,14 @@ describe("isAsync", () => {
 		});
 
 		it("should return false for an arrow function", () => {
-			const arrow = () => 1;
+			const arrow = (): number => 1;
 
 			expect(isAsync(arrow)).toBe(false);
 		});
 
 		it("should return false for a regular method on an object literal", () => {
 			const obj = {
-				method() {
+				method(): number {
 					return 1;
 				},
 			};
@@ -104,7 +106,7 @@ describe("isAsync", () => {
 
 	describe("generator functions", () => {
 		it("should return false for a sync generator function declaration", () => {
-			function* gen() {
+			function* gen(): Generator<number, void, unknown> {
 				yield 1;
 			}
 
@@ -112,7 +114,7 @@ describe("isAsync", () => {
 		});
 
 		it("should return false for a sync generator function expression", () => {
-			const gen = function* () {
+			const gen = function* (): Generator<number, void, unknown> {
 				yield 1;
 			};
 
@@ -120,7 +122,7 @@ describe("isAsync", () => {
 		});
 
 		it("should return false for an async generator function declaration", () => {
-			async function* gen() {
+			async function* gen(): AsyncGenerator<number, void, unknown> {
 				yield 1;
 			}
 
@@ -128,7 +130,11 @@ describe("isAsync", () => {
 		});
 
 		it("should return false for an async generator function expression", () => {
-			const gen = async function* () {
+			const gen = async function* (): AsyncGenerator<
+				number,
+				void,
+				unknown
+			> {
 				yield 1;
 			};
 
@@ -137,7 +143,7 @@ describe("isAsync", () => {
 
 		it("should return false for an async generator method on an object literal", () => {
 			const obj = {
-				async *gen() {
+				async *gen(): AsyncGenerator<number, void, unknown> {
 					yield 1;
 				},
 			};
@@ -154,7 +160,7 @@ describe("isAsync", () => {
 		});
 
 		it("should return true for a bound async function", () => {
-			async function asyncFn() {
+			async function asyncFn(): Promise<number> {
 				return 1;
 			}
 
@@ -162,7 +168,7 @@ describe("isAsync", () => {
 		});
 
 		it("should return false for a bound async generator function", () => {
-			async function* gen() {
+			async function* gen(): AsyncGenerator<number, void, unknown> {
 				yield 1;
 			}
 
@@ -170,7 +176,7 @@ describe("isAsync", () => {
 		});
 
 		it("should return false for a bound regular function", () => {
-			function regular() {
+			function regular(): number {
 				return 1;
 			}
 
@@ -212,7 +218,7 @@ describe("isAsync", () => {
 		});
 
 		it("should return false for the promise returned by calling an async function", () => {
-			async function asyncFn() {
+			async function asyncFn(): Promise<number> {
 				return 1;
 			}
 
@@ -226,22 +232,23 @@ describe("isAsync", () => {
 
 	describe("declaration-based async contract", () => {
 		it("should classify Promise-producing functions by their async declaration", () => {
-			const declaredAsync = async () => Promise.resolve(1);
-			const plain = () => Promise.resolve(1);
+			const declaredAsync = async (): Promise<number> =>
+				Promise.resolve(1);
+			const plain = (): Promise<number> => Promise.resolve(1);
 
 			expect(isAsync(declaredAsync)).toBe(true);
 			expect(isAsync(plain)).toBe(false);
 		});
 
 		it("should return false for a plain arrow that returns a Promise", () => {
-			const fn = () => Promise.resolve(1);
+			const fn = (): Promise<number> => Promise.resolve(1);
 
 			expect(isAsync(fn)).toBe(false);
 		});
 
 		it("should return false for a plain function expression that returns a Promise", () => {
 			// biome-ignore lint/complexity/useArrowFunction: Testing promise-returning sync function expressions
-			const fn = function () {
+			const fn = function (): Promise<number> {
 				return Promise.resolve(1);
 			};
 

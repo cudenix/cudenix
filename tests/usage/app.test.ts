@@ -16,7 +16,7 @@ describe("usage: app", () => {
 				),
 				{
 					plugins: [
-						function (this: Cudenix) {
+						function (this: Cudenix): void {
 							this.memory.foo = "v1";
 						},
 					],
@@ -36,10 +36,10 @@ describe("usage: app", () => {
 				new Module().route("GET", "/a", () => ok("v1")),
 				{
 					plugins: [
-						() => {
+						(): void => {
 							events.push("first");
 						},
-						() => {
+						(): void => {
 							events.push("second");
 						},
 					],
@@ -60,12 +60,12 @@ describe("usage: app", () => {
 			);
 
 			app.plugins([
-				() => {
+				(): void => {
 					events.push("first");
 				},
 			]);
 			app.plugins([
-				() => {
+				(): void => {
 					events.push("second");
 				},
 			]);

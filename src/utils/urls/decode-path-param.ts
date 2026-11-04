@@ -1,20 +1,4 @@
-// hexadecimal digit values indexed by char code
-const HEX_VALUES = /* @__PURE__ */ (() => {
-	const values = new Int8Array(256).fill(-1);
-
-	// "0" (48) - "9" (57)
-	for (let charCode = 48; charCode <= 57; charCode++) {
-		values[charCode] = charCode - 48;
-	}
-
-	// "a"-"f" map to 10-15, "- 32" for uppercase
-	for (let charCode = 97; charCode <= 102; charCode++) {
-		values[charCode] = charCode - 87;
-		values[charCode - 32] = charCode - 87;
-	}
-
-	return values;
-})();
+import { HEX_VALUES } from "@/utils/urls/hex-values";
 
 // tail length past which a dense non-ASCII run goes native
 const NATIVE_DECODE_MIN_LENGTH = 24;
@@ -25,7 +9,7 @@ let pendingBytes = new Uint8Array(64);
 /**
  * Decodes the pending bytes as UTF-8 sequences.
  */
-const decodeUtf8Bytes = (count: number) => {
+const decodeUtf8Bytes = (count: number): string => {
 	const bytes = pendingBytes;
 
 	let decoded = "";
@@ -40,15 +24,15 @@ const decodeUtf8Bytes = (count: number) => {
 
 		// the lead byte gives the sequence length
 		if (firstByte >= 192 && firstByte <= 223) {
-			codePoint = firstByte & 31;
+			codePoint = firstByte - 192;
 			minimumCodePoint = 128;
 			sequenceLength = 2;
 		} else if (firstByte >= 224 && firstByte <= 239) {
-			codePoint = firstByte & 15;
+			codePoint = firstByte - 224;
 			minimumCodePoint = 2048;
 			sequenceLength = 3;
 		} else if (firstByte >= 240 && firstByte <= 247) {
-			codePoint = firstByte & 7;
+			codePoint = firstByte - 240;
 			minimumCodePoint = 65_536;
 			sequenceLength = 4;
 		} else {
@@ -63,12 +47,12 @@ const decodeUtf8Bytes = (count: number) => {
 		while (sequenceEnd < i + sequenceLength && sequenceEnd < count) {
 			const continuationByte = bytes[sequenceEnd]!;
 
-			// continuation bytes must match 10xxxxxx
-			if ((continuationByte & 192) !== 128) {
+			// continuation bytes are 128-191
+			if (continuationByte < 128 || continuationByte > 191) {
 				break;
 			}
 
-			codePoint = (codePoint << 6) | (continuationByte & 63);
+			codePoint = codePoint * 64 + continuationByte - 128;
 			sequenceEnd++;
 		}
 
@@ -106,7 +90,7 @@ const decodeUtf8Bytes = (count: number) => {
  * decodePathParam("%ED%A0%80"); // "�"
  * ```
  */
-export const decodePathParam = (value: string) => {
+export const decodePathParam = (value: string): string => {
 	const firstPercentIndex = value.indexOf("%");
 
 	if (firstPercentIndex === -1) {
@@ -116,21 +100,25 @@ export const decodePathParam = (value: string) => {
 	const length = value.length;
 
 	// a dense non-ASCII run goes to the native decoder
-	if (
-		length - firstPercentIndex >= NATIVE_DECODE_MIN_LENGTH &&
-		(HEX_VALUES[value.charCodeAt(firstPercentIndex + 1)] ?? -1) >= 8 &&
-		value.charCodeAt(firstPercentIndex + 3) === 37 &&
-		value.charCodeAt(firstPercentIndex + 6) === 37 &&
-		value.charCodeAt(length - 3) === 37
-	) {
-		try {
-			return decodeURIComponent(value);
-		} catch {
-			// malformed escapes take the tolerant decoder below
+	if (length - firstPercentIndex >= NATIVE_DECODE_MIN_LENGTH) {
+		const leadCharCode = value.charCodeAt(firstPercentIndex + 1);
+
+		if (
+			leadCharCode < 256 &&
+			HEX_VALUES[leadCharCode]! >= 8 &&
+			value.charCodeAt(firstPercentIndex + 3) === 37 &&
+			value.charCodeAt(firstPercentIndex + 6) === 37 &&
+			value.charCodeAt(length - 3) === 37
+		) {
+			try {
+				return decodeURIComponent(value);
+			} catch {
+				// malformed escapes take the tolerant decoder below
+			}
 		}
 	}
 
-	let decoded = value.substring(0, firstPercentIndex);
+	let decoded = value.slice(0, firstPercentIndex);
 	let i = firstPercentIndex;
 	let pending = 0;
 
@@ -147,7 +135,7 @@ export const decodePathParam = (value: string) => {
 
 			// a run of more than two characters copies at once
 			if (runEnd - i > 2) {
-				decoded += value.substring(i, runEnd);
+				decoded += value.slice(i, runEnd);
 				i = runEnd;
 			} else {
 				while (i < runEnd) {
@@ -177,11 +165,11 @@ export const decodePathParam = (value: string) => {
 			continue;
 		}
 
-		// a char code above 255 reads as undefined
+		// char codes above 255 are never hex digits
 		const highCharCode = value.charCodeAt(i + 1);
-		const highNibble = HEX_VALUES[highCharCode] ?? -1;
+		const highNibble = highCharCode < 256 ? HEX_VALUES[highCharCode]! : -1;
 		const lowCharCode = value.charCodeAt(i + 2);
-		const lowNibble = HEX_VALUES[lowCharCode] ?? -1;
+		const lowNibble = lowCharCode < 256 ? HEX_VALUES[lowCharCode]! : -1;
 
 		if (highNibble === -1 || lowNibble === -1) {
 			if (pending > 0) {
@@ -197,7 +185,7 @@ export const decodePathParam = (value: string) => {
 			continue;
 		}
 
-		const byte = (highNibble << 4) | lowNibble;
+		const byte = highNibble * 16 + lowNibble;
 
 		// ASCII decodes directly, higher bytes go pending
 		if (byte <= 127) {

@@ -27,7 +27,7 @@ import { parseQuery } from "@/utils/urls/parse-query";
 /**
  * Reads every enumerable property of a store result without keeping it.
  */
-const drain = (source: Record<string, unknown>) => {
+const drain = (source: Record<string, unknown>): unknown => {
 	let value: unknown;
 
 	for (const key in source) {
@@ -166,14 +166,15 @@ interface EndpointShape {
 /**
  * Renders a shape flag as a cache key bit.
  */
-const bit = (flag: boolean | undefined) => (flag ? "1" : "0");
+const bit = (flag: boolean | undefined): "0" | "1" =>
+	flag === true ? "1" : "0";
 
 /**
  * Returns whether a validator link has at least one executable request slot.
  */
 const hasValidationKeys = (
 	keys: readonly (keyof ValidatorRequest | undefined)[],
-) => {
+): boolean => {
 	for (let i = 0; i < keys.length; i++) {
 		if (keys[i]) {
 			return true;
@@ -188,7 +189,7 @@ const hasValidationKeys = (
  */
 const collectValidationKeys = (
 	keys: readonly (keyof ValidatorRequest | undefined)[],
-) => {
+): (keyof ValidatorRequest)[] => {
 	const collected: (keyof ValidatorRequest)[] = [];
 
 	for (let i = 0; i < keys.length; i++) {
@@ -205,8 +206,10 @@ const collectValidationKeys = (
 /**
  * Returns whether a parameter is optional.
  */
-const isOptionalParam = (flags: number | undefined) =>
-	flags === undefined || (flags & PARAM_FLAG_OPTIONAL) !== 0;
+const isOptionalParam = (flags: number | undefined): boolean =>
+	flags === undefined ||
+	flags === PARAM_FLAG_OPTIONAL ||
+	flags === PARAM_FLAG_REST + PARAM_FLAG_OPTIONAL;
 
 /**
  * Returns whether a parameter is a rest segment.
@@ -215,10 +218,10 @@ const isRestParam = (
 	flags: number | undefined,
 	paramKey: string | undefined,
 	restKeys: string[],
-) =>
+): boolean =>
 	flags === undefined
 		? paramKey !== undefined && restKeys.includes(paramKey)
-		: (flags & PARAM_FLAG_REST) !== 0;
+		: flags >= PARAM_FLAG_REST;
 
 /**
  * Builds the dispatcher for a sync route with no context and no chain.
@@ -243,7 +246,10 @@ const directAsyncFactory = new Function(
 /**
  * Returns whether an endpoint chain contains any link that executes.
  */
-const hasEffectiveChain = (chain: EndpointChain, hasValidator: boolean) => {
+const hasEffectiveChain = (
+	chain: EndpointChain,
+	hasValidator: boolean,
+): boolean => {
 	for (let i = 0; i < chain.length; i++) {
 		const link = chain[i];
 
@@ -268,7 +274,7 @@ const isDirectDispatch = (
 	endpoint: Endpoint,
 	handlerAnalysis: HandlerAnalysis,
 	hasValidator: boolean,
-) =>
+): boolean =>
 	!endpoint.route.sse &&
 	!handlerAnalysis.needsContext &&
 	!hasEffectiveChain(endpoint.chain, hasValidator);
@@ -276,7 +282,7 @@ const isDirectDispatch = (
 /**
  * Builds the parameter layout suffix of a cache key.
  */
-const buildParamLayoutKey = (endpoint: Endpoint) => {
+const buildParamLayoutKey = (endpoint: Endpoint): string => {
 	const paramFlags = endpoint.paramFlags;
 	const paramKeys = endpoint.paramKeys;
 	const restKeys = endpoint.restKeys;
@@ -310,7 +316,7 @@ const compileValidatorSlots = (
 	compiler: ValidatorCompiler,
 	link: AnyValidator,
 	keys: readonly (keyof ValidatorRequest)[],
-) => {
+): CompiledValidatorSlots => {
 	let links = compiledValidators.get(compiler);
 
 	if (links === undefined) {
@@ -521,7 +527,10 @@ const analyzeEndpoint = (
 /**
  * Creates a linker that records each dependency once, in factory parameter order.
  */
-const createDependencyLinker = () => {
+const createDependencyLinker = (): {
+	dependencies: FactoryDependencyName[];
+	link: LinkFactoryDependency;
+} => {
 	const dependencies: FactoryDependencyName[] = [];
 	const linked = new Set<FactoryDependencyName>();
 	const link: LinkFactoryDependency = (name) => {
@@ -539,20 +548,22 @@ const createDependencyLinker = () => {
 /**
  * Emits the gate that reads a settled native promise instead of awaiting it.
  */
-const gate = (name: string, link: LinkFactoryDependency) =>
+const gate = (name: string, link: LinkFactoryDependency): string =>
 	`${link("peekStatus")}(${name})==="fulfilled"?${link("peek")}(${name}):await ${name}`;
 
 /**
  * Returns the generated local name for a request validation slot.
  */
-const getValidatedLocal = (key: keyof ValidatorRequest) =>
+const getValidatedLocal = (key: keyof ValidatorRequest): string =>
 	`validated${key.charAt(0).toUpperCase()}${key.slice(1)}`;
 
 /**
  * Returns where a dispatcher keeps a validated request slot.
  */
-const getSlotTarget = (needsContext: boolean, key: keyof ValidatorRequest) =>
-	needsContext ? `context.request.${key}` : getValidatedLocal(key);
+const getSlotTarget = (
+	needsContext: boolean,
+	key: keyof ValidatorRequest,
+): string => (needsContext ? `context.request.${key}` : getValidatedLocal(key));
 
 /**
  * Generates the path parameter parser for a dispatcher.
@@ -707,11 +718,12 @@ const generateDispatcherBody = (
 			const nextName = `next_${index}`;
 			const returnedName = `returned_${index}`;
 			// an async link is gated instead of awaited
-			const call = asyncMap[index]
-				? `let ${returnedName}=${link("chain")}[${index}].handler(${linkArgument},${nextName});${returnedName}=${gate(returnedName, link)};`
-				: `const ${returnedName}=${awaitMap[index] ? "await " : ""}${link("chain")}[${index}].handler(${linkArgument},${nextName});`;
+			const call =
+				asyncMap[index] === true
+					? `let ${returnedName}=${link("chain")}[${index}].handler(${linkArgument},${nextName});${returnedName}=${gate(returnedName, link)};`
+					: `const ${returnedName}=${awaitMap[index] === true ? "await " : ""}${link("chain")}[${index}].handler(${linkArgument},${nextName});`;
 			// the next callback is async when the tail awaits
-			const block = `{const ${nextName}=${isTailAsync ? "async " : ""}()=>{${emit(index + 1, true)}};${call}if(${returnedName}){${contentTarget}=${returnedName}}}`;
+			const block = `{const ${nextName}=${isTailAsync === true ? "async " : ""}()=>{${emit(index + 1, true)}};${call}if(${returnedName}){${contentTarget}=${returnedName}}}`;
 
 			return terminate(block, isNested);
 		}
@@ -719,9 +731,10 @@ const generateDispatcherBody = (
 		if (chainLink?.type === "STORE") {
 			const returnedName = `returned_${index}`;
 			// an async link is gated instead of awaited
-			const call = asyncMap[index]
-				? `let ${returnedName}=${link("chain")}[${index}].handler(${linkArgument});${returnedName}=${gate(returnedName, link)};`
-				: `const ${returnedName}=${link("chain")}[${index}].handler(${linkArgument});`;
+			const call =
+				asyncMap[index] === true
+					? `let ${returnedName}=${link("chain")}[${index}].handler(${linkArgument});${returnedName}=${gate(returnedName, link)};`
+					: `const ${returnedName}=${link("chain")}[${index}].handler(${linkArgument});`;
 			// a nested short circuit returns void
 			const shortCircuit = `${contentTarget}=${returnedName};${isNested ? "return;" : returnStatement}`;
 			const storeTarget = needsContext ? "context.store" : "";
@@ -877,9 +890,9 @@ const generatePrelude = (
 const createDispatcherFactoryPlan = (
 	endpoint: Endpoint,
 	shape: EndpointShape,
-) => {
+): { dependencies: FactoryDependencyName[]; source: string } => {
 	const { dependencies, link } = createDependencyLinker();
-	const slotTarget = (key: keyof ValidatorRequest) =>
+	const slotTarget = (key: keyof ValidatorRequest): string =>
 		getSlotTarget(shape.needsContext, key);
 	// thunks link each slot's dependency when emitted
 	const parsers: Record<keyof ValidatorRequest, () => string> = {
@@ -933,6 +946,10 @@ const buildCompiledRuns = (
 		const linkRuns = new Empty() as CompiledValidatorRuns[number];
 
 		for (const key in slots) {
+			if (!Object.hasOwn(slots, key)) {
+				continue;
+			}
+
 			const compiled = slots[key];
 
 			// a null slot falls back to the runtime validator
@@ -960,46 +977,46 @@ const resolveFactoryDependency = (
 	switch (name) {
 		case "app":
 			return app;
-		case "CookieMap":
-			return Bun.CookieMap;
-		case "Headers":
-			return Headers;
 		case "chain":
 			return endpoint.chain;
 		case "compiled":
 			return buildCompiledRuns(shape.compiledSlots);
-		case "response":
-			return response;
-		case "Reply":
-			return Reply;
-		case "merge":
-			return merge;
-		case "Empty":
-			return Empty;
-		case "fail":
-			return fail;
-		case "stream":
-			return stream;
-		case "parseBody":
-			return parseBody;
-		case "parseCookies":
-			return parseCookies;
-		case "parseQuery":
-			return parseQuery;
+		case "CookieMap":
+			return Bun.CookieMap;
 		case "decodePathParam":
 			return decodePathParam;
 		case "decodeRestParam":
 			return decodeRestParam;
 		case "drain":
 			return drain;
+		case "Empty":
+			return Empty;
+		case "fail":
+			return fail;
+		case "handler":
+			return endpoint.route.handler;
+		case "Headers":
+			return Headers;
+		case "merge":
+			return merge;
+		case "parseBody":
+			return parseBody;
+		case "parseCookies":
+			return parseCookies;
+		case "parseQuery":
+			return parseQuery;
 		case "peek":
 			return peek;
 		case "peekStatus":
 			return peekStatus;
+		case "Reply":
+			return Reply;
+		case "response":
+			return response;
+		case "stream":
+			return stream;
 		case "validator":
 			return validator;
-		case "handler":
-			return endpoint.route.handler;
 	}
 };
 
@@ -1055,7 +1072,7 @@ export const inspectJitFactoryDependencies = (
  * await dispatch.call(endpoint, request); // Response
  * ```
  */
-export const jit = (app: Cudenix, endpoint: Endpoint) => {
+export const jit = (app: Cudenix, endpoint: Endpoint): Endpoint["dispatch"] => {
 	const handler = endpoint.route.handler;
 	const validator = app.memory.validator as ValidatorPlugin | undefined;
 	const compiler = app.memory.validatorCompiler as

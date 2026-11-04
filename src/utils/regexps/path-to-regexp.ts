@@ -1,11 +1,11 @@
 // a single segment, captured
-const PARAM_CAPTURE = "\\/([^/\\s?#]+)";
+const PARAM_CAPTURE = String.raw`\/([^/\s?#]+)`;
 // one or more segments, captured as one string
-const REST_CAPTURE = "\\/((?:[^/\\s?#]+/)*(?:[^/\\s?#]+))";
+const REST_CAPTURE = String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))`;
 // non-capturing, matches zero segments too
-const WILDCARD = "\\/(?:[^/\\s?#]+/)*(?:[^/\\s?#]+)?";
+const WILDCARD = String.raw`\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?`;
 // the whole remainder of the path
-const TERMINAL_WILDCARD = "\\/[^\\s?#]*";
+const TERMINAL_WILDCARD = String.raw`\/[^\s?#]*`;
 
 // regexp syntax and url-encoded characters
 const STATIC_SEGMENT_SYNTAX = /[^!-~]|["#$()*+.<>?[\\\]^`{|}]/gu;
@@ -14,7 +14,7 @@ const STATIC_SEGMENT_SYNTAX = /[^!-~]|["#$()*+.<>?[\\\]^`{|}]/gu;
 const URL_ENCODED_CHARACTER = /[^!-~]|["#<>?^`{}]/u;
 
 // percent-encodes or escapes a static character
-const escapeStaticCharacter = (character: string) =>
+const escapeStaticCharacter = (character: string): string =>
 	URL_ENCODED_CHARACTER.test(character)
 		? encodeURIComponent(character.toWellFormed())
 		: `\\${character}`;
@@ -26,7 +26,7 @@ const isTerminalSegment = (
 	path: string,
 	segmentEnd: number,
 	length: number,
-) => {
+): boolean => {
 	for (let i = segmentEnd; i < length; i++) {
 		const charCode = path.charCodeAt(i);
 
@@ -84,7 +84,15 @@ export const PARAM_FLAG_REST = 2;
  * pathToRegexp("/a/...r1").restKeys; // ["r1"]
  * ```
  */
-export const pathToRegexp = (path: string) => {
+export const pathToRegexp = (
+	path: string,
+): {
+	paramFlags: number[];
+	paramKeys: string[];
+	pattern: string;
+	ranks: number[];
+	restKeys: string[];
+} => {
 	if (path === "/") {
 		return {
 			paramFlags: [],
@@ -143,7 +151,7 @@ export const pathToRegexp = (path: string) => {
 		// ":" (58) named param
 		if (firstCharCode === 58) {
 			paramFlags.push(isOptional ? PARAM_FLAG_OPTIONAL : 0);
-			paramKeys.push(path.substring(i + 1, contentEnd));
+			paramKeys.push(path.slice(i + 1, contentEnd));
 
 			ranks.push(PARAM_RANK);
 
@@ -164,10 +172,10 @@ export const pathToRegexp = (path: string) => {
 			path.charCodeAt(i + 1) === 46 &&
 			path.charCodeAt(i + 2) === 46
 		) {
-			const name = path.substring(i + 3, contentEnd);
+			const name = path.slice(i + 3, contentEnd);
 
 			paramFlags.push(
-				PARAM_FLAG_REST | (isOptional ? PARAM_FLAG_OPTIONAL : 0),
+				PARAM_FLAG_REST + (isOptional ? PARAM_FLAG_OPTIONAL : 0),
 			);
 			paramKeys.push(name);
 
@@ -181,7 +189,7 @@ export const pathToRegexp = (path: string) => {
 			ranks.push(STATIC_RANK);
 
 			// escape regexp syntax and percent-encode
-			segment = `\\/${path.substring(i, contentEnd).replace(STATIC_SEGMENT_SYNTAX, escapeStaticCharacter)}`;
+			segment = `\\/${path.slice(i, contentEnd).replace(STATIC_SEGMENT_SYNTAX, escapeStaticCharacter)}`;
 		}
 
 		if (isOptional) {

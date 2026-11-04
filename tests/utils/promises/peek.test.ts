@@ -2,17 +2,18 @@ import { describe, expect, expectTypeOf, it } from "bun:test";
 
 import { peek, peekStatus } from "@/utils/promises/peek";
 
-const asPromise = (value: unknown) => value as Promise<unknown>;
+const asPromise = (value: unknown): Promise<unknown> =>
+	value as Promise<unknown>;
 
-const settled = async () => "v1";
+const settled = async (): Promise<string> => "v1";
 
-const suspends = async () => {
+const suspends = async (): Promise<string> => {
 	await null;
 
 	return "v1";
 };
 
-const rejects = async () => {
+const rejects = async (): Promise<never> => {
 	throw new Error("v1");
 };
 
@@ -102,7 +103,7 @@ describe("peek", () => {
 			let ran = false;
 			const thenable = {
 				// biome-ignore lint/suspicious/noThenProperty: Testing thenables
-				then(resolve: (value: string) => void) {
+				then(resolve: (value: string) => void): void {
 					ran = true;
 
 					resolve("v1");
@@ -169,7 +170,7 @@ describe("peekStatus", () => {
 
 		it("should return 'fulfilled' for a thenable", () => {
 			// biome-ignore lint/suspicious/noThenProperty: Testing thenables
-			const thenable = { then: () => {} };
+			const thenable = { then: (): void => {} };
 
 			expect(peekStatus(asPromise(thenable))).toBe("fulfilled");
 		});

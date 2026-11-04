@@ -14,7 +14,7 @@ describe("MergePaths", () => {
 		it("should collapse mixed separators at the join and at the ends", () => {
 			const merged: MergePaths<"/\\a/\\", "/\\b\\/"> = "/a/b";
 
-			expect(pathToRegexp("/\\a/\\/\\b\\/").pattern).toBe(
+			expect(pathToRegexp(String.raw`/\a/\/\b\/`).pattern).toBe(
 				pathToRegexp(merged).pattern,
 			);
 		});

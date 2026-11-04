@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 import { Cudenix } from "@/core/cudenix";
 import { Module } from "@/core/module";
-import { fail, ok } from "@/core/reply";
+import { fail, type Ok, ok } from "@/core/reply";
 import { stream } from "@/core/sse";
 
 import { serveApp } from "./helpers";
@@ -340,7 +340,11 @@ describe("usage: sse", () => {
 		});
 
 		it("should swallow a rejection from the generator's cleanup on cancel", async () => {
-			const generator = (async function* () {
+			const generator = (async function* (): AsyncGenerator<
+				{ data: Ok<"x"> } | { data: Ok<"y"> },
+				void,
+				unknown
+			> {
 				yield { data: ok("x") };
 				yield { data: ok("y") };
 			})();

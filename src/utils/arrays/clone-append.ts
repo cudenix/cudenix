@@ -6,7 +6,7 @@
  * cloneAppend(["a", "b"], "c"); // ["a", "b", "c"]
  * ```
  */
-export const cloneAppend = <T>(array: readonly T[], item: T) => {
+export const cloneAppend = <T>(array: readonly T[], item: T): T[] => {
 	const length = array.length;
 
 	// fast paths for length 0 and 1

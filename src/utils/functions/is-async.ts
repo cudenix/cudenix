@@ -10,5 +10,5 @@ const ASYNC_FUNCTION_PROTOTYPE = Object.getPrototypeOf(async () => {});
  * isAsync(async function* () {}); // false
  * ```
  */
-export const isAsync = (fn: (...args: any[]) => unknown) =>
+export const isAsync = (fn: (...args: any[]) => unknown): boolean =>
 	Object.getPrototypeOf(fn) === ASYNC_FUNCTION_PROTOTYPE;

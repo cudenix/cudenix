@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { fail, ok } from "@/core/reply";
 import { type Cudenix, Module } from "@/index";
+import type { MaybePromise } from "@/utils/types/maybe-promise";
 import { parseQuery } from "@/utils/urls/parse-query";
 
 import { type ServedApp, serveApp } from "./helpers";
@@ -20,7 +21,10 @@ const compareRouters = async (
 
 	let serverFallbackCalls = 0;
 
-	server.app.fetch = function (this: Cudenix, request: Request) {
+	server.app.fetch = function (
+		this: Cudenix,
+		request: Request,
+	): MaybePromise<Response> {
 		serverFallbackCalls++;
 
 		return originalFetch.call(this, request);
@@ -56,7 +60,7 @@ const compareRouters = async (
 	};
 };
 
-const expectSameResult = (result: ParityResult) => {
+const expectSameResult = (result: ParityResult): void => {
 	expect(result.native).toEqual(result.direct);
 };
 
@@ -79,7 +83,10 @@ const rawRouters = async (
 
 	let serverFallbackCalls = 0;
 
-	server.app.fetch = function (this: Cudenix, incoming: Request) {
+	server.app.fetch = function (
+		this: Cudenix,
+		incoming: Request,
+	): MaybePromise<Response> {
 		serverFallbackCalls++;
 
 		return originalFetch.call(this, incoming);
@@ -579,7 +586,7 @@ describe("usage: router parity", () => {
 				"/url?a=b^c",
 				"/url?a=1?b=2",
 				"/url?a=%zz",
-				"/url?a=b\\c",
+				String.raw`/url?a=b\c`,
 				"/url?a=1&&b=2",
 				"/url?%",
 				"/url??",
@@ -757,9 +764,9 @@ describe("usage: router parity", () => {
 	describe("static table responses", () => {
 		it("should keep a streamed static reply out of Bun's table and still serve it repeatedly", async () => {
 			const encoder = new TextEncoder();
-			const streamed = () =>
+			const streamed = (): ReadableStream<Uint8Array> =>
 				new ReadableStream<Uint8Array>({
-					start(controller) {
+					start(controller): void {
 						controller.enqueue(encoder.encode("streamed"));
 						controller.close();
 					},
@@ -867,7 +874,7 @@ describe("usage: router parity", () => {
 			);
 
 			for (const [target, value, pathname] of [
-				["/param/a\\b", "a\\b", "/param/a/b"],
+				[String.raw`/param/a\b`, String.raw`a\b`, "/param/a/b"],
 				["/param/..", "..", "/"],
 				["/param/%2e%2e", "..", "/"],
 				["/param/.", ".", "/param/"],
@@ -877,7 +884,7 @@ describe("usage: router parity", () => {
 					`GET ${target} HTTP/1.1\r\nHost: localhost:${server.port}\r\nConnection: close\r\n\r\n`,
 				);
 				const direct = await server.app.fetch(
-					new Request(server.url(target)),
+					new Request(server.url(`/${target.slice(1)}`)),
 				);
 
 				expect(native.serverFallbackCalls).toBe(0);

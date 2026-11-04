@@ -1,4 +1,3 @@
-import { FrozenEmpty } from "@/utils/objects/empty";
 import type { ExtractContent } from "@/utils/types/extract-content";
 
 /**
@@ -184,10 +183,11 @@ type FailFactory = <const Content, const Status extends number = 400>(
  * const b = fail({ a: 1 }, { status: 401 }); // status 401
  * ```
  */
-export const fail = ((
-	content: unknown,
-	{ status = 400 }: AnyReplyOptions = FrozenEmpty,
-) => new Reply(content, { status, success: false })) as unknown as FailFactory;
+export const fail = ((content: unknown, options?: AnyReplyOptions) =>
+	new Reply(content, {
+		status: options?.status ?? 400,
+		success: false,
+	})) as unknown as FailFactory;
 
 /**
  * Call signature of {@link ok}.
@@ -207,7 +207,8 @@ type OkFactory = <const Content, const Status extends number = 200>(
  * const b = ok({ a: 1 }, { status: 201 }); // status 201
  * ```
  */
-export const ok = ((
-	content: unknown,
-	{ status = 200 }: AnyReplyOptions = FrozenEmpty,
-) => new Reply(content, { status, success: true })) as unknown as OkFactory;
+export const ok = ((content: unknown, options?: AnyReplyOptions) =>
+	new Reply(content, {
+		status: options?.status ?? 200,
+		success: true,
+	})) as unknown as OkFactory;

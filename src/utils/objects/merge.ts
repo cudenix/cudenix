@@ -19,7 +19,7 @@ export const merge = <
 	target: T,
 	// shared keys keep the target's type
 	source: U & { [K in keyof U]: K extends keyof T ? T[K] : U[K] },
-) => {
+): void => {
 	// walks the prototype chain, skips symbols
 	for (const key in source) {
 		(target as Record<string, unknown>)[key] = (

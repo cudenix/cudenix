@@ -2,7 +2,6 @@ import type { ContextResponse } from "@/core/context";
 
 const NOT_CONTENT = new Response(undefined, { status: 204 });
 
-const ARRAY_PROTOTYPE = Array.prototype;
 const OBJECT_PROTOTYPE = Object.prototype;
 
 const STREAM_INIT = {
@@ -14,23 +13,12 @@ const STREAM_INIT = {
 };
 
 /**
- * Applies one staged header to the response passed as `this`.
- */
-function applyHeader(this: Response, value: string, name: string) {
-	if (name === "vary") {
-		this.headers.append(name, value);
-	} else {
-		this.headers.set(name, value);
-	}
-}
-
-/**
  * Applies staged cookies to a response.
  */
 const applyCookies = (
 	result: Response,
 	cookies?: ContextResponse["cookies"],
-) => {
+): Response => {
 	if (!cookies) {
 		return result;
 	}
@@ -50,8 +38,14 @@ const applyCookies = (
 const applyHeaders = (
 	result: Response,
 	headers: ContextResponse["headers"],
-) => {
-	headers.forEach(applyHeader, result);
+): Response => {
+	headers.forEach((value, name) => {
+		if (name === "vary") {
+			result.headers.append(name, value);
+		} else {
+			result.headers.set(name, value);
+		}
+	});
 
 	return result;
 };
@@ -66,18 +60,18 @@ const CONTENT_BODY = 2;
 /**
  * Resolves how content materializes.
  */
-const classifyContent = (inner: unknown) => {
+const classifyContent = (inner: unknown): 0 | 1 | 2 => {
 	if (typeof inner !== "object") {
 		return CONTENT_BODY;
 	}
 
+	if (Array.isArray(inner)) {
+		return CONTENT_JSON;
+	}
+
 	const prototype = Object.getPrototypeOf(inner);
 
-	if (
-		prototype === OBJECT_PROTOTYPE ||
-		prototype === ARRAY_PROTOTYPE ||
-		prototype === null
-	) {
+	if (prototype === OBJECT_PROTOTYPE || prototype === null) {
 		return CONTENT_JSON;
 	}
 
@@ -139,7 +133,7 @@ const materialize = (content: ContextResponse["content"]): Response => {
 const materializeStaged = (
 	content: ContextResponse["content"],
 	headers: ContextResponse["headers"],
-) => {
+): Response => {
 	if (!content) {
 		return new Response(undefined, { headers, status: 204 });
 	}
@@ -190,10 +184,10 @@ export const response = (
 	content: ContextResponse["content"],
 	cookies?: ContextResponse["cookies"],
 	headers?: ContextResponse["headers"],
-) =>
+): Response =>
 	applyCookies(
 		// empty staged headers take the plain path
-		headers?.count
+		headers !== undefined && headers.count !== 0
 			? materializeStaged(content, headers)
 			: materialize(content),
 		cookies,
