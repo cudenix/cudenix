@@ -8,6 +8,13 @@ describe("HEX_VALUES", () => {
 		expect(HEX_VALUES).toHaveLength(256);
 	});
 
+	it("should own a 256-byte ArrayBuffer", () => {
+		expect(HEX_VALUES.buffer).toBeInstanceOf(ArrayBuffer);
+		expect(HEX_VALUES.buffer.byteLength).toBe(256);
+		expect(HEX_VALUES.byteOffset).toBe(0);
+		expect(HEX_VALUES.byteLength).toBe(256);
+	});
+
 	it("should map '0'-'9' to 0-9", () => {
 		for (let digit = 0; digit <= 9; digit++) {
 			expect(HEX_VALUES[String(digit).charCodeAt(0)]).toBe(digit);
@@ -31,5 +38,12 @@ describe("HEX_VALUES", () => {
 				expect(HEX_VALUES[byte]).toBe(-1);
 			}
 		}
+	});
+
+	it("should return undefined out of bounds", () => {
+		expect(HEX_VALUES[256]).toBeUndefined();
+		expect(HEX_VALUES[-1]).toBeUndefined();
+		expect(HEX_VALUES[8364]).toBeUndefined();
+		expect(HEX_VALUES[Number.NaN]).toBeUndefined();
 	});
 });

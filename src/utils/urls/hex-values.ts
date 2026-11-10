@@ -10,16 +10,14 @@
 export const HEX_VALUES = /* @__PURE__ */ ((): Int8Array<ArrayBuffer> => {
 	const values = new Int8Array(256).fill(-1);
 
-	// "0" (48) - "9" (57)
-	for (let charCode = 48; charCode <= 57; charCode++) {
-		values[charCode] = charCode - 48;
-	}
+	// "0"-"9" from char code 48
+	values.set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 48);
 
-	// "a"-"f" map to 10-15, "- 32" for uppercase
-	for (let charCode = 97; charCode <= 102; charCode++) {
-		values[charCode] = charCode - 87;
-		values[charCode - 32] = charCode - 87;
-	}
+	// "A"-"F" from char code 65
+	values.set([10, 11, 12, 13, 14, 15], 65);
+
+	// "a"-"f" from char code 97
+	values.set([10, 11, 12, 13, 14, 15], 97);
 
 	return values;
 })();
