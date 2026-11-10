@@ -1,5 +1,13 @@
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 
+// slots of the name cache, a power of two
+const NAME_CACHE_SIZE = 1024;
+// longest name the cache keeps
+const NAME_CACHE_MAX_LENGTH = 64;
+
+// names already used as keys, by hash slot
+const nameCache = new Array<string>(NAME_CACHE_SIZE).fill("");
+
 /**
  * Parses cookies from a `Cookie` request header.
  *
@@ -19,10 +27,10 @@ export const parseCookies = (header: string): Record<string, string> => {
 		return cookies;
 	}
 
-	const length = header.length;
-	// a "%" anywhere means a value needs decoding
-	const isEncoded = header.includes("%");
+	const { length } = header;
 
+	// next "%" (37) at or after the current value
+	let percentIndex = header.indexOf("%");
 	let start = 0;
 
 	while (start < length) {
@@ -47,9 +55,17 @@ export const parseCookies = (header: string): Record<string, string> => {
 		}
 
 		let equalsIndex = nameStart;
+		let hash = 0;
 
-		// scan the name up to "=" (61)
-		while (equalsIndex < end && header.charCodeAt(equalsIndex) !== 61) {
+		// scan and hash the name up to "=" (61)
+		while (equalsIndex < end) {
+			const charCode = header.charCodeAt(equalsIndex);
+
+			if (charCode === 61) {
+				break;
+			}
+
+			hash = ((hash << 5) - hash + charCode) | 0;
 			equalsIndex++;
 		}
 
@@ -93,12 +109,40 @@ export const parseCookies = (header: string): Record<string, string> => {
 					valueEnd--;
 				}
 
-				const name = header.slice(nameStart, nameEnd);
+				const nameLength = nameEnd - nameStart;
 
-				// first one wins
-				cookies[name] ??= isEncoded
-					? decodePathParam(header.slice(valueStart, valueEnd))
-					: header.slice(valueStart, valueEnd);
+				let name: string;
+
+				if (nameLength === 1) {
+					name = header[nameStart]!;
+				} else {
+					const slot = hash & (NAME_CACHE_SIZE - 1);
+
+					name = nameCache[slot]!;
+
+					// reuse the cached string when it is this name
+					if (
+						name.length !== nameLength ||
+						!header.startsWith(name, nameStart)
+					) {
+						name = header.slice(nameStart, nameEnd);
+
+						if (nameLength <= NAME_CACHE_MAX_LENGTH) {
+							nameCache[slot] = name;
+						}
+					}
+				}
+
+				// move to the first "%" inside or after this value
+				if (percentIndex !== -1 && percentIndex < valueStart) {
+					percentIndex = header.indexOf("%", valueStart);
+				}
+
+				// first one wins, only a value with a "%" is decoded
+				cookies[name] ??=
+					percentIndex !== -1 && percentIndex < valueEnd
+						? decodePathParam(header.slice(valueStart, valueEnd))
+						: header.slice(valueStart, valueEnd);
 			}
 		}
 

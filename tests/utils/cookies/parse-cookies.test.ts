@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 
 import { parseCookies } from "@/utils/cookies/parse-cookies";
+import { decodePathParam } from "@/utils/urls/decode-path-param";
 
 describe("parseCookies", () => {
 	describe("typical headers", () => {
@@ -701,6 +702,233 @@ describe("parseCookies", () => {
 			expect(Object.hasOwn(cookies, "__proto__")).toBe(true);
 			expect(cookies.b).toBe("v2");
 			expect(new Bun.CookieMap(header).get("__proto__")).toBe("v1");
+		});
+	});
+
+	describe("whitespace edge cases", () => {
+		it("should reduce a whitespace-only value to an empty string", () => {
+			expect(parseCookies("a= ; b=\t\t; c=   ")).toEqual({
+				a: "",
+				b: "",
+				c: "",
+			});
+		});
+
+		it("should drop a whitespace-only name", () => {
+			expect(parseCookies(" =v1; \t=v2; \t =v3")).toEqual({});
+		});
+
+		it("should trim only spaces and tabs", () => {
+			expect(parseCookies("a=\u00A0v1\u00A0; b=v2\r; \nc=v3\n")).toEqual({
+				"\nc": "v3\n",
+				a: "\u00A0v1\u00A0",
+				b: "v2\r",
+			});
+		});
+	});
+
+	describe("per-value decoding", () => {
+		it("should decode only the values that carry an escape", () => {
+			expect(parseCookies("a=v1; b=a%20b; c=v3")).toEqual({
+				a: "v1",
+				b: "a b",
+				c: "v3",
+			});
+		});
+	});
+
+	describe("large headers", () => {
+		it("should parse a header with many pairs", () => {
+			const pairs: string[] = [];
+			const expected: Record<string, string> = {};
+
+			for (let index = 0; index < 200; index++) {
+				pairs.push(`name${index}=value${index}`);
+				expected[`name${index}`] = `value${index}`;
+			}
+
+			expect(parseCookies(pairs.join("; "))).toEqual(expected);
+		});
+	});
+
+	describe("repeated names across calls", () => {
+		it("should return the same name for a header parsed again", () => {
+			for (let round = 0; round < 3; round++) {
+				expect(parseCookies(`session=v${round}; theme=dark`)).toEqual({
+					session: `v${round}`,
+					theme: "dark",
+				});
+			}
+		});
+
+		it("should find a known name at another position and with padding", () => {
+			expect(parseCookies("session=v1")).toEqual({ session: "v1" });
+			expect(parseCookies("a=1; session=v2")).toEqual({
+				a: "1",
+				session: "v2",
+			});
+			expect(parseCookies(" \tsession \t= v3 ;b=2")).toEqual({
+				b: "2",
+				session: "v3",
+			});
+		});
+
+		it("should keep a name apart from its prefixes and extensions", () => {
+			for (let round = 0; round < 2; round++) {
+				for (const name of ["session", "sessio", "sessions", "s", "se"]) {
+					expect(parseCookies(`${name}=v1`)).toEqual({ [name]: "v1" });
+				}
+			}
+		});
+
+		it("should keep thousands of same-length names apart", () => {
+			// more names than any small table can hold apart
+			const names = Array.from(
+				{ length: 4096 },
+				(_, index) => `n${index.toString(16).padStart(4, "0")}`,
+			);
+
+			for (let round = 0; round < 2; round++) {
+				for (const [index, name] of names.entries()) {
+					expect(parseCookies(`${name}=v${index}`)).toEqual({
+						[name]: `v${index}`,
+					});
+				}
+			}
+
+			// same names again, last to first
+			for (let index = names.length - 1; index >= 0; index--) {
+				const name = names[index]!;
+
+				expect(parseCookies(`a=1; ${name}=v${index}`)).toEqual({
+					[name]: `v${index}`,
+					a: "1",
+				});
+			}
+		});
+
+		it("should keep same-length names apart inside one header", () => {
+			const names = Array.from(
+				{ length: 4096 },
+				(_, index) => `m${index.toString(16).padStart(4, "0")}`,
+			);
+			const header = names.map((name) => `${name}=1`).join("; ");
+
+			for (let round = 0; round < 2; round++) {
+				expect(Object.keys(parseCookies(header))).toEqual(names);
+			}
+		});
+
+		it.each([63, 64, 65, 200])(
+			"should parse a %i-character name the same way every time",
+			(length) => {
+				const name = "n".repeat(length);
+				const other = `${"n".repeat(length - 1)}m`;
+
+				for (let round = 0; round < 3; round++) {
+					expect(parseCookies(`${name}=v${round}`)).toEqual({
+						[name]: `v${round}`,
+					});
+					expect(parseCookies(`${other}=v${round}`)).toEqual({
+						[other]: `v${round}`,
+					});
+				}
+			},
+		);
+	});
+
+	describe("parity with a split-based reference", () => {
+		const trim = (value: string): string =>
+			value.replace(/^[\t ]+|[\t ]+$/gu, "");
+
+		const reference = (header: string): Record<string, string> => {
+			const cookies = Object.create(null) as Record<string, string>;
+			const isEncoded = header.includes("%");
+
+			for (const chunk of header.split(";")) {
+				const equalsIndex = chunk.indexOf("=");
+
+				if (equalsIndex === -1) {
+					continue;
+				}
+
+				const name = trim(chunk.slice(0, equalsIndex));
+
+				if (name === "" || name in cookies) {
+					continue;
+				}
+
+				const value = trim(chunk.slice(equalsIndex + 1));
+
+				cookies[name] = isEncoded ? decodePathParam(value) : value;
+			}
+
+			return cookies;
+		};
+
+		it("should match the reference on generated headers", () => {
+			const alphabet = [
+				"a",
+				"b",
+				"A",
+				"1",
+				"2",
+				"=",
+				"=",
+				";",
+				";",
+				"; ",
+				" ",
+				"\t",
+				"\n",
+				"\u00A0",
+				"%",
+				"%2",
+				"%20",
+				"%ZZ",
+				"%C3%A9",
+				"%E2%9C%93",
+				"%F0%9F%98%80",
+				"%3D",
+				"%3B",
+				"é",
+				"✓",
+				"😀",
+				"_",
+				"+",
+				'"',
+				"session",
+				"__proto__",
+				"constructor",
+				"toString",
+			];
+
+			let seed = 123_456_789;
+
+			const random = (): number => {
+				seed = (seed * 48_271) % 2_147_483_647;
+
+				return seed / 2_147_483_647;
+			};
+
+			for (let iteration = 0; iteration < 20_000; iteration++) {
+				let header = "";
+
+				for (
+					let part = 1 + Math.floor(random() * 24);
+					part > 0;
+					part--
+				) {
+					header += alphabet[Math.floor(random() * alphabet.length)];
+				}
+
+				const result = parseCookies(header);
+				const expected = reference(header);
+
+				expect(result).toEqual(expected);
+				expect(Object.keys(result)).toEqual(Object.keys(expected));
+				expect(Object.getPrototypeOf(result)).toBeNull();
+			}
 		});
 	});
 });
