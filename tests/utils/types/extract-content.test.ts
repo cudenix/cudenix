@@ -57,8 +57,8 @@ describe("ExtractContent", () => {
 		});
 
 		it("should pass a union of primitives through unchanged", () => {
-			expectTypeOf<ExtractContent<number | boolean>>().toEqualTypeOf<
-				number | boolean
+			expectTypeOf<ExtractContent<boolean | number>>().toEqualTypeOf<
+				boolean | number
 			>();
 		});
 
@@ -171,7 +171,7 @@ describe("ExtractContent", () => {
 
 	describe("mixed sync and async return shapes", () => {
 		it("should collapse a sync-or-async return to a single awaited type", () => {
-			type A = () => string | Promise<string>;
+			type A = () => Promise<string> | string;
 
 			expectTypeOf<ExtractContent<A>>().toEqualTypeOf<string>();
 		});
@@ -186,14 +186,14 @@ describe("ExtractContent", () => {
 	describe("union distribution", () => {
 		it("should distribute over a union of a value and a factory", () => {
 			expectTypeOf<
-				ExtractContent<string | (() => number)>
-			>().toEqualTypeOf<string | number>();
+				ExtractContent<(() => number) | string>
+			>().toEqualTypeOf<number | string>();
 		});
 
 		it("should distribute over a union of two factories with different return types", () => {
 			expectTypeOf<
-				ExtractContent<(() => string) | (() => number)>
-			>().toEqualTypeOf<string | number>();
+				ExtractContent<(() => number) | (() => string)>
+			>().toEqualTypeOf<number | string>();
 		});
 	});
 

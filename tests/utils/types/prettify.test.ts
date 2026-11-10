@@ -12,7 +12,7 @@ describe("Prettify", () => {
 
 	it("should preserve optional and readonly modifiers", () => {
 		expectTypeOf<
-			Prettify<{ readonly a: string } & { b?: number }>
+			Prettify<{ b?: number } & { readonly a: string }>
 		>().branded.toEqualTypeOf<{ readonly a: string; b?: number }>();
 	});
 

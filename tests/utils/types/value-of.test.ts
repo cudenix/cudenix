@@ -20,7 +20,7 @@ describe("ValueOf", () => {
 			}
 
 			expectTypeOf<ValueOf<A>>().toEqualTypeOf<
-				string | number | boolean
+				boolean | number | string
 			>();
 		});
 	});
@@ -31,7 +31,7 @@ describe("ValueOf", () => {
 
 			type A = ValueOf<typeof a>;
 
-			expectTypeOf<A>().toEqualTypeOf<"v2" | "v1">();
+			expectTypeOf<A>().toEqualTypeOf<"v1" | "v2">();
 		});
 
 		it("should resolve to the union of numeric literal values", () => {
@@ -47,7 +47,7 @@ describe("ValueOf", () => {
 
 			type A = ValueOf<typeof a>;
 
-			expectTypeOf<A>().toEqualTypeOf<true | false>();
+			expectTypeOf<A>().toEqualTypeOf<false | true>();
 		});
 	});
 
@@ -69,7 +69,7 @@ describe("ValueOf", () => {
 			}
 
 			expectTypeOf<ValueOf<A>>().toEqualTypeOf<
-				string | number | string[]
+				number | string | string[]
 			>();
 		});
 
@@ -90,7 +90,7 @@ describe("ValueOf", () => {
 				readonly b: number;
 			}
 
-			expectTypeOf<ValueOf<A>>().toEqualTypeOf<string | number>();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<number | string>();
 		});
 
 		it("should include `undefined` for an optional (`?`) key", () => {
@@ -100,7 +100,7 @@ describe("ValueOf", () => {
 			}
 
 			expectTypeOf<ValueOf<A>>().toEqualTypeOf<
-				string | number | undefined
+				number | string | undefined
 			>();
 		});
 	});
@@ -159,7 +159,7 @@ describe("ValueOf", () => {
 			}
 
 			expectTypeOf<ValueOf<A>>().toEqualTypeOf<
-				null | undefined | string
+				null | string | undefined
 			>();
 		});
 	});
@@ -237,7 +237,7 @@ describe("ValueOf", () => {
 		it("should not equal the bare element union for a tuple because the length literal and array-method types leak in", () => {
 			type A = [string, "v1"];
 
-			expectTypeOf<ValueOf<A>>().not.toEqualTypeOf<string | "v1">();
+			expectTypeOf<ValueOf<A>>().not.toEqualTypeOf<"v1" | string>();
 			expectTypeOf<ValueOf<A>>().not.toBeUnknown();
 		});
 	});
@@ -264,21 +264,21 @@ describe("ValueOf", () => {
 		it("should union value types across an intersection of objects", () => {
 			type A = { a: string } & { b: number };
 
-			expectTypeOf<ValueOf<A>>().toEqualTypeOf<string | number>();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<number | string>();
 		});
 
 		it("should collect every branch's values from a union of objects", () => {
-			type A = { a: string; b: number } | { a: boolean; c: string };
+			type A = { a: boolean; c: string } | { a: string; b: number };
 
 			expectTypeOf<ValueOf<A>>().toEqualTypeOf<
-				string | number | boolean
+				boolean | number | string
 			>();
 		});
 
 		it("should collect values from a union of objects with disjoint keys", () => {
 			type A = { a: string } | { b: number };
 
-			expectTypeOf<ValueOf<A>>().toEqualTypeOf<string | number>();
+			expectTypeOf<ValueOf<A>>().toEqualTypeOf<number | string>();
 		});
 
 		it("should resolve to `any` for an `any` source", () => {

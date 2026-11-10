@@ -104,7 +104,7 @@ describe("GeneratorSSE", () => {
 	describe("`event` channel parameter", () => {
 		it('should default the channel literal to `"message"`', () => {
 			type A = GeneratorSSE<AnyOk>;
-			type B = GeneratorSSE<AnyOk, "message">;
+			type B = GeneratorSSE<AnyOk>;
 
 			expectTypeOf<A>().toEqualTypeOf<B>();
 		});

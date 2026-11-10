@@ -89,7 +89,7 @@ describe("ExtractUrlParams", () => {
 				id: RestParam;
 			}>();
 			expectTypeOf<ExtractUrlParams<"/:id\\...id?">>().toEqualTypeOf<{
-				id: string | RestParam;
+				id: RestParam | string;
 			}>();
 		});
 
@@ -238,7 +238,7 @@ describe("ExtractUrlParams", () => {
 		it("should keep capturing a named param that follows a rest segment", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/...r1/:p1">
-			>().branded.toEqualTypeOf<{ r1: RestParam; p1: string }>();
+			>().branded.toEqualTypeOf<{ p1: string; r1: RestParam }>();
 		});
 
 		it("should capture a required rest as the only segment", () => {
@@ -425,7 +425,7 @@ describe("ExtractUrlParams", () => {
 			expectTypeOf<ExtractUrlParams<any>>().not.toBeAny();
 			// biome-ignore lint/suspicious/noExplicitAny: Testing an `any` path
 			expectTypeOf<ExtractUrlParams<any>>().toEqualTypeOf<
-				Record<string, string | RestParam> | NonNullable<unknown>
+				NonNullable<unknown> | Record<string, string | RestParam>
 			>();
 		});
 	});
@@ -474,7 +474,7 @@ describe("ExtractUrlParams", () => {
 		it("should preserve the prior value when the last duplicate is optional and absent", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/:p1/...p1?">
-			>().branded.toEqualTypeOf<{ p1: string | RestParam }>();
+			>().branded.toEqualTypeOf<{ p1: RestParam | string }>();
 			expectTypeOf<NonNullable<unknown>>().not.toExtend<
 				ExtractUrlParams<"/:p1/...p1?">
 			>();
@@ -492,7 +492,7 @@ describe("ExtractUrlParams", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/:p1?/...p1?">
 			>().branded.toEqualTypeOf<{
-				p1?: string | RestParam | undefined;
+				p1?: RestParam | string | undefined;
 			}>();
 
 			expect(parseParams("/:p1?/...p1?", "/")).toEqual({});
@@ -539,6 +539,48 @@ describe("ExtractUrlParams", () => {
 			expectTypeOf<ExtractUrlParams<"/a/b">>().not.toEqualTypeOf<{
 				b: string;
 			}>();
+		});
+	});
+
+	describe("deep recursion", () => {
+		type Repeat<
+			Part extends string,
+			Count extends number,
+			Result extends string = "",
+			Counter extends 1[] = [],
+		> = Counter["length"] extends Count
+			? Result
+			: Repeat<Part, Count, `${Result}${Part}`, [...Counter, 1]>;
+
+		it("should walk 200 literal segments between captures", () => {
+			expectTypeOf<
+				ExtractUrlParams<`/:p1${Repeat<"/a", 200>}/:p2?/...r1`>
+			>().toEqualTypeOf<{
+				p1: string;
+				p2?: string | undefined;
+				r1: RestParam;
+			}>();
+		});
+
+		it("should accumulate 100 captures", () => {
+			// builds "/:p0/:p1/.../:p99"
+			type Captures<
+				Count extends number,
+				Result extends string = "",
+				Counter extends 1[] = [],
+			> = Counter["length"] extends Count
+				? Result
+				: Captures<
+						Count,
+						`${Result}/:p${Counter["length"]}`,
+						[...Counter, 1]
+					>;
+			type Digit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+			type Name = `p${Digit}` | `p${Exclude<Digit, 0>}${Digit}`;
+
+			expectTypeOf<ExtractUrlParams<Captures<100>>>().toEqualTypeOf<
+				Record<Name, string>
+			>();
 		});
 	});
 });

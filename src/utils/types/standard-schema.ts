@@ -3,43 +3,8 @@ export interface StandardSchemaV1<Input = unknown, Output = Input> {
 }
 
 export declare namespace StandardSchemaV1 {
-	export interface Props<Input = unknown, Output = Input> {
-		readonly types?: Types<Input, Output> | undefined;
-		readonly validate: (
-			value: unknown,
-			options?: StandardSchemaV1.Options | undefined,
-		) => Result<Output> | Promise<Result<Output>>;
-		readonly vendor: string;
-		readonly version: 1;
-	}
-
-	export type Result<Output> = SuccessResult<Output> | FailureResult;
-
-	export interface SuccessResult<Output> {
-		readonly issues?: undefined;
-		readonly value: Output;
-	}
-
-	export interface Options {
-		readonly libraryOptions?: Record<string, unknown> | undefined;
-	}
-
 	export interface FailureResult {
-		readonly issues: ReadonlyArray<Issue>;
-	}
-
-	export interface Issue {
-		readonly message: string;
-		readonly path?: ReadonlyArray<PropertyKey | PathSegment> | undefined;
-	}
-
-	export interface PathSegment {
-		readonly key: PropertyKey;
-	}
-
-	export interface Types<Input = unknown, Output = Input> {
-		readonly input: Input;
-		readonly output: Output;
+		readonly issues: readonly Issue[];
 	}
 
 	export type InferInput<Schema extends StandardSchemaV1> = NonNullable<
@@ -49,4 +14,39 @@ export declare namespace StandardSchemaV1 {
 	export type InferOutput<Schema extends StandardSchemaV1> = NonNullable<
 		Schema["~standard"]["types"]
 	>["output"];
+
+	export interface Issue {
+		readonly message: string;
+		readonly path?: readonly (PathSegment | PropertyKey)[] | undefined;
+	}
+
+	export interface Options {
+		readonly libraryOptions?: Record<string, unknown> | undefined;
+	}
+
+	export interface PathSegment {
+		readonly key: PropertyKey;
+	}
+
+	export interface Props<Input = unknown, Output = Input> {
+		readonly types?: Types<Input, Output> | undefined;
+		readonly validate: (
+			value: unknown,
+			options?: StandardSchemaV1.Options,
+		) => Promise<Result<Output>> | Result<Output>;
+		readonly vendor: string;
+		readonly version: 1;
+	}
+
+	export type Result<Output> = FailureResult | SuccessResult<Output>;
+
+	export interface SuccessResult<Output> {
+		readonly issues?: undefined;
+		readonly value: Output;
+	}
+
+	export interface Types<Input = unknown, Output = Input> {
+		readonly input: Input;
+		readonly output: Output;
+	}
 }

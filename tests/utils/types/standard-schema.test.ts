@@ -73,8 +73,8 @@ describe("StandardSchemaV1", () => {
 			expectTypeOf<
 				ReturnType<StandardSchemaV1.Props<string>["validate"]>
 			>().toEqualTypeOf<
-				| StandardSchemaV1.Result<string>
 				| Promise<StandardSchemaV1.Result<string>>
+				| StandardSchemaV1.Result<string>
 			>();
 		});
 
@@ -100,8 +100,8 @@ describe("StandardSchemaV1", () => {
 			) => ({ value: value as string });
 
 			expectTypeOf(validate("v1")).toEqualTypeOf<
-				| StandardSchemaV1.Result<string>
 				| Promise<StandardSchemaV1.Result<string>>
+				| StandardSchemaV1.Result<string>
 			>();
 		});
 
@@ -152,8 +152,8 @@ describe("StandardSchemaV1", () => {
 	describe("`Result` union", () => {
 		it("should resolve to `SuccessResult | FailureResult`", () => {
 			expectTypeOf<StandardSchemaV1.Result<string>>().toEqualTypeOf<
-				| StandardSchemaV1.SuccessResult<string>
 				| StandardSchemaV1.FailureResult
+				| StandardSchemaV1.SuccessResult<string>
 			>();
 		});
 
@@ -172,7 +172,7 @@ describe("StandardSchemaV1", () => {
 		it("should type `FailureResult.issues` as a `ReadonlyArray<Issue>`", () => {
 			expectTypeOf<
 				StandardSchemaV1.FailureResult["issues"]
-			>().toEqualTypeOf<ReadonlyArray<StandardSchemaV1.Issue>>();
+			>().toEqualTypeOf<readonly StandardSchemaV1.Issue[]>();
 		});
 
 		it("should keep a mutable `Issue[]` distinct from `FailureResult.issues`", () => {
@@ -206,7 +206,7 @@ describe("StandardSchemaV1", () => {
 
 		it("should type `path` as an optional readonly key/segment array", () => {
 			expectTypeOf<StandardSchemaV1.Issue["path"]>().toEqualTypeOf<
-				| ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment>
+				| readonly (PropertyKey | StandardSchemaV1.PathSegment)[]
 				| undefined
 			>();
 		});
@@ -214,7 +214,7 @@ describe("StandardSchemaV1", () => {
 		it("should mark `path` as an optional property", () => {
 			expectTypeOf<Pick<StandardSchemaV1.Issue, "path">>().toEqualTypeOf<{
 				readonly path?:
-					| ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment>
+					| readonly (PropertyKey | StandardSchemaV1.PathSegment)[]
 					| undefined;
 			}>();
 

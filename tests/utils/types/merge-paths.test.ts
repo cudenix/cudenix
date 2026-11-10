@@ -196,7 +196,7 @@ describe("MergePaths", () => {
 		it("should join a non-literal prefix with a non-literal path", () => {
 			expectTypeOf<
 				MergePaths<`/${string}`, `/${string}`>
-			>().toEqualTypeOf<`/${string}` | `/${string}/${string}`>();
+			>().toEqualTypeOf<`/${string}/${string}` | `/${string}`>();
 		});
 
 		it("should collapse a root prefix to the non-literal path itself", () => {
@@ -233,14 +233,14 @@ describe("MergePaths", () => {
 			});
 
 			it("should distribute over a path union containing the root", () => {
-				expectTypeOf<MergePaths<"/a", "/b" | "/">>().toEqualTypeOf<
-					"/a/b" | "/a"
+				expectTypeOf<MergePaths<"/a", "/" | "/b">>().toEqualTypeOf<
+					"/a" | "/a/b"
 				>();
 			});
 
 			it("should distribute over a prefix union containing the root", () => {
 				expectTypeOf<MergePaths<"/" | "/a", "/b">>().toEqualTypeOf<
-					"/b" | "/a/b"
+					"/a/b" | "/b"
 				>();
 			});
 		});
@@ -291,6 +291,33 @@ describe("MergePaths", () => {
 					MergePaths<"/a/", "/b/">
 				>().not.toEqualTypeOf<string>();
 			});
+		});
+	});
+
+	describe("deep recursion", () => {
+		type Repeat<
+			Part extends string,
+			Count extends number,
+			Result extends string = "",
+			Counter extends 1[] = [],
+		> = Counter["length"] extends Count
+			? Result
+			: Repeat<Part, Count, `${Result}${Part}`, [...Counter, 1]>;
+
+		it("should strip runs of 200 slashes at the join and at the ends", () => {
+			type Run = Repeat<"/", 200>;
+
+			expectTypeOf<
+				MergePaths<`/a${Run}`, `${Run}b${Run}`>
+			>().toEqualTypeOf<"/a/b">();
+		});
+
+		it("should normalize runs of 200 backslashes", () => {
+			type Run = Repeat<"\\", 200>;
+
+			expectTypeOf<
+				MergePaths<`/a${Run}`, `/${Run}b`>
+			>().toEqualTypeOf<"/a/b">();
 		});
 	});
 });

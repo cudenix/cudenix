@@ -34,7 +34,7 @@ describe("AllPropertiesAreUnknown", () => {
 
 		it("should discriminate a deferred union that only collapses into unknown for some instantiations", () => {
 			interface A<T> {
-				a: T | string;
+				a: string | T;
 			}
 
 			expectTypeOf<
@@ -55,12 +55,12 @@ describe("AllPropertiesAreUnknown", () => {
 	describe("index signatures", () => {
 		it("should inspect declared properties under an unknown or any string index", () => {
 			interface A {
-				a: string;
 				[key: string]: unknown;
+				a: string;
 			}
 			interface B {
-				a?: number;
 				[key: string]: any;
+				a?: number;
 			}
 
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
@@ -69,9 +69,9 @@ describe("AllPropertiesAreUnknown", () => {
 
 		it("should inspect declared numeric, symbol and template keys under unknown indexes", () => {
 			const sym = Symbol("known");
-			type Numeric = Record<number, unknown> & { 0: string };
-			type Symbolic = Record<symbol, unknown> & { [sym]: number };
-			type Pattern = Record<`x-${string}`, unknown> & { "x-a": boolean };
+			type Numeric = { 0: string } & Record<number, unknown>;
+			type Symbolic = { [sym]: number } & Record<symbol, unknown>;
+			type Pattern = { "x-a": boolean } & Record<`x-${string}`, unknown>;
 
 			expectTypeOf<
 				AllPropertiesAreUnknown<Numeric>
@@ -87,7 +87,7 @@ describe("AllPropertiesAreUnknown", () => {
 		it("should reject a union with a concrete property hidden by an index", () => {
 			type A =
 				| Record<string, unknown>
-				| (Record<string, unknown> & { a: string });
+				| ({ a: string } & Record<string, unknown>);
 
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
@@ -299,15 +299,15 @@ describe("AllPropertiesAreUnknown", () => {
 		});
 
 		it("should resolve to false for a union of object types that share a key", () => {
-			type A = { a: string } | { a: number };
+			type A = { a: number } | { a: string };
 
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
 
 		it("should inspect non-common keys even when a shared key is unknown", () => {
 			type A =
-				| { shared: unknown; a: unknown }
-				| { shared: unknown; b: string };
+				| { a: unknown; shared: unknown }
+				| { b: string; shared: unknown };
 
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});

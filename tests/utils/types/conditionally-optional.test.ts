@@ -75,20 +75,20 @@ describe("ConditionallyOptional", () => {
 
 			expectTypeOf<
 				ConditionallyOptional<A, undefined>
-			>().branded.toEqualTypeOf<{ b: "v1"; a?: undefined }>();
+			>().branded.toEqualTypeOf<{ a?: undefined; b: "v1" }>();
 		});
 	});
 
 	describe("non-`undefined` markers", () => {
 		it("should mark `null`-bearing keys optional when the marker is `null`", () => {
 			interface A {
-				a: string | null;
+				a: null | string;
 				b: number;
 			}
 
 			expectTypeOf<
 				ConditionallyOptional<A, null>
-			>().branded.toEqualTypeOf<{ a?: string | null; b: number }>();
+			>().branded.toEqualTypeOf<{ a?: null | string; b: number }>();
 		});
 
 		it("should mark a literal-bearing key optional when the marker matches the literal", () => {
@@ -99,12 +99,12 @@ describe("ConditionallyOptional", () => {
 
 			expectTypeOf<
 				ConditionallyOptional<A, "v1">
-			>().branded.toEqualTypeOf<{ b?: "v1" | "v2"; a: boolean }>();
+			>().branded.toEqualTypeOf<{ a: boolean; b?: "v1" | "v2" }>();
 		});
 
 		it("should distribute a union marker across each key's assignability check", () => {
 			interface A {
-				a: string | null;
+				a: null | string;
 				b: boolean;
 				c: number | undefined;
 			}
@@ -112,8 +112,8 @@ describe("ConditionallyOptional", () => {
 			expectTypeOf<
 				ConditionallyOptional<A, null | undefined>
 			>().branded.toEqualTypeOf<{
-				b: boolean;
 				a?: string | null;
+				b: boolean;
 				c?: number | undefined;
 			}>();
 		});
@@ -127,7 +127,7 @@ describe("ConditionallyOptional", () => {
 
 			expectTypeOf<
 				ConditionallyOptional<A, unknown>
-			>().branded.toEqualTypeOf<{ b: string; a?: unknown; c?: any }>();
+			>().branded.toEqualTypeOf<{ a?: unknown; b: string; c?: any }>();
 		});
 	});
 
@@ -140,7 +140,7 @@ describe("ConditionallyOptional", () => {
 
 			expectTypeOf<
 				ConditionallyOptional<A, undefined>
-			>().branded.toEqualTypeOf<{ b: number; a?: string | undefined }>();
+			>().branded.toEqualTypeOf<{ a?: string | undefined; b: number }>();
 		});
 
 		it("should preserve the `readonly` modifier on a key promoted to optional", () => {
@@ -161,10 +161,10 @@ describe("ConditionallyOptional", () => {
 	describe("index signatures", () => {
 		it("should preserve declared types and modifiers under an unknown string index", () => {
 			interface A {
+				[key: string]: unknown;
 				readonly a: string;
 				b: number | undefined;
 				c?: boolean;
-				[key: string]: unknown;
 			}
 			type Result = ConditionallyOptional<A, undefined>;
 
@@ -182,15 +182,15 @@ describe("ConditionallyOptional", () => {
 		it("should preserve declared keys under numeric, symbol and template indexes", () => {
 			const sym = Symbol("required");
 			type Numeric = ConditionallyOptional<
-				Record<number, unknown> & { 0: string },
+				{ 0: string } & Record<number, unknown>,
 				undefined
 			>;
 			type Symbolic = ConditionallyOptional<
-				Record<symbol, unknown> & { [sym]: number },
+				{ [sym]: number } & Record<symbol, unknown>,
 				undefined
 			>;
 			type Pattern = ConditionallyOptional<
-				Record<`x-${string}`, unknown> & { "x-a": boolean },
+				{ "x-a": boolean } & Record<`x-${string}`, unknown>,
 				undefined
 			>;
 
@@ -296,7 +296,7 @@ describe("ConditionallyOptional", () => {
 
 			expectTypeOf<
 				ConditionallyOptional<A, undefined>
-			>().branded.toEqualTypeOf<{ b: number; a?: unknown }>();
+			>().branded.toEqualTypeOf<{ a?: unknown; b: number }>();
 		});
 
 		it("should leave a `never`-valued key untouched when the marker is not `never`", () => {
@@ -330,7 +330,7 @@ describe("ConditionallyOptional", () => {
 
 			expectTypeOf<
 				ConditionallyOptional<A, undefined>
-			>().branded.toEqualTypeOf<{ b: number; a?: any }>();
+			>().branded.toEqualTypeOf<{ a?: any; b: number }>();
 		});
 
 		it("should mark every key optional when the marker is `any`", () => {
@@ -355,7 +355,7 @@ describe("ConditionallyOptional", () => {
 				ConditionallyOptional<A, undefined>
 			>().branded.toEqualTypeOf<
 				| ({ a: string } & { b?: number | undefined })
-				| ({ c: boolean } & { a?: string | undefined })
+				| ({ a?: string | undefined } & { c: boolean })
 			>();
 		});
 
@@ -403,6 +403,19 @@ describe("ConditionallyOptional", () => {
 					undefined
 				>
 			>().branded.toEqualTypeOf<readonly (number | undefined)[]>();
+		});
+	});
+
+	describe("exact resolved shape", () => {
+		it("should resolve to the intersection of unchanged and relaxed properties under strict equality", () => {
+			expectTypeOf<
+				ConditionallyOptional<
+					{ a: string; readonly b: number | undefined },
+					undefined
+				>
+			>().toEqualTypeOf<
+				{ a: string } & { readonly b?: number | undefined }
+			>();
 		});
 	});
 });

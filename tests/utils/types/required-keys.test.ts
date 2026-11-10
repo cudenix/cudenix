@@ -66,7 +66,7 @@ describe("RequiredKeys", () => {
 
 		it("should keep a key whose value is `null` (null is not undefined)", () => {
 			interface A {
-				a: string | null;
+				a: null | string;
 				b: number;
 			}
 
@@ -75,7 +75,7 @@ describe("RequiredKeys", () => {
 
 		it("should exclude a key whose value union mixes `null` and `undefined`", () => {
 			interface A {
-				a: string | null | undefined;
+				a: null | string | undefined;
 				b: number;
 			}
 
@@ -219,10 +219,10 @@ describe("RequiredKeys", () => {
 	describe("index signatures", () => {
 		it("should retain required declarations under an unknown string index", () => {
 			interface A {
+				[key: string]: unknown;
 				a: string;
 				b?: number;
 				c: boolean | undefined;
-				[key: string]: unknown;
 			}
 
 			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<"a">();
@@ -230,9 +230,9 @@ describe("RequiredKeys", () => {
 
 		it("should retain required numeric, symbol and template declarations", () => {
 			const sym = Symbol("required");
-			type Numeric = Record<number, unknown> & { 0: string; 1?: number };
-			type Symbolic = Record<symbol, unknown> & { [sym]: number };
-			type Pattern = Record<`x-${string}`, unknown> & { "x-a": boolean };
+			type Numeric = { 0: string; 1?: number } & Record<number, unknown>;
+			type Symbolic = { [sym]: number } & Record<symbol, unknown>;
+			type Pattern = { "x-a": boolean } & Record<`x-${string}`, unknown>;
 
 			expectTypeOf<RequiredKeys<Numeric>>().toEqualTypeOf<0>();
 			expectTypeOf<RequiredKeys<Symbolic>>().toEqualTypeOf<typeof sym>();
@@ -240,32 +240,26 @@ describe("RequiredKeys", () => {
 		});
 
 		it("should retain only common required declarations in indexed unions", () => {
-			type A = Record<string, unknown> & { a: string; b: number };
-			type B = Record<string, unknown> & { a: string; c: boolean };
+			type A = { a: string; b: number } & Record<string, unknown>;
+			type B = { a: string; c: boolean } & Record<string, unknown>;
 
 			expectTypeOf<RequiredKeys<A | B>>().toEqualTypeOf<"a">();
 		});
 
 		it("should reduce a string index signature to its key type", () => {
-			interface A {
-				[key: string]: string;
-			}
+			type A = Record<string, string>;
 
 			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<string>();
 		});
 
 		it("should reduce a number index signature to its key type", () => {
-			interface A {
-				[key: number]: string;
-			}
+			type A = Record<number, string>;
 
 			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<number>();
 		});
 
 		it("should reduce a symbol index signature to its key type", () => {
-			interface A {
-				[key: symbol]: string;
-			}
+			type A = Record<symbol, string>;
 
 			expectTypeOf<RequiredKeys<A>>().toEqualTypeOf<symbol>();
 		});

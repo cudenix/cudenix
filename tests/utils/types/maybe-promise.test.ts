@@ -84,35 +84,35 @@ describe("MaybePromise", () => {
 
 	describe("wrapping a union of value types", () => {
 		it("should accept the string member of the wrapped union (sync)", () => {
-			expectTypeOf<string>().toExtend<MaybePromise<string | number>>();
+			expectTypeOf<string>().toExtend<MaybePromise<number | string>>();
 		});
 
 		it("should accept the number member of the wrapped union (sync)", () => {
-			expectTypeOf<number>().toExtend<MaybePromise<string | number>>();
+			expectTypeOf<number>().toExtend<MaybePromise<number | string>>();
 		});
 
 		it("should accept a `Promise<Member>` via promise covariance", () => {
 			expectTypeOf<Promise<number>>().toExtend<
-				MaybePromise<string | number>
+				MaybePromise<number | string>
 			>();
 		});
 
 		it("should resolve to `(A | B) | Promise<A | B>`", () => {
-			expectTypeOf<MaybePromise<string | number>>().toEqualTypeOf<
-				(string | number) | Promise<string | number>
+			expectTypeOf<MaybePromise<number | string>>().toEqualTypeOf<
+				Promise<string | number> | (string | number)
 			>();
 		});
 
 		it("should wrap the union as a whole, not distribute over its members", () => {
-			expectTypeOf<MaybePromise<string | number>>().not.toEqualTypeOf<
-				MaybePromise<string> | MaybePromise<number>
+			expectTypeOf<MaybePromise<number | string>>().not.toEqualTypeOf<
+				MaybePromise<number> | MaybePromise<string>
 			>();
 		});
 	});
 
 	describe("nullable wrapped types", () => {
 		it("should accept a `null` value when wrapping a nullable type", () => {
-			expectTypeOf<null>().toExtend<MaybePromise<string | null>>();
+			expectTypeOf<null>().toExtend<MaybePromise<null | string>>();
 		});
 
 		it("should accept an `undefined` value when wrapping `T | undefined`", () => {
@@ -139,7 +139,7 @@ describe("MaybePromise", () => {
 		it("should resolve to `void | Promise<void>`", () => {
 			expectTypeOf<
 				MaybePromise<void>
-			>().toEqualTypeOf<void | Promise<void>>();
+			>().toEqualTypeOf<Promise<void> | void>();
 		});
 	});
 

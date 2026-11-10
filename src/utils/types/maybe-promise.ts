@@ -7,4 +7,4 @@
  * type B = Awaited<MaybePromise<number>>; // number
  * ```
  */
-export type MaybePromise<T> = T | Promise<T>;
+export type MaybePromise<T> = Promise<T> | T;

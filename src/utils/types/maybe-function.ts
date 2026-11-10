@@ -10,4 +10,4 @@ import type { MaybePromise } from "@/utils/types/maybe-promise";
  * const c: MaybeFunction<number> = async () => 1;
  * ```
  */
-export type MaybeFunction<T> = T | (() => MaybePromise<T>);
+export type MaybeFunction<T> = (() => MaybePromise<T>) | T;

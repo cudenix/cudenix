@@ -112,7 +112,7 @@ describe("MaybeFunction", () => {
 	describe("structural relations", () => {
 		it("should resolve to `T | (() => T | Promise<T>)` exactly", () => {
 			expectTypeOf<MaybeFunction<number>>().toEqualTypeOf<
-				number | (() => number | Promise<number>)
+				(() => number | Promise<number>) | number
 			>();
 		});
 

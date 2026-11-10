@@ -1,6 +1,17 @@
 import type { AnyFail, AnyOk } from "@/core/reply";
 
 /**
+ * Any {@link GeneratorSSE} regardless of its data or event generics.
+ *
+ * @example
+ * ```typescript
+ * type A = AnyGeneratorSSE;
+ * // { data: AnyFail | AnyOk; event?: string; id?: string; retry?: number }
+ * ```
+ */
+export type AnyGeneratorSSE = GeneratorSSE<AnyFail | AnyOk, string>;
+
+/**
  * Describes an SSE event yielded by a generator handler.
  *
  * @example
@@ -18,14 +29,3 @@ export interface GeneratorSSE<
 	id?: string;
 	retry?: number;
 }
-
-/**
- * Any {@link GeneratorSSE} regardless of its data or event generics.
- *
- * @example
- * ```typescript
- * type A = AnyGeneratorSSE;
- * // { data: AnyFail | AnyOk; event?: string; id?: string; retry?: number }
- * ```
- */
-export type AnyGeneratorSSE = GeneratorSSE<AnyFail | AnyOk, string>;
