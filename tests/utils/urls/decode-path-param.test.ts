@@ -118,7 +118,57 @@ const malformedPercentNonAsciiCases = [
 	["%2Ā", "�Ā"],
 ] as const;
 
+// sequences cut short, and the last overlong of each length
+const truncatedSequenceCases = [
+	["%F0%9F%98", "�"],
+	["%C3%C3%A9", "�é"],
+	["%C3a%A9", "�a�"],
+	// a literal shaped like a continuation
+	["%C3xA9", "�xA9"],
+	["%F0%8F%BF%BF", "�"],
+	["%E0%9F%BF", "�"],
+] as const;
+
+// literal runs around the two character copy threshold
+const literalRunCases = [
+	["xy%41zw%42uv", "xyAzwBuv"],
+	["%41xy", "Axy"],
+	["%41xyz", "Axyz"],
+	["%EF%BB%BFa", "\uFEFFa"],
+	["%DF%BF", "\u07FF"],
+	// a lone surrogate passes through
+	["\uD800%20", "\uD800 "],
+] as const;
+
+// a broken escape swallows what its width covers
+const swallowedEscapeCases = [
+	["%4%41", "�41"],
+	["%+1", "�"],
+	["% 1", "�"],
+] as const;
+
 describe("decodePathParam", () => {
+	it.each(truncatedSequenceCases)(
+		"should replace the truncated sequence %j with %j",
+		(encoded, expected) => {
+			expect(decodePathParam(encoded)).toBe(expected);
+		},
+	);
+
+	it.each(literalRunCases)(
+		"should decode %j around its literal runs as %j",
+		(encoded, expected) => {
+			expect(decodePathParam(encoded)).toBe(expected);
+		},
+	);
+
+	it.each(swallowedEscapeCases)(
+		"should replace the broken escape in %j giving %j",
+		(encoded, expected) => {
+			expect(decodePathParam(encoded)).toBe(expected);
+		},
+	);
+
 	it("should return an unescaped value unchanged", () => {
 		expect(decodePathParam("a+b")).toBe("a+b");
 	});
@@ -322,11 +372,128 @@ describe("decodePathParam", () => {
 			expect(countNativeCalls(`${"%C3%A9".repeat(4)}${literal}`)).toEqual(
 				{ calls: 0, decoded: `éééé${literal}` },
 			);
+			// 47 characters after the first escape
+			expect(
+				countNativeCalls(
+					"caf%C3%A9%20au%20lait%2C%20s%27il%20vous%20plaisir",
+				),
+			).toEqual({ calls: 0, decoded: "café au lait, s'il vous plaisir" });
+		});
+
+		it("should decode a two character run of three byte sequences natively", () => {
+			expect(countNativeCalls("%E6%97%A5%E6%9C%AC")).toEqual({
+				calls: 1,
+				decoded: "日本",
+			});
+			// two byte leads wait for 24 characters
+			expect(countNativeCalls("%C3%B1%C3%A1%C3%A9")).toEqual({
+				calls: 0,
+				decoded: "ñáé",
+			});
+			// 15 characters
+			expect(countNativeCalls("%E6%97%A5%C3%A9")).toEqual({
+				calls: 0,
+				decoded: "日é",
+			});
+		});
+
+		it("should decode a long value that opens dense natively", () => {
 			expect(
 				countNativeCalls(
 					"caf%C3%A9%20au%20lait%2C%20s%27il%20vous%20pla%C3%AEt",
 				),
-			).toEqual({ calls: 0, decoded: "café au lait, s'il vous plaît" });
+			).toEqual({ calls: 1, decoded: "café au lait, s'il vous plaît" });
+			expect(
+				countNativeCalls(
+					"%7B%22id%22%3A123%2C%22theme%22%3A%22dark%22%2C%22lang%22%3A%22es%22%7D",
+				),
+			).toEqual({
+				calls: 1,
+				decoded: '{"id":123,"theme":"dark","lang":"es"}',
+			});
+			// four escapes inside the first 32 characters
+			expect(
+				countNativeCalls(
+					`a%20b%20c%20d%20${"x".repeat(24)}%20y%20z%20`,
+				),
+			).toEqual({ calls: 1, decoded: `a b c d ${"x".repeat(24)} y z ` });
+		});
+
+		it("should switch a dense opening exactly at 48 characters", () => {
+			// 12 escapes, 47 and 48 characters after the first one
+			expect(countNativeCalls("a%20".repeat(12))).toEqual({
+				calls: 0,
+				decoded: "a ".repeat(12),
+			});
+			expect(countNativeCalls(`${"a%20".repeat(11)}ab%20`)).toEqual({
+				calls: 1,
+				decoded: `${"a ".repeat(11)}ab `,
+			});
+		});
+
+		it("should keep a long value that opens sparse on the tolerant decoder", () => {
+			const literal = "segment-".repeat(10);
+
+			expect(countNativeCalls(`v%2F${literal}`)).toEqual({
+				calls: 0,
+				decoded: `v/${literal}`,
+			});
+			// three escapes inside the first 32 characters
+			expect(
+				countNativeCalls(`a%20b%20c%20${"x".repeat(30)}%20y%20z%20`),
+			).toEqual({ calls: 0, decoded: `a b c ${"x".repeat(30)} y z ` });
+		});
+
+		it("should keep a dense opening with a long literal end on the tolerant decoder", () => {
+			// the last escape sits 13 characters from the end
+			expect(
+				countNativeCalls(`${"a%20".repeat(12)}${"x".repeat(10)}`),
+			).toEqual({
+				calls: 0,
+				decoded: `${"a ".repeat(12)}${"x".repeat(10)}`,
+			});
+			// and 12 characters from the end
+			expect(
+				countNativeCalls(`${"a%20".repeat(12)}${"x".repeat(9)}`),
+			).toEqual({
+				calls: 1,
+				decoded: `${"a ".repeat(12)}${"x".repeat(9)}`,
+			});
+		});
+
+		it("should keep a dense value behind a long prefix on the tolerant decoder", () => {
+			// the first escape sits at index 16, then 15
+			expect(
+				countNativeCalls(`${"p".repeat(16)}${"%20a".repeat(12)}`),
+			).toEqual({
+				calls: 0,
+				decoded: `${"p".repeat(16)}${" a".repeat(12)}`,
+			});
+			expect(
+				countNativeCalls(`${"p".repeat(15)}${"%20a".repeat(12)}`),
+			).toEqual({
+				calls: 1,
+				decoded: `${"p".repeat(15)}${" a".repeat(12)}`,
+			});
+		});
+
+		it("should keep a long dense value ending in a cut escape on the tolerant decoder", () => {
+			expect(countNativeCalls(`${"a%20".repeat(12)}%2`)).toEqual({
+				calls: 0,
+				decoded: `${"a ".repeat(12)}�2`,
+			});
+		});
+
+		it("should fall back once when a long dense value is malformed", () => {
+			for (const [value, expected] of [
+				[`${"a%20".repeat(12)}%ZZ`, `${"a ".repeat(12)}�`],
+				[`caf%E9${"%20a".repeat(12)}`, `caf�${" a".repeat(12)}`],
+			] as const) {
+				expect(countNativeCalls(value)).toEqual({
+					calls: 1,
+					decoded: expected,
+				});
+			}
 		});
 
 		it("should not switch on a non-hexadecimal escape", () => {
@@ -348,7 +515,7 @@ describe("decodePathParam", () => {
 				[`${cjk}%E2%82`, "日本語�"],
 				[`${cjk}%FF%FE`, "日本語��"],
 				[`${cjk}%E2%82%41`, "日本語�A"],
-				[`${"%F4%90%80%80".repeat(2)}`, "��"],
+				["%F4%90%80%80".repeat(2), "��"],
 			] as const) {
 				expect(countNativeCalls(value)).toEqual({
 					calls: 1,

@@ -2,83 +2,48 @@ import { HEX_VALUES } from "@/utils/urls/hex-values";
 
 // tail length past which a dense non-ASCII run goes native
 const NATIVE_DECODE_MIN_LENGTH = 24;
-
-// pending percent-decoded bytes
-let pendingBytes = new Uint8Array(64);
+// same, for a run led by a three or four byte sequence
+const NATIVE_DECODE_MIN_WIDE_LENGTH = 18;
+// tail length past which a value that opens dense goes native
+const NATIVE_DECODE_MIN_MIXED_LENGTH = 48;
+// escapes a mixed value needs inside its opening window
+const NATIVE_DECODE_MIXED_ESCAPES = 4;
+// opening window length of a mixed value
+const NATIVE_DECODE_MIXED_WINDOW = 32;
+// longest literal prefix or suffix of a mixed value
+const NATIVE_DECODE_MIXED_PREFIX = 16;
+const NATIVE_DECODE_MIXED_SUFFIX = 12;
 
 /**
- * Decodes the pending bytes as UTF-8 sequences.
+ * Checks that a long value opens dense and ends near an escape.
  */
-const decodeUtf8Bytes = (count: number): string => {
-	const bytes = pendingBytes;
+const hasDenseOpening = (
+	value: string,
+	firstPercentIndex: number,
+	secondPercentIndex: number,
+): boolean => {
+	const windowEnd = firstPercentIndex + NATIVE_DECODE_MIXED_WINDOW;
 
-	let decoded = "";
-	let i = 0;
+	let escapeCount = 1;
+	let probeIndex = secondPercentIndex;
 
-	while (i < count) {
-		const firstByte = bytes[i]!;
+	while (probeIndex !== -1 && probeIndex < windowEnd) {
+		escapeCount++;
 
-		let codePoint: number;
-		let minimumCodePoint: number;
-		let sequenceLength: number;
+		if (escapeCount === NATIVE_DECODE_MIXED_ESCAPES) {
+			const { length } = value;
+			const lastPercentIndex = value.lastIndexOf("%");
 
-		// the lead byte gives the sequence length
-		if (firstByte >= 192 && firstByte <= 223) {
-			codePoint = firstByte - 192;
-			minimumCodePoint = 128;
-			sequenceLength = 2;
-		} else if (firstByte >= 224 && firstByte <= 239) {
-			codePoint = firstByte - 224;
-			minimumCodePoint = 2048;
-			sequenceLength = 3;
-		} else if (firstByte >= 240 && firstByte <= 247) {
-			codePoint = firstByte - 240;
-			minimumCodePoint = 65_536;
-			sequenceLength = 4;
-		} else {
-			decoded += "�";
-			i++;
-
-			continue;
+			return (
+				lastPercentIndex >= length - NATIVE_DECODE_MIXED_SUFFIX &&
+				lastPercentIndex + 2 < length
+			);
 		}
 
-		let sequenceEnd = i + 1;
-
-		while (sequenceEnd < i + sequenceLength && sequenceEnd < count) {
-			const continuationByte = bytes[sequenceEnd]!;
-
-			// continuation bytes are 128-191
-			if (continuationByte < 128 || continuationByte > 191) {
-				break;
-			}
-
-			codePoint = codePoint * 64 + continuationByte - 128;
-			sequenceEnd++;
-		}
-
-		// sequence cut short
-		if (sequenceEnd !== i + sequenceLength) {
-			decoded += "�";
-			i = sequenceEnd;
-
-			continue;
-		}
-
-		// reject overlongs, surrogates and out-of-range
-		if (
-			codePoint < minimumCodePoint ||
-			codePoint > 1_114_111 ||
-			(codePoint >= 55_296 && codePoint <= 57_343)
-		) {
-			decoded += "�";
-		} else {
-			decoded += String.fromCodePoint(codePoint);
-		}
-
-		i = sequenceEnd;
+		probeIndex = value.indexOf("%", probeIndex + 3);
 	}
 
-	return decoded;
+	return false;
 };
 
 /**
@@ -97,40 +62,56 @@ export const decodePathParam = (value: string): string => {
 		return value;
 	}
 
-	const length = value.length;
+	const { length } = value;
+	const tailLength = length - firstPercentIndex;
 
-	// a dense non-ASCII run goes to the native decoder
-	if (length - firstPercentIndex >= NATIVE_DECODE_MIN_LENGTH) {
+	let isNative = false;
+	let probedFrom = -1;
+	let probedIndex = -1;
+
+	if (tailLength >= NATIVE_DECODE_MIN_WIDE_LENGTH) {
 		const leadCharCode = value.charCodeAt(firstPercentIndex + 1);
 
-		if (
+		// a dense non-ASCII run
+		isNative =
 			leadCharCode < 256 &&
-			HEX_VALUES[leadCharCode]! >= 8 &&
+			HEX_VALUES[leadCharCode]! >=
+				(tailLength >= NATIVE_DECODE_MIN_LENGTH ? 8 : 14) &&
 			value.charCodeAt(firstPercentIndex + 3) === 37 &&
 			value.charCodeAt(firstPercentIndex + 6) === 37 &&
-			value.charCodeAt(length - 3) === 37
+			value.charCodeAt(length - 3) === 37;
+
+		// a long value that opens dense and ends near an escape
+		if (
+			!isNative &&
+			tailLength >= NATIVE_DECODE_MIN_MIXED_LENGTH &&
+			firstPercentIndex < NATIVE_DECODE_MIXED_PREFIX
 		) {
-			try {
-				return decodeURIComponent(value);
-			} catch {
-				// malformed escapes take the tolerant decoder below
-			}
+			// the first probe is kept for the loop below
+			probedFrom = firstPercentIndex + 3;
+			probedIndex = value.indexOf("%", probedFrom);
+			isNative =
+				probedIndex !== -1 &&
+				hasDenseOpening(value, firstPercentIndex, probedIndex);
+		}
+	}
+
+	if (isNative) {
+		try {
+			return decodeURIComponent(value);
+		} catch {
+			// malformed escapes take the tolerant decoder below
 		}
 	}
 
 	let decoded = value.slice(0, firstPercentIndex);
 	let i = firstPercentIndex;
-	let pending = 0;
 
 	while (i < length) {
 		// literal character, not "%" (37)
 		if (value.charCodeAt(i) !== 37) {
-			if (pending > 0) {
-				decoded += decodeUtf8Bytes(pending);
-				pending = 0;
-			}
-
-			const nextPercentIndex = value.indexOf("%", i);
+			const nextPercentIndex =
+				i === probedFrom ? probedIndex : value.indexOf("%", i);
 			const runEnd = nextPercentIndex === -1 ? length : nextPercentIndex;
 
 			// a run of more than two characters copies at once
@@ -154,11 +135,6 @@ export const decodePathParam = (value: string): string => {
 
 		// truncated "%xx"
 		if (i + 2 >= length) {
-			if (pending > 0) {
-				decoded += decodeUtf8Bytes(pending);
-				pending = 0;
-			}
-
 			decoded += "�";
 			i++;
 
@@ -172,11 +148,6 @@ export const decodePathParam = (value: string): string => {
 		const lowNibble = lowCharCode < 256 ? HEX_VALUES[lowCharCode]! : -1;
 
 		if (highNibble === -1 || lowNibble === -1) {
-			if (pending > 0) {
-				decoded += decodeUtf8Bytes(pending);
-				pending = 0;
-			}
-
 			decoded += "�";
 
 			// a non-ASCII character closes no escape
@@ -185,35 +156,77 @@ export const decodePathParam = (value: string): string => {
 			continue;
 		}
 
-		const byte = highNibble * 16 + lowNibble;
+		i += 3;
 
-		// ASCII decodes directly, higher bytes go pending
-		if (byte <= 127) {
-			if (pending > 0) {
-				decoded += decodeUtf8Bytes(pending);
-				pending = 0;
-			}
+		// ASCII decodes directly
+		if (highNibble < 8) {
+			decoded += String.fromCharCode(highNibble * 16 + lowNibble);
 
-			decoded += String.fromCharCode(byte);
-		} else {
-			// grow the buffer to fit the run
-			if (pending === pendingBytes.length) {
-				const grown = new Uint8Array(pending * 2);
-
-				grown.set(pendingBytes);
-
-				pendingBytes = grown;
-			}
-
-			pendingBytes[pending] = byte;
-			pending++;
+			continue;
 		}
 
-		i += 3;
-	}
+		let codePoint: number;
+		let minimumCodePoint: number;
+		let missing: number;
 
-	if (pending > 0) {
-		decoded += decodeUtf8Bytes(pending);
+		// the lead byte gives the continuation count
+		if (highNibble === 12 || highNibble === 13) {
+			codePoint = (highNibble - 12) * 16 + lowNibble;
+			minimumCodePoint = 128;
+			missing = 1;
+		} else if (highNibble === 14) {
+			codePoint = lowNibble;
+			minimumCodePoint = 2048;
+			missing = 2;
+		} else if (highNibble === 15 && lowNibble < 8) {
+			codePoint = lowNibble;
+			minimumCodePoint = 65_536;
+			missing = 3;
+		} else {
+			decoded += "�";
+
+			continue;
+		}
+
+		// read the continuation escapes that follow
+		while (missing > 0 && i + 2 < length && value.charCodeAt(i) === 37) {
+			const continuationHighCharCode = value.charCodeAt(i + 1);
+			const continuationHighNibble =
+				continuationHighCharCode < 256
+					? HEX_VALUES[continuationHighCharCode]!
+					: -1;
+
+			// continuation bytes are 128-191
+			if (continuationHighNibble < 8 || continuationHighNibble > 11) {
+				break;
+			}
+
+			const continuationLowCharCode = value.charCodeAt(i + 2);
+			const continuationLowNibble =
+				continuationLowCharCode < 256
+					? HEX_VALUES[continuationLowCharCode]!
+					: -1;
+
+			if (continuationLowNibble === -1) {
+				break;
+			}
+
+			codePoint =
+				codePoint * 64 +
+				(continuationHighNibble - 8) * 16 +
+				continuationLowNibble;
+			missing--;
+			i += 3;
+		}
+
+		// reject cut sequences, overlongs, surrogates and out-of-range
+		decoded +=
+			missing !== 0 ||
+			codePoint < minimumCodePoint ||
+			codePoint > 1_114_111 ||
+			(codePoint >= 55_296 && codePoint <= 57_343)
+				? "�"
+				: String.fromCodePoint(codePoint);
 	}
 
 	return decoded;
