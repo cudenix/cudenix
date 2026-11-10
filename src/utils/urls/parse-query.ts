@@ -69,20 +69,26 @@ const replacePlus = (component: string): string => {
  * ```
  */
 export const parseQuery = (url: string): Record<string, unknown> => {
-	const params = Object.create(null) as Record<string, unknown>;
-
+	const params = Object.create(null) as Record<string, string>;
 	const queryIndex = url.indexOf("?");
 
 	if (queryIndex === -1) {
 		return params;
 	}
 
-	// a "?" behind a "#" (35) starts no query
-	if (url.lastIndexOf("#", queryIndex) !== -1) {
-		return params;
-	}
+	const hashIndex = url.indexOf("#");
 
-	const urlLength = url.length;
+	// the query ends at the "#" fragment
+	let urlLength = url.length;
+
+	if (hashIndex !== -1) {
+		// a "?" behind a "#" starts no query
+		if (hashIndex < queryIndex) {
+			return params;
+		}
+
+		urlLength = hashIndex;
+	}
 
 	// tracks keys repeated in the query
 	let multiValueKeys: string[] | undefined;
@@ -100,8 +106,8 @@ export const parseQuery = (url: string): Record<string, unknown> => {
 		while (i < urlLength) {
 			const charCode = url.charCodeAt(i);
 
-			// stop at "=" (61), "&" (38) or "#" (35)
-			if (charCode === 61 || charCode === 38 || charCode === 35) {
+			// stop at "=" (61) or "&" (38)
+			if (charCode === 61 || charCode === 38) {
 				break;
 			}
 
@@ -134,8 +140,8 @@ export const parseQuery = (url: string): Record<string, unknown> => {
 			while (i < urlLength) {
 				const charCode = url.charCodeAt(i);
 
-				// stop at "&" (38) or "#" (35)
-				if (charCode === 38 || charCode === 35) {
+				// stop at "&" (38)
+				if (charCode === 38) {
 					break;
 				}
 
@@ -218,8 +224,8 @@ export const parseQuery = (url: string): Record<string, unknown> => {
 			}
 		}
 
-		// end of query or "#" (35) fragment
-		if (i >= urlLength || url.charCodeAt(i) === 35) {
+		// end of query
+		if (i >= urlLength) {
 			break;
 		}
 

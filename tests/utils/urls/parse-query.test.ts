@@ -752,6 +752,86 @@ describe("parseQuery", () => {
 			expect(result.b).toBe("v3");
 		});
 	});
+
+	describe("additional edge cases", () => {
+		it("should keep JSON primitives as strings", () => {
+			expect(parseQuery("/a?b=1").b).toBe("1");
+			expect(parseQuery("/a?b=-1.5").b).toBe("-1.5");
+			expect(parseQuery("/a?b=true").b).toBe("true");
+			expect(parseQuery("/a?b=null").b).toBe("null");
+			expect(parseQuery('/a?b="x"').b).toBe('"x"');
+		});
+
+		it("should not parse JSON padded by a decoded space", () => {
+			expect(parseQuery("/a?b=[1]+").b).toBe("[1] ");
+			expect(parseQuery("/a?b=+[1]").b).toBe(" [1]");
+			expect(parseQuery("/a?b=[1]%20").b).toBe("[1] ");
+			expect(parseQuery("/a?b=%20[1]").b).toBe(" [1]");
+		});
+
+		it("should decode lowercase hex escapes", () => {
+			expect(parseQuery("/a?b=%2f%2F").b).toBe("//");
+			expect(parseQuery("/a?b=%7b%7d").b).toEqual({});
+		});
+
+		it("should parse a JSON value that ends at the fragment", () => {
+			expect(parseQuery("/a?b=[1,2]#x]")).toEqual({ b: [1, 2] });
+		});
+
+		it("should append interleaved repeats to their own key", () => {
+			const result = parseQuery("/a?b=1&b=2&b=3&c=4&c=5&c=6&b=7");
+
+			expect(result.b).toEqual(["1", "2", "3", "7"]);
+			expect(result.c).toEqual(["4", "5", "6"]);
+		});
+
+		it("should collapse a repeated `__proto__` key into an own array", () => {
+			const result = parseQuery("/a?__proto__=a&__proto__=b");
+
+			expect(Object.hasOwn(result, "__proto__")).toBe(true);
+			expect(result.__proto__).toEqual(["a", "b"]);
+			expect(Object.getPrototypeOf(result)).toBeNull();
+		});
+
+		it("should map a value cut by an immediate fragment to an empty string", () => {
+			expect(parseQuery("/a?b=#")).toEqual({ b: "" });
+		});
+
+		it("should read a query with no path before it", () => {
+			expect(parseQuery("?b=v1")).toEqual({ b: "v1" });
+			expect(Object.keys(parseQuery("?"))).toHaveLength(0);
+			expect(Object.keys(parseQuery("#?b=1"))).toHaveLength(0);
+		});
+
+		it("should keep a one-digit escape verbatim", () => {
+			expect(parseQuery("/a?b=%2&c=%")).toEqual({ b: "%2", c: "%" });
+		});
+
+		it("should keep an escaped BOM, with or without the fallback decoder", () => {
+			expect(parseQuery("/a?b=%EF%BB%BFx").b).toBe("\uFEFFx");
+
+			// "%FF" sends the value to the fallback decoder
+			expect(parseQuery("/a?b=%EF%BB%BFx%FF").b).toBe("\uFEFFx\uFFFD");
+		});
+
+		it("should keep raw non-ASCII characters through the fallback decoder", () => {
+			expect(parseQuery("/a?b=é%20").b).toBe("é ");
+
+			// "%FF" sends the value to the fallback decoder
+			expect(parseQuery("/a?b=é%FF").b).toBe("é\uFFFD");
+			expect(parseQuery("/a?b=😀%FF").b).toBe("😀\uFFFD");
+		});
+
+		it("should keep a lone surrogate unless the fallback decoder runs", () => {
+			expect(parseQuery("/a?b=\uD800").b).toBe("\uD800");
+			expect(parseQuery("/a?b=\uD800%20").b).toBe("\uD800 ");
+			expect(parseQuery("/a?\uD800%20=v1")).toEqual({ "\uD800 ": "v1" });
+
+			// the fallback decoder replaces it
+			expect(parseQuery("/a?b=\uD800%FF").b).toBe("\uFFFD\uFFFD");
+		});
+	});
+
 	describe("parity with URLSearchParams", () => {
 		// what URLSearchParams yields, collapsed the way parseQuery collapses
 		const searchParams = (query: string): Record<string, unknown> => {
