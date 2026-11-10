@@ -31,7 +31,7 @@ describe("HEX_VALUES", () => {
 	});
 
 	it("should map every other byte to -1", () => {
-		const hex = new Set([..."0123456789abcdefABCDEF"]);
+		const hex = new Set("0123456789abcdefABCDEF");
 
 		for (let byte = 0; byte < 256; byte++) {
 			if (!hex.has(String.fromCharCode(byte))) {
