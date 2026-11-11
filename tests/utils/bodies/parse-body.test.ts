@@ -956,4 +956,256 @@ describe("parseBody", () => {
 			server.stop(true);
 		});
 	});
+
+	describe("media type terminators", () => {
+		it("should skip a run of mixed spaces and tabs before the separator", async () => {
+			expect(
+				await parseBody(
+					request(
+						JSON.stringify({ a: "v1" }),
+						"application/json \t \t;charset=utf-8",
+					),
+				),
+			).toEqual({ a: "v1" });
+
+			expect(
+				await parseBody(
+					request("a=v1", "application/x-www-form-urlencoded\t ,a/b"),
+				),
+			).toEqual({ a: "v1" });
+		});
+
+		it("should fall back to text when whitespace is followed by another token", async () => {
+			expect(
+				await parseBody(request("v1", "application/json charset=utf-8")),
+			).toBe("v1");
+		});
+
+		it("should fall back to text for whitespace other than space and tab before the separator", async () => {
+			expect(await parseBody(request("v1", "application/json\u000B;"))).toBe(
+				"v1",
+			);
+			expect(await parseBody(request("v1", "application/json\u000C;"))).toBe(
+				"v1",
+			);
+			expect(await parseBody(request("v1", "application/json ;"))).toBe(
+				"v1",
+			);
+		});
+
+		it("should fall back to text for a latin-1 character after the type", async () => {
+			expect(await parseBody(request("v1", "application/jsoné"))).toBe(
+				"v1",
+			);
+			expect(
+				await parseBody(request("v1", "multipart/form-dataÿ")),
+			).toBe("v1");
+		});
+
+		it("should fall back to text for structured suffix and look-alike json types", async () => {
+			const contentTypes = [
+				"application/ld+json",
+				"application/json+a",
+				"application/json-seq",
+				"application/json/a",
+				"text/json",
+				"application /json",
+				"application/ json",
+				"xapplication/json",
+			];
+
+			for (let i = 0; i < contentTypes.length; i++) {
+				expect(await parseBody(request("v1", contentTypes[i]!))).toBe(
+					"v1",
+				);
+			}
+		});
+
+		it("should fall back to text when a known type is not the first list entry", async () => {
+			const contentTypes = [
+				"a/b, application/octet-stream",
+				"a/b, application/x-www-form-urlencoded",
+				"a/b, multipart/form-data; boundary=v2",
+				";application/json",
+			];
+
+			for (let i = 0; i < contentTypes.length; i++) {
+				expect(await parseBody(request("v1", contentTypes[i]!))).toBe(
+					"v1",
+				);
+			}
+		});
+
+		it("should match a multipart type with whitespace before its boundary parameter", async () => {
+			const boundary = "v2";
+			const body = [
+				`--${boundary}`,
+				'Content-Disposition: form-data; name="a"',
+				"",
+				"v1",
+				`--${boundary}--`,
+				"",
+			].join("\r\n");
+
+			expect(
+				await parseBody(
+					request(body, `multipart/form-data ; boundary=${boundary}`),
+				),
+			).toEqual({ a: "v1" });
+
+			expect(
+				await parseBody(
+					request(body, `MULTIPART/FORM-DATA;boundary=${boundary}`),
+				),
+			).toEqual({ a: "v1" });
+
+			expect(
+				await parseBody(
+					request(
+						body,
+						`multipart/form-data \t \t; boundary=${boundary}`,
+					),
+				),
+			).toEqual({ a: "v1" });
+		});
+
+		it("should match an octet-stream type before a run of spaces and tabs", async () => {
+			expect(
+				await parseBody(
+					request("v1", "application/octet-stream \t \t;a=b"),
+				),
+			).toBeInstanceOf(ArrayBuffer);
+		});
+
+		it("should enter the multipart branch for a comma separator", async () => {
+			await expect(
+				parseBody(request("v1", "multipart/form-data, a/b")),
+			).rejects.toThrow(TypeError);
+		});
+
+		it("should fall back to text for a binary or form type followed by a non-separator", async () => {
+			const types = [
+				"application/octet-stream",
+				"application/x-www-form-urlencoded",
+				"multipart/form-data",
+			];
+			const tails = [" a", "\u000B;", "+a", "s"];
+
+			for (let i = 0; i < types.length; i++) {
+				for (let j = 0; j < tails.length; j++) {
+					expect(
+						await parseBody(request("v1", `${types[i]!}${tails[j]!}`)),
+					).toBe("v1");
+				}
+			}
+		});
+	});
+
+	describe("urlencoded parsing details", () => {
+		const urlencoded = async (
+			body: BodyInit,
+		): Promise<Record<string, unknown>> =>
+			(await parseBody(
+				request(body, "application/x-www-form-urlencoded"),
+			)) as Record<string, unknown>;
+
+		it("should keep everything after the first '=' as the value", async () => {
+			expect(await urlencoded("a=v1=v2&b==")).toEqual({
+				a: "v1=v2",
+				b: "=",
+			});
+		});
+
+		it("should skip empty pairs", async () => {
+			const result = await urlencoded("&&a=v1&&b=v2&");
+
+			expect(Object.keys(result)).toEqual(["a", "b"]);
+		});
+
+		it("should keep a leading '?' and a ';' as plain characters", async () => {
+			expect(await urlencoded("?a=v1;b=v2&c;d=v3")).toEqual({
+				"?a": "v1;b=v2",
+				"c;d": "v3",
+			});
+		});
+
+		it("should keep malformed percent escapes verbatim", async () => {
+			expect(await urlencoded("a=%ZZ&b=%&c=%4")).toEqual({
+				a: "%ZZ",
+				b: "%",
+				c: "%4",
+			});
+		});
+
+		it("should replace invalid utf-8 with the replacement character", async () => {
+			expect(await urlencoded("a=%E0%A4&b=%FF")).toEqual({
+				a: "�",
+				b: "�",
+			});
+
+			expect(
+				await urlencoded(new Uint8Array([97, 61, 0xff, 0xfe])),
+			).toEqual({ a: "��" });
+		});
+
+		it("should decode an escaped NUL and escaped separators into the value", async () => {
+			expect(await urlencoded("a=%00&b=%26%3D%2B")).toEqual({
+				a: "\u0000",
+				b: "&=+",
+			});
+		});
+
+		it("should keep unescaped unicode values", async () => {
+			expect(await urlencoded("a=é&b=\u{1F642}")).toEqual({
+				a: "é",
+				b: "\u{1F642}",
+			});
+		});
+
+		it("should collapse repeated empty values into an array", async () => {
+			expect(await urlencoded("a=&a=&a")).toEqual({ a: ["", "", ""] });
+		});
+
+		it("should keep a leading '?' next to a malformed percent escape", async () => {
+			expect(await urlencoded("?a=%ZZ&?b=v1")).toEqual({
+				"?a": "%ZZ",
+				"?b": "v1",
+			});
+		});
+
+		it("should replace '+' before decoding an escaped '+'", async () => {
+			expect(await urlencoded("a=%2B+&%2B+=v1")).toEqual({
+				"+ ": "v1",
+				a: "+ ",
+			});
+		});
+
+		it("should reject with a TypeError instead of throwing for a consumed body", async () => {
+			const consumed = request("a=v1", "application/x-www-form-urlencoded");
+
+			await consumed.text();
+
+			let result: Promise<unknown> | undefined;
+
+			expect(() => {
+				result = parseBody(consumed);
+			}).not.toThrow();
+
+			await expect(result).rejects.toThrow(TypeError);
+		});
+	});
+
+	describe("multipart parsing details", () => {
+		it("should collapse repeated empty values into an array", async () => {
+			const formData = new FormData();
+
+			formData.append("a", "");
+			formData.append("a", "");
+			formData.append("a", "");
+
+			expect(await parseBody(request(formData))).toEqual({
+				a: ["", "", ""],
+			});
+		});
+	});
 });
