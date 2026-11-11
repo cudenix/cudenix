@@ -99,7 +99,7 @@ describe("MaybePromise", () => {
 
 		it("should resolve to `(A | B) | Promise<A | B>`", () => {
 			expectTypeOf<MaybePromise<number | string>>().toEqualTypeOf<
-				Promise<string | number> | (string | number)
+				(number | string) | Promise<number | string>
 			>();
 		});
 

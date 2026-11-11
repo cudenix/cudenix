@@ -112,7 +112,7 @@ describe("ConditionallyOptional", () => {
 			expectTypeOf<
 				ConditionallyOptional<A, null | undefined>
 			>().branded.toEqualTypeOf<{
-				a?: string | null;
+				a?: null | string;
 				b: boolean;
 				c?: number | undefined;
 			}>();
@@ -176,11 +176,12 @@ describe("ConditionallyOptional", () => {
 				c?: boolean;
 			}>();
 			expectTypeOf<NonNullable<unknown>>().not.toExtend<Result>();
-			expectTypeOf<{ a: string; extra: number }>().toExtend<Result>();
+			expectTypeOf<{ a: string; d: number }>().toExtend<Result>();
 		});
 
 		it("should preserve declared keys under numeric, symbol and template indexes", () => {
-			const sym = Symbol("required");
+			const sym = Symbol("a");
+
 			type Numeric = ConditionallyOptional<
 				{ 0: string } & Record<number, unknown>,
 				undefined
@@ -365,7 +366,6 @@ describe("ConditionallyOptional", () => {
 			expectTypeOf<
 				keyof ConditionallyOptional<A, undefined>
 			>().toEqualTypeOf<never>();
-
 			expectTypeOf<
 				ConditionallyOptional<
 					{ a: string; b: string | undefined },

@@ -32,11 +32,7 @@ describe("merge", () => {
 
 	describe("mutation contract", () => {
 		it("should return undefined (in-place mutation, no new container)", () => {
-			const target = { a: 1 };
-
-			const result = merge(target, { b: 2 });
-
-			expect(result).toBeUndefined();
+			expect(merge({ a: 1 }, { b: 2 })).toBeUndefined();
 		});
 
 		it("should mutate the provided target", () => {
@@ -57,11 +53,11 @@ describe("merge", () => {
 		});
 
 		it("should leave values unchanged on self-merge (target === source)", () => {
-			const obj: Record<string, unknown> = { a: 1, b: 2 };
+			const target: Record<string, unknown> = { a: 1, b: 2 };
 
-			merge(obj, obj);
+			merge(target, target);
 
-			expect(obj).toEqual({ a: 1, b: 2 });
+			expect(target).toEqual({ a: 1, b: 2 });
 		});
 	});
 
@@ -146,8 +142,7 @@ describe("merge", () => {
 		});
 
 		it("should walk the prototype chain of source via for..in", () => {
-			const proto = { a: "v1" };
-			const source = Object.create(proto);
+			const source = Object.create({ a: "v1" });
 
 			source.b = "v2";
 
@@ -158,8 +153,7 @@ describe("merge", () => {
 		});
 
 		it("should walk multi-level prototype chains", () => {
-			const grand = { a: "v1" };
-			const parent = Object.create(grand);
+			const parent = Object.create({ a: "v1" });
 
 			parent.b = "v2";
 
@@ -183,7 +177,7 @@ describe("merge", () => {
 					return captured;
 				},
 				set(value: unknown) {
-					writes += 1;
+					writes++;
 					captured = value;
 				},
 			});
@@ -233,7 +227,7 @@ describe("merge", () => {
 		});
 
 		it("should not copy symbol-keyed properties (for..in does not visit them)", () => {
-			const sym = Symbol();
+			const sym = Symbol("a");
 			const source: Record<PropertyKey, unknown> = { a: 1 };
 
 			source[sym] = "v1";
@@ -271,7 +265,7 @@ describe("merge", () => {
 			Object.defineProperty(source, "a", {
 				enumerable: true,
 				get() {
-					reads += 1;
+					reads++;
 
 					return 1;
 				},
@@ -466,6 +460,251 @@ describe("merge", () => {
 		});
 	});
 
+	describe("visit order", () => {
+		it("should write integer-like keys first, then own keys, then inherited keys", () => {
+			const writes: string[] = [];
+			const target = new Proxy<Record<string, unknown>>(
+				{},
+				{
+					set(object, key, value) {
+						writes.push(String(key));
+
+						object[String(key)] = value;
+
+						return true;
+					},
+				},
+			);
+			const source = Object.create({ "2": "v1", c: "v2" });
+
+			source.b = "v3";
+			source["1"] = "v4";
+			source.a = "v5";
+
+			merge(target, source);
+
+			expect(writes).toEqual(["1", "b", "a", "2", "c"]);
+		});
+
+		it("should skip an inherited enumerable key shadowed by an own non-enumerable key", () => {
+			const target: Record<string, unknown> = {};
+			const source = Object.create({ a: "v1", b: "v2" });
+
+			Object.defineProperty(source, "a", {
+				enumerable: false,
+				value: "v3",
+			});
+
+			merge(target, source);
+
+			expect(target).toEqual({ b: "v2" });
+		});
+	});
+
+	describe("source mutated during the copy", () => {
+		it("should skip a key deleted by an earlier source getter", () => {
+			const target: Record<string, unknown> = {};
+			const source: Record<string, unknown> = {};
+
+			Object.defineProperty(source, "a", {
+				configurable: true,
+				enumerable: true,
+				get() {
+					delete source.b;
+
+					return 1;
+				},
+			});
+
+			source.b = 2;
+			source.c = 3;
+
+			merge(target, source);
+
+			expect(target).toEqual({ a: 1, c: 3 });
+			expect("b" in target).toBe(false);
+		});
+
+		it("should skip a key deleted by a target setter", () => {
+			const target: Record<string, unknown> = {};
+			const source: Record<string, unknown> = { a: 1, b: 2 };
+
+			Object.defineProperty(target, "a", {
+				enumerable: true,
+				set() {
+					delete source.b;
+				},
+			});
+
+			merge(target, source);
+
+			expect("b" in target).toBe(false);
+		});
+
+		it("should not visit a key added by an earlier source getter", () => {
+			const target: Record<string, unknown> = {};
+			const source: Record<string, unknown> = {};
+
+			Object.defineProperty(source, "a", {
+				enumerable: true,
+				get() {
+					source.c = 3;
+
+					return 1;
+				},
+			});
+
+			source.b = 2;
+
+			merge(target, source);
+
+			expect(target).toEqual({ a: 1, b: 2 });
+		});
+
+		it("should copy the latest value of a key reassigned by an earlier source getter", () => {
+			const target: Record<string, unknown> = {};
+			const source: Record<string, unknown> = {};
+
+			Object.defineProperty(source, "a", {
+				enumerable: true,
+				get() {
+					source.b = 3;
+
+					return 1;
+				},
+			});
+
+			source.b = 2;
+
+			merge(target, source);
+
+			expect(target).toEqual({ a: 1, b: 3 });
+		});
+	});
+
+	describe("assignment semantics on target", () => {
+		it("should invoke a setter inherited by target without creating an own key", () => {
+			let captured: unknown;
+
+			const proto = {};
+
+			Object.defineProperty(proto, "a", {
+				enumerable: true,
+				get() {
+					return captured;
+				},
+				set(value: unknown) {
+					captured = value;
+				},
+			});
+
+			const target = Object.create(proto) as Record<string, unknown>;
+
+			merge(target, { a: 1 });
+
+			expect(captured).toBe(1);
+			expect(Object.hasOwn(target, "a")).toBe(false);
+		});
+
+		it("should throw TypeError on a non-writable target key and keep its value", () => {
+			const target: Record<string, unknown> = {};
+
+			Object.defineProperty(target, "a", {
+				enumerable: true,
+				value: 1,
+				writable: false,
+			});
+
+			expect(() => merge(target, { a: 2 })).toThrow(TypeError);
+			expect(target.a).toBe(1);
+		});
+
+		it("should propagate a throwing target setter and keep keys copied before the throw", () => {
+			const target: Record<string, unknown> = {};
+
+			Object.defineProperty(target, "b", {
+				enumerable: true,
+				set() {
+					throw new Error("v1");
+				},
+			});
+
+			expect(() => merge(target, { a: 1, b: 2, c: 3 })).toThrow("v1");
+			expect(target.a).toBe(1);
+			expect("c" in target).toBe(false);
+		});
+
+		it("should write index keys through an array target and grow its length", () => {
+			const target = [1, 2] as unknown as Record<PropertyKey, unknown>;
+
+			merge(target, { "0": "v1", "2": "v2" });
+
+			expect(target as unknown).toEqual(["v1", 2, "v2"]);
+		});
+	});
+
+	describe("exotic sources", () => {
+		it("should read each key of a Proxy source once through its get trap", () => {
+			const reads: string[] = [];
+			const source = new Proxy<Record<string, unknown>>(
+				{ a: 1, b: 2 },
+				{
+					get(object, key) {
+						reads.push(String(key));
+
+						return object[String(key)];
+					},
+				},
+			);
+			const target: Record<string, unknown> = {};
+
+			merge(target, source);
+
+			expect(target).toEqual({ a: 1, b: 2 });
+			expect(reads).toEqual(["a", "b"]);
+		});
+
+		it("should copy enumerable own keys of a function source", () => {
+			const target: Record<string, unknown> = {};
+
+			merge(
+				target,
+				Object.assign(() => {}, { a: 1 }) as unknown as Record<
+					string,
+					unknown
+				>,
+			);
+
+			expect(target).toEqual({ a: 1 });
+		});
+
+		it("should copy nothing from a Map source", () => {
+			const target: Record<string, unknown> = {};
+
+			merge(
+				target,
+				new Map([["a", 1]]) as unknown as Record<string, unknown>,
+			);
+
+			expect(target).toEqual({});
+		});
+
+		it("should copy every key of a large source", () => {
+			const source: Record<string, unknown> = {};
+
+			for (let i = 0; i < 200; i++) {
+				source[`k${i}`] = i;
+			}
+
+			const target: Record<string, unknown> = {};
+
+			merge(target, source);
+
+			expect(target).toEqual(source);
+			expect(Object.keys(target)).toEqual(Object.keys(source));
+		});
+	});
+
 	describe("cyclic sources", () => {
 		it("should copy a self-referential entry without infinite recursion", () => {
 			interface A {
@@ -489,26 +728,18 @@ describe("merge", () => {
 	describe("prototype pollution surface", () => {
 		it("should reassign target's prototype when source carries an own __proto__ key", () => {
 			const target: Record<string, unknown> = {};
-			const malicious = JSON.parse('{"__proto__":{"a":"v1"}}') as Record<
-				string,
-				unknown
-			>;
 
-			merge(target, malicious);
+			merge(target, JSON.parse('{"__proto__":{"a":"v1"}}'));
 
 			expect(Object.getPrototypeOf(target)).toEqual({ a: "v1" });
-			expect((target as Record<string, unknown>).a).toBe("v1");
+			expect(target.a).toBe("v1");
 			expect(({} as Record<string, unknown>).a).toBeUndefined();
 		});
 
 		it("should store __proto__ as a regular own key on an Empty target", () => {
 			const target = new Empty();
-			const malicious = JSON.parse('{"__proto__":{"a":"v1"}}') as Record<
-				string,
-				unknown
-			>;
 
-			merge(target, malicious);
+			merge(target, JSON.parse('{"__proto__":{"a":"v1"}}'));
 
 			expect(Object.hasOwn(target, "__proto__")).toBe(true);
 			expect(target.__proto__).toEqual({ a: "v1" });
@@ -518,12 +749,8 @@ describe("merge", () => {
 
 		it("should store constructor as a benign own key without touching Object.prototype", () => {
 			const target: Record<string, unknown> = {};
-			const malicious = JSON.parse('{"constructor":{"a":1}}') as Record<
-				string,
-				unknown
-			>;
 
-			merge(target, malicious);
+			merge(target, JSON.parse('{"constructor":{"a":1}}'));
 
 			expect(Object.hasOwn(target, "constructor")).toBe(true);
 			expect(

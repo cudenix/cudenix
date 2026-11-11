@@ -280,7 +280,7 @@ describe("Merge", () => {
 	describe("any operands", () => {
 		it("should widen existing values and add an index signature when the second operand is `any`", () => {
 			expectTypeOf<Merge<{ a: 1 }, any>>().branded.toEqualTypeOf<
-				Record<string, any> & { a: any }
+				{ a: any } & Record<string, any>
 			>();
 		});
 
@@ -419,7 +419,8 @@ describe("Merge", () => {
 	describe("non-string keys", () => {
 		it("should replace a numeric key with its string spelling", () => {
 			type Result = Merge<{ 0: string }, { "0": number }>;
-			const result: Result = { 0: 42 };
+
+			const result: Result = { 0: 1 };
 
 			expectTypeOf<Result[0]>().toEqualTypeOf<number>();
 			expectTypeOf<Result["0"]>().toEqualTypeOf<number>();
@@ -430,7 +431,8 @@ describe("Merge", () => {
 
 		it("should replace a string key with its numeric spelling", () => {
 			type Result = Merge<{ "0": string }, { 0: number }>;
-			const result: Result = { 0: 42 };
+
+			const result: Result = { 0: 1 };
 
 			expectTypeOf<Result[0]>().toEqualTypeOf<number>();
 			expectTypeOf<typeof result>().branded.toEqualTypeOf<{
@@ -478,6 +480,7 @@ describe("Merge", () => {
 
 	describe("symbol keys", () => {
 		const sym = Symbol("a");
+
 		type Sym = typeof sym;
 
 		it("should keep the first operand's symbol key instead of letting the second override it", () => {
@@ -538,35 +541,29 @@ describe("Merge", () => {
 
 	describe("inherited source declarations", () => {
 		it("should merge inherited keys that are visible in the source type", () => {
-			interface Parent {
-				inherited: number;
+			interface A {
+				b: number;
 			}
-			interface Source extends Parent {
-				own: boolean;
+			interface B extends A {
+				c: boolean;
 			}
 
 			expectTypeOf<
-				Merge<{ base: string; inherited: string }, Source>
-			>().branded.toEqualTypeOf<{
-				base: string;
-				inherited: number;
-				own: boolean;
-			}>();
+				Merge<{ a: string; b: string }, B>
+			>().branded.toEqualTypeOf<{ a: string; b: number; c: boolean }>();
 		});
 
 		it("should keep a target value possible when an inherited source declaration is optional", () => {
-			interface Parent {
-				inherited?: number;
+			interface A {
+				a?: number;
 			}
-			interface Source extends Parent {
-				own: boolean;
+			interface B extends A {
+				b: boolean;
 			}
 
-			expectTypeOf<
-				Merge<{ inherited: string }, Source>
-			>().branded.toEqualTypeOf<{
-				inherited: number | string | undefined;
-				own: boolean;
+			expectTypeOf<Merge<{ a: string }, B>>().branded.toEqualTypeOf<{
+				a: number | string | undefined;
+				b: boolean;
 			}>();
 		});
 	});
@@ -574,7 +571,8 @@ describe("Merge", () => {
 	describe("index signatures", () => {
 		it("should accept concrete overrides of a target index while keeping the declared value precise", () => {
 			type Result = Merge<Record<string, number>, { a: string }>;
-			const result: Result = { a: "value", b: 1 };
+
+			const result: Result = { a: "v1", b: 1 };
 
 			expectTypeOf<typeof result.a>().toEqualTypeOf<string>();
 			expectTypeOf<Result[string]>().toEqualTypeOf<number | string>();
@@ -583,7 +581,8 @@ describe("Merge", () => {
 
 		it("should admit a target property that survives a source index signature", () => {
 			type Result = Merge<{ a: string }, Record<string, number>>;
-			const retained: Result = { a: "value", b: 1 };
+
+			const retained: Result = { a: "v1", b: 1 };
 			const overwritten: Result = { a: 2, b: 1 };
 
 			expectTypeOf<typeof retained.a>().toEqualTypeOf<number | string>();
@@ -593,12 +592,13 @@ describe("Merge", () => {
 		});
 
 		it("should preserve declared required overrides alongside source index signatures", () => {
-			interface Source {
+			interface B {
 				[key: string]: unknown;
 				readonly a: string;
 			}
-			type Result = Merge<{ a: number } & Record<string, number>, Source>;
-			const result: Result = { a: "value", b: 1 };
+			type Result = Merge<{ a: number } & Record<string, number>, B>;
+
+			const result: Result = { a: "v1", b: 1 };
 
 			expectTypeOf<Pick<typeof result, "a">>().toEqualTypeOf<{
 				readonly a: string;
@@ -607,8 +607,9 @@ describe("Merge", () => {
 
 		it("should retain optional override values including explicit undefined", () => {
 			type Result = Merge<Record<string, number>, { a?: string }>;
+
 			const absent: Result = { b: 1 };
-			const present: Result = { a: "value", b: 1 };
+			const present: Result = { a: "v1", b: 1 };
 			const cleared: Result = { a: undefined, b: 1 };
 
 			expectTypeOf<typeof absent.a>().toEqualTypeOf<
@@ -621,8 +622,8 @@ describe("Merge", () => {
 		});
 
 		it("should preserve target declarations and modifiers under an index with an optional source alias", () => {
-			type Target = { readonly 0: string } & Record<string, unknown>;
-			type Result = Merge<Target, { "0"?: number }>;
+			type A = { readonly 0: string } & Record<string, unknown>;
+			type Result = Merge<A, { "0"?: number }>;
 
 			expectTypeOf<Pick<Result, 0>>().toEqualTypeOf<{
 				readonly 0: number | string | undefined;
@@ -631,7 +632,8 @@ describe("Merge", () => {
 
 		it("should widen numeric indexes for concrete string-spelled numeric overrides", () => {
 			type Result = Merge<Record<number, number>, { "0": string }>;
-			const result: Result = { 0: "value", 1: 1 };
+
+			const result: Result = { 0: "v1", 1: 1 };
 
 			expectTypeOf<(typeof result)[0]>().toEqualTypeOf<string>();
 			expectTypeOf<Result[number]>().toEqualTypeOf<number | string>();
@@ -639,7 +641,8 @@ describe("Merge", () => {
 
 		it("should union overlapping string and numeric indexes", () => {
 			type Result = Merge<Record<string, number>, Record<number, string>>;
-			const result: Result = { 0: "value", 1: 2, a: 1 };
+
+			const result: Result = { 0: "v1", 1: 2, a: 1 };
 
 			expectTypeOf<typeof result>().toExtend<
 				Record<string, number | string>
@@ -711,19 +714,21 @@ describe("Merge", () => {
 			a?: string;
 		}
 
-		type M = Merge<A, B>;
+		type Result = Merge<A, B>;
 
 		it("should keep the optional concrete key and union it with the index-signature value", () => {
-			expectTypeOf<M["a"]>().toEqualTypeOf<number | string | undefined>();
+			expectTypeOf<Result["a"]>().toEqualTypeOf<
+				number | string | undefined
+			>();
 		});
 
 		it("should keep `keyof` limited to the index signature's key types", () => {
-			expectTypeOf<keyof M>().toEqualTypeOf<number | string>();
+			expectTypeOf<keyof Result>().toEqualTypeOf<number | string>();
 		});
 
 		it("should keep the surviving concrete key optional", () => {
 			expectTypeOf<
-				NonNullable<unknown> extends Pick<M, "a"> ? true : false
+				NonNullable<unknown> extends Pick<Result, "a"> ? true : false
 			>().toEqualTypeOf<true>();
 		});
 
@@ -738,10 +743,11 @@ describe("Merge", () => {
 
 	describe("template-literal index signatures", () => {
 		it("should admit concrete overrides without widening disjoint patterns", () => {
-			type Target = Record<`x-${string}`, number> &
+			type A = Record<`x-${string}`, number> &
 				Record<`y-${string}`, boolean>;
-			type Result = Merge<Target, { "x-a": string }>;
-			const result: Result = { "x-a": "value", "x-b": 1, "y-a": true };
+			type Result = Merge<A, { "x-a": string }>;
+
+			const result: Result = { "x-a": "v1", "x-b": 1, "y-a": true };
 
 			expectTypeOf<(typeof result)["x-a"]>().toEqualTypeOf<string>();
 			expectTypeOf<Result[`x-${string}`]>().toEqualTypeOf<

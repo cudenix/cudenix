@@ -3,6 +3,24 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 import { parseQuery } from "@/utils/urls/parse-query";
 
+const searchParams = (query: string): Record<string, unknown> => {
+	const params: Record<string, unknown> = {};
+
+	for (const [key, value] of new URLSearchParams(query)) {
+		const existing = params[key];
+
+		if (existing === undefined) {
+			params[key] = value;
+		} else if (Array.isArray(existing)) {
+			existing.push(value);
+		} else {
+			params[key] = [existing, value];
+		}
+	}
+
+	return params;
+};
+
 describe("parseQuery", () => {
 	describe("typical query strings", () => {
 		describe("with single pair '?b=v1'", () => {
@@ -42,35 +60,34 @@ describe("parseQuery", () => {
 		});
 
 		it("should support many parameters in a single query string", () => {
-			const result = parseQuery("/a?b=1&c=2&d=3&e=4&f=5");
-
-			expect(result).toEqual({ b: "1", c: "2", d: "3", e: "4", f: "5" });
+			expect(parseQuery("/a?b=1&c=2&d=3&e=4&f=5")).toEqual({
+				b: "1",
+				c: "2",
+				d: "3",
+				e: "4",
+				f: "5",
+			});
 		});
 
 		it("should read the query from a full absolute URL", () => {
-			const result = parseQuery("http://localhost/a?b=v1&c=v2");
-
-			expect(result).toEqual({ b: "v1", c: "v2" });
+			expect(parseQuery("http://localhost/a?b=v1&c=v2")).toEqual({
+				b: "v1",
+				c: "v2",
+			});
 		});
 	});
 
 	describe("key and value decoding", () => {
 		it("should turn '+' into a space inside a key", () => {
-			const result = parseQuery("/a?b+c=v1");
-
-			expect(result["b c"]).toBe("v1");
+			expect(parseQuery("/a?b+c=v1")["b c"]).toBe("v1");
 		});
 
 		it("should turn '+' into a space inside a value", () => {
-			const result = parseQuery("/a?b=v1+v2");
-
-			expect(result.b).toBe("v1 v2");
+			expect(parseQuery("/a?b=v1+v2").b).toBe("v1 v2");
 		});
 
 		it("should decode '%xx' escapes inside a key", () => {
-			const result = parseQuery("/a?b%20c=v1");
-
-			expect(result["b c"]).toBe("v1");
+			expect(parseQuery("/a?b%20c=v1")["b c"]).toBe("v1");
 		});
 
 		it("should keep a key that is non-empty raw but decodes to whitespace", () => {
@@ -81,21 +98,15 @@ describe("parseQuery", () => {
 		});
 
 		it("should decode '%xx' escapes inside a value", () => {
-			const result = parseQuery("/a?b=v1%20v2");
-
-			expect(result.b).toBe("v1 v2");
+			expect(parseQuery("/a?b=v1%20v2").b).toBe("v1 v2");
 		});
 
 		it("should apply both '+' and '%xx' decoding to the same key", () => {
-			const result = parseQuery("/a?b+c%21=v1");
-
-			expect(result["b c!"]).toBe("v1");
+			expect(parseQuery("/a?b+c%21=v1")["b c!"]).toBe("v1");
 		});
 
 		it("should apply both '+' and '%xx' decoding to the same value", () => {
-			const result = parseQuery("/a?b=v1+v2%21");
-
-			expect(result.b).toBe("v1 v2!");
+			expect(parseQuery("/a?b=v1+v2%21").b).toBe("v1 v2!");
 		});
 
 		it("should preserve non-ASCII characters in keys and values", () => {
@@ -113,51 +124,35 @@ describe("parseQuery", () => {
 		});
 
 		it("should keep additional '=' characters as part of the value", () => {
-			const result = parseQuery("/a?b=v1=v2");
-
-			expect(result.b).toBe("v1=v2");
+			expect(parseQuery("/a?b=v1=v2").b).toBe("v1=v2");
 		});
 
 		it("should decode '%2B' to a literal '+' in a value (decode runs after '+' replacement)", () => {
-			const result = parseQuery("/a?b=1%2B2");
-
-			expect(result.b).toBe("1+2");
+			expect(parseQuery("/a?b=1%2B2").b).toBe("1+2");
 		});
 
 		it("should decode '%2B' to a literal '+' in a key", () => {
-			const result = parseQuery("/a?b%2Bc=v1");
-
-			expect(result["b+c"]).toBe("v1");
+			expect(parseQuery("/a?b%2Bc=v1")["b+c"]).toBe("v1");
 		});
 
 		it("should decode percent-escapes exactly once (no double decode)", () => {
-			const result = parseQuery("/a?b=%252B");
-
-			expect(result.b).toBe("%2B");
+			expect(parseQuery("/a?b=%252B").b).toBe("%2B");
 		});
 
 		it("should keep a '?' after the first one as literal data in a value", () => {
-			const result = parseQuery("/a?b=v1?v2");
-
-			expect(result.b).toBe("v1?v2");
+			expect(parseQuery("/a?b=v1?v2").b).toBe("v1?v2");
 		});
 
 		it("should keep a '?' after the first one as literal data in a key", () => {
-			const result = parseQuery("/a?b?c=v1");
-
-			expect(result["b?c"]).toBe("v1");
+			expect(parseQuery("/a?b?c=v1")["b?c"]).toBe("v1");
 		});
 
 		it("should decode '%26' and '%3D' into the value without splitting the pair", () => {
-			const result = parseQuery("/a?b=1%262%3D3");
-
-			expect(result).toEqual({ b: "1&2=3" });
+			expect(parseQuery("/a?b=1%262%3D3")).toEqual({ b: "1&2=3" });
 		});
 
 		it("should decode '%23' into the value without truncating at a fragment", () => {
-			const result = parseQuery("/a?b=1%232&c=2");
-
-			expect(result).toEqual({ b: "1#2", c: "2" });
+			expect(parseQuery("/a?b=1%232&c=2")).toEqual({ b: "1#2", c: "2" });
 		});
 	});
 
@@ -170,33 +165,23 @@ describe("parseQuery", () => {
 		});
 
 		it("should keep a non-hex '%' escape in a value verbatim", () => {
-			const result = parseQuery("/a?b=%zz");
-
-			expect(result.b).toBe("%zz");
+			expect(parseQuery("/a?b=%zz").b).toBe("%zz");
 		});
 
 		it("should keep a malformed '%' escape in a key verbatim", () => {
-			const result = parseQuery("/a?b%=v1");
-
-			expect(result["b%"]).toBe("v1");
+			expect(parseQuery("/a?b%=v1")["b%"]).toBe("v1");
 		});
 
 		it("should replace a truncated multibyte escape instead of throwing", () => {
-			const result = parseQuery("/a?b=%E0%A4%A");
-
-			expect(result.b).toBe("\uFFFD%A");
+			expect(parseQuery("/a?b=%E0%A4%A").b).toBe("\uFFFD%A");
 		});
 
 		it("should keep the plus-replaced value when a '%' escape is malformed", () => {
-			const result = parseQuery("/a?b=v1+v2%");
-
-			expect(result.b).toBe("v1 v2%");
+			expect(parseQuery("/a?b=v1+v2%").b).toBe("v1 v2%");
 		});
 
 		it("should keep the plus-replaced key when a '%' escape is malformed", () => {
-			const result = parseQuery("/a?b+c%=v1");
-
-			expect(result["b c%"]).toBe("v1");
+			expect(parseQuery("/a?b+c%=v1")["b c%"]).toBe("v1");
 		});
 
 		it("should replace a syntactically valid escape carrying invalid UTF-8", () => {
@@ -207,38 +192,33 @@ describe("parseQuery", () => {
 		});
 
 		it("should replace invalid UTF-8 in a key too", () => {
-			const result = parseQuery("/a?b%FF=v1");
-
-			expect(result["b\uFFFD"]).toBe("v1");
+			expect(parseQuery("/a?b%FF=v1")["b\uFFFD"]).toBe("v1");
 		});
 
 		it("should still decode the well-formed escapes beside a malformed one", () => {
-			// the fallback decoder handles the whole component
 			expect(parseQuery("/a?b=x%FFy%20z").b).toBe("x\uFFFDy z");
 			expect(parseQuery("/a?b=%ZZ%20").b).toBe("%ZZ ");
 		});
 
 		it("should reach the JSON branch once the fallback decoder runs", () => {
-			// the fallback decoder leaves the value as JSON
 			expect(parseQuery("/a?b=%7B%22c%22%3A%221%FF%22%7D").b).toEqual({
 				c: "1\uFFFD",
 			});
 		});
 
 		it("should collapse two malformed spellings of one key into an array", () => {
-			const result = parseQuery("/a?b%FF=v1&b%EF%BF%BD=v2");
-
-			expect(result["b\uFFFD"]).toEqual(["v1", "v2"]);
+			expect(parseQuery("/a?b%FF=v1&b%EF%BF%BD=v2")["b\uFFFD"]).toEqual([
+				"v1",
+				"v2",
+			]);
 		});
 
 		it("should keep a non-hex escape literal, unlike path params", () => {
-			// a "%" without two hex digits is no escape
 			expect(parseQuery("/a?b=%ZZ").b).toBe("%ZZ");
 			expect(decodePathParam("%ZZ")).toBe("�");
 		});
 
 		it("should replace per maximal subpart, unlike path params", () => {
-			// the query follows "URLSearchParams"
 			expect(parseQuery("/a?b=%ED%A0%80").b).toBe("���");
 			expect(decodePathParam("%ED%A0%80")).toBe("�");
 		});
@@ -246,63 +226,43 @@ describe("parseQuery", () => {
 
 	describe("JSON-shaped values", () => {
 		it("should parse a value wrapped in '{...}' as an object", () => {
-			const result = parseQuery('/a?b={"c":1}');
-
-			expect(result.b).toEqual({ c: 1 });
+			expect(parseQuery('/a?b={"c":1}').b).toEqual({ c: 1 });
 		});
 
 		it("should parse a value wrapped in '[...]' as an array", () => {
-			const result = parseQuery("/a?b=[1,2,3]");
-
-			expect(result.b).toEqual([1, 2, 3]);
+			expect(parseQuery("/a?b=[1,2,3]").b).toEqual([1, 2, 3]);
 		});
 
 		it("should parse a percent-encoded JSON object", () => {
-			const result = parseQuery("/a?b=%7B%22c%22%3A1%7D");
-
-			expect(result.b).toEqual({ c: 1 });
+			expect(parseQuery("/a?b=%7B%22c%22%3A1%7D").b).toEqual({ c: 1 });
 		});
 
 		it("should fall back to the raw string when JSON parsing fails", () => {
-			const result = parseQuery("/a?b={c}");
-
-			expect(result.b).toBe("{c}");
+			expect(parseQuery("/a?b={c}").b).toBe("{c}");
 		});
 
 		it("should keep the raw string when a percent-decode failure leaves JSON-shaped text", () => {
-			const result = parseQuery("/a?b={%zz}");
-
-			expect(result.b).toBe("{%zz}");
+			expect(parseQuery("/a?b={%zz}").b).toBe("{%zz}");
 		});
 
 		it("should not parse a value that opens but never closes a brace", () => {
-			const result = parseQuery("/a?b={c");
-
-			expect(result.b).toBe("{c");
+			expect(parseQuery("/a?b={c").b).toBe("{c");
 		});
 
 		it("should not parse a value that opens but never closes a bracket", () => {
-			const result = parseQuery("/a?b=[1");
-
-			expect(result.b).toBe("[1");
+			expect(parseQuery("/a?b=[1").b).toBe("[1");
 		});
 
 		it("should not parse a value whose brackets are mismatched", () => {
-			const result = parseQuery("/a?b={1]");
-
-			expect(result.b).toBe("{1]");
+			expect(parseQuery("/a?b={1]").b).toBe("{1]");
 		});
 
 		it("should parse an empty JSON object value", () => {
-			const result = parseQuery("/a?b={}");
-
-			expect(result.b).toEqual({});
+			expect(parseQuery("/a?b={}").b).toEqual({});
 		});
 
 		it("should parse an empty JSON array value", () => {
-			const result = parseQuery("/a?b=[]");
-
-			expect(result.b).toEqual([]);
+			expect(parseQuery("/a?b=[]").b).toEqual([]);
 		});
 
 		it("should keep a lone '{' or '[' as a string", () => {
@@ -311,15 +271,11 @@ describe("parseQuery", () => {
 		});
 
 		it("should turn '+' into a space inside a JSON string before parsing", () => {
-			const result = parseQuery('/a?b={"c":"1+2"}');
-
-			expect(result.b).toEqual({ c: "1 2" });
+			expect(parseQuery('/a?b={"c":"1+2"}').b).toEqual({ c: "1 2" });
 		});
 
 		it("should preserve a literal '+' inside a JSON string when written as '%2B'", () => {
-			const result = parseQuery('/a?b={"c":"1%2B2"}');
-
-			expect(result.b).toEqual({ c: "1+2" });
+			expect(parseQuery('/a?b={"c":"1%2B2"}').b).toEqual({ c: "1+2" });
 		});
 
 		it("should split a JSON value on a raw '&' (JSON values must be fully percent-encoded)", () => {
@@ -333,9 +289,7 @@ describe("parseQuery", () => {
 
 	describe("keys without a value", () => {
 		it("should map a bare key with no '=' to an empty string", () => {
-			const result = parseQuery("/a?b");
-
-			expect(result.b).toBe("");
+			expect(parseQuery("/a?b").b).toBe("");
 		});
 
 		it("should map a key written as 'b=' to an empty string", () => {
@@ -346,33 +300,23 @@ describe("parseQuery", () => {
 		});
 
 		it("should map a trailing 'b=' at the end of the URL to an empty string", () => {
-			const result = parseQuery("/a?b=");
-
-			expect(result).toEqual({ b: "" });
+			expect(parseQuery("/a?b=")).toEqual({ b: "" });
 		});
 
 		it("should handle a bare key followed by another pair", () => {
-			const result = parseQuery("/a?b&c=v1");
-
-			expect(result).toEqual({ b: "", c: "v1" });
+			expect(parseQuery("/a?b&c=v1")).toEqual({ b: "", c: "v1" });
 		});
 
 		it("should collapse a bare repeat of an assigned key into an array with an empty string", () => {
-			const result = parseQuery("/a?b=v1&b");
-
-			expect(result.b).toEqual(["v1", ""]);
+			expect(parseQuery("/a?b=v1&b").b).toEqual(["v1", ""]);
 		});
 
 		it("should collapse an assigned repeat of a bare key into an array starting with an empty string", () => {
-			const result = parseQuery("/a?b&b=v1");
-
-			expect(result.b).toEqual(["", "v1"]);
+			expect(parseQuery("/a?b&b=v1").b).toEqual(["", "v1"]);
 		});
 
 		it("should ignore a trailing '&' separator", () => {
-			const result = parseQuery("/a?b=v1&");
-
-			expect(result).toEqual({ b: "v1" });
+			expect(parseQuery("/a?b=v1&")).toEqual({ b: "v1" });
 		});
 	});
 
@@ -392,9 +336,7 @@ describe("parseQuery", () => {
 		});
 
 		it("should ignore parameters that live in the fragment", () => {
-			const result = parseQuery("/a?b=v1#c=v2");
-
-			expect(result).toEqual({ b: "v1" });
+			expect(parseQuery("/a?b=v1#c=v2")).toEqual({ b: "v1" });
 		});
 
 		it("should find no query when the '?' sits inside the fragment", () => {
@@ -416,33 +358,27 @@ describe("parseQuery", () => {
 
 	describe("repeated keys", () => {
 		it("should collapse two occurrences into an array in first-seen order", () => {
-			const result = parseQuery("/a?b=v1&b=v2");
-
-			expect(result.b).toEqual(["v1", "v2"]);
+			expect(parseQuery("/a?b=v1&b=v2").b).toEqual(["v1", "v2"]);
 		});
 
 		it("should append further occurrences onto the existing array", () => {
-			const result = parseQuery("/a?b=v1&b=v2&b=v3");
-
-			expect(result.b).toEqual(["v1", "v2", "v3"]);
+			expect(parseQuery("/a?b=v1&b=v2&b=v3").b).toEqual([
+				"v1",
+				"v2",
+				"v3",
+			]);
 		});
 
 		it("should wrap a JSON array value as a single element when the key repeats", () => {
-			const result = parseQuery("/a?b=[1,2]&b=v3");
-
-			expect(result.b).toEqual([[1, 2], "v3"]);
+			expect(parseQuery("/a?b=[1,2]&b=v3").b).toEqual([[1, 2], "v3"]);
 		});
 
 		it("should wrap a JSON object value as a single element when the key repeats", () => {
-			const result = parseQuery('/a?b={"c":1}&b=v3');
-
-			expect(result.b).toEqual([{ c: 1 }, "v3"]);
+			expect(parseQuery('/a?b={"c":1}&b=v3').b).toEqual([{ c: 1 }, "v3"]);
 		});
 
 		it("should keep repeated JSON array values as distinct elements", () => {
-			const result = parseQuery("/a?b=[1,2]&b=[3,4]");
-
-			expect(result.b).toEqual([
+			expect(parseQuery("/a?b=[1,2]&b=[3,4]").b).toEqual([
 				[1, 2],
 				[3, 4],
 			]);
@@ -479,9 +415,7 @@ describe("parseQuery", () => {
 		});
 
 		it("should ignore a leading '&' separator", () => {
-			const result = parseQuery("/a?&b=v1");
-
-			expect(result).toEqual({ b: "v1" });
+			expect(parseQuery("/a?&b=v1")).toEqual({ b: "v1" });
 		});
 	});
 
@@ -519,6 +453,7 @@ describe("parseQuery", () => {
 			const result = parseQuery("/a?__proto__=v1&b=v2");
 
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
+			// oxlint-disable-next-line no-proto -- Accessing __proto__ directly for test purposes
 			expect(result.__proto__).toBe("v1");
 			expect(result.b).toBe("v2");
 			expect(Object.getPrototypeOf(result)).toBeNull();
@@ -536,16 +471,13 @@ describe("parseQuery", () => {
 			const result = parseQuery('/a?b={"__proto__":{"a":1}}');
 
 			expect(Object.hasOwn(result, "b")).toBe(true);
-			expect(Object.hasOwn(result.b as object, "__proto__")).toBe(true);
-
-			// the payload lands as an own key
+			expect(Object.getOwnPropertyNames(result.b)).toEqual(["__proto__"]);
 			expect(Object.getPrototypeOf(result.b)).toBe(Object.prototype);
 		});
 	});
 
 	describe("long components", () => {
-		// Include the former 64-character scan boundary.
-		const lengths = Array.from({ length: 86 }, (_, index) => index + 55);
+		const lengths = Array.from({ length: 86 }, (_, i) => i + 55);
 
 		it.each(lengths)(
 			"should read a %i character value up to its delimiter",
@@ -564,17 +496,15 @@ describe("parseQuery", () => {
 				const key = "k".repeat(length);
 
 				expect(parseQuery(`/a?${key}=v1`)[key]).toBe("v1");
-				expect(parseQuery(`/a?${key}`)[key]).toBe("");
 				expect(parseQuery(`/a?${key}&c=v2`)[key]).toBe("");
+				expect(parseQuery(`/a?${key}`)[key]).toBe("");
 			},
 		);
 
 		it.each(lengths)(
 			"should decode a '+' past character %i of a value",
 			(length) => {
-				const value = `${"v".repeat(length)}+x`;
-
-				expect(parseQuery(`/a?b=${value}`).b).toBe(
+				expect(parseQuery(`/a?b=${"v".repeat(length)}+x`).b).toBe(
 					`${"v".repeat(length)} x`,
 				);
 			},
@@ -583,9 +513,7 @@ describe("parseQuery", () => {
 		it.each(lengths)(
 			"should decode an escape past character %i of a value",
 			(length) => {
-				const value = `${"v".repeat(length)}%20x`;
-
-				expect(parseQuery(`/a?b=${value}`).b).toBe(
+				expect(parseQuery(`/a?b=${"v".repeat(length)}%20x`).b).toBe(
 					`${"v".repeat(length)} x`,
 				);
 			},
@@ -594,20 +522,18 @@ describe("parseQuery", () => {
 		it.each(lengths)(
 			"should decode a '+' past character %i of a key",
 			(length) => {
-				const key = `${"k".repeat(length)}+x`;
-
 				expect(
-					parseQuery(`/a?${key}=v1`)[`${"k".repeat(length)} x`],
+					parseQuery(`/a?${"k".repeat(length)}+x=v1`)[
+						`${"k".repeat(length)} x`
+					],
 				).toBe("v1");
 			},
 		);
 
 		it("should replace every '+' of a value long enough to take the native swap", () => {
-			const value = `${"a".repeat(200)}+${"b".repeat(200)}+c`;
-
-			expect(parseQuery(`/x?b=${value}`).b).toBe(
-				`${"a".repeat(200)} ${"b".repeat(200)} c`,
-			);
+			expect(
+				parseQuery(`/a?b=${"a".repeat(200)}+${"b".repeat(200)}+c`).b,
+			).toBe(`${"a".repeat(200)} ${"b".repeat(200)} c`);
 		});
 
 		it("should decode a long value made only of escapes", () => {
@@ -654,30 +580,36 @@ describe("parseQuery", () => {
 		});
 
 		it("should collect thousands of long components with no decode markers", () => {
-			const value = "v".repeat(64);
-			const values = Array<string>(4096).fill(value);
-			const query = values.map((item) => `k=${item}`).join("&");
+			const values = Array.from({ length: 4096 }, () => "v".repeat(64));
 
-			expect(parseQuery(`/?${query}`).k).toEqual(values);
+			expect(
+				parseQuery(`/a?${values.map((item) => `k=${item}`).join("&")}`)
+					.k,
+			).toEqual(values);
 		});
 
 		it("should keep decode markers and fragments local to each long component", () => {
 			const key = "k".repeat(128);
 			const value = "v".repeat(128);
-			const query = Array<string>(512).fill(`${key}=${value}`).join("&");
+			const query = (Array<string>)
+				.from({ length: 512 })
+				.fill(`${key}=${value}`)
+				.join("&");
 			const result = parseQuery(
-				`/?${query}&${key}%20x=${value}+%26%3D#ignored=+%20`,
+				`/a?${query}&${key}%20x=${value}+%26%3D#ignored=+%20`,
 			);
 
-			expect(result[key]).toEqual(Array<string>(512).fill(value));
+			expect(result[key]).toEqual(
+				(Array<string>).from({ length: 512 }).fill(value),
+			);
 			expect(result[`${key} x`]).toBe(`${value} &=`);
 			expect(Object.keys(result)).toEqual([key, `${key} x`]);
 		});
 
 		it("should parse a long JSON value", () => {
-			const result = parseQuery(`/a?b={"c":"${"x".repeat(200)}"}`);
-
-			expect(result.b).toEqual({ c: "x".repeat(200) });
+			expect(parseQuery(`/a?b={"c":"${"x".repeat(200)}"}`).b).toEqual({
+				c: "x".repeat(200),
+			});
 		});
 
 		it("should turn a run of adjacent '+' into the same run of spaces", () => {
@@ -693,7 +625,6 @@ describe("parseQuery", () => {
 		it.each([63, 64, 65, 127, 128, 129, 256])(
 			"should turn a %i character run of '+' into the same run of spaces",
 			(length) => {
-				// lengths on both sides of the swap threshold
 				expect(parseQuery(`/a?b=${"+".repeat(length)}`).b).toBe(
 					" ".repeat(length),
 				);
@@ -703,11 +634,9 @@ describe("parseQuery", () => {
 		it.each([127, 128, 129, 256])(
 			"should swap every '+' of a %i character dense value",
 			(length) => {
-				const value = "a+".repeat(Math.floor(length / 2));
-
-				expect(parseQuery(`/a?b=${value}`).b).toBe(
-					"a ".repeat(Math.floor(length / 2)),
-				);
+				expect(
+					parseQuery(`/a?b=${"a+".repeat(Math.floor(length / 2))}`).b,
+				).toBe("a ".repeat(Math.floor(length / 2)));
 			},
 		);
 	});
@@ -731,16 +660,15 @@ describe("parseQuery", () => {
 		});
 
 		it("should return a fresh dictionary on each call", () => {
-			const a = parseQuery("/a?b=v1");
-			const b = parseQuery("/a?b=v1");
-
-			expect(a).not.toBe(b);
+			expect(parseQuery("/a?b=v1")).not.toBe(parseQuery("/a?b=v1"));
 		});
 
 		it("should preserve insertion order for non-index names", () => {
-			const result = parseQuery("/a?c=1&b=2&d=3");
-
-			expect(Object.keys(result)).toEqual(["c", "b", "d"]);
+			expect(Object.keys(parseQuery("/a?c=1&b=2&d=3"))).toEqual([
+				"c",
+				"b",
+				"d",
+			]);
 		});
 
 		it("should reorder integer-index names ahead of the rest, per spec", () => {
@@ -789,6 +717,7 @@ describe("parseQuery", () => {
 			const result = parseQuery("/a?__proto__=a&__proto__=b");
 
 			expect(Object.hasOwn(result, "__proto__")).toBe(true);
+			// oxlint-disable-next-line no-proto -- Accessing __proto__ intentionally for test purposes
 			expect(result.__proto__).toEqual(["a", "b"]);
 			expect(Object.getPrototypeOf(result)).toBeNull();
 		});
@@ -809,15 +738,11 @@ describe("parseQuery", () => {
 
 		it("should keep an escaped BOM, with or without the fallback decoder", () => {
 			expect(parseQuery("/a?b=%EF%BB%BFx").b).toBe("\uFEFFx");
-
-			// "%FF" sends the value to the fallback decoder
 			expect(parseQuery("/a?b=%EF%BB%BFx%FF").b).toBe("\uFEFFx\uFFFD");
 		});
 
 		it("should keep raw non-ASCII characters through the fallback decoder", () => {
 			expect(parseQuery("/a?b=é%20").b).toBe("é ");
-
-			// "%FF" sends the value to the fallback decoder
 			expect(parseQuery("/a?b=é%FF").b).toBe("é\uFFFD");
 			expect(parseQuery("/a?b=😀%FF").b).toBe("😀\uFFFD");
 		});
@@ -826,33 +751,12 @@ describe("parseQuery", () => {
 			expect(parseQuery("/a?b=\uD800").b).toBe("\uD800");
 			expect(parseQuery("/a?b=\uD800%20").b).toBe("\uD800 ");
 			expect(parseQuery("/a?\uD800%20=v1")).toEqual({ "\uD800 ": "v1" });
-
-			// the fallback decoder replaces it
 			expect(parseQuery("/a?b=\uD800%FF").b).toBe("\uFFFD\uFFFD");
 		});
 	});
 
 	describe("parity with URLSearchParams", () => {
-		// what URLSearchParams yields, collapsed the way parseQuery collapses
-		const searchParams = (query: string): Record<string, unknown> => {
-			const params: Record<string, unknown> = {};
-
-			for (const [key, value] of new URLSearchParams(query)) {
-				const existing = params[key];
-
-				if (existing === undefined) {
-					params[key] = value;
-				} else if (Array.isArray(existing)) {
-					existing.push(value);
-				} else {
-					params[key] = [existing, value];
-				}
-			}
-
-			return params;
-		};
-
-		const parityCases = [
+		it.each([
 			"b=v1",
 			"b=v1&c=v2",
 			"b=v1&b=v2",
@@ -869,47 +773,37 @@ describe("parseQuery", () => {
 			"b=Jos%C3%A9",
 			"b=%F0%9F%8E%89",
 			"b=%E2%82%AC",
-			// malformed escapes stay literal
 			"b=%",
 			"b=%z",
 			"b=%zz",
 			"b=%2",
 			"b=a%%20b",
-			// invalid utf-8 becomes replacement characters
 			"b=%C3",
 			"b=%ED%A0%80",
 			"b=%C0%80",
 			"b=%FF",
 			"b=%80",
 			"b=%F5%80%80%80",
-			// separators and empty pairs
 			"&&b=v1&&",
 			"b==v2",
 			"b=v1&",
 			"&b=v1",
 			"b=v1&c",
-			// reserved characters that survive undecoded
 			"b=a&c=b%26c",
 			"b=%3D",
 			"b=%23",
 			"b=v1%2Bv2",
-			// long components with and without decoding
 			`b=${"v".repeat(200)}`,
 			`${"k".repeat(200)}=v1`,
 			`b=${"a+b+".repeat(50)}`,
 			`b=${"%20".repeat(50)}`,
-		];
-
-		for (const query of parityCases) {
-			it(`should match URLSearchParams for ${JSON.stringify(query)}`, () => {
-				expect({ ...parseQuery(`/a?${query}`) }).toEqual(
-					searchParams(query),
-				);
-			});
-		}
+		])("should match URLSearchParams for %j", (query) => {
+			expect({ ...parseQuery(`/a?${query}`) }).toEqual(
+				searchParams(query),
+			);
+		});
 
 		it("should match URLSearchParams on generated queries", () => {
-			// seeded Park-Miller over pair-shaped fragments
 			const fragments = [
 				"b",
 				"c",
@@ -954,7 +848,6 @@ describe("parseQuery", () => {
 					query += fragments[next(fragments.length)];
 				}
 
-				// a "#" would end the query
 				if (query.includes("#")) {
 					continue;
 				}
@@ -962,7 +855,6 @@ describe("parseQuery", () => {
 				const cudenix = { ...parseQuery(`/a?${query}`) };
 				const spec = searchParams(query);
 
-				// parseQuery drops the empty key URLSearchParams keeps
 				delete spec[""];
 
 				if (!Bun.deepEquals(cudenix, spec, true)) {

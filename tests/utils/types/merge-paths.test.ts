@@ -26,8 +26,8 @@ describe("MergePaths", () => {
 		});
 
 		it("should normalize union members and preserve generic path tails", () => {
-			expectTypeOf<MergePaths<"/a\\b" | "/c\\d", "/:id">>().toEqualTypeOf<
-				"/a/b/:id" | "/c/d/:id"
+			expectTypeOf<MergePaths<"/a\\b" | "/c\\d", "/:p1">>().toEqualTypeOf<
+				"/a/b/:p1" | "/c/d/:p1"
 			>();
 			expectTypeOf<
 				MergePaths<`/a\\${string}`, "/b">
@@ -275,7 +275,7 @@ describe("MergePaths", () => {
 
 			it("should reject a path without a leading slash at compile time", () => {
 				// @ts-expect-error - Path must start with '/'
-				type _B = MergePaths<"/a", "b">;
+				type _A = MergePaths<"/a", "b">;
 			});
 		});
 

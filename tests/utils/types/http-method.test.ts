@@ -99,16 +99,15 @@ describe("HttpMethod", () => {
 		});
 
 		it("should surface `undefined` when a `Record` is indexed through the brand", () => {
-			const methods = {} as Record<HttpMethod, number>;
-			const method = "PURGE" as HttpMethod;
-
-			expectTypeOf(methods[method]).toEqualTypeOf<number | undefined>();
+			expectTypeOf(
+				({} as Record<HttpMethod, number>)["PURGE" as HttpMethod],
+			).toEqualTypeOf<number | undefined>();
 		});
 
 		it("should keep a named verb as a required `Record` property", () => {
-			const methods = {} as Record<HttpMethod, number>;
-
-			expectTypeOf(methods.GET).toEqualTypeOf<number>();
+			expectTypeOf(
+				({} as Record<HttpMethod, number>).GET,
+			).toEqualTypeOf<number>();
 		});
 	});
 

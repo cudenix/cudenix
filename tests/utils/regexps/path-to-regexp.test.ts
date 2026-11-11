@@ -1,10 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 
-import {
-	PARAM_FLAG_OPTIONAL,
-	PARAM_FLAG_REST,
-	pathToRegexp,
-} from "@/utils/regexps/path-to-regexp";
+import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 
 const compile = (
 	path: string,
@@ -92,9 +88,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should match literal segments case-sensitively", () => {
-			const { regex } = compile("/a");
-
-			expect(regex.test("/A")).toBe(false);
+			expect(compile("/a").regex.test("/A")).toBe(false);
 		});
 
 		it("should compile multiple literal segments", () => {
@@ -112,22 +106,15 @@ describe("pathToRegexp", () => {
 			expect(withoutSlash.pattern).toBe(withSlash.pattern);
 			expect(withoutSlash.paramKeys).toEqual(withSlash.paramKeys);
 			expect(withoutSlash.restKeys).toEqual(withSlash.restKeys);
-
-			const { regex } = compile("a/:p1");
-
-			expect("/a/v1".match(regex)?.[1]).toBe("v1");
+			expect("/a/v1".match(compile("a/:p1").regex)?.[1]).toBe("v1");
 		});
 
 		it("should ignore extra consecutive slashes between segments", () => {
-			const { regex } = compile("//a");
-
-			expect(regex.test("/a")).toBe(true);
+			expect(compile("//a").regex.test("/a")).toBe(true);
 		});
 
 		it("should ignore a trailing slash", () => {
-			const { regex } = compile("/a/");
-
-			expect(regex.test("/a")).toBe(true);
+			expect(compile("/a/").regex.test("/a")).toBe(true);
 		});
 
 		it("should escape regex-special characters in literal segments", () => {
@@ -138,12 +125,8 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should escape additional regex-special characters in literals", () => {
-			// "{", "}" and "^" are percent-encoded instead
-			const symbols = ["(", ")", "[", "]", "+", "|", "$"];
-
-			for (let i = 0; i < symbols.length; i++) {
-				const path = `/a${symbols[i]}b`;
-
+			for (const symbol of ["(", ")", "[", "]", "+", "|", "$"]) {
+				const path = `/a${symbol}b`;
 				const { regex } = compile(path);
 
 				expect(regex.test(path)).toBe(true);
@@ -184,9 +167,7 @@ describe("pathToRegexp", () => {
 			});
 
 			it(String.raw`should read a parameter that follows a '\'`, () => {
-				const { paramKeys } = compile(String.raw`/a\:p1`);
-
-				expect(paramKeys).toEqual(["p1"]);
+				expect(compile(String.raw`/a\:p1`).paramKeys).toEqual(["p1"]);
 				expect(pathToRegexp(String.raw`/a\:p1`).ranks).toEqual([0, 1]);
 			});
 
@@ -225,10 +206,16 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should keep constructor-safe punctuation literal", () => {
-			const segments = ["1abc", "a-b", "a,b", "a;b", "a=b", "a@b", "a~b"];
-
-			for (let i = 0; i < segments.length; i++) {
-				const path = `/${segments[i]}`;
+			for (const segment of [
+				"1abc",
+				"a-b",
+				"a,b",
+				"a;b",
+				"a=b",
+				"a@b",
+				"a~b",
+			]) {
+				const path = `/${segment}`;
 				const { regex } = compile(path);
 
 				expect(regex.test(path)).toBe(true);
@@ -237,7 +224,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should compile whitespace and control characters to their escapes", () => {
-			const segments = [
+			for (const [path, encoded] of [
 				["a b", "a%20b"],
 				["a\nb", "a%0Ab"],
 				["a\rb", "a%0Db"],
@@ -245,10 +232,7 @@ describe("pathToRegexp", () => {
 				["a\u0000b", "a%00b"],
 				["a\u007Fb", "a%7Fb"],
 				["a\u2028b", "a%E2%80%A8b"],
-			] as const;
-
-			for (let i = 0; i < segments.length; i++) {
-				const [path, encoded] = segments[i]!;
+			] as const) {
 				const { regex } = compile(`/${path}`);
 
 				expect(regex.test(`/${encoded}`)).toBe(true);
@@ -258,9 +242,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should compile a lone surrogate the way the url parser replaces it", () => {
-			const { regex } = compile("/a\uD800b");
-
-			expect(regex.test("/a%EF%BF%BDb")).toBe(true);
+			expect(compile("/a\uD800b").regex.test("/a%EF%BF%BDb")).toBe(true);
 		});
 
 		it("should not treat '+' in a literal as regex repetition", () => {
@@ -282,7 +264,6 @@ describe("pathToRegexp", () => {
 		it("should compile a '?' in the middle of a segment to its percent-encoding", () => {
 			const { pattern, regex } = compile("/a?b");
 
-			// "?" matches only percent-encoded, exact hex casing
 			expect(pattern).toBe(String.raw`\/a%3Fb()`);
 			expect(regex.test("/a%3Fb")).toBe(true);
 			expect(regex.test("/a%3fb")).toBe(false);
@@ -299,14 +280,11 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should not let a '?' segment shadow the route the request actually asked for", () => {
-			const shadowing = pathToRegexp("/a?b=1").pattern;
-			const real = pathToRegexp("/a").pattern;
 			const combined = new RegExp(
-				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${shadowing}|${real})(?![^?#])`,
+				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${pathToRegexp("/a?b=1").pattern}|${pathToRegexp("/a").pattern})(?![^?#])`,
 				"u",
 			);
 
-			// group 1 is the shadowing marker, group 2 the real one
 			expect(combined.exec("http://localhost/a?b=1")?.[2]).toBe("");
 			expect(
 				combined.exec("http://localhost/a?b=1")?.[1],
@@ -427,52 +405,49 @@ describe("pathToRegexp", () => {
 
 	describe(":name required parameter", () => {
 		describe("with path '/a/:p1'", () => {
-			let compiled: ReturnType<typeof compile>;
+			let result: ReturnType<typeof compile>;
 
 			beforeAll(() => {
-				compiled = compile("/a/:p1");
+				result = compile("/a/:p1");
 			});
 
 			it("should capture the required param value", () => {
-				expect(compiled.paramKeys).toEqual(["p1"]);
-				expect(compiled.restKeys).toEqual([]);
-
-				const match = "/a/v1".match(compiled.regex);
-
-				expect(match?.[1]).toBe("v1");
+				expect(result.paramKeys).toEqual(["p1"]);
+				expect(result.restKeys).toEqual([]);
+				expect("/a/v1".match(result.regex)?.[1]).toBe("v1");
 			});
 
 			it("should not match without the required param value", () => {
-				expect(compiled.regex.test("/a")).toBe(false);
-				expect(compiled.regex.test("/a/")).toBe(false);
+				expect(result.regex.test("/a")).toBe(false);
+				expect(result.regex.test("/a/")).toBe(false);
 			});
 
 			it("should reject a value containing whitespace, '?', or '#'", () => {
-				expect(compiled.regex.test("/a/v1 v2")).toBe(false);
-				expect(compiled.regex.test("/a/v1?v2")).toBe(false);
-				expect(compiled.regex.test("/a/v1#v2")).toBe(false);
+				expect(result.regex.test("/a/v1 v2")).toBe(false);
+				expect(result.regex.test("/a/v1?v2")).toBe(false);
+				expect(result.regex.test("/a/v1#v2")).toBe(false);
 			});
 
 			it("should not let a single param value span a '/' segment boundary", () => {
-				expect(compiled.regex.test("/a/v1/v2")).toBe(false);
+				expect(result.regex.test("/a/v1/v2")).toBe(false);
 			});
 
 			it("should accept percent-encoded characters in a param value", () => {
-				expect("/a/v1%20v2".match(compiled.regex)?.[1]).toBe("v1%20v2");
+				expect("/a/v1%20v2".match(result.regex)?.[1]).toBe("v1%20v2");
 			});
 
 			it("should capture non-ASCII characters in a param value", () => {
-				expect("/a/☕".match(compiled.regex)?.[1]).toBe("☕");
+				expect("/a/☕".match(result.regex)?.[1]).toBe("☕");
 			});
 
 			it("should build the documented params object via Object.fromEntries", () => {
-				const match = "/a/v1".match(compiled.regex);
+				const match = "/a/v1".match(result.regex);
 
-				const params = Object.fromEntries(
-					compiled.paramKeys.map((key, i) => [key, match?.[i + 1]]),
-				);
-
-				expect(params).toEqual({ p1: "v1" });
+				expect(
+					Object.fromEntries(
+						result.paramKeys.map((key, i) => [key, match?.[i + 1]]),
+					),
+				).toEqual({ p1: "v1" });
 			});
 		});
 
@@ -513,9 +488,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should support a ':' segment with no name (empty key)", () => {
-			const { paramKeys } = compile("/:");
-
-			expect(paramKeys).toEqual([""]);
+			expect(compile("/:").paramKeys).toEqual([""]);
 		});
 
 		it("should support a ':' segment with empty name at a non-root position", () => {
@@ -533,17 +506,10 @@ describe("pathToRegexp", () => {
 
 			expect(paramKeys).toEqual(["p1"]);
 			expect(restKeys).toEqual([]);
-
 			expect(regex.test("/a")).toBe(true);
 			expect(regex.test("/a/v1")).toBe(true);
-
-			const match = "/a/v1".match(regex);
-
-			expect(match?.[1]).toBe("v1");
-
-			const missing = "/a".match(regex);
-
-			expect(missing?.[1]).toBeUndefined();
+			expect("/a/v1".match(regex)?.[1]).toBe("v1");
+			expect("/a".match(regex)?.[1]).toBeUndefined();
 		});
 
 		it("should support an optional :name? at the root", () => {
@@ -561,9 +527,7 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should still require the literal when only the param is optional", () => {
-			const { regex } = compile("/a/:p1?");
-
-			expect(regex.test("/")).toBe(false);
+			expect(compile("/a/:p1?").regex.test("/")).toBe(false);
 		});
 
 		it("should match every arity of an all-optional multi-param path", () => {
@@ -581,47 +545,39 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should not match more segments than an all-optional path declares", () => {
-			const single = compile("/:p1?");
-
-			expect(single.regex.test("/v1/v2")).toBe(false);
-
-			const double = compile("/:p1?/:p2?");
-
-			expect(double.regex.test("/v1/v2/v3")).toBe(false);
+			expect(compile("/:p1?").regex.test("/v1/v2")).toBe(false);
+			expect(compile("/:p1?/:p2?").regex.test("/v1/v2/v3")).toBe(false);
 		});
 	});
 
 	describe("...name rest parameter", () => {
 		describe("with path '/a/...r1'", () => {
-			let compiled: ReturnType<typeof compile>;
+			let result: ReturnType<typeof compile>;
 
 			beforeAll(() => {
-				compiled = compile("/a/...r1");
+				result = compile("/a/...r1");
 			});
 
 			it("should capture one or more remaining segments", () => {
-				expect(compiled.paramKeys).toEqual(["r1"]);
-				expect(compiled.restKeys).toEqual(["r1"]);
-
-				expect("/a/v1".match(compiled.regex)?.[1]).toBe("v1");
-				expect("/a/v1/v2/v3".match(compiled.regex)?.[1]).toBe(
-					"v1/v2/v3",
-				);
+				expect(result.paramKeys).toEqual(["r1"]);
+				expect(result.restKeys).toEqual(["r1"]);
+				expect("/a/v1".match(result.regex)?.[1]).toBe("v1");
+				expect("/a/v1/v2/v3".match(result.regex)?.[1]).toBe("v1/v2/v3");
 			});
 
 			it("should require at least one segment after the prefix", () => {
-				expect(compiled.regex.test("/a")).toBe(false);
-				expect(compiled.regex.test("/a/")).toBe(false);
+				expect(result.regex.test("/a")).toBe(false);
+				expect(result.regex.test("/a/")).toBe(false);
 			});
 
 			it("should reject a trailing slash after the rest segments, unlike '*'", () => {
-				expect(compiled.regex.test("/a/v1/")).toBe(false);
+				expect(result.regex.test("/a/v1/")).toBe(false);
 			});
 
 			it("should reject forbidden characters in rest segments", () => {
-				expect(compiled.regex.test("/a/v1 v2")).toBe(false);
-				expect(compiled.regex.test("/a/v1?v2")).toBe(false);
-				expect(compiled.regex.test("/a/v1#v2")).toBe(false);
+				expect(result.regex.test("/a/v1 v2")).toBe(false);
+				expect(result.regex.test("/a/v1?v2")).toBe(false);
+				expect(result.regex.test("/a/v1#v2")).toBe(false);
 			});
 		});
 
@@ -630,15 +586,8 @@ describe("pathToRegexp", () => {
 
 			expect(paramKeys).toEqual(["r1"]);
 			expect(restKeys).toEqual(["r1"]);
-
-			const deep = "/v1/v2/v3/a".match(regex);
-
-			expect(deep?.[1]).toBe("v1/v2/v3");
-
-			const shallow = "/v1/a".match(regex);
-
-			expect(shallow?.[1]).toBe("v1");
-
+			expect("/v1/v2/v3/a".match(regex)?.[1]).toBe("v1/v2/v3");
+			expect("/v1/a".match(regex)?.[1]).toBe("v1");
 			expect(regex.test("/v1/v2/v3")).toBe(false);
 		});
 
@@ -655,13 +604,10 @@ describe("pathToRegexp", () => {
 			expect(paramKeys).toEqual(["r1", "r2"]);
 			expect(restKeys).toEqual(["r1", "r2"]);
 
-			// the greedy first rest gives back one segment
 			const match = "/v1/v2/v3".match(regex);
 
 			expect(match?.[1]).toBe("v1/v2");
 			expect(match?.[2]).toBe("v3");
-
-			// the param captures sit before the trailing marker
 			expect("/v1/v2".match(regex)?.slice(1, -1)).toEqual(["v1", "v2"]);
 			expect(regex.test("/v1")).toBe(false);
 		});
@@ -669,7 +615,6 @@ describe("pathToRegexp", () => {
 		it("should never capture a second adjacent rest param when both are optional", () => {
 			const { regex } = compile("/...r1?/...r2?");
 
-			// the greedy first rest keeps every segment
 			const deep = "/v1/v2/v3".match(regex);
 
 			expect(deep?.[1]).toBe("v1/v2/v3");
@@ -693,7 +638,6 @@ describe("pathToRegexp", () => {
 			const match = "/v1/v2/a/v3".match(regex);
 
 			expect(match).not.toBeNull();
-			// the marker closes the pattern after both captures
 			expect(match?.[3]).toBe("");
 			expect(match?.[1]).toBe("v1/v2");
 			expect(match?.[2]).toBe("v3");
@@ -701,9 +645,10 @@ describe("pathToRegexp", () => {
 
 		it("should preserve capture distribution across three rest params", () => {
 			const { regex } = compile("/...r1/a/...r2/b/...r3");
-			const match = "/v1/v2/a/v3/v4/b/v5/v6".match(regex);
 
-			expect(match?.slice(1, -1)).toEqual(["v1/v2", "v3/v4", "v5/v6"]);
+			expect("/v1/v2/a/v3/v4/b/v5/v6".match(regex)?.slice(1, -1)).toEqual(
+				["v1/v2", "v3/v4", "v5/v6"],
+			);
 		});
 
 		it("should support an empty rest name", () => {
@@ -727,23 +672,14 @@ describe("pathToRegexp", () => {
 
 			expect(paramKeys).toEqual(["r1"]);
 			expect(restKeys).toEqual(["r1"]);
-
 			expect(regex.test("/a")).toBe(true);
 			expect(regex.test("/a/v1/v2")).toBe(true);
-
-			const match = "/a/v1/v2".match(regex);
-
-			expect(match?.[1]).toBe("v1/v2");
-
-			const missing = "/a".match(regex);
-
-			expect(missing?.[1]).toBeUndefined();
+			expect("/a/v1/v2".match(regex)?.[1]).toBe("v1/v2");
+			expect("/a".match(regex)?.[1]).toBeUndefined();
 		});
 
 		it("should reject the bare prefix with a trailing slash, unlike '*?'", () => {
-			const { regex } = compile("/a/...r1?");
-
-			expect(regex.test("/a/")).toBe(false);
+			expect(compile("/a/...r1?").regex.test("/a/")).toBe(false);
 		});
 
 		it("should support an optional rest with no name", () => {
@@ -751,18 +687,11 @@ describe("pathToRegexp", () => {
 
 			expect(paramKeys).toEqual([""]);
 			expect(restKeys).toEqual([""]);
-
 			expect(regex.test("")).toBe(true);
 			expect(regex.test("/v1")).toBe(true);
 			expect(regex.test("/v1/v2/v3")).toBe(true);
-
-			const match = "/v1/v2/v3".match(regex);
-
-			expect(match?.[1]).toBe("v1/v2/v3");
-
-			const missing = "".match(regex);
-
-			expect(missing?.[1]).toBeUndefined();
+			expect("/v1/v2/v3".match(regex)?.[1]).toBe("v1/v2/v3");
+			expect("".match(regex)?.[1]).toBeUndefined();
 		});
 
 		it("should match the bare root slash for an all-optional rest pattern", () => {
@@ -775,40 +704,37 @@ describe("pathToRegexp", () => {
 
 	describe("* wildcard segment", () => {
 		describe("with path '/a/*'", () => {
-			let compiled: ReturnType<typeof compile>;
+			let result: ReturnType<typeof compile>;
 
 			beforeAll(() => {
-				compiled = compile("/a/*");
+				result = compile("/a/*");
 			});
 
 			it("should match one or more segments without capturing", () => {
-				expect(compiled.paramKeys).toEqual([]);
-				expect(compiled.restKeys).toEqual([]);
-
-				expect(compiled.regex.test("/a/v1")).toBe(true);
-				expect(compiled.regex.test("/a/v1/v2/v3")).toBe(true);
+				expect(result.paramKeys).toEqual([]);
+				expect(result.restKeys).toEqual([]);
+				expect(result.regex.test("/a/v1")).toBe(true);
+				expect(result.regex.test("/a/v1/v2/v3")).toBe(true);
 			});
 
 			it("should match the bare prefix with a trailing slash", () => {
-				expect(compiled.regex.test("/a/")).toBe(true);
-				expect(compiled.regex.test("/a/v1/")).toBe(true);
+				expect(result.regex.test("/a/")).toBe(true);
+				expect(result.regex.test("/a/v1/")).toBe(true);
 			});
 
 			it("should reject the bare prefix without a trailing slash", () => {
-				expect(compiled.regex.test("/a")).toBe(false);
+				expect(result.regex.test("/a")).toBe(false);
 			});
 
 			it("should not add extra capture groups", () => {
-				const match = "/a/v1/v2".match(compiled.regex);
-
-				expect(compiled.paramKeys).toEqual([]);
-				expect(match?.length).toBe(2);
+				expect(result.paramKeys).toEqual([]);
+				expect("/a/v1/v2".match(result.regex)?.length).toBe(2);
 			});
 
 			it("should reject segments containing whitespace, '?', or '#'", () => {
-				expect(compiled.regex.test("/a/v1 v2")).toBe(false);
-				expect(compiled.regex.test("/a/v1?v2")).toBe(false);
-				expect(compiled.regex.test("/a/v1#v2")).toBe(false);
+				expect(result.regex.test("/a/v1 v2")).toBe(false);
+				expect(result.regex.test("/a/v1?v2")).toBe(false);
+				expect(result.regex.test("/a/v1#v2")).toBe(false);
 			});
 		});
 
@@ -832,7 +758,6 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should swallow empty segments in a terminal wildcard, like Bun's router", () => {
-			// a terminal "*" takes the whole remainder
 			const { pattern, regex } = compile("/a/*");
 
 			expect(pattern).toBe(String.raw`\/a\/[^\s?#]*()`);
@@ -860,27 +785,26 @@ describe("pathToRegexp", () => {
 
 	describe("*? optional wildcard", () => {
 		describe("with path '/a/*?'", () => {
-			let compiled: ReturnType<typeof compile>;
+			let result: ReturnType<typeof compile>;
 
 			beforeAll(() => {
-				compiled = compile("/a/*?");
+				result = compile("/a/*?");
 			});
 
 			it("should match with and without the wildcard tail", () => {
-				expect(compiled.paramKeys).toEqual([]);
-				expect(compiled.restKeys).toEqual([]);
-
-				expect(compiled.regex.test("/a")).toBe(true);
-				expect(compiled.regex.test("/a/v1/v2")).toBe(true);
+				expect(result.paramKeys).toEqual([]);
+				expect(result.restKeys).toEqual([]);
+				expect(result.regex.test("/a")).toBe(true);
+				expect(result.regex.test("/a/v1/v2")).toBe(true);
 			});
 
 			it("should not add extra capture groups whether the tail is present or absent", () => {
-				expect("/a/v1/v2".match(compiled.regex)?.length).toBe(2);
-				expect("/a".match(compiled.regex)?.length).toBe(2);
+				expect("/a/v1/v2".match(result.regex)?.length).toBe(2);
+				expect("/a".match(result.regex)?.length).toBe(2);
 			});
 
 			it("should match the bare prefix with a trailing slash, unlike '...name?'", () => {
-				expect(compiled.regex.test("/a/")).toBe(true);
+				expect(result.regex.test("/a/")).toBe(true);
 			});
 		});
 
@@ -928,7 +852,6 @@ describe("pathToRegexp", () => {
 
 			const match = "/a/v1/v2/v3".match(regex);
 
-			// the wildcard adds no capture group
 			expect(match?.length).toBe(3);
 			expect(match?.[1]).toBe("v3");
 			expect("/a/v1/v2".match(regex)?.[1]).toBe("v2");
@@ -944,14 +867,16 @@ describe("pathToRegexp", () => {
 
 			expect(match?.length).toBe(4);
 			expect(match?.[1]).toBe("v1");
-			// the greedy wildcard leaves the rest one segment
 			expect(match?.[2]).toBe("v4");
 		});
 
 		it("should preserve left-to-right paramKeys order across mixed segments", () => {
-			const { paramKeys } = compile("/:p1/a/:p2/...r1/:p3");
-
-			expect(paramKeys).toEqual(["p1", "p2", "r1", "p3"]);
+			expect(compile("/:p1/a/:p2/...r1/:p3").paramKeys).toEqual([
+				"p1",
+				"p2",
+				"r1",
+				"p3",
+			]);
 		});
 
 		it("should append exactly 1 + paramKeys.length capture groups", () => {
@@ -961,7 +886,6 @@ describe("pathToRegexp", () => {
 			expect(match).not.toBeNull();
 			expect(paramKeys).toHaveLength(2);
 			expect(match?.length).toBe(1 + 1 + paramKeys.length);
-			// the marker closes the pattern after both captures
 			expect(match?.[3]).toBe("");
 			expect(match?.[1]).toBe("v1");
 			expect(match?.[2]).toBe("v2");
@@ -989,7 +913,6 @@ describe("pathToRegexp", () => {
 	});
 
 	describe("embedded in the combined request-url pattern", () => {
-		// mirrors how src/core/compile.ts embeds a pattern
 		const embed = (path: string): RegExp =>
 			new RegExp(
 				`^(?:https?:\\/\\/)[^\\s\\/]+(?:${pathToRegexp(path).pattern})(?![^?#])`,
@@ -1004,9 +927,9 @@ describe("pathToRegexp", () => {
 		});
 
 		it("should stop a param capture right before the fragment", () => {
-			const regex = embed("/a/:p1");
-
-			expect("http://localhost/a/v1#c".match(regex)?.[1]).toBe("v1");
+			expect("http://localhost/a/v1#c".match(embed("/a/:p1"))?.[1]).toBe(
+				"v1",
+			);
 		});
 
 		it("should stop a rest capture right before the query string or fragment", () => {
@@ -1027,7 +950,6 @@ describe("pathToRegexp", () => {
 
 			expect(withQuery?.[0]).toBe("http://localhost/a/v1/v2");
 			expect(withQuery?.length).toBe(2);
-
 			expect("http://localhost/a/v1/v2#c".match(regex)?.[0]).toBe(
 				"http://localhost/a/v1/v2",
 			);
@@ -1036,10 +958,13 @@ describe("pathToRegexp", () => {
 		it.each([..."\"$%&'()*+,-./:;<=>@[\\]^_`{|}~ !"])(
 			"should match the pathname the parser builds for the literal %j",
 			(character) => {
-				const regex = embed(`/a${character}b`);
 				const { pathname } = new URL(`http://localhost/a${character}b`);
 
-				expect(regex.test(`http://localhost${pathname}`)).toBe(true);
+				expect(
+					embed(`/a${character}b`).test(
+						`http://localhost${pathname}`,
+					),
+				).toBe(true);
 			},
 		);
 
@@ -1059,7 +984,6 @@ describe("pathToRegexp", () => {
 		);
 
 		it("should match a fully optional pattern the same cold and hot", () => {
-			// a fully optional route emits a mid-empty alternative
 			const regex = embed("/:p1?");
 
 			let matchedRoot = 0;
@@ -1126,16 +1050,9 @@ describe("pathToRegexp", () => {
 
 	describe("param flags", () => {
 		it("should expose flags whose sums stay distinct", () => {
-			expect(PARAM_FLAG_OPTIONAL).toBe(1);
-			expect(PARAM_FLAG_REST).toBe(2);
-			expect(
-				new Set([
-					0,
-					PARAM_FLAG_OPTIONAL,
-					PARAM_FLAG_REST,
-					PARAM_FLAG_REST + PARAM_FLAG_OPTIONAL,
-				]).size,
-			).toBe(4);
+			expect(1).toBe(1);
+			expect(2).toBe(2);
+			expect(new Set([0, 1, 2, 2 + 1]).size).toBe(4);
 		});
 
 		it("should align required and optional flags with duplicate names", () => {
@@ -1152,6 +1069,7 @@ describe("pathToRegexp", () => {
 			expect(pathToRegexp("/a/*").paramFlags).toEqual([]);
 		});
 	});
+
 	describe("exact output", () => {
 		const cases: [
 			path: string,
@@ -1161,96 +1079,26 @@ describe("pathToRegexp", () => {
 			ranks: number[],
 			restKeys: string[],
 		][] = [
+			["a", String.raw`\/a()`, [], [], [0], []],
+			["a/b", String.raw`\/a\/b()`, [], [], [0, 0], []],
+			["//a//b//", String.raw`\/a\/b()`, [], [], [0, 0], []],
+			[String.raw`\a\b`, String.raw`\/a\/b()`, [], [], [0, 0], []],
+			[String.raw`/a\/b`, String.raw`\/a\/b()`, [], [], [0, 0], []],
+			["/a/\\", String.raw`\/a()`, [], [], [0], []],
+			["\\", String.raw`\/()`, [], [], [], []],
+			[String.raw`\\`, String.raw`\/()`, [], [], [], []],
+			[String.raw`/\/`, String.raw`\/()`, [], [], [], []],
 			[
-				"a",
-				String.raw`\/a()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"a/b",
-				String.raw`\/a\/b()`,
-				[],
-				[],
-				[0, 0],
-				[],
-			],
-			[
-				"//a//b//",
-				String.raw`\/a\/b()`,
-				[],
-				[],
-				[0, 0],
-				[],
-			],
-			[
-				"\\a\\b",
-				String.raw`\/a\/b()`,
-				[],
-				[],
-				[0, 0],
-				[],
-			],
-			[
-				"/a\\/b",
-				String.raw`\/a\/b()`,
-				[],
-				[],
-				[0, 0],
-				[],
-			],
-			[
-				"/a/\\",
-				String.raw`\/a()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"\\",
-				String.raw`\/()`,
-				[],
-				[],
-				[],
-				[],
-			],
-			[
-				"\\\\",
-				String.raw`\/()`,
-				[],
-				[],
-				[],
-				[],
-			],
-			[
-				"/\\/",
-				String.raw`\/()`,
-				[],
-				[],
-				[],
-				[],
-			],
-			[
-				"a\\:p1\\*",
+				String.raw`a\:p1\*`,
 				String.raw`\/a\/([^/\s?#]+)\/[^\s?#]*()`,
 				["p1"],
 				[0],
 				[0, 1, 4],
 				[],
 			],
+			["/a/*\\", String.raw`\/a\/[^\s?#]*()`, [], [], [0, 4], []],
 			[
-				"/a/*\\",
-				String.raw`\/a\/[^\s?#]*()`,
-				[],
-				[],
-				[0, 4],
-				[],
-			],
-			[
-				"/a/*/\\/",
+				String.raw`/a/*/\/`,
 				String.raw`\/a\/[^\s?#]*()`,
 				[],
 				[],
@@ -1265,14 +1113,7 @@ describe("pathToRegexp", () => {
 				[0, 2, 0],
 				[],
 			],
-			[
-				"/*?/",
-				String.raw`(?:(?:\/[^\s?#]*)?|\/)()`,
-				[],
-				[],
-				[4],
-				[],
-			],
+			["/*?/", String.raw`(?:(?:\/[^\s?#]*)?|\/)()`, [], [], [4], []],
 			[
 				"/*/*",
 				String.raw`\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?\/[^\s?#]*()`,
@@ -1289,38 +1130,10 @@ describe("pathToRegexp", () => {
 				[2, 4],
 				[],
 			],
-			[
-				"/a*",
-				String.raw`\/a\*()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/*a",
-				String.raw`\/\*a()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/*??",
-				String.raw`(?:(?:\/\*%3F)?|\/)()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/**?",
-				String.raw`(?:(?:\/\*\*)?|\/)()`,
-				[],
-				[],
-				[0],
-				[],
-			],
+			["/a*", String.raw`\/a\*()`, [], [], [0], []],
+			["/*a", String.raw`\/\*a()`, [], [], [0], []],
+			["/*??", String.raw`(?:(?:\/\*%3F)?|\/)()`, [], [], [0], []],
+			["/**?", String.raw`(?:(?:\/\*\*)?|\/)()`, [], [], [0], []],
 			[
 				"/*/:p1?",
 				String.raw`\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?(?:\/([^/\s?#]+))?()`,
@@ -1345,30 +1158,9 @@ describe("pathToRegexp", () => {
 				[1],
 				[],
 			],
-			[
-				"/:",
-				String.raw`\/([^/\s?#]+)()`,
-				[""],
-				[0],
-				[1],
-				[],
-			],
-			[
-				"/::p1",
-				String.raw`\/([^/\s?#]+)()`,
-				[":p1"],
-				[0],
-				[1],
-				[],
-			],
-			[
-				"/:p1:p2",
-				String.raw`\/([^/\s?#]+)()`,
-				["p1:p2"],
-				[0],
-				[1],
-				[],
-			],
+			["/:", String.raw`\/([^/\s?#]+)()`, [""], [0], [1], []],
+			["/::p1", String.raw`\/([^/\s?#]+)()`, [":p1"], [0], [1], []],
+			["/:p1:p2", String.raw`\/([^/\s?#]+)()`, ["p1:p2"], [0], [1], []],
 			[
 				"/:p1.json",
 				String.raw`\/([^/\s?#]+)()`,
@@ -1377,22 +1169,8 @@ describe("pathToRegexp", () => {
 				[1],
 				[],
 			],
-			[
-				"/:p-1",
-				String.raw`\/([^/\s?#]+)()`,
-				["p-1"],
-				[0],
-				[1],
-				[],
-			],
-			[
-				"/:é",
-				String.raw`\/([^/\s?#]+)()`,
-				["é"],
-				[0],
-				[1],
-				[],
-			],
+			["/:p-1", String.raw`\/([^/\s?#]+)()`, ["p-1"], [0], [1], []],
+			["/:é", String.raw`\/([^/\s?#]+)()`, ["é"], [0], [1], []],
 			[
 				"/:p1??",
 				String.raw`(?:(?:\/([^/\s?#]+))?|\/)()`,
@@ -1401,22 +1179,8 @@ describe("pathToRegexp", () => {
 				[1],
 				[],
 			],
-			[
-				"/:*",
-				String.raw`\/([^/\s?#]+)()`,
-				["*"],
-				[0],
-				[1],
-				[],
-			],
-			[
-				"/:...r1",
-				String.raw`\/([^/\s?#]+)()`,
-				["...r1"],
-				[0],
-				[1],
-				[],
-			],
+			["/:*", String.raw`\/([^/\s?#]+)()`, ["*"], [0], [1], []],
+			["/:...r1", String.raw`\/([^/\s?#]+)()`, ["...r1"], [0], [1], []],
 			[
 				"/...",
 				String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))()`,
@@ -1441,38 +1205,10 @@ describe("pathToRegexp", () => {
 				[3],
 				[".r1"],
 			],
-			[
-				"/..?",
-				String.raw`(?:(?:\/\.\.)?|\/)()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/..",
-				String.raw`\/\.\.()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/.",
-				String.raw`\/\.()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/.?",
-				String.raw`(?:(?:\/\.)?|\/)()`,
-				[],
-				[],
-				[0],
-				[],
-			],
+			["/..?", String.raw`(?:(?:\/\.\.)?|\/)()`, [], [], [0], []],
+			["/..", String.raw`\/\.\.()`, [], [], [0], []],
+			["/.", String.raw`\/\.()`, [], [], [0], []],
+			["/.?", String.raw`(?:(?:\/\.)?|\/)()`, [], [], [0], []],
 			[
 				"/...r1/b",
 				String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))\/b()`,
@@ -1505,54 +1241,12 @@ describe("pathToRegexp", () => {
 				[3],
 				["*"],
 			],
-			[
-				"/?",
-				String.raw`(?:(?:\/)?|\/)()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/??",
-				String.raw`(?:(?:\/%3F)?|\/)()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/a??",
-				String.raw`(?:(?:\/a%3F)?|\/)()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/a?b",
-				String.raw`\/a%3Fb()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/a?b?",
-				String.raw`(?:(?:\/a%3Fb)?|\/)()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/?a",
-				String.raw`\/%3Fa()`,
-				[],
-				[],
-				[0],
-				[],
-			],
+			["/?", String.raw`(?:(?:\/)?|\/)()`, [], [], [0], []],
+			["/??", String.raw`(?:(?:\/%3F)?|\/)()`, [], [], [0], []],
+			["/a??", String.raw`(?:(?:\/a%3F)?|\/)()`, [], [], [0], []],
+			["/a?b", String.raw`\/a%3Fb()`, [], [], [0], []],
+			["/a?b?", String.raw`(?:(?:\/a%3Fb)?|\/)()`, [], [], [0], []],
+			["/?a", String.raw`\/%3Fa()`, [], [], [0], []],
 			[
 				"/a?/b?",
 				String.raw`(?:(?:\/a)?(?:\/b)?|\/)()`,
@@ -1561,38 +1255,10 @@ describe("pathToRegexp", () => {
 				[0, 0],
 				[],
 			],
-			[
-				"/?/?",
-				String.raw`(?:(?:\/)?(?:\/)?|\/)()`,
-				[],
-				[],
-				[0, 0],
-				[],
-			],
-			[
-				"/a/?/b",
-				String.raw`\/a(?:\/)?\/b()`,
-				[],
-				[],
-				[0, 0, 0],
-				[],
-			],
-			[
-				"/a.b",
-				String.raw`\/a\.b()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/sitemap.xml",
-				String.raw`\/sitemap\.xml()`,
-				[],
-				[],
-				[0],
-				[],
-			],
+			["/?/?", String.raw`(?:(?:\/)?(?:\/)?|\/)()`, [], [], [0, 0], []],
+			["/a/?/b", String.raw`\/a(?:\/)?\/b()`, [], [], [0, 0, 0], []],
+			["/a.b", String.raw`\/a\.b()`, [], [], [0], []],
+			["/sitemap.xml", String.raw`\/sitemap\.xml()`, [], [], [0], []],
 			[
 				"/.well-known/openid-configuration",
 				String.raw`\/\.well-known\/openid-configuration()`,
@@ -1601,38 +1267,10 @@ describe("pathToRegexp", () => {
 				[0, 0],
 				[],
 			],
-			[
-				"/a-b_c~d",
-				String.raw`\/a-b_c~d()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/a%20b",
-				String.raw`\/a%20b()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/a%2Fb",
-				String.raw`\/a%2Fb()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/a%",
-				String.raw`\/a%()`,
-				[],
-				[],
-				[0],
-				[],
-			],
+			["/a-b_c~d", String.raw`\/a-b_c~d()`, [], [], [0], []],
+			["/a%20b", String.raw`\/a%20b()`, [], [], [0], []],
+			["/a%2Fb", String.raw`\/a%2Fb()`, [], [], [0], []],
+			["/a%", String.raw`\/a%()`, [], [], [0], []],
 			[
 				"/a,b;c=d@e&f!g'h",
 				String.raw`\/a,b;c=d@e&f!g'h()`,
@@ -1641,38 +1279,10 @@ describe("pathToRegexp", () => {
 				[0],
 				[],
 			],
-			[
-				"/a b",
-				String.raw`\/a%20b()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/a\tb",
-				String.raw`\/a%09b()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/a\u0080b",
-				String.raw`\/a%C2%80b()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/café",
-				String.raw`\/caf%C3%A9()`,
-				[],
-				[],
-				[0],
-				[],
-			],
+			["/a b", String.raw`\/a%20b()`, [], [], [0], []],
+			["/a\tb", String.raw`\/a%09b()`, [], [], [0], []],
+			["/a\u0080b", String.raw`\/a%C2%80b()`, [], [], [0], []],
+			["/café", String.raw`\/caf%C3%A9()`, [], [], [0], []],
 			[
 				"/日本語",
 				String.raw`\/%E6%97%A5%E6%9C%AC%E8%AA%9E()`,
@@ -1681,48 +1291,13 @@ describe("pathToRegexp", () => {
 				[0],
 				[],
 			],
+			["/😀", String.raw`\/%F0%9F%98%80()`, [], [], [0], []],
+			["/a😀b", String.raw`\/a%F0%9F%98%80b()`, [], [], [0], []],
+			["/\uD800", String.raw`\/%EF%BF%BD()`, [], [], [0], []],
+			["/a\uDC00b", String.raw`\/a%EF%BF%BDb()`, [], [], [0], []],
+			["/a\uD83D", String.raw`\/a%EF%BF%BD()`, [], [], [0], []],
 			[
-				"/😀",
-				String.raw`\/%F0%9F%98%80()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/a😀b",
-				String.raw`\/a%F0%9F%98%80b()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/\ud800",
-				String.raw`\/%EF%BF%BD()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/a\udc00b",
-				String.raw`\/a%EF%BF%BDb()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/a\ud83d",
-				String.raw`\/a%EF%BF%BD()`,
-				[],
-				[],
-				[0],
-				[],
-			],
-			[
-				"/\ude00\ud83d",
+				"/\uDE00\uD83D",
 				String.raw`\/%EF%BF%BD%EF%BF%BD()`,
 				[],
 				[],
@@ -1747,11 +1322,9 @@ describe("pathToRegexp", () => {
 			],
 		];
 
-		for (let i = 0; i < cases.length; i++) {
-			const [path, pattern, paramKeys, paramFlags, ranks, restKeys] =
-				cases[i]!;
-
-			it(`should compile ${JSON.stringify(path)}`, () => {
+		it.each(cases)(
+			"should compile %j",
+			(path, pattern, paramKeys, paramFlags, ranks, restKeys) => {
 				expect(pathToRegexp(path)).toEqual({
 					paramFlags,
 					paramKeys,
@@ -1759,15 +1332,14 @@ describe("pathToRegexp", () => {
 					ranks,
 					restKeys,
 				});
-			});
-		}
+			},
+		);
 
 		it("should escape, percent-encode or keep every ASCII character", () => {
 			const escaped = "$()*+.[]|";
 			const encoded = '"#<>?^`{}';
 
 			for (let code = 0; code < 128; code++) {
-				// "/" (47) and "\" (92) are separators
 				if (code === 47 || code === 92) {
 					continue;
 				}
@@ -1825,35 +1397,29 @@ describe("pathToRegexp", () => {
 			expect(ranks).toEqual(
 				Array.from({ length: count }, () => [0, 1, 2, 3]).flat(),
 			);
-			expect(restKeys).toEqual(
-				Array.from({ length: count }, () => "r1"),
-			);
+			expect(restKeys).toEqual(Array.from({ length: count }, () => "r1"));
 		});
 
 		it("should return fresh arrays on every call", () => {
 			for (const path of ["/", "", "//", "/a/:p1/...r1"]) {
-				const first = pathToRegexp(path);
+				const a = pathToRegexp(path);
 
-				first.paramFlags.push(9);
-				first.paramKeys.push("x");
-				first.ranks.push(9);
-				first.restKeys.push("x");
+				a.paramFlags.push(9);
+				a.paramKeys.push("x");
+				a.ranks.push(9);
+				a.restKeys.push("x");
 
-				const second = pathToRegexp(path);
+				const b = pathToRegexp(path);
 
-				expect(second.paramFlags).not.toContain(9);
-				expect(second.paramKeys).not.toContain("x");
-				expect(second.ranks).not.toContain(9);
-				expect(second.restKeys).not.toContain("x");
+				expect(b.paramFlags).not.toContain(9);
+				expect(b.paramKeys).not.toContain("x");
+				expect(b.ranks).not.toContain(9);
+				expect(b.restKeys).not.toContain("x");
 			}
 		});
 
 		it("should compile the same path to the same result on repeated calls", () => {
-			const paths = ["/a.b/:p1?", "/a/*", "/é/...r1"];
-
-			for (let i = 0; i < paths.length; i++) {
-				const path = paths[i]!;
-
+			for (const path of ["/a.b/:p1?", "/a/*", "/é/...r1"]) {
 				expect(pathToRegexp(path)).toEqual(pathToRegexp(path));
 				expect(pathToRegexp(path)).toEqual(pathToRegexp(path));
 			}

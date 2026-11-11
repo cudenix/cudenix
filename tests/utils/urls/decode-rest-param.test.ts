@@ -35,11 +35,7 @@ describe("decodeRestParam", () => {
 		});
 
 		it("should decode only the segments that need it", () => {
-			expect(decodeRestParam("plain/a%20b/plain")).toEqual([
-				"plain",
-				"a b",
-				"plain",
-			]);
+			expect(decodeRestParam("a/b%20c/d")).toEqual(["a", "b c", "d"]);
 		});
 
 		it("should replace a malformed sequence without dropping the segment", () => {
@@ -51,7 +47,6 @@ describe("decodeRestParam", () => {
 		});
 
 		it("should decode a segment long enough to grow the shared byte buffer", () => {
-			// a grown run leaks no bytes across segments
 			expect(decodeRestParam(`a/${"%FF".repeat(600)}`)).toEqual([
 				"a",
 				"�".repeat(600),
@@ -129,14 +124,13 @@ describe("decodeRestParam", () => {
 		});
 	});
 
-	describe("result", () => {
+	describe("return shape", () => {
 		it("should return a new array on every call", () => {
-			const first = decodeRestParam("a/b");
-			const second = decodeRestParam("a/b");
+			const a = decodeRestParam("a/b");
 
-			expect(first).not.toBe(second);
+			expect(a).not.toBe(decodeRestParam("a/b"));
 
-			first.push("c");
+			a.push("c");
 
 			expect(decodeRestParam("a/b")).toEqual(["a", "b"]);
 		});

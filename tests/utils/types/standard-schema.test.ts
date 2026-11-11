@@ -217,7 +217,6 @@ describe("StandardSchemaV1", () => {
 					| readonly (PropertyKey | StandardSchemaV1.PathSegment)[]
 					| undefined;
 			}>();
-
 			expectTypeOf<{
 				message: string;
 			}>().toExtend<StandardSchemaV1.Issue>();
@@ -255,7 +254,6 @@ describe("StandardSchemaV1", () => {
 			expectTypeOf<StandardSchemaV1.Options>().toEqualTypeOf<{
 				readonly libraryOptions?: Record<string, unknown> | undefined;
 			}>();
-
 			expectTypeOf<
 				Record<never, never>
 			>().toExtend<StandardSchemaV1.Options>();
@@ -344,9 +342,7 @@ describe("StandardSchemaV1.InferInput", () => {
 			interface A extends StandardSchemaV1 {
 				readonly "~standard": {
 					readonly types?: undefined;
-					readonly validate: (
-						value: unknown,
-					) => StandardSchemaV1.Result<unknown>;
+					validate(value: unknown): StandardSchemaV1.Result<unknown>;
 					readonly vendor: string;
 					readonly version: 1;
 				};
@@ -415,9 +411,7 @@ describe("StandardSchemaV1.InferOutput", () => {
 			interface A extends StandardSchemaV1 {
 				readonly "~standard": {
 					readonly types?: undefined;
-					readonly validate: (
-						value: unknown,
-					) => StandardSchemaV1.Result<unknown>;
+					validate(value: unknown): StandardSchemaV1.Result<unknown>;
 					readonly vendor: string;
 					readonly version: 1;
 				};

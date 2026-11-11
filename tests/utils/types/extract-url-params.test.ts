@@ -1,10 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "bun:test";
 
-import {
-	PARAM_FLAG_OPTIONAL,
-	PARAM_FLAG_REST,
-	pathToRegexp,
-} from "@/utils/regexps/path-to-regexp";
+import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { ExtractUrlParams } from "@/utils/types/extract-url-params";
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 
@@ -32,11 +28,7 @@ const parseParams = (
 			continue;
 		}
 
-		if (
-			captured === undefined &&
-			(flags === PARAM_FLAG_OPTIONAL ||
-				flags === PARAM_FLAG_REST + PARAM_FLAG_OPTIONAL)
-		) {
+		if (captured === undefined && (flags === 1 || flags === 2 + 1)) {
 			continue;
 		}
 
@@ -45,7 +37,7 @@ const parseParams = (
 		}
 
 		params[key] =
-			flags >= PARAM_FLAG_REST
+			flags >= 2
 				? captured.split("/").map((segment) => decodePathParam(segment))
 				: decodePathParam(captured);
 	}
@@ -56,47 +48,48 @@ const parseParams = (
 describe("ExtractUrlParams", () => {
 	describe("backslash separators", () => {
 		it("should recognize a parameter after a backslash", () => {
-			const params: ExtractUrlParams<"/a\\:id"> = { id: "123" };
+			const params: ExtractUrlParams<"/a\\:p1"> = { p1: "v1" };
 
-			expectTypeOf<typeof params>().toEqualTypeOf<{ id: string }>();
-			expect(parseParams(String.raw`/a\:id`, "/a/123")).toEqual(params);
+			expectTypeOf<typeof params>().toEqualTypeOf<{ p1: string }>();
+			expect(parseParams(String.raw`/a\:p1`, "/a/v1")).toEqual(params);
 		});
 
 		it("should end a parameter name at a backslash", () => {
-			expectTypeOf<ExtractUrlParams<"/:id\\tail">>().toEqualTypeOf<{
-				id: string;
+			expectTypeOf<ExtractUrlParams<"/:p1\\a">>().toEqualTypeOf<{
+				p1: string;
 			}>();
 		});
 
 		it("should preserve optional and rest captures with mixed separators", () => {
-			type Params = ExtractUrlParams<"/a\\:id?//\\...parts">;
-			const params: Params = { parts: ["b", "c"] };
+			type Params = ExtractUrlParams<"/a\\:p1?//\\...r1">;
+
+			const params: Params = { r1: ["v1", "v2"] };
 
 			expectTypeOf<Params>().toEqualTypeOf<{
-				id?: string | undefined;
-				parts: RestParam;
+				p1?: string | undefined;
+				r1: RestParam;
 			}>();
 			expect(
-				parseParams(String.raw`/a\:id?//\...parts`, "/a/b/c"),
-			).toEqual({ id: "b", parts: ["c"] });
-			expect(parseParams(String.raw`/a\:id?//\...parts`, "/a/b")).toEqual(
-				{ parts: [params.parts[0]] },
-			);
+				parseParams(String.raw`/a\:p1?//\...r1`, "/a/v1/v2"),
+			).toEqual({ p1: "v1", r1: ["v2"] });
+			expect(parseParams(String.raw`/a\:p1?//\...r1`, "/a/v1")).toEqual({
+				r1: [params.r1[0]],
+			});
 		});
 
 		it("should apply duplicate-name overrides across either separator", () => {
-			expectTypeOf<ExtractUrlParams<"/:id\\...id">>().toEqualTypeOf<{
-				id: RestParam;
+			expectTypeOf<ExtractUrlParams<"/:p1\\...p1">>().toEqualTypeOf<{
+				p1: RestParam;
 			}>();
-			expectTypeOf<ExtractUrlParams<"/:id\\...id?">>().toEqualTypeOf<{
-				id: RestParam | string;
+			expectTypeOf<ExtractUrlParams<"/:p1\\...p1?">>().toEqualTypeOf<{
+				p1: RestParam | string;
 			}>();
 		});
 
 		it("should distribute over paths using different separators", () => {
 			expectTypeOf<
-				ExtractUrlParams<"/a\\:id" | "/b/:name">
-			>().toEqualTypeOf<{ id: string } | { name: string }>();
+				ExtractUrlParams<"/a\\:p1" | "/b/:p2">
+			>().toEqualTypeOf<{ p1: string } | { p2: string }>();
 		});
 	});
 
@@ -421,11 +414,9 @@ describe("ExtractUrlParams", () => {
 		});
 
 		it("should resolve the `any` input to both conditional branches", () => {
-			// biome-ignore lint/suspicious/noExplicitAny: Testing an `any` path
 			expectTypeOf<ExtractUrlParams<any>>().not.toBeAny();
-			// biome-ignore lint/suspicious/noExplicitAny: Testing an `any` path
 			expectTypeOf<ExtractUrlParams<any>>().toEqualTypeOf<
-				NonNullable<unknown> | Record<string, string | RestParam>
+				NonNullable<unknown> | Record<string, RestParam | string>
 			>();
 		});
 	});
@@ -464,7 +455,6 @@ describe("ExtractUrlParams", () => {
 			expectTypeOf<
 				ExtractUrlParams<"/:p1/...p1">["p1"]
 			>().toEqualTypeOf<RestParam>();
-
 			expect(parseParams("/:p1/...p1", "/v1/v2%2Fv3/v4").p1).toEqual([
 				"v2/v3",
 				"v4",
@@ -478,7 +468,6 @@ describe("ExtractUrlParams", () => {
 			expectTypeOf<NonNullable<unknown>>().not.toExtend<
 				ExtractUrlParams<"/:p1/...p1?">
 			>();
-
 			expect(parseParams("/:p1/...p1?", "/v1")).toEqual({ p1: "v1" });
 		});
 
@@ -494,7 +483,6 @@ describe("ExtractUrlParams", () => {
 			>().branded.toEqualTypeOf<{
 				p1?: RestParam | string | undefined;
 			}>();
-
 			expect(parseParams("/:p1?/...p1?", "/")).toEqual({});
 		});
 	});
@@ -563,7 +551,6 @@ describe("ExtractUrlParams", () => {
 		});
 
 		it("should accumulate 100 captures", () => {
-			// builds "/:p0/:p1/.../:p99"
 			type Captures<
 				Count extends number,
 				Result extends string = "",

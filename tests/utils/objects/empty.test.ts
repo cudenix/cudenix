@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it } from "bun:test";
 
-import { Empty, FrozenEmpty } from "@/utils/objects/empty";
+import { Empty } from "@/utils/objects/empty";
 
 describe("Empty", () => {
 	describe("construction", () => {
@@ -19,10 +19,7 @@ describe("Empty", () => {
 		});
 
 		it("should return a fresh instance on each call", () => {
-			const a = new Empty();
-			const b = new Empty();
-
-			expect(a).not.toBe(b);
+			expect(new Empty()).not.toBe(new Empty());
 		});
 
 		it("should mark instances as instanceof Empty", () => {
@@ -55,7 +52,7 @@ describe("Empty", () => {
 	});
 
 	describe("serialization of a populated instance", () => {
-		const dangerous: string = "constructor";
+		const dangerous = "constructor";
 
 		let nested: Record<PropertyKey, unknown>;
 		let instance: Record<PropertyKey, unknown>;
@@ -67,7 +64,7 @@ describe("Empty", () => {
 			instance = new Empty();
 			instance.a = 1;
 			instance.b = nested;
-			instance[dangerous] = "v1";
+			instance[dangerous as string] = "v1";
 		});
 
 		it("should serialize own keys in insertion order via JSON.stringify, including a nested instance and a 'constructor' key", () => {
@@ -186,14 +183,13 @@ describe("Empty", () => {
 		});
 
 		it("should reject properties added to the frozen Empty.prototype", () => {
-			const probe = Symbol();
+			const sym = Symbol("a");
 
 			expect(() => {
-				Empty.prototype[probe] = "v1";
+				Empty.prototype[sym] = "v1";
 			}).toThrow(TypeError);
-
-			expect(Reflect.has(instance, probe)).toBe(false);
-			expect(instance[probe]).toBeUndefined();
+			expect(Reflect.has(instance, sym)).toBe(false);
+			expect(instance[sym]).toBeUndefined();
 		});
 	});
 
@@ -223,11 +219,11 @@ describe("Empty", () => {
 		});
 
 		it("should accept symbol-keyed assignment", () => {
-			const key = Symbol();
+			const sym = Symbol("a");
 
-			instance[key] = 1;
+			instance[sym] = 1;
 
-			expect(instance[key]).toBe(1);
+			expect(instance[sym]).toBe(1);
 		});
 
 		it("should accept numeric-string keys", () => {
@@ -269,7 +265,7 @@ describe("Empty", () => {
 		});
 
 		it("should expose both string and symbol own keys via Reflect.ownKeys", () => {
-			const sym = Symbol();
+			const sym = Symbol("a");
 
 			instance.a = 1;
 			instance[sym] = 2;
@@ -284,9 +280,7 @@ describe("Empty", () => {
 		it("should give assigned properties default writable/enumerable/configurable descriptors", () => {
 			instance.a = 1;
 
-			const descriptor = Object.getOwnPropertyDescriptor(instance, "a");
-
-			expect(descriptor).toEqual({
+			expect(Object.getOwnPropertyDescriptor(instance, "a")).toEqual({
 				configurable: true,
 				enumerable: true,
 				value: 1,
@@ -356,177 +350,174 @@ describe("Empty", () => {
 			instance.a = 2;
 
 			expect(instance.a).toBe(2);
-
 			expect(() => {
 				instance.b = 3;
 			}).toThrow();
 		});
 	});
-});
 
-describe("FrozenEmpty", () => {
-	describe("identity", () => {
-		it("should be of typeof 'object'", () => {
-			expect(typeof FrozenEmpty).toBe("object");
+	describe("constructor function", () => {
+		it("should be a named zero-arity function", () => {
+			expect(typeof Empty).toBe("function");
+			expect(Empty.name).toBe("Empty");
+			expect(Empty.length).toBe(0);
 		});
 
-		it("should not be null", () => {
-			expect(FrozenEmpty).not.toBeNull();
+		it("should return undefined when called without new", () => {
+			const call = Empty as unknown as () => unknown;
+
+			expect(call()).toBeUndefined();
 		});
 
-		it("should be frozen", () => {
-			expect(Object.isFrozen(FrozenEmpty)).toBe(true);
+		it("should ignore constructor arguments", () => {
+			expect(Reflect.ownKeys(new Empty({ a: 1 }, "v1"))).toHaveLength(0);
 		});
 
-		it("should be an instance of Empty", () => {
-			expect(FrozenEmpty).toBeInstanceOf(Empty);
-		});
-	});
+		it("should produce extensible, unfrozen and unsealed instances", () => {
+			const instance = new Empty();
 
-	describe("shape", () => {
-		it("should have no own keys", () => {
-			expect(Reflect.ownKeys(FrozenEmpty)).toHaveLength(0);
-		});
+			instance.a = 1;
 
-		it("should report as sealed and non-extensible", () => {
-			expect(Object.isSealed(FrozenEmpty)).toBe(true);
-			expect(Object.isExtensible(FrozenEmpty)).toBe(false);
+			expect(Object.isExtensible(instance)).toBe(true);
+			expect(Object.isFrozen(instance)).toBe(false);
+			expect(Object.isSealed(instance)).toBe(false);
 		});
 	});
 
-	describe("serialization", () => {
-		it("should serialize to '{}' via JSON.stringify", () => {
-			expect(JSON.stringify(FrozenEmpty)).toBe("{}");
+	describe("isolation from Object.prototype", () => {
+		it("should not be an instance of Object", () => {
+			expect(new Empty() instanceof Object).toBe(false);
 		});
 
-		it("should spread to an empty object literal", () => {
-			expect({ ...FrozenEmpty }).toEqual({});
+		it("should not see keys added to Object.prototype", () => {
+			const key = "cudenixEmptyProbe";
+			const prototype = Object.prototype as Record<string, unknown>;
+
+			prototype[key] = "v1";
+
+			try {
+				const instance = new Empty();
+
+				expect(({} as Record<string, unknown>)[key]).toBe("v1");
+				expect(key in instance).toBe(false);
+				expect(instance[key]).toBeUndefined();
+			} finally {
+				delete prototype[key];
+			}
 		});
 
-		it("should return an empty array from Object.entries", () => {
-			expect(Object.entries(FrozenEmpty)).toEqual([]);
+		it("should not inherit legacy accessors helpers", () => {
+			const instance = new Empty();
+
+			expect("__defineGetter__" in instance).toBe(false);
+			expect("__lookupGetter__" in instance).toBe(false);
 		});
 
-		it("should return an empty array from Object.values", () => {
-			expect(Object.values(FrozenEmpty)).toEqual([]);
-		});
-	});
+		it("should not be iterable", () => {
+			const instance = new Empty();
 
-	describe("prototype chain", () => {
-		it("should inherit from the null-prototype Empty.prototype", () => {
-			expect(Object.getPrototypeOf(FrozenEmpty)).toBe(Empty.prototype);
-			expect(
-				Object.getPrototypeOf(Object.getPrototypeOf(FrozenEmpty)),
-			).toBeNull();
+			expect(Symbol.iterator in instance).toBe(false);
+			expect(() => [
+				...(instance as unknown as Iterable<unknown>),
+			]).toThrow(TypeError);
 		});
 
-		it("should not have Object.prototype in the lookup chain", () => {
-			expect(Object.prototype.isPrototypeOf(FrozenEmpty)).toBe(false);
-		});
-
-		it("should not expose Object.prototype keys", () => {
-			expect("toString" in FrozenEmpty).toBe(false);
-			expect("hasOwnProperty" in FrozenEmpty).toBe(false);
-		});
-
-		it("should leave constructor undefined", () => {
-			expect(FrozenEmpty.constructor).toBeUndefined();
-		});
-	});
-
-	describe("immutability", () => {
-		it("should reject property assignment in strict mode", () => {
-			expect(() => {
-				// @ts-expect-error - should not allow adding properties
-				FrozenEmpty.a = 1;
-			}).toThrow(TypeError);
-		});
-
-		it("should reject symbol-keyed assignment in strict mode", () => {
-			expect(() => {
-				// @ts-expect-error - should not allow adding properties
-				FrozenEmpty[Symbol("a")] = 1;
-			}).toThrow(TypeError);
-		});
-
-		it("should reject defining new properties via Object.defineProperty", () => {
-			expect(() =>
-				Object.defineProperty(FrozenEmpty, "a", { value: 1 }),
-			).toThrow(TypeError);
-		});
-
-		it("should reject prototype replacement", () => {
-			expect(() => Object.setPrototypeOf(FrozenEmpty, {})).toThrow(
-				TypeError,
+		it("should still tag as '[object Object]'", () => {
+			expect(Object.prototype.toString.call(new Empty())).toBe(
+				"[object Object]",
 			);
 		});
-
-		it("should be idempotent and return the same reference on re-freeze", () => {
-			expect(Object.freeze(FrozenEmpty)).toBe(FrozenEmpty);
-			expect(Object.isFrozen(FrozenEmpty)).toBe(true);
-		});
-
-		it("should treat Object.seal and Object.preventExtensions as no-ops", () => {
-			expect(Object.seal(FrozenEmpty)).toBe(FrozenEmpty);
-			expect(Object.preventExtensions(FrozenEmpty)).toBe(FrozenEmpty);
-			expect(Object.isFrozen(FrozenEmpty)).toBe(true);
-		});
 	});
 
-	describe("pollution of the shared Empty.prototype", () => {
-		it("should be frozen and non-extensible", () => {
-			expect(Object.isFrozen(Empty.prototype)).toBe(true);
-			expect(Object.isExtensible(Empty.prototype)).toBe(false);
+	describe("dictionary usage", () => {
+		it("should return undefined and report absence for a missing key", () => {
+			const instance = new Empty();
+
+			instance.a = 1;
+
+			expect(instance.b).toBeUndefined();
+			expect("b" in instance).toBe(false);
+			expect(Object.hasOwn(instance, "b")).toBe(false);
 		});
 
-		it("should reject a string key added to Empty.prototype", () => {
-			expect(() => {
-				Empty.prototype.a = 1;
-			}).toThrow(TypeError);
+		it("should order integer keys first, then strings, then symbols", () => {
+			const instance = new Empty();
+			const sym = Symbol("a");
 
-			expect("a" in FrozenEmpty).toBe(false);
-			expect(FrozenEmpty.a).toBeUndefined();
+			instance.b = 1;
+			instance[sym] = 2;
+			instance["2"] = 3;
+			instance.a = 4;
+			instance["1"] = 5;
+
+			expect(Reflect.ownKeys(instance)).toEqual([
+				"1",
+				"2",
+				"b",
+				"a",
+				sym,
+			]);
 		});
 
-		it("should keep destructuring defaults read through FrozenEmpty stable", () => {
-			const fn = ({ a = 1 }: { a?: number } = FrozenEmpty): number => a;
+		it("should move a deleted and re-added key to the end", () => {
+			const instance = new Empty();
 
-			expect(fn()).toBe(1);
+			instance.a = 1;
+			instance.b = 2;
 
-			expect(() => {
-				Empty.prototype.a = 2;
-			}).toThrow(TypeError);
+			delete instance.a;
 
-			expect(fn()).toBe(1);
+			instance.a = 3;
+
+			expect(Object.keys(instance)).toEqual(["b", "a"]);
+			expect(instance.a).toBe(3);
 		});
 
-		it("should still let each instance take its own keys", () => {
-			const dictionary = new Empty();
+		it("should hold many dynamic keys and survive deletions", () => {
+			const instance = new Empty();
 
-			dictionary.a = 1;
+			for (let i = 0; i < 256; i++) {
+				instance[`/path/${i}`] = i;
+			}
 
-			expect(dictionary.a).toBe(1);
-			expect(Object.hasOwn(dictionary, "a")).toBe(true);
-			expect("a" in new Empty()).toBe(false);
-		});
-	});
+			for (let i = 0; i < 256; i += 2) {
+				delete instance[`/path/${i}`];
+			}
 
-	describe("usage as a destructuring default", () => {
-		const fn = ({
-			a = false,
-			b = 0,
-		}: {
-			a?: boolean;
-			b?: number;
-		} = FrozenEmpty): { a: boolean; b: number } => ({ a, b });
-
-		it("should fall back to defaults when no options are passed", () => {
-			expect(fn()).toEqual({ a: false, b: 0 });
+			expect(Object.keys(instance)).toHaveLength(128);
+			expect(instance["/path/0"]).toBeUndefined();
+			expect("/path/0" in instance).toBe(false);
+			expect(instance["/path/1"]).toBe(1);
+			expect(instance["/path/255"]).toBe(255);
+			expect(Object.getPrototypeOf(instance)).toBe(Empty.prototype);
 		});
 
-		it("should preserve untouched defaults when partial options are passed", () => {
-			expect(fn({ a: true })).toEqual({ a: true, b: 0 });
-			expect(fn({ b: 1 })).toEqual({ a: false, b: 1 });
+		it("should receive own enumerable keys through Object.assign", () => {
+			const instance = new Empty();
+
+			const source = { a: 1, constructor: "v1", toString: "v2" };
+			const assigned: unknown = Object.assign(instance, source);
+
+			expect(assigned).toBe(instance);
+			expect(Object.entries(instance)).toEqual([
+				["a", 1],
+				["constructor", "v1"],
+				["toString", "v2"],
+			]);
+			expect(Object.getPrototypeOf(instance)).toBe(Empty.prototype);
+		});
+
+		it("should overwrite an existing key in place", () => {
+			const instance = new Empty();
+
+			instance.a = 1;
+			instance.b = 2;
+			instance.a = 3;
+
+			expect(Object.entries(instance)).toEqual([
+				["a", 3],
+				["b", 2],
+			]);
 		});
 	});
 });

@@ -28,9 +28,7 @@ describe("cloneAppend", () => {
 		});
 
 		it("should produce a dense array literal with no holes", () => {
-			const result = cloneAppend([], 1);
-
-			expect(Object.keys(result)).toEqual(["0"]);
+			expect(Object.keys(cloneAppend([], 1))).toEqual(["0"]);
 		});
 
 		it("should append an array item as a single element without spreading", () => {
@@ -43,9 +41,7 @@ describe("cloneAppend", () => {
 		it("should preserve object identity of the appended item", () => {
 			const item = { a: 1 };
 
-			const result = cloneAppend([], item);
-
-			expect(result[0]).toBe(item);
+			expect(cloneAppend([], item)[0]).toBe(item);
 		});
 	});
 
@@ -74,19 +70,14 @@ describe("cloneAppend", () => {
 
 		it("should preserve object identity of the single existing element", () => {
 			const a = { a: 1 };
-			const source = [a];
 
-			const result = cloneAppend(source, { a: 2 });
-
-			expect(result[0]).toBe(a);
+			expect(cloneAppend([a], { a: 2 })[0]).toBe(a);
 		});
 
 		it("should preserve object identity of the appended item", () => {
 			const item = { a: 2 };
 
-			const result = cloneAppend([{ a: 1 }], item);
-
-			expect(result[1]).toBe(item);
+			expect(cloneAppend([{ a: 1 }], item)[1]).toBe(item);
 		});
 
 		it("should append an array item as a single element without spreading", () => {
@@ -125,6 +116,26 @@ describe("cloneAppend", () => {
 			expect(source).toEqual(snapshot);
 		});
 
+		it.each([3, 4])(
+			"should preserve order and identity for a source of length %i",
+			(length) => {
+				const source = Array.from({ length }, (_, i) => ({ a: i }));
+				const snapshot = [...source];
+				const item = { a: length };
+
+				const result = cloneAppend(source, item);
+
+				expect(result).toHaveLength(length + 1);
+				expect(result[length]).toBe(item);
+				expect(result).not.toBe(source);
+				expect(source).toEqual(snapshot);
+
+				for (let i = 0; i < length; i++) {
+					expect(result[i]).toBe(snapshot[i]);
+				}
+			},
+		);
+
 		it("should work for longer arrays", () => {
 			const source = [1, 2, 3, 4, 5];
 
@@ -160,9 +171,7 @@ describe("cloneAppend", () => {
 		it("should preserve object identity of the appended item", () => {
 			const item = { a: 3 };
 
-			const result = cloneAppend([{ a: 1 }, { a: 2 }], item);
-
-			expect(result[2]).toBe(item);
+			expect(cloneAppend([{ a: 1 }, { a: 2 }], item)[2]).toBe(item);
 		});
 
 		it("should append an array item as a single element without spreading", () => {
@@ -173,9 +182,11 @@ describe("cloneAppend", () => {
 		});
 
 		it("should produce a dense array literal with no holes", () => {
-			const result = cloneAppend([1, 2], 3);
-
-			expect(Object.keys(result)).toEqual(["0", "1", "2"]);
+			expect(Object.keys(cloneAppend([1, 2], 3))).toEqual([
+				"0",
+				"1",
+				"2",
+			]);
 		});
 
 		it("should not invoke the iterator protocol on the source array", () => {
@@ -187,17 +198,15 @@ describe("cloneAppend", () => {
 				},
 			});
 
-			const result = cloneAppend(source, 3);
-
-			expect(result).toEqual([1, 2, 3]);
+			expect(cloneAppend(source, 3)).toEqual([1, 2, 3]);
 		});
 	});
 
 	describe("sparse source", () => {
 		it("should materialize a hole at index 0 of a length-1 sparse source as undefined", () => {
-			const sparse = new Array<number | undefined>(1);
+			const source = new Array<number | undefined>(1);
 
-			const result = cloneAppend<number | undefined>(sparse, 2);
+			const result = cloneAppend<number | undefined>(source, 2);
 
 			expect(result).toHaveLength(2);
 			expect(result[0]).toBeUndefined();
@@ -206,12 +215,12 @@ describe("cloneAppend", () => {
 		});
 
 		it("should treat holes in a multi-element sparse source as undefined slots", () => {
-			const sparse = new Array<number | undefined>(3);
+			const source = new Array<number | undefined>(3);
 
-			sparse[0] = 1;
-			sparse[2] = 3;
+			source[0] = 1;
+			source[2] = 3;
 
-			const result = cloneAppend<number | undefined>(sparse, 4);
+			const result = cloneAppend<number | undefined>(source, 4);
 
 			expect(result).toHaveLength(4);
 			expect(result[0]).toBe(1);
@@ -220,6 +229,51 @@ describe("cloneAppend", () => {
 			expect(result[3]).toBe(4);
 			expect(1 in result).toBe(true);
 		});
+
+		it("should materialize holes in a six-element sparse source as undefined slots", () => {
+			const source = new Array<number | undefined>(6);
+
+			source[0] = 1;
+			source[4] = 5;
+
+			const result = cloneAppend<number | undefined>(source, 7);
+
+			expect(Object.keys(result)).toEqual([
+				"0",
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+			]);
+			expect(result[0]).toBe(1);
+			expect(result[1]).toBeUndefined();
+			expect(result[4]).toBe(5);
+			expect(result[5]).toBeUndefined();
+			expect(result[6]).toBe(7);
+		});
+	});
+
+	describe("array subclass source", () => {
+		class Subclass<T> extends Array<T> {}
+
+		it.each([2, 5])(
+			"should return a plain Array for a subclass source of length %i",
+			(length) => {
+				const source = new Subclass<number>();
+
+				for (let i = 0; i < length; i++) {
+					source.push(i);
+				}
+
+				const result = cloneAppend(source, length);
+
+				expect(Object.getPrototypeOf(result)).toBe(Array.prototype);
+				expect(result).toHaveLength(length + 1);
+				expect(result[length]).toBe(length);
+			},
+		);
 	});
 
 	describe("frozen source", () => {
@@ -234,14 +288,11 @@ describe("cloneAppend", () => {
 		});
 
 		it("should accept a readonly tuple and return a mutable array", () => {
-			type NumberCloneAppend = typeof cloneAppend<number>;
-			const source = [1, 2] as const;
+			const result = cloneAppend<number>([1, 2] as const, 3);
 
-			const result = cloneAppend<number>(source, 3);
-
-			expectTypeOf<Parameters<NumberCloneAppend>[0]>().toEqualTypeOf<
-				readonly number[]
-			>();
+			expectTypeOf<
+				Parameters<typeof cloneAppend<number>>[0]
+			>().toEqualTypeOf<readonly number[]>();
 			expectTypeOf(result).toEqualTypeOf<number[]>();
 			result.push(4);
 			expect(result).toEqual([1, 2, 3, 4]);
@@ -250,9 +301,11 @@ describe("cloneAppend", () => {
 
 	describe("appended item value handling", () => {
 		it("should append null without skipping it", () => {
-			const result = cloneAppend([1, 2], null as unknown as number);
-
-			expect(result).toEqual([1, 2, null] as unknown as number[]);
+			expect(cloneAppend([1, 2], null as unknown as number)).toEqual([
+				1,
+				2,
+				null,
+			] as unknown as number[]);
 		});
 
 		it("should append undefined as a real element", () => {
@@ -266,9 +319,11 @@ describe("cloneAppend", () => {
 		});
 
 		it("should support heterogeneous element types via generics", () => {
-			const result = cloneAppend<number | string>([1, 2], "v1");
-
-			expect(result).toEqual([1, 2, "v1"]);
+			expect(cloneAppend<number | string>([1, 2], "v1")).toEqual([
+				1,
+				2,
+				"v1",
+			]);
 		});
 	});
 

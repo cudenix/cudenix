@@ -107,7 +107,6 @@ describe("isGenerator", () => {
 		});
 
 		it("should return false for a function expression", () => {
-			// biome-ignore lint/complexity/useArrowFunction: Testing regular function expressions
 			const regular = function (): number {
 				return 1;
 			};
@@ -116,9 +115,7 @@ describe("isGenerator", () => {
 		});
 
 		it("should return false for an arrow function", () => {
-			const arrow = (): number => 1;
-
-			expect(isGenerator(arrow)).toBe(false);
+			expect(isGenerator((): number => 1)).toBe(false);
 		});
 
 		it("should return false for a regular method on an object literal", () => {
@@ -146,7 +143,6 @@ describe("isGenerator", () => {
 		});
 
 		it("should return false for an async function expression", () => {
-			// biome-ignore lint/complexity/useArrowFunction: Testing async function expressions
 			const asyncFn = async function (): Promise<number> {
 				return 1;
 			};
@@ -155,9 +151,7 @@ describe("isGenerator", () => {
 		});
 
 		it("should return false for an async arrow function", () => {
-			const asyncArrow = async (): Promise<number> => 1;
-
-			expect(isGenerator(asyncArrow)).toBe(false);
+			expect(isGenerator(async (): Promise<number> => 1)).toBe(false);
 		});
 	});
 
@@ -193,19 +187,19 @@ describe("isGenerator", () => {
 		});
 
 		it("should return false for a Proxy wrapping a regular function", () => {
-			const dynamic = asFn(new Proxy(() => 1, {}));
-
-			expect(isGenerator(dynamic)).toBe(false);
+			expect(isGenerator(asFn(new Proxy(() => 1, {})))).toBe(false);
 		});
 
 		it("should return true for a Proxy wrapping a generator function", () => {
-			const dynamic = asFn(
-				new Proxy(function* () {
-					yield 1;
-				}, {}),
-			);
-
-			expect(isGenerator(dynamic)).toBe(true);
+			expect(
+				isGenerator(
+					asFn(
+						new Proxy(function* () {
+							yield 1;
+						}, {}),
+					),
+				),
+			).toBe(true);
 		});
 
 		it("should return false for Function.prototype", () => {
@@ -258,9 +252,60 @@ describe("isGenerator", () => {
 		});
 
 		it("should return false for a cross-realm generator function created via node:vm", () => {
-			const gen = asFn(runInNewContext("(function* () { yield 1; })"));
+			expect(
+				isGenerator(
+					asFn(runInNewContext("(function* () { yield 1; })")),
+				),
+			).toBe(false);
+		});
+	});
 
-			expect(isGenerator(gen)).toBe(false);
+	describe("prototype chain edge cases", () => {
+		const generatorFunctionPrototype = Object.getPrototypeOf(
+			function* () {},
+		) as object;
+		const asyncGeneratorFunctionPrototype = Object.getPrototypeOf(
+			async function* () {},
+		) as object;
+
+		it("should return true for a plain object whose direct prototype is a generator function prototype", () => {
+			expect(
+				isGenerator(asFn(Object.create(generatorFunctionPrototype))),
+			).toBe(true);
+			expect(
+				isGenerator(
+					asFn(Object.create(asyncGeneratorFunctionPrototype)),
+				),
+			).toBe(true);
+		});
+
+		it("should return false when the generator function prototype is not the direct prototype", () => {
+			const fn = asFn(() => {});
+
+			Object.setPrototypeOf(
+				fn,
+				Object.create(generatorFunctionPrototype),
+			);
+
+			expect(isGenerator(fn)).toBe(false);
+		});
+
+		it("should ignore an own __proto__ property", () => {
+			const fn = asFn(() => {});
+
+			Object.defineProperty(fn, "__proto__", {
+				value: generatorFunctionPrototype,
+			});
+
+			expect(isGenerator(fn)).toBe(false);
+		});
+
+		it("should throw a TypeError for a revoked Proxy", () => {
+			const { proxy, revoke } = Proxy.revocable(() => 1, {});
+
+			revoke();
+
+			expect(() => isGenerator(asFn(proxy))).toThrow(TypeError);
 		});
 	});
 

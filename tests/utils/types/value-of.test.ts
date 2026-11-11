@@ -29,25 +29,19 @@ describe("ValueOf", () => {
 		it("should resolve to the union of string literal values", () => {
 			const a = { a: "v1", b: "v2" } as const;
 
-			type A = ValueOf<typeof a>;
-
-			expectTypeOf<A>().toEqualTypeOf<"v1" | "v2">();
+			expectTypeOf<ValueOf<typeof a>>().toEqualTypeOf<"v1" | "v2">();
 		});
 
 		it("should resolve to the union of numeric literal values", () => {
 			const a = { a: 1, b: 2, c: 3 } as const;
 
-			type A = ValueOf<typeof a>;
-
-			expectTypeOf<A>().toEqualTypeOf<1 | 2 | 3>();
+			expectTypeOf<ValueOf<typeof a>>().toEqualTypeOf<1 | 2 | 3>();
 		});
 
 		it("should resolve to the union of boolean literal values", () => {
 			const a = { a: false, b: true } as const;
 
-			type A = ValueOf<typeof a>;
-
-			expectTypeOf<A>().toEqualTypeOf<false | true>();
+			expectTypeOf<ValueOf<typeof a>>().toEqualTypeOf<false | true>();
 		});
 	});
 
@@ -214,7 +208,6 @@ describe("ValueOf", () => {
 
 			expectTypeOf<string>().toExtend<ValueOf<A>>();
 			expectTypeOf<number>().toExtend<ValueOf<A>>();
-
 			expectTypeOf<ValueOf<A>>().not.toBeUnknown();
 			expectTypeOf<Extract<ValueOf<A>, string>>().toEqualTypeOf<string>();
 		});
@@ -229,7 +222,6 @@ describe("ValueOf", () => {
 			type A = string[];
 
 			expectTypeOf<string>().toExtend<ValueOf<A>>();
-
 			expectTypeOf<ValueOf<A>>().not.toBeUnknown();
 			expectTypeOf<Extract<ValueOf<A>, number>>().toEqualTypeOf<number>();
 		});
@@ -237,6 +229,7 @@ describe("ValueOf", () => {
 		it("should not equal the bare element union for a tuple because the length literal and array-method types leak in", () => {
 			type A = [string, "v1"];
 
+			// oxlint-disable-next-line typescript/no-redundant-type-constituents -- The type of ValueOf<A> includes more than just the tuple element types, so this check is intentional
 			expectTypeOf<ValueOf<A>>().not.toEqualTypeOf<"v1" | string>();
 			expectTypeOf<ValueOf<A>>().not.toBeUnknown();
 		});

@@ -113,7 +113,6 @@ describe("RequiredKeys", () => {
 
 		it("should exclude a key whose value is `void`", () => {
 			interface A {
-				// biome-ignore lint/suspicious/noConfusingVoidType: Testing a `void` value type
 				a: void;
 				b: string;
 			}
@@ -194,6 +193,7 @@ describe("RequiredKeys", () => {
 
 		it("should keep a required symbol-keyed property alongside string keys", () => {
 			const sym = Symbol("a");
+
 			type Sym = typeof sym;
 
 			interface A {
@@ -229,7 +229,8 @@ describe("RequiredKeys", () => {
 		});
 
 		it("should retain required numeric, symbol and template declarations", () => {
-			const sym = Symbol("required");
+			const sym = Symbol("a");
+
 			type Numeric = { 0: string; 1?: number } & Record<number, unknown>;
 			type Symbolic = { [sym]: number } & Record<symbol, unknown>;
 			type Pattern = { "x-a": boolean } & Record<`x-${string}`, unknown>;

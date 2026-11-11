@@ -42,9 +42,13 @@ describe("parseCookies", () => {
 		});
 
 		it("should support many cookies in a single header", () => {
-			const result = parseCookies("a=1; b=2; c=3; d=4; e=5");
-
-			expect(result).toEqual({ a: "1", b: "2", c: "3", d: "4", e: "5" });
+			expect(parseCookies("a=1; b=2; c=3; d=4; e=5")).toEqual({
+				a: "1",
+				b: "2",
+				c: "3",
+				d: "4",
+				e: "5",
+			});
 		});
 	});
 
@@ -71,9 +75,7 @@ describe("parseCookies", () => {
 		});
 
 		it("should percent-decode values", () => {
-			const result = parseCookies("a=a%20b%3Dc");
-
-			expect(result.a).toBe("a b=c");
+			expect(parseCookies("a=a%20b%3Dc").a).toBe("a b=c");
 		});
 
 		it.each([
@@ -85,7 +87,6 @@ describe("parseCookies", () => {
 		] as const)(
 			"should keep the character after the malformed escape in %j",
 			(header, expected) => {
-				// the escape stops before a non-ASCII character
 				expect(parseCookies(header).a).toBe(expected);
 			},
 		);
@@ -154,15 +155,11 @@ describe("parseCookies", () => {
 
 	describe("separator handling", () => {
 		it("should split on a bare ';' with no following space", () => {
-			const result = parseCookies("a=1;b=2");
-
-			expect(result).toEqual({ a: "1", b: "2" });
+			expect(parseCookies("a=1;b=2")).toEqual({ a: "1", b: "2" });
 		});
 
 		it("should split on a ';' followed by a tab", () => {
-			const result = parseCookies("a=1;\tb=2");
-
-			expect(result).toEqual({ a: "1", b: "2" });
+			expect(parseCookies("a=1;\tb=2")).toEqual({ a: "1", b: "2" });
 		});
 
 		it("should split three or more pairs regardless of the spacing used", () => {
@@ -171,7 +168,6 @@ describe("parseCookies", () => {
 				b: "2",
 				c: "3",
 			});
-
 			expect(parseCookies("a=1; b=2;  c=3")).toEqual({
 				a: "1",
 				b: "2",
@@ -180,9 +176,11 @@ describe("parseCookies", () => {
 		});
 
 		it("should skip a chunk that carries no '=' of its own", () => {
-			const result = parseCookies("a=1; b=2;3; c=4");
-
-			expect(result).toEqual({ a: "1", b: "2", c: "4" });
+			expect(parseCookies("a=1; b=2;3; c=4")).toEqual({
+				a: "1",
+				b: "2",
+				c: "4",
+			});
 		});
 
 		it("should handle a leading '; ' delimiter (empty first chunk)", () => {
@@ -200,15 +198,11 @@ describe("parseCookies", () => {
 		});
 
 		it("should not introduce phantom keys with consecutive '; ' separators", () => {
-			const result = parseCookies("a=1; ; b=2");
-
-			expect(result).toEqual({ a: "1", b: "2" });
+			expect(parseCookies("a=1; ; b=2")).toEqual({ a: "1", b: "2" });
 		});
 
 		it("should drop a trailing bare ';' instead of keeping it in the value", () => {
-			const result = parseCookies("a=v1;");
-
-			expect(result).toEqual({ a: "v1" });
+			expect(parseCookies("a=v1;")).toEqual({ a: "v1" });
 		});
 
 		it("should skip a nameless chunk and still read the pair after it", () => {
@@ -257,12 +251,12 @@ describe("parseCookies", () => {
 
 		it("should treat an encoded name as distinct from its decoded form", () => {
 			expect(parseCookies("a%20b=v1; a b=v2")).toEqual({
-				"a b": "v2",
 				"a%20b": "v1",
+				"a b": "v2",
 			});
 			expect(parseCookies("a b=v1; a%20b=v2")).toEqual({
-				"a b": "v1",
 				"a%20b": "v2",
+				"a b": "v1",
 			});
 		});
 
@@ -374,15 +368,11 @@ describe("parseCookies", () => {
 		});
 
 		it("should return an empty dictionary for a bare '=' (empty name, no other pairs)", () => {
-			const result = parseCookies("=");
-
-			expect(Object.keys(result)).toHaveLength(0);
+			expect(Object.keys(parseCookies("="))).toHaveLength(0);
 		});
 
 		it("should return an empty dictionary for a bare '; ' separator", () => {
-			const result = parseCookies("; ");
-
-			expect(Object.keys(result)).toHaveLength(0);
+			expect(Object.keys(parseCookies("; "))).toHaveLength(0);
 		});
 
 		it("should return an empty dictionary for a bare ';' header", () => {
@@ -393,9 +383,7 @@ describe("parseCookies", () => {
 		});
 
 		it("should return an empty dictionary for a whitespace-only header", () => {
-			const result = parseCookies("   ");
-
-			expect(Object.keys(result)).toHaveLength(0);
+			expect(Object.keys(parseCookies("   "))).toHaveLength(0);
 		});
 	});
 
@@ -410,11 +398,10 @@ describe("parseCookies", () => {
 		});
 
 		it("should keep `__proto__` as data instead of rewiring the prototype chain", () => {
-			const reference = parseCookies("a=v1");
 			const result = parseCookies("__proto__=v1");
 
 			expect(Object.getPrototypeOf(result)).toBe(
-				Object.getPrototypeOf(reference),
+				Object.getPrototypeOf(parseCookies("a=v1")),
 			);
 			expect(Reflect.ownKeys(result)).toEqual(["__proto__"]);
 			expect("toString" in result).toBe(false);
@@ -448,16 +435,15 @@ describe("parseCookies", () => {
 		});
 
 		it("should return a fresh dictionary on each call", () => {
-			const a = parseCookies("a=v1");
-			const b = parseCookies("a=v1");
-
-			expect(a).not.toBe(b);
+			expect(parseCookies("a=v1")).not.toBe(parseCookies("a=v1"));
 		});
 
 		it("should preserve insertion order for non-numeric names", () => {
-			const result = parseCookies("c=1; a=2; b=3");
-
-			expect(Object.keys(result)).toEqual(["c", "a", "b"]);
+			expect(Object.keys(parseCookies("c=1; a=2; b=3"))).toEqual([
+				"c",
+				"a",
+				"b",
+			]);
 		});
 
 		it("should enumerate integer-like names first and in ascending order", () => {
@@ -469,14 +455,16 @@ describe("parseCookies", () => {
 		});
 
 		it("should enumerate integer-like names before non-numeric ones", () => {
-			const result = parseCookies("2=v1; 1=v2; a=v3");
-
-			expect(Object.keys(result)).toEqual(["1", "2", "a"]);
+			expect(Object.keys(parseCookies("2=v1; 1=v2; a=v3"))).toEqual([
+				"1",
+				"2",
+				"a",
+			]);
 		});
 	});
 
 	describe("parity with Bun.CookieMap", () => {
-		const parityCases = [
+		it.each([
 			"a=v1; b=v2",
 			"a=a%20b",
 			"a=%7B%22a%22%3A1%7D",
@@ -506,18 +494,13 @@ describe("parseCookies", () => {
 			"A=v1; a=v2",
 			"a =v1; a=v2",
 			"a=%20; a=v1",
-		];
-
-		for (const header of parityCases) {
-			it(`should match Bun.CookieMap for ${JSON.stringify(header)}`, () => {
-				expect({ ...parseCookies(header) }).toEqual(
-					new Bun.CookieMap(header).toJSON(),
-				);
-			});
-		}
+		])("should match Bun.CookieMap for %j", (header) => {
+			expect({ ...parseCookies(header) }).toEqual(
+				new Bun.CookieMap(header).toJSON(),
+			);
+		});
 
 		it("should match Bun.CookieMap on generated ASCII headers", () => {
-			// seeded LCG over ASCII-only headers
 			const alphabet = [
 				"a",
 				"b",
@@ -543,7 +526,7 @@ describe("parseCookies", () => {
 				"constructor",
 			];
 
-			let seed = 987654321;
+			let seed = 987_654_321;
 
 			const random = (): number => {
 				seed = (seed * 48_271) % 2_147_483_647;
@@ -577,12 +560,14 @@ describe("parseCookies", () => {
 			written.set("d", "café ☕");
 			written.set("e", "a;b");
 
-			const header = written
-				.toSetCookieHeaders()
-				.map((setCookie) => setCookie.split(";")[0])
-				.join("; ");
-
-			expect(parseCookies(header)).toEqual({
+			expect(
+				parseCookies(
+					written
+						.toSetCookieHeaders()
+						.map((setCookie) => setCookie.split(";")[0])
+						.join("; "),
+				),
+			).toEqual({
 				a: "a b",
 				b: '{"a":1}',
 				c: "/a/b?c=v1#f",
@@ -590,9 +575,55 @@ describe("parseCookies", () => {
 				e: "a;b",
 			});
 		});
+
+		it("should agree on plain, encoded, and whitespace-padded pairs", () => {
+			for (const header of [
+				"a=v1",
+				"a=v1; b=v2",
+				"a=v1;b=v2",
+				" a = v1 ; b=v2",
+				"c=a%20b",
+				"c=%C3%A9",
+				"c=%ZZ",
+				"c=%",
+				"c=a+b",
+				'c="quoted"',
+				"a=b=c",
+				"a=;b=v2",
+				"=v1; b=v2",
+				"novalue; b=v2",
+				"a=v1;;b=v2",
+				"constructor=v1",
+				"__proto__=v1; b=v2",
+			]) {
+				expect(parseCookies(header)).toEqual(
+					new Bun.CookieMap(header).toJSON(),
+				);
+			}
+		});
+
+		it("should keep the first value of a repeated name like Bun.CookieMap, which also keeps every duplicate", () => {
+			const header = "a=v1; a=v2; b=v3";
+			const map = new Bun.CookieMap(header);
+
+			expect(parseCookies(header)).toEqual({ a: "v1", b: "v3" });
+			expect(map.get("a")).toBe("v1");
+			expect(map.toJSON()).toEqual({ a: "v1", b: "v3" });
+			expect(map.size).toBe(3);
+			expect([...map.keys()]).toEqual(["a", "a", "b"]);
+		});
+
+		it("should keep a '__proto__' cookie as an own key like Bun.CookieMap", () => {
+			const header = "__proto__=v1; b=v2";
+			const result = parseCookies(header);
+
+			expect(Object.hasOwn(result, "__proto__")).toBe(true);
+			expect(result.b).toBe("v2");
+			expect(new Bun.CookieMap(header).get("__proto__")).toBe("v1");
+		});
 	});
+
 	describe("bun duplicate cookie headers", () => {
-		// bun joins duplicate cookie headers with "; "
 		it("should join duplicate cookie headers with '; '", () => {
 			const headers = new Headers();
 
@@ -654,57 +685,6 @@ describe("parseCookies", () => {
 		});
 	});
 
-	// `context.response.cookies` reads the same header through `Bun.CookieMap`
-	describe("bun cookie map parity", () => {
-		it("should agree on plain, encoded, and whitespace-padded pairs", () => {
-			for (const header of [
-				"a=v1",
-				"a=v1; b=v2",
-				"a=v1;b=v2",
-				" a = v1 ; b=v2",
-				"c=a%20b",
-				"c=%C3%A9",
-				"c=%ZZ",
-				"c=%",
-				"c=a+b",
-				'c="quoted"',
-				"a=b=c",
-				"a=;b=v2",
-				"=v1; b=v2",
-				"novalue; b=v2",
-				"a=v1;;b=v2",
-				"constructor=v1",
-				"__proto__=v1; b=v2",
-			]) {
-				expect(parseCookies(header)).toEqual(
-					new Bun.CookieMap(header).toJSON(),
-				);
-			}
-		});
-
-		it("should keep the first value of a repeated name like Bun.CookieMap, which also keeps every duplicate", () => {
-			const header = "a=v1; a=v2; b=v3";
-			const map = new Bun.CookieMap(header);
-
-			expect(parseCookies(header)).toEqual({ a: "v1", b: "v3" });
-			expect(map.get("a")).toBe("v1");
-			expect(map.toJSON()).toEqual({ a: "v1", b: "v3" });
-
-			// only the map still exposes the duplicate
-			expect(map.size).toBe(3);
-			expect([...map.keys()]).toEqual(["a", "a", "b"]);
-		});
-
-		it("should keep a '__proto__' cookie as an own key like Bun.CookieMap", () => {
-			const header = "__proto__=v1; b=v2";
-			const cookies = parseCookies(header);
-
-			expect(Object.hasOwn(cookies, "__proto__")).toBe(true);
-			expect(cookies.b).toBe("v2");
-			expect(new Bun.CookieMap(header).get("__proto__")).toBe("v1");
-		});
-	});
-
 	describe("whitespace edge cases", () => {
 		it("should reduce a whitespace-only value to an empty string", () => {
 			expect(parseCookies("a= ; b=\t\t; c=   ")).toEqual({
@@ -720,9 +700,9 @@ describe("parseCookies", () => {
 
 		it("should trim only spaces and tabs", () => {
 			expect(parseCookies("a=\u00A0v1\u00A0; b=v2\r; \nc=v3\n")).toEqual({
-				"\nc": "v3\n",
 				a: "\u00A0v1\u00A0",
 				b: "v2\r",
+				"\nc": "v3\n",
 			});
 		});
 	});
@@ -742,9 +722,9 @@ describe("parseCookies", () => {
 			const pairs: string[] = [];
 			const expected: Record<string, string> = {};
 
-			for (let index = 0; index < 200; index++) {
-				pairs.push(`name${index}=value${index}`);
-				expected[`name${index}`] = `value${index}`;
+			for (let i = 0; i < 200; i++) {
+				pairs.push(`name${i}=value${i}`);
+				expected[`name${i}`] = `value${i}`;
 			}
 
 			expect(parseCookies(pairs.join("; "))).toEqual(expected);
@@ -775,34 +755,40 @@ describe("parseCookies", () => {
 
 		it("should keep a name apart from its prefixes and extensions", () => {
 			for (let round = 0; round < 2; round++) {
-				for (const name of ["session", "sessio", "sessions", "s", "se"]) {
-					expect(parseCookies(`${name}=v1`)).toEqual({ [name]: "v1" });
+				for (const name of [
+					"session",
+					"sessio",
+					"sessions",
+					"s",
+					"se",
+				]) {
+					expect(parseCookies(`${name}=v1`)).toEqual({
+						[name]: "v1",
+					});
 				}
 			}
 		});
 
 		it("should keep thousands of same-length names apart", () => {
-			// more names than any small table can hold apart
 			const names = Array.from(
 				{ length: 4096 },
-				(_, index) => `n${index.toString(16).padStart(4, "0")}`,
+				(_, i) => `n${i.toString(16).padStart(4, "0")}`,
 			);
 
 			for (let round = 0; round < 2; round++) {
-				for (const [index, name] of names.entries()) {
-					expect(parseCookies(`${name}=v${index}`)).toEqual({
-						[name]: `v${index}`,
+				for (const [i, name] of names.entries()) {
+					expect(parseCookies(`${name}=v${i}`)).toEqual({
+						[name]: `v${i}`,
 					});
 				}
 			}
 
-			// same names again, last to first
-			for (let index = names.length - 1; index >= 0; index--) {
-				const name = names[index]!;
+			for (let i = names.length - 1; i >= 0; i--) {
+				const name = names[i]!;
 
-				expect(parseCookies(`a=1; ${name}=v${index}`)).toEqual({
-					[name]: `v${index}`,
+				expect(parseCookies(`a=1; ${name}=v${i}`)).toEqual({
 					a: "1",
+					[name]: `v${i}`,
 				});
 			}
 		});
@@ -810,7 +796,7 @@ describe("parseCookies", () => {
 		it("should keep same-length names apart inside one header", () => {
 			const names = Array.from(
 				{ length: 4096 },
-				(_, index) => `m${index.toString(16).padStart(4, "0")}`,
+				(_, i) => `m${i.toString(16).padStart(4, "0")}`,
 			);
 			const header = names.map((name) => `${name}=1`).join("; ");
 
@@ -839,7 +825,7 @@ describe("parseCookies", () => {
 
 	describe("parity with a split-based reference", () => {
 		const trim = (value: string): string =>
-			value.replace(/^[\t ]+|[\t ]+$/gu, "");
+			value.replaceAll(/^[\t ]+|[\t ]+$/gu, "");
 
 		const reference = (header: string): Record<string, string> => {
 			const cookies = Object.create(null) as Record<string, string>;

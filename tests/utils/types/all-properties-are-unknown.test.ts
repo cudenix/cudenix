@@ -68,7 +68,8 @@ describe("AllPropertiesAreUnknown", () => {
 		});
 
 		it("should inspect declared numeric, symbol and template keys under unknown indexes", () => {
-			const sym = Symbol("known");
+			const sym = Symbol("a");
+
 			type Numeric = { 0: string } & Record<number, unknown>;
 			type Symbolic = { [sym]: number } & Record<symbol, unknown>;
 			type Pattern = { "x-a": boolean } & Record<`x-${string}`, unknown>;
@@ -87,6 +88,7 @@ describe("AllPropertiesAreUnknown", () => {
 		it("should reject a union with a concrete property hidden by an index", () => {
 			type A =
 				| Record<string, unknown>
+				// oxlint-disable-next-line perfectionist/sort-union-types -- The union is intentionally ordered this way to test the behavior of AllPropertiesAreUnknown with a concrete property hidden by an index
 				| ({ a: string } & Record<string, unknown>);
 
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
@@ -305,9 +307,7 @@ describe("AllPropertiesAreUnknown", () => {
 		});
 
 		it("should inspect non-common keys even when a shared key is unknown", () => {
-			type A =
-				| { a: unknown; shared: unknown }
-				| { b: string; shared: unknown };
+			type A = { a: unknown; c: unknown } | { b: string; c: unknown };
 
 			expectTypeOf<AllPropertiesAreUnknown<A>>().toEqualTypeOf<false>();
 		});
