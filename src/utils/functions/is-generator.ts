@@ -1,20 +1,14 @@
-const GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(function* () {});
+const GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(function* () {
+	// empty generator function to get its prototype
+}) as unknown;
 const ASYNC_GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(
-	async function* () {},
-);
+	async function* () {
+		// empty async generator function to get its prototype
+	},
+) as unknown;
 
-/**
- * Detects generator functions.
- *
- * @example
- * ```typescript
- * isGenerator(function* () {}); // true
- * isGenerator(async function* () {}); // true
- * isGenerator(() => {}); // false
- * ```
- */
 export const isGenerator = (fn: (...args: any[]) => unknown): boolean => {
-	const prototype = Object.getPrototypeOf(fn);
+	const prototype = Object.getPrototypeOf(fn) as unknown;
 
 	return (
 		prototype === GENERATOR_FUNCTION_PROTOTYPE ||

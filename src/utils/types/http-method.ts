@@ -1,12 +1,3 @@
-/**
- * Represents HTTP method names.
- *
- * @example
- * ```typescript
- * type A = "GET" extends HttpMethod ? true : false; // true
- * type B = "PURGE" extends HttpMethod ? true : false; // true
- * ```
- */
 export type HttpMethod =
 	| "CONNECT"
 	| "DELETE"

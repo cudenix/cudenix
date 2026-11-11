@@ -5,9 +5,6 @@ const URLENCODED_MEDIA_TYPE =
 const MULTIPART_MEDIA_TYPE = /^multipart\/form-data[\t ]*(?:[,;]|$)/i;
 const PLUS = /\+/g;
 
-/**
- * Stores a form entry, collapsing repeated keys into arrays.
- */
 const addEntry = (
 	body: Record<PropertyKey, unknown>,
 	key: string,
@@ -24,12 +21,10 @@ const addEntry = (
 	}
 };
 
-/**
- * Scans urlencoded text into a dictionary, throwing on a malformed escape.
- */
 const scanUrlencoded = (text: string): Record<PropertyKey, unknown> => {
-	const body = Object.create(null) as Record<PropertyKey, unknown>;
 	const { length } = text;
+
+	const body = Object.create(null) as Record<PropertyKey, unknown>;
 
 	let i = 0;
 
@@ -43,12 +38,10 @@ const scanUrlencoded = (text: string): Record<PropertyKey, unknown> => {
 		while (i < length) {
 			charCode = text.charCodeAt(i);
 
-			// stop at "=" (61) or "&" (38)
 			if (charCode === 61 || charCode === 38) {
 				break;
 			}
 
-			// "+" (43) and "%" (37) require key decoding
 			if (charCode === 43) {
 				keyHasPlus = true;
 			} else if (charCode === 37) {
@@ -61,7 +54,6 @@ const scanUrlencoded = (text: string): Record<PropertyKey, unknown> => {
 		let key = text.slice(keyStart, i);
 		let value = "";
 
-		// "=" (61) starts the value
 		if (i < length && charCode === 61) {
 			const valueStart = ++i;
 
@@ -71,12 +63,10 @@ const scanUrlencoded = (text: string): Record<PropertyKey, unknown> => {
 			while (i < length) {
 				charCode = text.charCodeAt(i);
 
-				// stop at "&" (38)
 				if (charCode === 38) {
 					break;
 				}
 
-				// "+" (43) and "%" (37) require value decoding
 				if (charCode === 43) {
 					valueHasPlus = true;
 				} else if (charCode === 37) {
@@ -96,7 +86,6 @@ const scanUrlencoded = (text: string): Record<PropertyKey, unknown> => {
 				value = decodeURIComponent(value);
 			}
 		} else if (i === keyStart) {
-			// skips an empty pair
 			i++;
 
 			continue;
@@ -118,9 +107,6 @@ const scanUrlencoded = (text: string): Record<PropertyKey, unknown> => {
 	return body;
 };
 
-/**
- * Parses urlencoded text into a dictionary.
- */
 const parseUrlencoded = (text: string): Record<PropertyKey, unknown> => {
 	try {
 		return scanUrlencoded(text);
@@ -138,9 +124,6 @@ const parseUrlencoded = (text: string): Record<PropertyKey, unknown> => {
 	}
 };
 
-/**
- * Reads a form body into a dictionary.
- */
 const parseFormBody = async (
 	request: Request,
 ): Promise<Record<PropertyKey, unknown>> => {
@@ -148,7 +131,6 @@ const parseFormBody = async (
 
 	const body = Object.create(null) as Record<PropertyKey, unknown>;
 
-	// repeated form keys collapse into arrays
 	formData.forEach((value, key) => {
 		if (body[key] === undefined) {
 			body[key] = value;
@@ -168,20 +150,6 @@ const parseFormBody = async (
 	return body;
 };
 
-/**
- * Parses a request body according to its content type.
- *
- * @example
- * ```typescript
- * const request = new Request("https://a.b/c", {
- *   body: JSON.stringify({ b: "v1" }),
- *   headers: { "content-type": "application/json" },
- *   method: "POST",
- * });
- *
- * await parseBody(request); // { b: "v1" }
- * ```
- */
 export const parseBody = async (request: Request): Promise<unknown> => {
 	const contentType = request.headers.get("content-type");
 

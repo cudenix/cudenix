@@ -1,22 +1,13 @@
 import { HEX_VALUES } from "@/utils/urls/hex-values";
 
-// tail length past which a dense non-ASCII run goes native
 const NATIVE_DECODE_MIN_LENGTH = 24;
-// same, for a run led by a three or four byte sequence
 const NATIVE_DECODE_MIN_WIDE_LENGTH = 18;
-// tail length past which a value that opens dense goes native
 const NATIVE_DECODE_MIN_MIXED_LENGTH = 48;
-// escapes a mixed value needs inside its opening window
 const NATIVE_DECODE_MIXED_ESCAPES = 4;
-// opening window length of a mixed value
 const NATIVE_DECODE_MIXED_WINDOW = 32;
-// longest literal prefix or suffix of a mixed value
 const NATIVE_DECODE_MIXED_PREFIX = 16;
 const NATIVE_DECODE_MIXED_SUFFIX = 12;
 
-/**
- * Checks that a long value opens dense and ends near an escape.
- */
 const hasDenseOpening = (
 	value: string,
 	firstPercentIndex: number,
@@ -46,15 +37,6 @@ const hasDenseOpening = (
 	return false;
 };
 
-/**
- * Decodes a percent-encoded route parameter.
- *
- * @example
- * ```typescript
- * decodePathParam("a%20b"); // "a b"
- * decodePathParam("%ED%A0%80"); // "�"
- * ```
- */
 export const decodePathParam = (value: string): string => {
 	const firstPercentIndex = value.indexOf("%");
 
@@ -72,7 +54,6 @@ export const decodePathParam = (value: string): string => {
 	if (tailLength >= NATIVE_DECODE_MIN_WIDE_LENGTH) {
 		const leadCharCode = value.charCodeAt(firstPercentIndex + 1);
 
-		// a dense non-ASCII run
 		isNative =
 			leadCharCode < 256 &&
 			HEX_VALUES[leadCharCode]! >=
@@ -81,13 +62,11 @@ export const decodePathParam = (value: string): string => {
 			value.charCodeAt(firstPercentIndex + 6) === 37 &&
 			value.charCodeAt(length - 3) === 37;
 
-		// a long value that opens dense and ends near an escape
 		if (
 			!isNative &&
 			tailLength >= NATIVE_DECODE_MIN_MIXED_LENGTH &&
 			firstPercentIndex < NATIVE_DECODE_MIXED_PREFIX
 		) {
-			// the first probe is kept for the loop below
 			probedFrom = firstPercentIndex + 3;
 			probedIndex = value.indexOf("%", probedFrom);
 			isNative =
@@ -108,13 +87,11 @@ export const decodePathParam = (value: string): string => {
 	let i = firstPercentIndex;
 
 	while (i < length) {
-		// literal character, not "%" (37)
 		if (value.charCodeAt(i) !== 37) {
 			const nextPercentIndex =
 				i === probedFrom ? probedIndex : value.indexOf("%", i);
 			const runEnd = nextPercentIndex === -1 ? length : nextPercentIndex;
 
-			// a run of more than two characters copies at once
 			if (runEnd - i > 2) {
 				decoded += value.slice(i, runEnd);
 				i = runEnd;
@@ -125,7 +102,6 @@ export const decodePathParam = (value: string): string => {
 				}
 			}
 
-			// no escape left
 			if (nextPercentIndex === -1) {
 				break;
 			}
@@ -133,7 +109,6 @@ export const decodePathParam = (value: string): string => {
 			continue;
 		}
 
-		// truncated "%xx"
 		if (i + 2 >= length) {
 			decoded += "�";
 			i++;
@@ -150,7 +125,6 @@ export const decodePathParam = (value: string): string => {
 		if (highNibble === -1 || lowNibble === -1) {
 			decoded += "�";
 
-			// a non-ASCII character closes no escape
 			i += highCharCode > 127 ? 1 : lowCharCode > 127 ? 2 : 3;
 
 			continue;
@@ -158,7 +132,6 @@ export const decodePathParam = (value: string): string => {
 
 		i += 3;
 
-		// ASCII decodes directly
 		if (highNibble < 8) {
 			decoded += String.fromCharCode(highNibble * 16 + lowNibble);
 
@@ -169,7 +142,6 @@ export const decodePathParam = (value: string): string => {
 		let minimumCodePoint: number;
 		let missing: number;
 
-		// the lead byte gives the continuation count
 		if (highNibble === 12 || highNibble === 13) {
 			codePoint = (highNibble - 12) * 16 + lowNibble;
 			minimumCodePoint = 128;
@@ -188,7 +160,6 @@ export const decodePathParam = (value: string): string => {
 			continue;
 		}
 
-		// read the continuation escapes that follow
 		while (missing > 0 && i + 2 < length && value.charCodeAt(i) === 37) {
 			const continuationHighCharCode = value.charCodeAt(i + 1);
 			const continuationHighNibble =
@@ -196,7 +167,6 @@ export const decodePathParam = (value: string): string => {
 					? HEX_VALUES[continuationHighCharCode]!
 					: -1;
 
-			// continuation bytes are 128-191
 			if (continuationHighNibble < 8 || continuationHighNibble > 11) {
 				break;
 			}
@@ -219,7 +189,6 @@ export const decodePathParam = (value: string): string => {
 			i += 3;
 		}
 
-		// reject cut sequences, overlongs, surrogates and out-of-range
 		decoded +=
 			missing !== 0 ||
 			codePoint < minimumCodePoint ||

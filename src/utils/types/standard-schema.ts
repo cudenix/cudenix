@@ -30,10 +30,10 @@ export declare namespace StandardSchemaV1 {
 
 	export interface Props<Input = unknown, Output = Input> {
 		readonly types?: Types<Input, Output> | undefined;
-		readonly validate: (
+		validate(
 			value: unknown,
 			options?: StandardSchemaV1.Options,
-		) => Promise<Result<Output>> | Result<Output>;
+		): Promise<Result<Output>> | Result<Output>;
 		readonly vendor: string;
 		readonly version: 1;
 	}

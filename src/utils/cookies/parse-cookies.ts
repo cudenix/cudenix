@@ -1,25 +1,11 @@
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 
-// slots of the name cache, a power of two
+// a power of two, so "hash & (size - 1)" picks a slot
 const NAME_CACHE_SIZE = 1024;
-// longest name the cache keeps
 const NAME_CACHE_MAX_LENGTH = 64;
 
-// names already used as keys, by hash slot
 const nameCache = new Array<string>(NAME_CACHE_SIZE).fill("");
 
-/**
- * Parses cookies from a `Cookie` request header.
- *
- * @example
- * ```typescript
- * const cookies = parseCookies("a=v1; b=v2; c=a%20b");
- *
- * cookies.a; // "v1"
- * cookies.b; // "v2"
- * cookies.c; // "a b"
- * ```
- */
 export const parseCookies = (header: string): Record<string, string> => {
 	const cookies = Object.create(null) as Record<string, string>;
 
@@ -29,12 +15,10 @@ export const parseCookies = (header: string): Record<string, string> => {
 
 	const { length } = header;
 
-	// next "%" (37) at or after the current value
 	let percentIndex = header.indexOf("%");
 	let start = 0;
 
 	while (start < length) {
-		// each pair ends at the next ";" (59)
 		let end = header.indexOf(";", start);
 
 		if (end === -1) {
@@ -43,7 +27,6 @@ export const parseCookies = (header: string): Record<string, string> => {
 
 		let nameStart = start;
 
-		// skip leading " " (32) and "\t" (9)
 		while (nameStart < end) {
 			const charCode = header.charCodeAt(nameStart);
 
@@ -57,7 +40,6 @@ export const parseCookies = (header: string): Record<string, string> => {
 		let equalsIndex = nameStart;
 		let hash = 0;
 
-		// scan and hash the name up to "=" (61)
 		while (equalsIndex < end) {
 			const charCode = header.charCodeAt(equalsIndex);
 
@@ -69,7 +51,6 @@ export const parseCookies = (header: string): Record<string, string> => {
 			equalsIndex++;
 		}
 
-		// ignore pairs without an "="
 		if (equalsIndex < end) {
 			let nameEnd = equalsIndex;
 
@@ -83,12 +64,10 @@ export const parseCookies = (header: string): Record<string, string> => {
 				nameEnd--;
 			}
 
-			// ignore pairs without a name
 			if (nameEnd > nameStart) {
 				let valueStart = equalsIndex + 1;
 				let valueEnd = end;
 
-				// skip leading whitespace
 				while (valueStart < valueEnd) {
 					const charCode = header.charCodeAt(valueStart);
 
@@ -120,7 +99,6 @@ export const parseCookies = (header: string): Record<string, string> => {
 
 					name = nameCache[slot]!;
 
-					// reuse the cached string when it is this name
 					if (
 						name.length !== nameLength ||
 						!header.startsWith(name, nameStart)
@@ -133,12 +111,10 @@ export const parseCookies = (header: string): Record<string, string> => {
 					}
 				}
 
-				// move to the first "%" inside or after this value
 				if (percentIndex !== -1 && percentIndex < valueStart) {
 					percentIndex = header.indexOf("%", valueStart);
 				}
 
-				// first one wins, only a value with a "%" is decoded
 				cookies[name] ??=
 					percentIndex !== -1 && percentIndex < valueEnd
 						? decodePathParam(header.slice(valueStart, valueEnd))
@@ -146,7 +122,6 @@ export const parseCookies = (header: string): Record<string, string> => {
 			}
 		}
 
-		// skip the ";"
 		start = end + 1;
 	}
 

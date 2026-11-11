@@ -1,19 +1,6 @@
-/**
- * Combines two object types by overlaying one onto the other.
- *
- * @example
- * ```typescript
- * type A = Merge<{ a: string; b: number }, { b: boolean; c: string }>;
- * // { a: string; b: boolean; c: string }
- *
- * type B = Merge<Record<string, number>, { a: string }>;
- * // { [key: string]: number | string } & { a: string }
- * ```
- */
 export type Merge<T extends object, U extends object> = T extends unknown
 	? U extends unknown
-		? // classify both key sets
-			PropertyName<ReplacedKeys<U>> extends infer Replaced
+		? PropertyName<ReplacedKeys<U>> extends infer Replaced
 			? PropertyName<DeclaredKeys<T>> extends infer Declared
 				? {
 						[
@@ -48,9 +35,6 @@ export type Merge<T extends object, U extends object> = T extends unknown
 		: never
 	: never;
 
-/**
- * Identifies explicitly declared properties in a type.
- */
 type DeclaredKeys<T> = keyof {
 	// {} extends Record<K, 1> only for index signatures
 	[
@@ -58,11 +42,6 @@ type DeclaredKeys<T> = keyof {
 	]: T[K];
 };
 
-/**
- * Includes values whose property names can fall inside an index signature.
- * An index signature cannot exclude a single overridden key, so its value
- * must also admit that key's value in the other operand.
- */
 type OverlappingValues<T, K> = {
 	[P in keyof T]-?: [PropertyName<K> & PropertyName<P>] extends [never]
 		? never
@@ -73,22 +52,13 @@ type OverlappingValues<T, K> = {
 		: never
 	: never;
 
-/**
- * JavaScript coerces numeric property keys to strings.
- */
 type PropertyName<K> = K extends number ? `${K}` : K;
 
-/**
- * Identifies properties replaced during a type merge.
- */
 type ReplacedKeys<U> = keyof {
 	// {} extends Pick<U, K> only when K is optional
 	[K in keyof U as NonNullable<unknown> extends Pick<U, K> ? never : K]: U[K];
 };
 
-/**
- * Looks up a key using either spelling of a numeric property name.
- */
 type ValueAt<T, K> = K extends keyof T
 	? T[K]
 	: K extends number

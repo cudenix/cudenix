@@ -14,7 +14,6 @@ const PARAM_FLAG_REST = 2;
 const escapeStaticCharacter = (character: string): string => {
 	const charCode = character.charCodeAt(0);
 
-	// "$" (36), "(" to "+" (40-43), "." (46), "[" to "]" (91-93), "|" (124)
 	return charCode === 36 ||
 		(charCode >= 40 && charCode <= 43) ||
 		charCode === 46 ||
@@ -24,23 +23,6 @@ const escapeStaticCharacter = (character: string): string => {
 		: encodeURIComponent(character.toWellFormed());
 };
 
-/**
- * Compiles a route pattern for matching and parameter extraction.
- *
- * @example
- * ```typescript
- * const { paramFlags, paramKeys, pattern, ranks } =
- *   pathToRegexp("/a/:p1");
- * const match = new RegExp(`^${pattern}$`).exec("/a/v1")!;
- *
- * paramKeys; // ["p1"]
- * paramFlags; // [0]
- * ranks; // [0, 1]
- * match[1]; // "v1"
- *
- * pathToRegexp("/a/...r1").restKeys; // ["r1"]
- * ```
- */
 export const pathToRegexp = (
 	path: string,
 ): {
@@ -61,19 +43,17 @@ export const pathToRegexp = (
 		};
 	}
 
+	const parts = (
+		path.includes("\\") ? path.replaceAll("\\", "/") : path
+	).split("/");
+
 	const paramFlags: number[] = [];
 	const paramKeys: string[] = [];
 	const ranks: number[] = [];
 	const restKeys: string[] = [];
 
-	// "\" separates like "/"
-	const parts = (
-		path.includes("\\") ? path.replaceAll("\\", "/") : path
-	).split("/");
-
 	let last = parts.length - 1;
 
-	// the last part that holds a segment
 	while (last >= 0 && parts[last] === "") {
 		last--;
 	}
@@ -85,19 +65,16 @@ export const pathToRegexp = (
 		const part = parts[i]!;
 		const partLength = part.length;
 
-		// separator runs leave empty parts
 		if (partLength === 0) {
 			continue;
 		}
 
-		// a trailing "?" (63) marks the segment as optional
 		const isOptional = part.charCodeAt(partLength - 1) === 63;
 		const contentEnd = isOptional ? partLength - 1 : partLength;
 		const firstCharCode = part.charCodeAt(0);
 
 		let segment: string;
 
-		// ":" (58) named param
 		if (firstCharCode === 58) {
 			paramFlags.push(isOptional ? PARAM_FLAG_OPTIONAL : 0);
 			paramKeys.push(part.slice(1, contentEnd));
@@ -105,19 +82,13 @@ export const pathToRegexp = (
 			ranks.push(PARAM_RANK);
 
 			segment = PARAM_CAPTURE;
-		} else if (
-			// lone "*" (42) wildcard
-			firstCharCode === 42 &&
-			contentEnd === 1
-		) {
-			// only separators follow the last part
+		} else if (firstCharCode === 42 && contentEnd === 1) {
 			const isTerminal = i === last;
 
 			ranks.push(isTerminal ? TERMINAL_WILDCARD_RANK : WILDCARD_RANK);
 
 			segment = isTerminal ? TERMINAL_WILDCARD : WILDCARD;
 		} else if (
-			// "..." (46) rest param
 			firstCharCode === 46 &&
 			part.charCodeAt(1) === 46 &&
 			part.charCodeAt(2) === 46
@@ -135,10 +106,8 @@ export const pathToRegexp = (
 
 			segment = REST_CAPTURE;
 		} else {
-			// static segment
 			ranks.push(STATIC_RANK);
 
-			// escape regexp syntax and percent-encode
 			segment = `\\/${(isOptional ? part.slice(0, contentEnd) : part).replaceAll(STATIC_SEGMENT_SYNTAX, escapeStaticCharacter)}`;
 		}
 
@@ -154,12 +123,10 @@ export const pathToRegexp = (
 	let pattern: string;
 
 	if (segments) {
-		// fully-optional patterns match the bare "/" too
 		pattern = areAllSegmentsOptional
 			? `(?:${segments}|\\/)()`
 			: `${segments}()`;
 	} else {
-		// a path of only separators becomes the root
 		pattern = path.length > 0 ? String.raw`\/()` : "()";
 	}
 
