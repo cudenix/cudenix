@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import vm from "node:vm";
+import { runInNewContext } from "node:vm";
 
 import { isAsync } from "@/utils/functions/is-async";
 
@@ -27,9 +27,7 @@ describe("isAsync", () => {
 		});
 
 		it("should return true for an async arrow function", () => {
-			const asyncArrow = async (): Promise<number> => 1;
-
-			expect(isAsync(asyncArrow)).toBe(true);
+			expect(isAsync(async (): Promise<number> => 1)).toBe(true);
 		});
 
 		it("should return true for an async method on an object literal", () => {
@@ -84,9 +82,7 @@ describe("isAsync", () => {
 		});
 
 		it("should return false for an arrow function", () => {
-			const arrow = (): number => 1;
-
-			expect(isAsync(arrow)).toBe(false);
+			expect(isAsync((): number => 1)).toBe(false);
 		});
 
 		it("should return false for a regular method on an object literal", () => {
@@ -184,15 +180,11 @@ describe("isAsync", () => {
 		});
 
 		it("should return true for a Proxy wrapping an async function", () => {
-			const dynamic = asFn(new Proxy(async () => 1, {}));
-
-			expect(isAsync(dynamic)).toBe(true);
+			expect(isAsync(asFn(new Proxy(async () => 1, {})))).toBe(true);
 		});
 
 		it("should return false for a Proxy wrapping a regular function", () => {
-			const dynamic = asFn(new Proxy(() => 1, {}));
-
-			expect(isAsync(dynamic)).toBe(false);
+			expect(isAsync(asFn(new Proxy(() => 1, {})))).toBe(false);
 		});
 
 		it("should return false for Function.prototype", () => {
@@ -232,18 +224,18 @@ describe("isAsync", () => {
 
 	describe("declaration-based async contract", () => {
 		it("should classify Promise-producing functions by their async declaration", () => {
-			const declaredAsync = async (): Promise<number> =>
-				Promise.resolve(1);
-			const plain = (): Promise<number> => Promise.resolve(1);
-
-			expect(isAsync(declaredAsync)).toBe(true);
-			expect(isAsync(plain)).toBe(false);
+			expect(
+				isAsync(async (): Promise<number> => Promise.resolve(1)),
+			).toBe(true);
+			expect(isAsync((): Promise<number> => Promise.resolve(1))).toBe(
+				false,
+			);
 		});
 
 		it("should return false for a plain arrow that returns a Promise", () => {
-			const fn = (): Promise<number> => Promise.resolve(1);
-
-			expect(isAsync(fn)).toBe(false);
+			expect(isAsync((): Promise<number> => Promise.resolve(1))).toBe(
+				false,
+			);
 		});
 
 		it("should return false for a plain function expression that returns a Promise", () => {
@@ -269,23 +261,149 @@ describe("isAsync", () => {
 		});
 
 		it("should misclassify a non-callable object created with the async function prototype as async (known limitation: prototype identity)", () => {
-			const obj = asFn(
-				Object.create(Object.getPrototypeOf(async () => {})),
-			);
-
-			expect(isAsync(obj)).toBe(true);
+			expect(
+				isAsync(
+					asFn(Object.create(Object.getPrototypeOf(async () => {}))),
+				),
+			).toBe(true);
 		});
 
 		it("should misclassify a cross-realm async function as non-async (known limitation: prototype identity is per realm)", () => {
-			const crossRealmAsync = asFn(
-				vm.runInNewContext("(async () => {})"),
+			expect(isAsync(asFn(runInNewContext("(async () => {})")))).toBe(
+				false,
+			);
+		});
+	});
+
+	describe("prototype lookup semantics", () => {
+		const asyncPrototype = Object.getPrototypeOf(async () => {});
+		const AsyncFunction = asyncPrototype.constructor;
+
+		it("should return true for a function built with the AsyncFunction constructor", () => {
+			expect(isAsync(asFn(new AsyncFunction("return 1")))).toBe(true);
+		});
+
+		it("should return true for an async function with extra own properties", () => {
+			expect(isAsync(Object.assign(async () => 1, { a: 1, b: 2 }))).toBe(
+				true,
+			);
+		});
+
+		it("should return false for AsyncFunction.prototype itself", () => {
+			expect(isAsync(asFn(asyncPrototype))).toBe(false);
+		});
+
+		it("should return false for the AsyncFunction constructor", () => {
+			expect(isAsync(asFn(AsyncFunction))).toBe(false);
+		});
+
+		it("should return false when the async prototype is deeper in the chain", () => {
+			const fn = asFn(() => {});
+
+			Object.setPrototypeOf(fn, Object.create(asyncPrototype));
+
+			expect(isAsync(fn)).toBe(false);
+		});
+
+		it("should ignore an own constructor property set to AsyncFunction", () => {
+			const fn = asFn(() => {});
+
+			Object.defineProperty(fn, "constructor", { value: AsyncFunction });
+
+			expect(isAsync(fn)).toBe(false);
+		});
+
+		it("should ignore an own constructor property on an async function", () => {
+			const fn = asFn(async () => {});
+
+			Object.defineProperty(fn, "constructor", { value: Function });
+
+			expect(isAsync(fn)).toBe(true);
+		});
+
+		it("should ignore an own __proto__ property on a regular function", () => {
+			const fn = asFn(() => {});
+
+			Object.defineProperty(fn, "__proto__", { value: asyncPrototype });
+
+			expect(isAsync(fn)).toBe(false);
+		});
+
+		it("should ignore an own __proto__ property on an async function", () => {
+			const fn = asFn(async () => {});
+
+			Object.defineProperty(fn, "__proto__", {
+				value: Function.prototype,
+			});
+
+			expect(isAsync(fn)).toBe(true);
+		});
+
+		it("should use the getPrototypeOf trap of a Proxy", () => {
+			expect(
+				isAsync(
+					asFn(
+						new Proxy(() => 1, {
+							getPrototypeOf: () => asyncPrototype,
+						}),
+					),
+				),
+			).toBe(true);
+			expect(
+				isAsync(
+					asFn(
+						new Proxy(async () => 1, {
+							getPrototypeOf: () => Function.prototype,
+						}),
+					),
+				),
+			).toBe(false);
+		});
+
+		it("should not trigger the get or has traps of a Proxy", () => {
+			let calls = 0;
+
+			const dynamic = asFn(
+				new Proxy(async () => 1, {
+					get: (target, key, receiver) => {
+						calls++;
+
+						return Reflect.get(target, key, receiver);
+					},
+					has: (target, key) => {
+						calls++;
+
+						return Reflect.has(target, key);
+					},
+				}),
 			);
 
-			expect(isAsync(crossRealmAsync)).toBe(false);
+			expect(isAsync(dynamic)).toBe(true);
+			expect(calls).toBe(0);
+		});
+
+		it("should throw a TypeError for a revoked Proxy", () => {
+			const { proxy, revoke } = Proxy.revocable(async () => 1, {});
+
+			revoke();
+
+			expect(() => isAsync(asFn(proxy))).toThrow(TypeError);
 		});
 	});
 
 	describe("non-function values", () => {
+		it("should return false for a symbol primitive", () => {
+			expect(isAsync(asFn(Symbol("v1")))).toBe(false);
+		});
+
+		it("should return false for a bigint primitive", () => {
+			expect(isAsync(asFn(1n))).toBe(false);
+		});
+
+		it("should return false for an object without a prototype", () => {
+			expect(isAsync(asFn(Object.create(null)))).toBe(false);
+		});
+
 		it("should return false for a number primitive", () => {
 			expect(isAsync(asFn(1))).toBe(false);
 		});
