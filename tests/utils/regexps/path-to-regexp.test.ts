@@ -1152,4 +1152,711 @@ describe("pathToRegexp", () => {
 			expect(pathToRegexp("/a/*").paramFlags).toEqual([]);
 		});
 	});
+	describe("exact output", () => {
+		const cases: [
+			path: string,
+			pattern: string,
+			paramKeys: string[],
+			paramFlags: number[],
+			ranks: number[],
+			restKeys: string[],
+		][] = [
+			[
+				"a",
+				String.raw`\/a()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"a/b",
+				String.raw`\/a\/b()`,
+				[],
+				[],
+				[0, 0],
+				[],
+			],
+			[
+				"//a//b//",
+				String.raw`\/a\/b()`,
+				[],
+				[],
+				[0, 0],
+				[],
+			],
+			[
+				"\\a\\b",
+				String.raw`\/a\/b()`,
+				[],
+				[],
+				[0, 0],
+				[],
+			],
+			[
+				"/a\\/b",
+				String.raw`\/a\/b()`,
+				[],
+				[],
+				[0, 0],
+				[],
+			],
+			[
+				"/a/\\",
+				String.raw`\/a()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"\\",
+				String.raw`\/()`,
+				[],
+				[],
+				[],
+				[],
+			],
+			[
+				"\\\\",
+				String.raw`\/()`,
+				[],
+				[],
+				[],
+				[],
+			],
+			[
+				"/\\/",
+				String.raw`\/()`,
+				[],
+				[],
+				[],
+				[],
+			],
+			[
+				"a\\:p1\\*",
+				String.raw`\/a\/([^/\s?#]+)\/[^\s?#]*()`,
+				["p1"],
+				[0],
+				[0, 1, 4],
+				[],
+			],
+			[
+				"/a/*\\",
+				String.raw`\/a\/[^\s?#]*()`,
+				[],
+				[],
+				[0, 4],
+				[],
+			],
+			[
+				"/a/*/\\/",
+				String.raw`\/a\/[^\s?#]*()`,
+				[],
+				[],
+				[0, 4],
+				[],
+			],
+			[
+				"/a/*?/b",
+				String.raw`\/a(?:\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?)?\/b()`,
+				[],
+				[],
+				[0, 2, 0],
+				[],
+			],
+			[
+				"/*?/",
+				String.raw`(?:(?:\/[^\s?#]*)?|\/)()`,
+				[],
+				[],
+				[4],
+				[],
+			],
+			[
+				"/*/*",
+				String.raw`\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?\/[^\s?#]*()`,
+				[],
+				[],
+				[2, 4],
+				[],
+			],
+			[
+				"/*?/*?",
+				String.raw`(?:(?:\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?)?(?:\/[^\s?#]*)?|\/)()`,
+				[],
+				[],
+				[2, 4],
+				[],
+			],
+			[
+				"/a*",
+				String.raw`\/a\*()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/*a",
+				String.raw`\/\*a()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/*??",
+				String.raw`(?:(?:\/\*%3F)?|\/)()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/**?",
+				String.raw`(?:(?:\/\*\*)?|\/)()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/*/:p1?",
+				String.raw`\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?(?:\/([^/\s?#]+))?()`,
+				["p1"],
+				[1],
+				[2, 1],
+				[],
+			],
+			[
+				"/:p1?/b",
+				String.raw`(?:\/([^/\s?#]+))?\/b()`,
+				["p1"],
+				[1],
+				[1, 0],
+				[],
+			],
+			[
+				"/:?",
+				String.raw`(?:(?:\/([^/\s?#]+))?|\/)()`,
+				[""],
+				[1],
+				[1],
+				[],
+			],
+			[
+				"/:",
+				String.raw`\/([^/\s?#]+)()`,
+				[""],
+				[0],
+				[1],
+				[],
+			],
+			[
+				"/::p1",
+				String.raw`\/([^/\s?#]+)()`,
+				[":p1"],
+				[0],
+				[1],
+				[],
+			],
+			[
+				"/:p1:p2",
+				String.raw`\/([^/\s?#]+)()`,
+				["p1:p2"],
+				[0],
+				[1],
+				[],
+			],
+			[
+				"/:p1.json",
+				String.raw`\/([^/\s?#]+)()`,
+				["p1.json"],
+				[0],
+				[1],
+				[],
+			],
+			[
+				"/:p-1",
+				String.raw`\/([^/\s?#]+)()`,
+				["p-1"],
+				[0],
+				[1],
+				[],
+			],
+			[
+				"/:é",
+				String.raw`\/([^/\s?#]+)()`,
+				["é"],
+				[0],
+				[1],
+				[],
+			],
+			[
+				"/:p1??",
+				String.raw`(?:(?:\/([^/\s?#]+))?|\/)()`,
+				["p1?"],
+				[1],
+				[1],
+				[],
+			],
+			[
+				"/:*",
+				String.raw`\/([^/\s?#]+)()`,
+				["*"],
+				[0],
+				[1],
+				[],
+			],
+			[
+				"/:...r1",
+				String.raw`\/([^/\s?#]+)()`,
+				["...r1"],
+				[0],
+				[1],
+				[],
+			],
+			[
+				"/...",
+				String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))()`,
+				[""],
+				[2],
+				[3],
+				[""],
+			],
+			[
+				"/...?",
+				String.raw`(?:(?:\/((?:[^/\s?#]+/)*(?:[^/\s?#]+)))?|\/)()`,
+				[""],
+				[3],
+				[3],
+				[""],
+			],
+			[
+				"/....r1",
+				String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))()`,
+				[".r1"],
+				[2],
+				[3],
+				[".r1"],
+			],
+			[
+				"/..?",
+				String.raw`(?:(?:\/\.\.)?|\/)()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/..",
+				String.raw`\/\.\.()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/.",
+				String.raw`\/\.()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/.?",
+				String.raw`(?:(?:\/\.)?|\/)()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/...r1/b",
+				String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))\/b()`,
+				["r1"],
+				[2],
+				[3, 0],
+				["r1"],
+			],
+			[
+				"/...r1?/...r2?",
+				String.raw`(?:(?:\/((?:[^/\s?#]+/)*(?:[^/\s?#]+)))?(?:\/((?:[^/\s?#]+/)*(?:[^/\s?#]+)))?|\/)()`,
+				["r1", "r2"],
+				[3, 3],
+				[3, 3],
+				["r1", "r2"],
+			],
+			[
+				"/...:p1",
+				String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))()`,
+				[":p1"],
+				[2],
+				[3],
+				[":p1"],
+			],
+			[
+				"/...*",
+				String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))()`,
+				["*"],
+				[2],
+				[3],
+				["*"],
+			],
+			[
+				"/?",
+				String.raw`(?:(?:\/)?|\/)()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/??",
+				String.raw`(?:(?:\/%3F)?|\/)()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a??",
+				String.raw`(?:(?:\/a%3F)?|\/)()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a?b",
+				String.raw`\/a%3Fb()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a?b?",
+				String.raw`(?:(?:\/a%3Fb)?|\/)()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/?a",
+				String.raw`\/%3Fa()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a?/b?",
+				String.raw`(?:(?:\/a)?(?:\/b)?|\/)()`,
+				[],
+				[],
+				[0, 0],
+				[],
+			],
+			[
+				"/?/?",
+				String.raw`(?:(?:\/)?(?:\/)?|\/)()`,
+				[],
+				[],
+				[0, 0],
+				[],
+			],
+			[
+				"/a/?/b",
+				String.raw`\/a(?:\/)?\/b()`,
+				[],
+				[],
+				[0, 0, 0],
+				[],
+			],
+			[
+				"/a.b",
+				String.raw`\/a\.b()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/sitemap.xml",
+				String.raw`\/sitemap\.xml()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/.well-known/openid-configuration",
+				String.raw`\/\.well-known\/openid-configuration()`,
+				[],
+				[],
+				[0, 0],
+				[],
+			],
+			[
+				"/a-b_c~d",
+				String.raw`\/a-b_c~d()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a%20b",
+				String.raw`\/a%20b()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a%2Fb",
+				String.raw`\/a%2Fb()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a%",
+				String.raw`\/a%()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a,b;c=d@e&f!g'h",
+				String.raw`\/a,b;c=d@e&f!g'h()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a b",
+				String.raw`\/a%20b()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a\tb",
+				String.raw`\/a%09b()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a\u0080b",
+				String.raw`\/a%C2%80b()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/café",
+				String.raw`\/caf%C3%A9()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/日本語",
+				String.raw`\/%E6%97%A5%E6%9C%AC%E8%AA%9E()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/😀",
+				String.raw`\/%F0%9F%98%80()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a😀b",
+				String.raw`\/a%F0%9F%98%80b()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/\ud800",
+				String.raw`\/%EF%BF%BD()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a\udc00b",
+				String.raw`\/a%EF%BF%BDb()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a\ud83d",
+				String.raw`\/a%EF%BF%BD()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/\ude00\ud83d",
+				String.raw`\/%EF%BF%BD%EF%BF%BD()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a.b é(c)😀?",
+				String.raw`(?:(?:\/a\.b%20%C3%A9\(c\)%F0%9F%98%80)?|\/)()`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/api/v1/organizations/:orgId/projects/:projectId/issues/:issueId/comments/:commentId?",
+				String.raw`\/api\/v1\/organizations\/([^/\s?#]+)\/projects\/([^/\s?#]+)\/issues\/([^/\s?#]+)\/comments(?:\/([^/\s?#]+))?()`,
+				["orgId", "projectId", "issueId", "commentId"],
+				[0, 0, 0, 1],
+				[0, 0, 0, 1, 0, 1, 0, 1, 0, 1],
+				[],
+			],
+		];
+
+		for (let i = 0; i < cases.length; i++) {
+			const [path, pattern, paramKeys, paramFlags, ranks, restKeys] =
+				cases[i]!;
+
+			it(`should compile ${JSON.stringify(path)}`, () => {
+				expect(pathToRegexp(path)).toEqual({
+					paramFlags,
+					paramKeys,
+					pattern,
+					ranks,
+					restKeys,
+				});
+			});
+		}
+
+		it("should escape, percent-encode or keep every ASCII character", () => {
+			const escaped = "$()*+.[]|";
+			const encoded = '"#<>?^`{}';
+
+			for (let code = 0; code < 128; code++) {
+				// "/" (47) and "\" (92) are separators
+				if (code === 47 || code === 92) {
+					continue;
+				}
+
+				const character = String.fromCharCode(code);
+
+				let expected = character;
+
+				if (escaped.includes(character)) {
+					expected = `\\${character}`;
+				} else if (
+					code < 33 ||
+					code === 127 ||
+					encoded.includes(character)
+				) {
+					expected = `%${code.toString(16).toUpperCase().padStart(2, "0")}`;
+				}
+
+				expect(pathToRegexp(`/a${character}b`).pattern).toBe(
+					String.raw`\/a${expected}b()`,
+				);
+			}
+		});
+
+		it("should compile every escaped character of a run in one segment", () => {
+			expect(pathToRegexp("/$()*+.[]|/a").pattern).toBe(
+				String.raw`\/\$\(\)\*\+\.\[\]\|\/a()`,
+			);
+			expect(pathToRegexp('/"#<>^`{}/a').pattern).toBe(
+				String.raw`\/%22%23%3C%3E%5E%60%7B%7D\/a()`,
+			);
+		});
+
+		it("should encode adjacent non-ASCII characters and surrogates one by one", () => {
+			expect(pathToRegexp("/é😀\uD800ñ\uDC00\uD83D😀").pattern).toBe(
+				String.raw`\/%C3%A9%F0%9F%98%80%EF%BF%BD%C3%B1%EF%BF%BD%EF%BF%BD%F0%9F%98%80()`,
+			);
+		});
+
+		it("should compile a long path segment by segment", () => {
+			const count = 200;
+
+			const { paramFlags, paramKeys, pattern, ranks, restKeys } =
+				pathToRegexp("/s.1/:p1/*/...r1?".repeat(count));
+
+			expect(pattern).toBe(
+				`${String.raw`\/s\.1\/([^/\s?#]+)\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?(?:\/((?:[^/\s?#]+/)*(?:[^/\s?#]+)))?`.repeat(count)}()`,
+			);
+			expect(paramKeys).toEqual(
+				Array.from({ length: count }, () => ["p1", "r1"]).flat(),
+			);
+			expect(paramFlags).toEqual(
+				Array.from({ length: count }, () => [0, 3]).flat(),
+			);
+			expect(ranks).toEqual(
+				Array.from({ length: count }, () => [0, 1, 2, 3]).flat(),
+			);
+			expect(restKeys).toEqual(
+				Array.from({ length: count }, () => "r1"),
+			);
+		});
+
+		it("should return fresh arrays on every call", () => {
+			for (const path of ["/", "", "//", "/a/:p1/...r1"]) {
+				const first = pathToRegexp(path);
+
+				first.paramFlags.push(9);
+				first.paramKeys.push("x");
+				first.ranks.push(9);
+				first.restKeys.push("x");
+
+				const second = pathToRegexp(path);
+
+				expect(second.paramFlags).not.toContain(9);
+				expect(second.paramKeys).not.toContain("x");
+				expect(second.ranks).not.toContain(9);
+				expect(second.restKeys).not.toContain("x");
+			}
+		});
+
+		it("should compile the same path to the same result on repeated calls", () => {
+			const paths = ["/a.b/:p1?", "/a/*", "/é/...r1"];
+
+			for (let i = 0; i < paths.length; i++) {
+				const path = paths[i]!;
+
+				expect(pathToRegexp(path)).toEqual(pathToRegexp(path));
+				expect(pathToRegexp(path)).toEqual(pathToRegexp(path));
+			}
+		});
+	});
 });

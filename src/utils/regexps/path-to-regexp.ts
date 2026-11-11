@@ -1,71 +1,28 @@
-// a single segment, captured
 const PARAM_CAPTURE = String.raw`\/([^/\s?#]+)`;
-// one or more segments, captured as one string
 const REST_CAPTURE = String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))`;
-// non-capturing, matches zero segments too
 const WILDCARD = String.raw`\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?`;
-// the whole remainder of the path
 const TERMINAL_WILDCARD = String.raw`\/[^\s?#]*`;
-
-// regexp syntax and url-encoded characters
 const STATIC_SEGMENT_SYNTAX = /[^!-~]|["#$()*+.<>?[\\\]^`{|}]/gu;
-
-// characters a url carries percent-encoded
-const URL_ENCODED_CHARACTER = /[^!-~]|["#<>?^`{}]/u;
-
-// percent-encodes or escapes a static character
-const escapeStaticCharacter = (character: string): string =>
-	URL_ENCODED_CHARACTER.test(character)
-		? encodeURIComponent(character.toWellFormed())
-		: `\\${character}`;
-
-/**
- * Checks whether only separators follow a segment.
- */
-const isTerminalSegment = (
-	path: string,
-	segmentEnd: number,
-	length: number,
-): boolean => {
-	for (let i = segmentEnd; i < length; i++) {
-		const charCode = path.charCodeAt(i);
-
-		// "/" (47) and "\" (92) open no segment
-		if (charCode !== 47 && charCode !== 92) {
-			return false;
-		}
-	}
-
-	return true;
-};
-
-// segment ranks, lower matching first
 const STATIC_RANK = 0;
 const PARAM_RANK = 1;
 const WILDCARD_RANK = 2;
 const REST_RANK = 3;
-// a terminal "*" matches last
 const TERMINAL_WILDCARD_RANK = 4;
+const PARAM_FLAG_OPTIONAL = 1;
+const PARAM_FLAG_REST = 2;
 
-/**
- * Marks an optional route parameter in `paramFlags`.
- *
- * @example
- * ```typescript
- * pathToRegexp("/a/:p1?").paramFlags; // [PARAM_FLAG_OPTIONAL]
- * ```
- */
-export const PARAM_FLAG_OPTIONAL = 1;
+const escapeStaticCharacter = (character: string): string => {
+	const charCode = character.charCodeAt(0);
 
-/**
- * Marks a rest route parameter in `paramFlags`.
- *
- * @example
- * ```typescript
- * pathToRegexp("/a/...r1").paramFlags; // [PARAM_FLAG_REST]
- * ```
- */
-export const PARAM_FLAG_REST = 2;
+	// "$" (36), "(" to "+" (40-43), "." (46), "[" to "]" (91-93), "|" (124)
+	return charCode === 36 ||
+		(charCode >= 40 && charCode <= 43) ||
+		charCode === 46 ||
+		(charCode >= 91 && charCode <= 93) ||
+		charCode === 124
+		? `\\${character}`
+		: encodeURIComponent(character.toWellFormed());
+};
 
 /**
  * Compiles a route pattern for matching and parameter extraction.
@@ -104,54 +61,46 @@ export const pathToRegexp = (
 		};
 	}
 
-	const length = path.length;
-
 	const paramFlags: number[] = [];
 	const paramKeys: string[] = [];
 	const ranks: number[] = [];
 	const restKeys: string[] = [];
 
+	// "\" separates like "/"
+	const parts = (
+		path.includes("\\") ? path.replaceAll("\\", "/") : path
+	).split("/");
+
+	let last = parts.length - 1;
+
+	// the last part that holds a segment
+	while (last >= 0 && parts[last] === "") {
+		last--;
+	}
+
 	let areAllSegmentsOptional = true;
 	let segments = "";
-	let i = 0;
 
-	while (i < length) {
-		const separatorCode = path.charCodeAt(i);
+	for (let i = 0; i <= last; i++) {
+		const part = parts[i]!;
+		const partLength = part.length;
 
-		// "\" (92) opens the same segment as "/" (47)
-		if (separatorCode === 47 || separatorCode === 92) {
-			i++;
-
+		// separator runs leave empty parts
+		if (partLength === 0) {
 			continue;
 		}
 
-		let segmentEnd = path.indexOf("/", i);
-
-		const backslashIndex = path.indexOf("\\", i);
-
-		// whichever separator comes first closes the segment
-		if (
-			segmentEnd === -1 ||
-			(backslashIndex !== -1 && backslashIndex < segmentEnd)
-		) {
-			segmentEnd = backslashIndex;
-		}
-
-		if (segmentEnd === -1) {
-			segmentEnd = length;
-		}
-
 		// a trailing "?" (63) marks the segment as optional
-		const isOptional = path.charCodeAt(segmentEnd - 1) === 63;
-		const contentEnd = isOptional ? segmentEnd - 1 : segmentEnd;
-		const firstCharCode = path.charCodeAt(i);
+		const isOptional = part.charCodeAt(partLength - 1) === 63;
+		const contentEnd = isOptional ? partLength - 1 : partLength;
+		const firstCharCode = part.charCodeAt(0);
 
 		let segment: string;
 
 		// ":" (58) named param
 		if (firstCharCode === 58) {
 			paramFlags.push(isOptional ? PARAM_FLAG_OPTIONAL : 0);
-			paramKeys.push(path.slice(i + 1, contentEnd));
+			paramKeys.push(part.slice(1, contentEnd));
 
 			ranks.push(PARAM_RANK);
 
@@ -159,9 +108,10 @@ export const pathToRegexp = (
 		} else if (
 			// lone "*" (42) wildcard
 			firstCharCode === 42 &&
-			contentEnd - i === 1
+			contentEnd === 1
 		) {
-			const isTerminal = isTerminalSegment(path, segmentEnd, length);
+			// only separators follow the last part
+			const isTerminal = i === last;
 
 			ranks.push(isTerminal ? TERMINAL_WILDCARD_RANK : WILDCARD_RANK);
 
@@ -169,10 +119,10 @@ export const pathToRegexp = (
 		} else if (
 			// "..." (46) rest param
 			firstCharCode === 46 &&
-			path.charCodeAt(i + 1) === 46 &&
-			path.charCodeAt(i + 2) === 46
+			part.charCodeAt(1) === 46 &&
+			part.charCodeAt(2) === 46
 		) {
-			const name = path.slice(i + 3, contentEnd);
+			const name = part.slice(3, contentEnd);
 
 			paramFlags.push(
 				PARAM_FLAG_REST + (isOptional ? PARAM_FLAG_OPTIONAL : 0),
@@ -189,7 +139,7 @@ export const pathToRegexp = (
 			ranks.push(STATIC_RANK);
 
 			// escape regexp syntax and percent-encode
-			segment = `\\/${path.slice(i, contentEnd).replace(STATIC_SEGMENT_SYNTAX, escapeStaticCharacter)}`;
+			segment = `\\/${(isOptional ? part.slice(0, contentEnd) : part).replaceAll(STATIC_SEGMENT_SYNTAX, escapeStaticCharacter)}`;
 		}
 
 		if (isOptional) {
@@ -199,8 +149,6 @@ export const pathToRegexp = (
 		}
 
 		segments += segment;
-
-		i = segmentEnd;
 	}
 
 	let pattern: string;
@@ -212,7 +160,7 @@ export const pathToRegexp = (
 			: `${segments}()`;
 	} else {
 		// a path of only separators becomes the root
-		pattern = length ? String.raw`\/()` : "()";
+		pattern = path.length > 0 ? String.raw`\/()` : "()";
 	}
 
 	return { paramFlags, paramKeys, pattern, ranks, restKeys };
