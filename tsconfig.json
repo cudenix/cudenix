@@ -1,26 +1,25 @@
 {
 	"compilerOptions": {
-		"declaration": true,
-		"declarationMap": true,
+		"allowImportingTsExtensions": true,
+		"allowJs": true,
+		"checkJs": true,
 		"forceConsistentCasingInFileNames": true,
-		"lib": ["DOM", "ESNext"],
+		"lib": ["ESNext"],
 		"module": "ESNext",
 		"moduleResolution": "bundler",
+		"noEmit": true,
 		"noFallthroughCasesInSwitch": true,
 		"noUncheckedIndexedAccess": true,
 		"noUncheckedSideEffectImports": true,
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
-		"outDir": "./dist",
 		"paths": { "@/*": ["./src/*"] },
-		"rootDir": "./src",
 		"skipLibCheck": true,
-		"sourceMap": true,
 		"strict": true,
 		"target": "ESNext",
 		"types": ["bun"],
 		"verbatimModuleSyntax": true
 	},
-	"include": ["./src/**/*.ts"],
-	"tsc-alias": { "resolveFullPaths": true }
+	"exclude": ["dist", "node_modules"],
+	"include": ["**/*.ts"]
 }
