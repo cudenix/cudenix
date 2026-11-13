@@ -59,7 +59,7 @@
 		"registry": "https://registry.npmjs.org"
 	},
 	"scripts": {
-		"build": "bun check && bun typecheck && tsc-alias",
+		"build": "bun check && bun typecheck && bun scripts/build.ts",
 		"check": "oxfmt --check && oxlint",
 		"format": "oxfmt",
 		"lint": "oxlint",
@@ -73,7 +73,6 @@
 		"oxfmt": "0.78.0",
 		"oxlint": "1.93.0",
 		"oxlint-tsgolint": "7.0.2007",
-		"tsc-alias": "1.9.10",
 		"typescript": "7.0.2"
 	},
 	"trustedDependencies": []
