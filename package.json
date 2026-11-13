@@ -72,7 +72,7 @@
 		"eslint-plugin-perfectionist": "5.13.0",
 		"oxfmt": "0.78.0",
 		"oxlint": "1.93.0",
-		"oxlint-tsgolint": "7.0.2006",
+		"oxlint-tsgolint": "7.0.2007",
 		"tsc-alias": "1.9.10",
 		"typescript": "7.0.2"
 	},
