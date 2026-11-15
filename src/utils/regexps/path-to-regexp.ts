@@ -1,15 +1,15 @@
 const PARAM_CAPTURE = String.raw`\/([^/\s?#]+)`;
-const REST_CAPTURE = String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))`;
-const WILDCARD = String.raw`\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?`;
-const TERMINAL_WILDCARD = String.raw`\/[^\s?#]*`;
-const STATIC_SEGMENT_SYNTAX = /[^!-~]|["#$()*+.<>?[\\\]^`{|}]/gu;
-const STATIC_RANK = 0;
-const PARAM_RANK = 1;
-const WILDCARD_RANK = 2;
-const REST_RANK = 3;
-const TERMINAL_WILDCARD_RANK = 4;
 const PARAM_FLAG_OPTIONAL = 1;
 const PARAM_FLAG_REST = 2;
+const PARAM_RANK = 1;
+const REST_CAPTURE = String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))`;
+const REST_RANK = 3;
+const STATIC_RANK = 0;
+const STATIC_SEGMENT_SYNTAX = /[^!-~]|["#$()*+.<>?[\\\]^`{|}]/gu;
+const TERMINAL_WILDCARD = String.raw`\/[^\s?#]*`;
+const TERMINAL_WILDCARD_RANK = 4;
+const WILDCARD = String.raw`\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?`;
+const WILDCARD_RANK = 2;
 
 const escapeStaticCharacter = (character: string): string => {
 	const charCode = character.charCodeAt(0);

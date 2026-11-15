@@ -1,9 +1,9 @@
-const JSON_MEDIA_TYPE = /^application\/json[\t ]*(?:[,;]|$)/i;
 const BINARY_MEDIA_TYPE = /^application\/octet-stream[\t ]*(?:[,;]|$)/i;
-const URLENCODED_MEDIA_TYPE =
-	/^application\/x-www-form-urlencoded[\t ]*(?:[,;]|$)/i;
+const JSON_MEDIA_TYPE = /^application\/json[\t ]*(?:[,;]|$)/i;
 const MULTIPART_MEDIA_TYPE = /^multipart\/form-data[\t ]*(?:[,;]|$)/i;
 const PLUS = /\+/g;
+const URLENCODED_MEDIA_TYPE =
+	/^application\/x-www-form-urlencoded[\t ]*(?:[,;]|$)/i;
 
 const addEntry = (
 	body: Record<PropertyKey, unknown>,
@@ -158,7 +158,7 @@ export const parseBody = async (request: Request): Promise<unknown> => {
 	}
 
 	if (JSON_MEDIA_TYPE.test(contentType)) {
-		return request.json() as Promise<unknown>;
+		return request.json();
 	}
 
 	if (BINARY_MEDIA_TYPE.test(contentType)) {

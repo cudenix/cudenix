@@ -22,7 +22,7 @@ describe("HEX_VALUES", () => {
 	});
 
 	it("should map 'a'-'f' and 'A'-'F' to 10-15", () => {
-		for (const [index, letter] of [..."abcdef"].entries()) {
+		for (const [index, letter] of "abcdef".split("").entries()) {
 			expect(HEX_VALUES[letter.charCodeAt(0)]).toBe(10 + index);
 			expect(HEX_VALUES[letter.toUpperCase().charCodeAt(0)]).toBe(
 				10 + index,

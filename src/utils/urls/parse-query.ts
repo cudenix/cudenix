@@ -1,7 +1,7 @@
 import { HEX_VALUES } from "@/utils/urls/hex-values";
 
-const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
+const encoder = new TextEncoder();
 
 const decodeQueryComponent = (component: string): string => {
 	const input = encoder.encode(component);
