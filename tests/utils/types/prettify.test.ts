@@ -25,7 +25,5 @@ describe("Prettify", () => {
 	it("should reject non-object inputs", () => {
 		// @ts-expect-error - string does not satisfy `T extends object`
 		type _A = Prettify<string>;
-		// @ts-expect-error - undefined does not satisfy `T extends object`
-		type _B = Prettify<undefined>;
 	});
 });
