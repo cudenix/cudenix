@@ -1,13 +1,13 @@
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 
-// a power of two, so "hash & (size - 1)" picks a slot
 const NAME_CACHE_MAX_LENGTH = 64;
+
 const NAME_CACHE_SIZE = 1024;
 
-const nameCache = new Array<string>(NAME_CACHE_SIZE).fill("");
+const nameCache = Array.from({ length: NAME_CACHE_SIZE }, () => "");
 
 export const parseCookies = (header: string): Record<string, string> => {
-	const cookies = Object.create(null) as Record<string, string>;
+	const cookies = {} as Record<string, string>;
 
 	if (!header) {
 		return cookies;
