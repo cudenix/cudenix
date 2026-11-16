@@ -3,6 +3,7 @@ import { describe, expectTypeOf, it } from "bun:test";
 import type { ExtractUrlParams } from "@/utils/types/extract-url-params";
 
 type Empty = NonNullable<unknown>;
+
 type RestParam = [string, ...string[]];
 
 describe("ExtractUrlParams", () => {
