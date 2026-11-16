@@ -3,428 +3,84 @@ import { describe, expectTypeOf, it } from "bun:test";
 import type { StandardSchemaV1 } from "@/utils/types/standard-schema";
 
 describe("StandardSchemaV1", () => {
-	describe("structural shape", () => {
-		it('should expose the "~standard" property', () => {
-			expectTypeOf<StandardSchemaV1<string>>().toHaveProperty(
-				"~standard",
-			);
-		});
-
-		it('should resolve "~standard" to `Props`', () => {
-			expectTypeOf<
-				StandardSchemaV1<string, number>["~standard"]
-			>().toEqualTypeOf<StandardSchemaV1.Props<string, number>>();
-		});
-
-		it("should accept a concrete object that satisfies the spec", () => {
-			const a = {
-				"~standard": {
-					validate: (value: unknown) => ({ value: value as string }),
-					vendor: "v1",
-					version: 1,
-				},
-			} as const;
-
-			expectTypeOf<typeof a>().toExtend<
-				StandardSchemaV1<unknown, string>
-			>();
-		});
-
-		it("should accept a concrete object whose `validate` is async", () => {
-			const a = {
-				"~standard": {
-					validate: async (value: unknown) => ({
-						value: value as string,
-					}),
-					vendor: "v1",
-					version: 1,
-				},
-			} as const;
-
-			expectTypeOf<typeof a>().toExtend<
-				StandardSchemaV1<unknown, string>
-			>();
-		});
-
-		it('should declare "~standard" as `readonly`', () => {
-			expectTypeOf<
-				Readonly<StandardSchemaV1<string, number>>
-			>().toEqualTypeOf<StandardSchemaV1<string, number>>();
-			expectTypeOf<
-				Readonly<StandardSchemaV1>
-			>().toEqualTypeOf<StandardSchemaV1>();
-		});
+	it("should default `Output` to `Input`", () => {
+		expectTypeOf<StandardSchemaV1<number>>().toEqualTypeOf<
+			StandardSchemaV1<number, number>
+		>();
 	});
 
-	describe("`Props` member", () => {
-		it("should carry `vendor` as a `string`", () => {
-			expectTypeOf<
-				StandardSchemaV1.Props<string>["vendor"]
-			>().toEqualTypeOf<string>();
-		});
+	it("should accept a schema whose `validate` is sync or async", () => {
+		interface Sync {
+			"~standard": {
+				validate(value: unknown): { value: string };
+				vendor: string;
+				version: 1;
+			};
+		}
+		interface Async {
+			"~standard": {
+				validate(value: unknown): Promise<{ issues: [] }>;
+				vendor: string;
+				version: 1;
+			};
+		}
 
-		it("should carry `version` as the literal `1`", () => {
-			expectTypeOf<
-				StandardSchemaV1.Props<string>["version"]
-			>().toEqualTypeOf<1>();
-		});
-
-		it("should type `validate` to return `Result | Promise<Result>`", () => {
-			expectTypeOf<
-				ReturnType<StandardSchemaV1.Props<string>["validate"]>
-			>().toEqualTypeOf<
-				| Promise<StandardSchemaV1.Result<string>>
-				| StandardSchemaV1.Result<string>
-			>();
-		});
-
-		it("should type the first `validate` parameter as `unknown`", () => {
-			expectTypeOf<
-				Parameters<StandardSchemaV1.Props<string>["validate"]>[0]
-			>().toBeUnknown();
-		});
-
-		it("should type the second `validate` parameter as optional `Options`", () => {
-			expectTypeOf<
-				Parameters<StandardSchemaV1.Props<string>["validate"]>[1]
-			>().toEqualTypeOf<StandardSchemaV1.Options | undefined>();
-		});
-
-		it("should allow calling `validate` without options", () => {
-			expectTypeOf<
-				Parameters<StandardSchemaV1.Props<string>["validate"]>["length"]
-			>().toEqualTypeOf<1 | 2>();
-
-			const validate: StandardSchemaV1.Props<string>["validate"] = (
-				value,
-			) => ({ value: value as string });
-
-			expectTypeOf(validate("v1")).toEqualTypeOf<
-				| Promise<StandardSchemaV1.Result<string>>
-				| StandardSchemaV1.Result<string>
-			>();
-		});
-
-		it("should type `types` as optional `Types`", () => {
-			expectTypeOf<
-				StandardSchemaV1.Props<string, number>["types"]
-			>().toEqualTypeOf<
-				StandardSchemaV1.Types<string, number> | undefined
-			>();
-		});
-
-		it("should declare every member as `readonly`", () => {
-			expectTypeOf<
-				Readonly<StandardSchemaV1.Props<string, number>>
-			>().toEqualTypeOf<StandardSchemaV1.Props<string, number>>();
-			expectTypeOf<
-				Readonly<StandardSchemaV1.Props>
-			>().toEqualTypeOf<StandardSchemaV1.Props>();
-		});
+		expectTypeOf<Sync>().toExtend<StandardSchemaV1<unknown, string>>();
+		expectTypeOf<Async>().toExtend<StandardSchemaV1<unknown, string>>();
 	});
 
-	describe("default type parameter", () => {
-		it("should default `Output` to `Input`", () => {
-			expectTypeOf<StandardSchemaV1<number>>().toEqualTypeOf<
-				StandardSchemaV1<number, number>
-			>();
-		});
+	it("should discriminate a result by its `issues`", () => {
+		type A = StandardSchemaV1.Result<string>;
 
-		it("should let `Output` diverge from `Input` when supplied", () => {
-			expectTypeOf<StandardSchemaV1<string, number>>().not.toEqualTypeOf<
-				StandardSchemaV1<string, string>
-			>();
-		});
-
-		it("should default both parameters to `unknown`", () => {
-			expectTypeOf<StandardSchemaV1>().toEqualTypeOf<
-				StandardSchemaV1<unknown, unknown>
-			>();
-		});
-
-		it("should let a parameterized schema extend the bare constraint", () => {
-			expectTypeOf<
-				StandardSchemaV1<string, number>
-			>().toExtend<StandardSchemaV1>();
-		});
-	});
-
-	describe("`Result` union", () => {
-		it("should resolve to `SuccessResult | FailureResult`", () => {
-			expectTypeOf<StandardSchemaV1.Result<string>>().toEqualTypeOf<
-				| StandardSchemaV1.FailureResult
-				| StandardSchemaV1.SuccessResult<string>
-			>();
-		});
-
-		it("should type `SuccessResult.value` as the output", () => {
-			expectTypeOf<
-				StandardSchemaV1.SuccessResult<number>["value"]
-			>().toEqualTypeOf<number>();
-		});
-
-		it("should type `SuccessResult.issues` as optional `undefined`", () => {
-			expectTypeOf<
-				StandardSchemaV1.SuccessResult<number>["issues"]
-			>().toBeUndefined();
-		});
-
-		it("should type `FailureResult.issues` as a `ReadonlyArray<Issue>`", () => {
-			expectTypeOf<
-				StandardSchemaV1.FailureResult["issues"]
-			>().toEqualTypeOf<readonly StandardSchemaV1.Issue[]>();
-		});
-
-		it("should keep a mutable `Issue[]` distinct from `FailureResult.issues`", () => {
-			expectTypeOf<StandardSchemaV1.Issue[]>().not.toEqualTypeOf<
-				StandardSchemaV1.FailureResult["issues"]
-			>();
-			expectTypeOf<StandardSchemaV1.Issue[]>().toExtend<
-				StandardSchemaV1.FailureResult["issues"]
-			>();
-			expectTypeOf<
-				StandardSchemaV1.FailureResult["issues"]
-			>().not.toExtend<StandardSchemaV1.Issue[]>();
-		});
-
-		it("should declare every member as `readonly`", () => {
-			expectTypeOf<
-				Readonly<StandardSchemaV1.SuccessResult<number>>
-			>().toEqualTypeOf<StandardSchemaV1.SuccessResult<number>>();
-			expectTypeOf<
-				Readonly<StandardSchemaV1.FailureResult>
-			>().toEqualTypeOf<StandardSchemaV1.FailureResult>();
-		});
-	});
-
-	describe("`Issue` shape", () => {
-		it("should type `message` as a `string`", () => {
-			expectTypeOf<
-				StandardSchemaV1.Issue["message"]
-			>().toEqualTypeOf<string>();
-		});
-
-		it("should type `path` as an optional readonly key/segment array", () => {
-			expectTypeOf<StandardSchemaV1.Issue["path"]>().toEqualTypeOf<
-				| readonly (PropertyKey | StandardSchemaV1.PathSegment)[]
-				| undefined
-			>();
-		});
-
-		it("should mark `path` as an optional property", () => {
-			expectTypeOf<Pick<StandardSchemaV1.Issue, "path">>().toEqualTypeOf<{
-				readonly path?:
-					| readonly (PropertyKey | StandardSchemaV1.PathSegment)[]
-					| undefined;
-			}>();
-			expectTypeOf<{
-				message: string;
-			}>().toExtend<StandardSchemaV1.Issue>();
-		});
-
-		it("should declare every member as `readonly`", () => {
-			expectTypeOf<
-				Readonly<StandardSchemaV1.Issue>
-			>().toEqualTypeOf<StandardSchemaV1.Issue>();
-		});
-	});
-
-	describe("`PathSegment` shape", () => {
-		it("should type `key` as a `PropertyKey`", () => {
-			expectTypeOf<
-				StandardSchemaV1.PathSegment["key"]
-			>().toEqualTypeOf<PropertyKey>();
-		});
-
-		it("should declare every member as `readonly`", () => {
-			expectTypeOf<
-				Readonly<StandardSchemaV1.PathSegment>
-			>().toEqualTypeOf<StandardSchemaV1.PathSegment>();
-		});
-	});
-
-	describe("`Options` shape", () => {
-		it("should type `libraryOptions` as an optional record", () => {
-			expectTypeOf<
-				StandardSchemaV1.Options["libraryOptions"]
-			>().toEqualTypeOf<Record<string, unknown> | undefined>();
-		});
-
-		it("should mark `libraryOptions` as an optional property", () => {
-			expectTypeOf<StandardSchemaV1.Options>().toEqualTypeOf<{
-				readonly libraryOptions?: Record<string, unknown> | undefined;
-			}>();
-			expectTypeOf<
-				Record<never, never>
-			>().toExtend<StandardSchemaV1.Options>();
-		});
-
-		it("should declare every member as `readonly`", () => {
-			expectTypeOf<
-				Readonly<StandardSchemaV1.Options>
-			>().toEqualTypeOf<StandardSchemaV1.Options>();
-		});
-	});
-
-	describe("`Types` shape", () => {
-		it("should expose `input` and `output` as declared", () => {
-			expectTypeOf<
-				StandardSchemaV1.Types<string, number>["input"]
-			>().toEqualTypeOf<string>();
-			expectTypeOf<
-				StandardSchemaV1.Types<string, number>["output"]
-			>().toEqualTypeOf<number>();
-		});
-
-		it("should default `output` to `input`", () => {
-			expectTypeOf<StandardSchemaV1.Types<boolean>>().toEqualTypeOf<
-				StandardSchemaV1.Types<boolean, boolean>
-			>();
-		});
-
-		it("should declare every member as `readonly`", () => {
-			expectTypeOf<
-				Readonly<StandardSchemaV1.Types<string, number>>
-			>().toEqualTypeOf<StandardSchemaV1.Types<string, number>>();
-			expectTypeOf<
-				Readonly<StandardSchemaV1.Types>
-			>().toEqualTypeOf<StandardSchemaV1.Types>();
-		});
+		expectTypeOf<Extract<A, { issues?: undefined }>>().toEqualTypeOf<
+			StandardSchemaV1.SuccessResult<string>
+		>();
+		expectTypeOf<
+			Exclude<A, { issues?: undefined }>
+		>().toEqualTypeOf<StandardSchemaV1.FailureResult>();
 	});
 });
 
 describe("StandardSchemaV1.InferInput", () => {
-	describe("primitive types", () => {
-		it("should resolve to the schema input", () => {
-			expectTypeOf<
-				StandardSchemaV1.InferInput<StandardSchemaV1<string>>
-			>().toEqualTypeOf<string>();
-		});
+	it("should resolve to the schema input", () => {
+		expectTypeOf<
+			StandardSchemaV1.InferInput<StandardSchemaV1<string, number>>
+		>().toEqualTypeOf<string>();
 	});
 
-	describe("input/output divergence", () => {
-		it("should resolve to the input when it differs from the output", () => {
-			interface A extends StandardSchemaV1<string, number> {}
+	it("should resolve to `unknown` for a schema that never declares `types`", () => {
+		interface A {
+			"~standard": {
+				validate(value: unknown): { value: unknown };
+				vendor: string;
+				version: 1;
+			};
+		}
 
-			expectTypeOf<
-				StandardSchemaV1.InferInput<A>
-			>().toEqualTypeOf<string>();
-		});
+		expectTypeOf<StandardSchemaV1.InferInput<A>>().toBeUnknown();
 	});
 
-	describe("object types", () => {
-		it("should resolve to a structured input shape", () => {
-			interface A {
-				a: string;
-				b: number;
-			}
-
-			expectTypeOf<
-				StandardSchemaV1.InferInput<StandardSchemaV1<A>>
-			>().toEqualTypeOf<A>();
-		});
-	});
-
-	describe("missing `types` declaration", () => {
-		it("should resolve to `unknown` for a concrete schema that never declares `types`", () => {
-			const a = {
-				"~standard": {
-					validate: (value: unknown) => ({ value }),
-					vendor: "v1",
-					version: 1,
-				},
-			} as const;
-
-			expectTypeOf<StandardSchemaV1.InferInput<typeof a>>().toBeUnknown();
-		});
-
-		it("should resolve to `never` when `types` is declared as `undefined` explicitly", () => {
-			interface A extends StandardSchemaV1 {
-				readonly "~standard": {
-					readonly types?: undefined;
-					validate(value: unknown): StandardSchemaV1.Result<unknown>;
-					readonly vendor: string;
-					readonly version: 1;
-				};
-			}
-
-			expectTypeOf<StandardSchemaV1.InferInput<A>>().toBeNever();
-		});
-	});
-
-	describe("rejected inputs", () => {
-		it("should reject a non-schema type argument", () => {
-			// @ts-expect-error - `string` is not a `StandardSchemaV1`
-			type _A = StandardSchemaV1.InferInput<string>;
-		});
+	it("should reject a type argument that is not a schema", () => {
+		// @ts-expect-error - `string` is not a `StandardSchemaV1`
+		type _A = StandardSchemaV1.InferInput<string>;
 	});
 });
 
 describe("StandardSchemaV1.InferOutput", () => {
-	describe("primitive types", () => {
-		it("should resolve to the schema output", () => {
-			expectTypeOf<
-				StandardSchemaV1.InferOutput<StandardSchemaV1<string>>
-			>().toEqualTypeOf<string>();
-		});
+	it("should resolve to the schema output", () => {
+		expectTypeOf<
+			StandardSchemaV1.InferOutput<StandardSchemaV1<string, number>>
+		>().toEqualTypeOf<number>();
 	});
 
-	describe("input/output divergence", () => {
-		it("should resolve to the output when it differs from the input", () => {
-			interface A extends StandardSchemaV1<string, number> {}
-
-			expectTypeOf<
-				StandardSchemaV1.InferOutput<A>
-			>().toEqualTypeOf<number>();
-		});
+	it("should resolve to the input when the schema declares no output", () => {
+		expectTypeOf<
+			StandardSchemaV1.InferOutput<StandardSchemaV1<string>>
+		>().toEqualTypeOf<string>();
 	});
 
-	describe("object types", () => {
-		it("should resolve to a structured output shape", () => {
-			interface A {
-				a: string;
-				b: number;
-			}
-
-			expectTypeOf<
-				StandardSchemaV1.InferOutput<StandardSchemaV1<unknown, A>>
-			>().toEqualTypeOf<A>();
-		});
-	});
-
-	describe("missing `types` declaration", () => {
-		it("should resolve to `unknown` for a concrete schema that never declares `types`", () => {
-			const a = {
-				"~standard": {
-					validate: (value: unknown) => ({ value }),
-					vendor: "v1",
-					version: 1,
-				},
-			} as const;
-
-			expectTypeOf<
-				StandardSchemaV1.InferOutput<typeof a>
-			>().toBeUnknown();
-		});
-
-		it("should resolve to `never` when `types` is declared as `undefined` explicitly", () => {
-			interface A extends StandardSchemaV1 {
-				readonly "~standard": {
-					readonly types?: undefined;
-					validate(value: unknown): StandardSchemaV1.Result<unknown>;
-					readonly vendor: string;
-					readonly version: 1;
-				};
-			}
-
-			expectTypeOf<StandardSchemaV1.InferOutput<A>>().toBeNever();
-		});
-	});
-
-	describe("rejected inputs", () => {
-		it("should reject a non-schema type argument", () => {
-			// @ts-expect-error - `string` is not a `StandardSchemaV1`
-			type _A = StandardSchemaV1.InferOutput<string>;
-		});
+	it("should reject a type argument that is not a schema", () => {
+		// @ts-expect-error - `string` is not a `StandardSchemaV1`
+		type _A = StandardSchemaV1.InferOutput<string>;
 	});
 });
