@@ -3,6 +3,7 @@ const ASYNC_GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(
 		// empty async generator function to get its prototype
 	},
 ) as unknown;
+
 const GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(function* () {
 	// empty generator function to get its prototype
 }) as unknown;
