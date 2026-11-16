@@ -67,11 +67,11 @@
 		"typecheck": "tsc --noEmit --builders 8 --checkers 8"
 	},
 	"devDependencies": {
-		"@oxlint/plugins": "1.93.0",
+		"@oxlint/plugins": "1.94.0",
 		"@types/bun": "1.4.4",
-		"eslint-plugin-perfectionist": "5.13.0",
-		"oxfmt": "0.78.0",
-		"oxlint": "1.93.0",
+		"eslint-plugin-perfectionist": "5.14.0",
+		"oxfmt": "0.79.0",
+		"oxlint": "1.94.0",
 		"oxlint-tsgolint": "7.0.2007",
 		"typescript": "7.0.2"
 	},
