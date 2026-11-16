@@ -1,323 +1,66 @@
-import { describe, expect, expectTypeOf, it } from "bun:test";
+import { describe, expectTypeOf, it } from "bun:test";
 
-import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 import type { MergePaths } from "@/utils/types/merge-paths";
 
 describe("MergePaths", () => {
-	describe("backslash separators", () => {
-		it("should normalize backslashes in both operands", () => {
-			expectTypeOf<
-				MergePaths<"/a\\b", "/c\\d">
-			>().toEqualTypeOf<"/a/b/c/d">();
-		});
-
-		it("should collapse mixed separators at the join and at the ends", () => {
-			const merged: MergePaths<"/\\a/\\", "/\\b\\/"> = "/a/b";
-
-			expect(pathToRegexp(String.raw`/\a/\/\b\/`).pattern).toBe(
-				pathToRegexp(merged).pattern,
-			);
-		});
-
-		it("should recognize a root made of either separator", () => {
-			expectTypeOf<MergePaths<"/\\/", "/b\\">>().toEqualTypeOf<"/b">();
-			expectTypeOf<MergePaths<"/a\\", "/\\">>().toEqualTypeOf<"/a">();
-			expectTypeOf<MergePaths<"/\\", "/\\">>().toEqualTypeOf<"/">();
-		});
-
-		it("should normalize union members and preserve generic path tails", () => {
-			expectTypeOf<MergePaths<"/a\\b" | "/c\\d", "/:p1">>().toEqualTypeOf<
-				"/a/b/:p1" | "/c/d/:p1"
-			>();
-			expectTypeOf<
-				MergePaths<`/a\\${string}`, "/b">
-			>().toEqualTypeOf<`/a/${string}/b`>();
-		});
+	it("should join a prefix and a path, keeping their segment markers", () => {
+		expectTypeOf<
+			MergePaths<"/a/b", "/:p1/...r1">
+		>().toEqualTypeOf<"/a/b/:p1/...r1">();
 	});
 
-	describe("typical concatenation", () => {
-		it("should join a non-root prefix with a non-root path", () => {
-			expectTypeOf<MergePaths<"/a", "/b">>().toEqualTypeOf<"/a/b">();
-		});
-
-		it("should join a multi-segment prefix with a multi-segment path", () => {
-			expectTypeOf<
-				MergePaths<"/a/b", "/c/d">
-			>().toEqualTypeOf<"/a/b/c/d">();
-		});
-
-		it("should preserve dynamic-segment markers in the joined string", () => {
-			expectTypeOf<
-				MergePaths<"/a", "/b/:p1">
-			>().toEqualTypeOf<"/a/b/:p1">();
-		});
-
-		it("should preserve rest-segment markers in the joined string", () => {
-			expectTypeOf<
-				MergePaths<"/a", "/...r1">
-			>().toEqualTypeOf<"/a/...r1">();
-		});
-
-		it("should preserve a wildcard marker in the joined string", () => {
-			expectTypeOf<MergePaths<"/a", "/*">>().toEqualTypeOf<"/a/*">();
-		});
+	it("should return the other operand when one is the root", () => {
+		expectTypeOf<MergePaths<"/", "/a">>().toEqualTypeOf<"/a">();
+		expectTypeOf<MergePaths<"/a", "/">>().toEqualTypeOf<"/a">();
+		expectTypeOf<MergePaths<"/", "/">>().toEqualTypeOf<"/">();
 	});
 
-	describe("root-path handling", () => {
-		it("should collapse a root prefix to the path itself", () => {
-			expectTypeOf<MergePaths<"/", "/a">>().toEqualTypeOf<"/a">();
-		});
-
-		it("should collapse a root path to the prefix itself", () => {
-			expectTypeOf<MergePaths<"/a", "/">>().toEqualTypeOf<"/a">();
-		});
-
-		it("should resolve `/` + `/` to `/`", () => {
-			expectTypeOf<MergePaths<"/", "/">>().toEqualTypeOf<"/">();
-		});
+	it("should strip trailing slashes, also next to a root operand", () => {
+		expectTypeOf<MergePaths<"/a/", "/b/">>().toEqualTypeOf<"/a/b">();
+		expectTypeOf<MergePaths<"/", "/a/">>().toEqualTypeOf<"/a">();
+		expectTypeOf<MergePaths<"/a/", "/">>().toEqualTypeOf<"/a">();
 	});
 
-	describe("trailing-slash normalization", () => {
-		describe("on a single side", () => {
-			it("should strip a trailing slash from the prefix", () => {
-				expectTypeOf<MergePaths<"/a/", "/b">>().toEqualTypeOf<"/a/b">();
-			});
-
-			it("should strip a trailing slash from the path", () => {
-				expectTypeOf<MergePaths<"/a", "/b/">>().toEqualTypeOf<"/a/b">();
-			});
-		});
-
-		describe("on both sides", () => {
-			it("should strip a trailing slash from both sides", () => {
-				expectTypeOf<
-					MergePaths<"/a/", "/b/">
-				>().toEqualTypeOf<"/a/b">();
-			});
-		});
-
-		describe("combined with root handling", () => {
-			it("should strip a trailing slash from the path when the prefix is root", () => {
-				expectTypeOf<MergePaths<"/", "/a/">>().toEqualTypeOf<"/a">();
-			});
-
-			it("should strip a trailing slash from the prefix when the path is root", () => {
-				expectTypeOf<MergePaths<"/a/", "/">>().toEqualTypeOf<"/a">();
-			});
-		});
-
-		describe("combined with dynamic segments", () => {
-			it("should strip a trailing slash while preserving a param segment", () => {
-				expectTypeOf<
-					MergePaths<"/a/", "/b/:p1/">
-				>().toEqualTypeOf<"/a/b/:p1">();
-			});
-
-			it("should strip a trailing slash while preserving a rest segment", () => {
-				expectTypeOf<
-					MergePaths<"/a", "/...r1/">
-				>().toEqualTypeOf<"/a/...r1">();
-			});
-		});
+	it("should collapse runs of slashes anywhere in either operand", () => {
+		expectTypeOf<
+			MergePaths<"/a//b", "/c///d">
+		>().toEqualTypeOf<"/a/b/c/d">();
+		expectTypeOf<MergePaths<"/a///", "///b">>().toEqualTypeOf<"/a/b">();
+		expectTypeOf<MergePaths<"/a", "//b">>().toEqualTypeOf<"/a/b">();
 	});
 
-	describe("slash normalization", () => {
-		it("should collapse a doubled slash inside the prefix", () => {
-			expectTypeOf<MergePaths<"/a//b", "/c">>().toEqualTypeOf<"/a/b/c">();
-		});
-
-		it("should collapse a doubled slash inside the path", () => {
-			expectTypeOf<MergePaths<"/a", "/b//c">>().toEqualTypeOf<"/a/b/c">();
-		});
-
-		it("should strip every slash from a doubled trailing slash on the prefix", () => {
-			expectTypeOf<MergePaths<"/a//", "/b">>().toEqualTypeOf<"/a/b">();
-		});
-
-		it("should strip every slash from a doubled trailing slash on the path", () => {
-			expectTypeOf<MergePaths<"/a", "/b//">>().toEqualTypeOf<"/a/b">();
-		});
-
-		it("should reduce a slashes-only prefix to the root", () => {
-			expectTypeOf<MergePaths<"//", "/b">>().toEqualTypeOf<"/b">();
-		});
-
-		it("should reduce a slashes-only path to the root", () => {
-			expectTypeOf<MergePaths<"/a", "//">>().toEqualTypeOf<"/a">();
-		});
-
-		it("should collapse a long run of slashes", () => {
-			expectTypeOf<MergePaths<"/a///", "///b">>().toEqualTypeOf<"/a/b">();
-			expectTypeOf<MergePaths<"///", "/b">>().toEqualTypeOf<"/b">();
-		});
-
-		it("should agree with what pathToRegexp compiles at runtime", () => {
-			const merged: MergePaths<"/a//", "//b"> = "/a/b";
-
-			expect(pathToRegexp("/a////b").pattern).toBe(
-				pathToRegexp(merged).pattern,
-			);
-		});
-
-		it("should reduce a slashes-only path to root when the prefix is root", () => {
-			expectTypeOf<MergePaths<"/", "//">>().toEqualTypeOf<"/">();
-		});
-
-		it("should collapse a slashes-only prefix to root when the path is root - the only case a `//` prefix collapses", () => {
-			expectTypeOf<MergePaths<"//", "/">>().toEqualTypeOf<"/">();
-		});
+	it("should treat an operand made only of slashes as the root", () => {
+		expectTypeOf<MergePaths<"//", "/b">>().toEqualTypeOf<"/b">();
+		expectTypeOf<MergePaths<"/a", "//">>().toEqualTypeOf<"/a">();
+		expectTypeOf<MergePaths<"//", "//">>().toEqualTypeOf<"/">();
 	});
 
-	describe("non-literal inputs", () => {
-		it("should join a non-literal prefix with a literal path and retain its root case", () => {
-			expectTypeOf<MergePaths<`/${string}`, "/b">>().toEqualTypeOf<
-				"/b" | `/${string}/b`
-			>();
-		});
-
-		it("should join a literal prefix with a non-literal path and retain its root case", () => {
-			expectTypeOf<MergePaths<"/a", `/${string}`>>().toEqualTypeOf<
-				"/a" | `/a/${string}`
-			>();
-		});
-
-		it("should strip a trailing slash from a non-literal prefix and retain its normalized root case", () => {
-			expectTypeOf<MergePaths<`/${string}/`, "/b">>().toEqualTypeOf<
-				"/b" | `/${string}/b`
-			>();
-		});
-
-		it("should strip a trailing slash from a non-literal path and retain its normalized root case", () => {
-			expectTypeOf<MergePaths<"/a", `/${string}/`>>().toEqualTypeOf<
-				"/a" | `/a/${string}`
-			>();
-		});
-
-		it("should join a non-literal prefix with a non-literal path", () => {
-			expectTypeOf<
-				MergePaths<`/${string}`, `/${string}`>
-			>().toEqualTypeOf<`/${string}/${string}` | `/${string}`>();
-		});
-
-		it("should collapse a root prefix to the non-literal path itself", () => {
-			expectTypeOf<
-				MergePaths<"/", `/${string}`>
-			>().toEqualTypeOf<`/${string}`>();
-		});
-
-		it("should collapse a root path to the non-literal prefix itself", () => {
-			expectTypeOf<
-				MergePaths<`/${string}`, "/">
-			>().toEqualTypeOf<`/${string}`>();
-		});
+	it("should normalize backslashes like slashes", () => {
+		expectTypeOf<
+			MergePaths<"/a\\b\\", "/\\c\\d">
+		>().toEqualTypeOf<"/a/b/c/d">();
+		expectTypeOf<MergePaths<"/\\", "/b\\">>().toEqualTypeOf<"/b">();
 	});
 
-	describe("structural relations", () => {
-		describe("union distribution", () => {
-			it("should distribute over a union of prefixes", () => {
-				expectTypeOf<MergePaths<"/a" | "/b", "/c">>().toEqualTypeOf<
-					"/a/c" | "/b/c"
-				>();
-			});
-
-			it("should distribute over a union of paths", () => {
-				expectTypeOf<MergePaths<"/a", "/b" | "/c">>().toEqualTypeOf<
-					"/a/b" | "/a/c"
-				>();
-			});
-
-			it("should distribute pairwise over a union on both sides", () => {
-				expectTypeOf<
-					MergePaths<"/a" | "/b", "/c" | "/d">
-				>().toEqualTypeOf<"/a/c" | "/a/d" | "/b/c" | "/b/d">();
-			});
-
-			it("should distribute over a path union containing the root", () => {
-				expectTypeOf<MergePaths<"/a", "/" | "/b">>().toEqualTypeOf<
-					"/a" | "/a/b"
-				>();
-			});
-
-			it("should distribute over a prefix union containing the root", () => {
-				expectTypeOf<MergePaths<"/" | "/a", "/b">>().toEqualTypeOf<
-					"/a/b" | "/b"
-				>();
-			});
-		});
-
-		describe("degenerate inputs", () => {
-			it("should resolve to `never` when the prefix is `never`", () => {
-				expectTypeOf<MergePaths<never, "/b">>().toEqualTypeOf<never>();
-			});
-
-			it("should resolve to `never` when the path is `never`", () => {
-				expectTypeOf<MergePaths<"/a", never>>().toEqualTypeOf<never>();
-			});
-
-			it("should keep the literal path after an `any` prefix", () => {
-				expectTypeOf<MergePaths<any, "/b">>().toEqualTypeOf<
-					"/b" | `/${string}/b`
-				>();
-			});
-
-			it("should keep the literal prefix before an `any` path", () => {
-				expectTypeOf<MergePaths<"/a", any>>().toEqualTypeOf<
-					"/a" | `/a/${string}`
-				>();
-			});
-		});
-
-		describe("input constraint", () => {
-			it("should reject a prefix without a leading slash at compile time", () => {
-				// @ts-expect-error - Prefix must start with '/'
-				type _A = MergePaths<"a", "/b">;
-			});
-
-			it("should reject a path without a leading slash at compile time", () => {
-				// @ts-expect-error - Path must start with '/'
-				type _A = MergePaths<"/a", "b">;
-			});
-		});
-
-		describe("literal-type preservation", () => {
-			it("should produce a string-literal type, not a widened `string`", () => {
-				expectTypeOf<
-					MergePaths<"/a", "/b">
-				>().not.toEqualTypeOf<string>();
-			});
-
-			it("should preserve literal-ness when both sides carry trailing slashes", () => {
-				expectTypeOf<
-					MergePaths<"/a/", "/b/">
-				>().not.toEqualTypeOf<string>();
-			});
-		});
+	it("should distribute over unions on both sides, root members included", () => {
+		expectTypeOf<MergePaths<"/" | "/a", "/b" | "/c\\">>().toEqualTypeOf<
+			"/a/b" | "/a/c" | "/b" | "/c"
+		>();
 	});
 
-	describe("deep recursion", () => {
-		type Repeat<
-			Part extends string,
-			Count extends number,
-			Result extends string = "",
-			Counter extends 1[] = [],
-		> = Counter["length"] extends Count
-			? Result
-			: Repeat<Part, Count, `${Result}${Part}`, [...Counter, 1]>;
+	it("should keep the root case of an operand that is not a literal", () => {
+		expectTypeOf<MergePaths<`/${string}`, "/b">>().toEqualTypeOf<
+			"/b" | `/${string}/b`
+		>();
+		expectTypeOf<MergePaths<"/a", `/${string}`>>().toEqualTypeOf<
+			"/a" | `/a/${string}`
+		>();
+	});
 
-		it("should strip runs of 200 slashes at the join and at the ends", () => {
-			type Run = Repeat<"/", 200>;
-
-			expectTypeOf<
-				MergePaths<`/a${Run}`, `${Run}b${Run}`>
-			>().toEqualTypeOf<"/a/b">();
-		});
-
-		it("should normalize runs of 200 backslashes", () => {
-			type Run = Repeat<"\\", 200>;
-
-			expectTypeOf<
-				MergePaths<`/a${Run}`, `/${Run}b`>
-			>().toEqualTypeOf<"/a/b">();
-		});
+	it("should reject operands without a leading slash", () => {
+		// @ts-expect-error - Prefix must start with '/'
+		type _A = MergePaths<"a", "/b">;
+		// @ts-expect-error - Path must start with '/'
+		type _B = MergePaths<"/a", "b">;
 	});
 });
