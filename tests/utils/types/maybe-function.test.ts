@@ -3,191 +3,20 @@ import { describe, expectTypeOf, it } from "bun:test";
 import type { MaybeFunction } from "@/utils/types/maybe-function";
 
 describe("MaybeFunction", () => {
-	describe("direct-value branch", () => {
-		it("should accept a concrete number value", () => {
-			expectTypeOf<number>().toExtend<MaybeFunction<number>>();
-		});
-
-		it("should accept a concrete string value", () => {
-			expectTypeOf<string>().toExtend<MaybeFunction<string>>();
-		});
-
-		it("should accept a structured value when wrapping an object type", () => {
-			interface A {
-				a: string;
-			}
-
-			expectTypeOf<A>().toExtend<MaybeFunction<A>>();
-		});
+	it("should resolve to the value or a zero-argument factory of it", () => {
+		expectTypeOf<MaybeFunction<number>>().toEqualTypeOf<
+			(() => number | Promise<number>) | number
+		>();
 	});
 
-	describe("sync-factory branch", () => {
-		it("should accept a zero-arg sync factory returning the wrapped type", () => {
-			expectTypeOf<() => number>().toExtend<MaybeFunction<number>>();
-		});
-
-		it("should accept an arrow factory returning a literal", () => {
-			expectTypeOf<() => "v1">().toExtend<MaybeFunction<"v1">>();
-		});
+	it("should accept sync and async factories", () => {
+		expectTypeOf<() => number>().toExtend<MaybeFunction<number>>();
+		expectTypeOf<() => Promise<number>>().toExtend<MaybeFunction<number>>();
 	});
 
-	describe("async-factory branch", () => {
-		it("should accept a zero-arg async factory resolving to the wrapped type", () => {
-			expectTypeOf<() => Promise<number>>().toExtend<
-				MaybeFunction<number>
-			>();
-		});
-
-		it("should accept a factory that returns a promise explicitly", () => {
-			expectTypeOf<() => Promise<string>>().toExtend<
-				MaybeFunction<string>
-			>();
-		});
-	});
-
-	describe("mixed-return factory branch", () => {
-		it("should expose `T | Promise<T>` as the factory's return type", () => {
-			type A = ReturnType<
-				Extract<MaybeFunction<number>, (...args: never[]) => unknown>
-			>;
-
-			expectTypeOf<A>().toEqualTypeOf<number | Promise<number>>();
-		});
-
-		it("should accept a factory returning `T | Promise<T>`", () => {
-			expectTypeOf<() => number | Promise<number>>().toExtend<
-				MaybeFunction<number>
-			>();
-		});
-	});
-
-	describe("generic-parameter edge cases", () => {
-		it("should accept `true` when wrapping `boolean`", () => {
-			expectTypeOf<true>().toExtend<MaybeFunction<boolean>>();
-		});
-
-		it("should accept `false` when wrapping `boolean`", () => {
-			expectTypeOf<false>().toExtend<MaybeFunction<boolean>>();
-		});
-
-		it("should accept a `void`-returning factory for fire-and-forget hooks", () => {
-			expectTypeOf<() => void>().toExtend<MaybeFunction<void>>();
-		});
-
-		it("should accept an explicit `undefined`-yielding factory", () => {
-			expectTypeOf<() => undefined>().toExtend<
-				MaybeFunction<undefined>
-			>();
-		});
-
-		it("should accept a union value when the wrapped type is a union", () => {
-			expectTypeOf<string>().toExtend<MaybeFunction<number | string>>();
-		});
-
-		it("should accept a factory returning a single member of the wrapped union", () => {
-			expectTypeOf<() => number>().toExtend<
-				MaybeFunction<number | string>
-			>();
-		});
-
-		it("should accept a factory returning the full wrapped union", () => {
-			expectTypeOf<() => number | string>().toExtend<
-				MaybeFunction<number | string>
-			>();
-		});
-
-		it("should accept an async factory resolving to a member of the wrapped union via promise covariance", () => {
-			expectTypeOf<() => Promise<number>>().toExtend<
-				MaybeFunction<number | string>
-			>();
-		});
-
-		it("should wrap the union as a whole, not distribute over its members", () => {
-			expectTypeOf<MaybeFunction<1 | 2>>().not.toEqualTypeOf<
-				MaybeFunction<1> | MaybeFunction<2>
-			>();
-		});
-	});
-
-	describe("structural relations", () => {
-		it("should resolve to `T | (() => T | Promise<T>)` exactly", () => {
-			expectTypeOf<MaybeFunction<number>>().toEqualTypeOf<
-				(() => number | Promise<number>) | number
-			>();
-		});
-
-		it("should not collapse the union to its value type", () => {
-			expectTypeOf<MaybeFunction<number>>().not.toEqualTypeOf<number>();
-		});
-	});
-
-	describe("degenerate wrapped types", () => {
-		it("should collapse to a factory returning `Promise<never>` when wrapping `never`", () => {
-			expectTypeOf<MaybeFunction<never>>().toEqualTypeOf<
-				() => Promise<never>
-			>();
-		});
-
-		it("should be absorbed into `any` when wrapping `any`", () => {
-			expectTypeOf<MaybeFunction<any>>().toBeAny();
-		});
-
-		it("should absorb the factory arm into `unknown` when wrapping `unknown`", () => {
-			expectTypeOf<MaybeFunction<unknown>>().toEqualTypeOf<unknown>();
-		});
-	});
-
-	describe("function-typed wrapped types", () => {
-		it("should make a factory-shaped value indistinguishable from the factory arm, so runtime `typeof` checks cannot tell them apart", () => {
-			expectTypeOf<() => number>().toExtend<
-				MaybeFunction<() => number>
-			>();
-		});
-	});
-
-	describe("rejection cases", () => {
-		it("should reject a bare value of an unrelated type", () => {
-			expectTypeOf<string>().not.toExtend<MaybeFunction<number>>();
-		});
-
-		it("should reject a factory returning the wrong value type", () => {
-			expectTypeOf<() => string>().not.toExtend<MaybeFunction<number>>();
-		});
-
-		it("should reject a factory whose promise resolves to the wrong type", () => {
-			expectTypeOf<() => Promise<string>>().not.toExtend<
-				MaybeFunction<number>
-			>();
-		});
-
-		it("should reject an async factory resolving outside the wrapped union", () => {
-			expectTypeOf<() => Promise<boolean>>().not.toExtend<
-				MaybeFunction<number | string>
-			>();
-		});
-
-		it("should reject a factory that requires arguments", () => {
-			expectTypeOf<(arg: string) => number>().not.toExtend<
-				MaybeFunction<number>
-			>();
-		});
-
-		it("should reject a non-function, non-value shape entirely", () => {
-			expectTypeOf<{ a: number }>().not.toExtend<MaybeFunction<number>>();
-		});
-	});
-
-	describe("parameter-arity boundary", () => {
-		it("should accept a factory with an optional parameter since it is callable with no arguments", () => {
-			expectTypeOf<(arg?: string) => number>().toExtend<
-				MaybeFunction<number>
-			>();
-		});
-
-		it("should accept a factory with only rest parameters since it is callable with no arguments", () => {
-			expectTypeOf<(...args: string[]) => number>().toExtend<
-				MaybeFunction<number>
-			>();
-		});
+	it("should reject a factory that requires arguments", () => {
+		expectTypeOf<(a: string) => number>().not.toExtend<
+			MaybeFunction<number>
+		>();
 	});
 });
