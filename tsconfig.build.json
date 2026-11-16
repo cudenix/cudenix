@@ -1,7 +1,5 @@
 {
 	"compilerOptions": {
-		"allowJs": false,
-		"checkJs": false,
 		"declaration": true,
 		"emitDeclarationOnly": true,
 		"noEmit": false,
