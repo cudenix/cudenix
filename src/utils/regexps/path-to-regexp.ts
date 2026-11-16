@@ -1,14 +1,24 @@
 const PARAM_CAPTURE = String.raw`\/([^/\s?#]+)`;
+
 const PARAM_FLAG_OPTIONAL = 1;
+
 const PARAM_FLAG_REST = 2;
+
 const PARAM_RANK = 1;
+
 const REST_CAPTURE = String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))`;
+
 const REST_RANK = 3;
+
 const STATIC_RANK = 0;
+
 const STATIC_SEGMENT_SYNTAX = /[^!-~]|["#$()*+.<>?[\\\]^`{|}]/gu;
+
 const TERMINAL_WILDCARD = String.raw`\/[^\s?#]*`;
 const TERMINAL_WILDCARD_RANK = 4;
+
 const WILDCARD = String.raw`\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?`;
+
 const WILDCARD_RANK = 2;
 
 const escapeStaticCharacter = (character: string): string => {
@@ -46,7 +56,6 @@ export const pathToRegexp = (
 	const parts = (
 		path.includes("\\") ? path.replaceAll("\\", "/") : path
 	).split("/");
-
 	const paramFlags: number[] = [];
 	const paramKeys: string[] = [];
 	const ranks: number[] = [];
@@ -78,7 +87,6 @@ export const pathToRegexp = (
 		if (firstCharCode === 58) {
 			paramFlags.push(isOptional ? PARAM_FLAG_OPTIONAL : 0);
 			paramKeys.push(part.slice(1, contentEnd));
-
 			ranks.push(PARAM_RANK);
 
 			segment = PARAM_CAPTURE;
@@ -99,9 +107,7 @@ export const pathToRegexp = (
 				PARAM_FLAG_REST + (isOptional ? PARAM_FLAG_OPTIONAL : 0),
 			);
 			paramKeys.push(name);
-
 			ranks.push(REST_RANK);
-
 			restKeys.push(name);
 
 			segment = REST_CAPTURE;
