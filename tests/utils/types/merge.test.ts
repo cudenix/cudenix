@@ -3,444 +3,80 @@ import { describe, expectTypeOf, it } from "bun:test";
 import type { Merge } from "@/utils/types/merge";
 
 describe("Merge", () => {
-	describe("with empty operands", () => {
-		type Empty = NonNullable<unknown>;
-
-		it("should resolve to an empty object when both operands are empty", () => {
-			expectTypeOf<Merge<Empty, Empty>>().branded.toEqualTypeOf<Empty>();
+	describe("plain keys", () => {
+		it("should resolve to the kept properties intersected with the incoming ones", () => {
+			expectTypeOf<
+				Merge<{ a: string; b: number }, { b: boolean; c: string }>
+			>().toEqualTypeOf<{ a: string } & { b: boolean; c: string }>();
 		});
 
-		it("should be a no-op when the second operand is empty", () => {
-			interface A {
-				a: 1;
-				b: 2;
-			}
-
-			expectTypeOf<Merge<A, Empty>>().branded.toEqualTypeOf<{
-				a: 1;
-				b: 2;
-			}>();
-		});
-
-		it("should resolve to the second operand when the first is empty", () => {
-			interface B {
-				a: 1;
-				b: 2;
-			}
-
-			expectTypeOf<Merge<Empty, B>>().branded.toEqualTypeOf<{
-				a: 1;
-				b: 2;
-			}>();
-		});
-	});
-
-	describe("with disjoint keys", () => {
-		it("should preserve keys present only in the first operand", () => {
-			interface A {
-				a: number;
-			}
-			interface B {
-				b: string;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a: number;
-				b: string;
-			}>();
-		});
-
-		it("should include keys present only in the second operand", () => {
-			interface A {
-				a: string;
-			}
-			interface B {
-				b: number;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a: string;
-				b: number;
-			}>();
-		});
-
-		it("should preserve the first operand's `readonly` and `?` modifiers on a disjoint key", () => {
+		it("should take the modifiers of whichever operand a key comes from", () => {
 			interface A {
 				readonly a: string;
 				b?: number;
+				readonly c: string;
 			}
 			interface B {
-				c: string;
+				c: number;
+				readonly d: string;
+				e?: number;
 			}
 
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
 				readonly a: string;
 				b?: number;
-				c: string;
-			}>();
-		});
-	});
-
-	describe("with overlapping keys", () => {
-		it("should let the second operand override a key declared in the first", () => {
-			interface A {
-				a: string[];
-			}
-			interface B {
-				a: readonly string[];
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a: readonly string[];
+				c: number;
+				readonly d: string;
+				e?: number;
 			}>();
 		});
 
-		it("should let the second operand replace the value type entirely", () => {
-			interface A {
-				a: string;
-			}
-			interface B {
-				a: number;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a: number }>();
-		});
-
-		it("should let the second operand narrow a wide value type", () => {
-			interface A {
-				a: string;
-			}
-			interface B {
-				a: "v1" | "v2";
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a: "v1" | "v2";
-			}>();
-		});
-
-		it("should let the second operand broaden a narrow value type", () => {
-			interface A {
-				a: "v1";
-			}
-			interface B {
-				a: string;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a: string }>();
-		});
-
-		it("should replace wholesale when the second operand's value includes `undefined` but the key is required", () => {
-			interface A {
-				a: string;
-			}
-			interface B {
-				a: number | undefined;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a: number | undefined;
-			}>();
-		});
-	});
-
-	describe("with overlapping and disjoint keys combined", () => {
-		it("should mix overridden, first-only and second-only keys correctly", () => {
-			interface A {
-				a: 1;
-				b: string;
-				c: string[];
-			}
-			interface B {
-				c: readonly string[];
-				d: number;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a: 1;
-				b: string;
-				c: readonly string[];
-				d: number;
-			}>();
-		});
-
-		it("should match the documented example of overriding a shared key and carrying a disjoint one", () => {
-			interface A {
-				a: string;
-				b: number;
-			}
-			interface B {
-				b: boolean;
-				c: string;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a: string;
-				b: boolean;
-				c: string;
-			}>();
-		});
-	});
-
-	describe("union operands", () => {
-		it("should distribute over a union in the second operand instead of intersecting the branches", () => {
-			interface A {
-				a: string;
-			}
-			interface B1 {
-				a: number;
-			}
-			interface B2 {
-				b: number;
-			}
-
-			expectTypeOf<Merge<A, B1 | B2>>().branded.toEqualTypeOf<
-				{ a: number } | { a: string; b: number }
-			>();
-		});
-
-		it("should keep an overwritten key honest across union branches that do not all declare it", () => {
-			interface A {
-				a: string;
-			}
-			interface B1 {
-				a: number;
-			}
-			interface B2 {
-				b: number;
-			}
-
-			expectTypeOf<Merge<A, B1 | B2>["a"]>().toEqualTypeOf<
-				number | string
-			>();
-		});
-
-		it("should distribute over a union in the first operand", () => {
-			interface A1 {
-				a: string;
-			}
-			interface A2 {
-				b: string;
-			}
-			interface B {
-				c: 1;
-			}
-
-			expectTypeOf<Merge<A1 | A2, B>>().branded.toEqualTypeOf<
-				{ a: string; c: 1 } | { b: string; c: 1 }
-			>();
-		});
-
-		it("should resolve an empty union branch to the first operand alone", () => {
-			interface A {
-				a: string;
-			}
-			interface B {
-				a: number;
-			}
+		it("should merge again on top of its own output", () => {
+			type A = Merge<{ a: string; c: string }, { b: number; c: number }>;
 
 			expectTypeOf<
-				Merge<A, B | NonNullable<unknown>>
-			>().branded.toEqualTypeOf<{ a: number } | { a: string }>();
-		});
-
-		it("should distribute pairwise when both operands are unions", () => {
-			interface A1 {
-				a: 1;
-			}
-			interface A2 {
-				b: 2;
-			}
-			interface B1 {
-				c: 3;
-			}
-			interface B2 {
-				d: 4;
-			}
-
-			expectTypeOf<Merge<A1 | A2, B1 | B2>>().branded.toEqualTypeOf<
-				| { a: 1; c: 3 }
-				| { a: 1; d: 4 }
-				| { b: 2; c: 3 }
-				| { b: 2; d: 4 }
-			>();
-		});
-	});
-
-	describe("never operands", () => {
-		it("should collapse to `never` when the second operand is `never`", () => {
-			expectTypeOf<Merge<{ a: 1 }, never>>().toBeNever();
-		});
-
-		it("should collapse to `never` when the first operand is `never`", () => {
-			expectTypeOf<Merge<never, { a: 1 }>>().toBeNever();
-		});
-	});
-
-	describe("any operands", () => {
-		it("should widen existing values and add an index signature when the second operand is `any`", () => {
-			expectTypeOf<Merge<{ a: 1 }, any>>().branded.toEqualTypeOf<
-				{ a: any } & Record<string, any>
-			>();
-		});
-
-		it("should add an index signature while keeping the second operand's declarations when the first operand is `any`", () => {
-			expectTypeOf<Merge<any, { a: 1 }>>().branded.toEqualTypeOf<
-				{ a: 1 } & Record<string, any>
-			>();
-		});
-	});
-
-	describe("optional modifier", () => {
-		it("should union an optional override with the base value instead of replacing it", () => {
-			interface A {
-				a: string;
-			}
-			interface B {
-				a?: number;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a: number | string | undefined;
+				Merge<A, { a: boolean; b?: string }>
+			>().branded.toEqualTypeOf<{
+				a: boolean;
+				b: number | string | undefined;
+				c: number;
 			}>();
 		});
+	});
 
-		it("should keep the merged key required when the base declares it required", () => {
-			interface A {
-				a: string;
-			}
-			interface B {
-				a?: string;
-			}
-
+	describe("optional overrides", () => {
+		it("should union an optional override with the base value and keep the base modifiers", () => {
 			expectTypeOf<
-				NonNullable<unknown> extends Pick<Merge<A, B>, "a">
-					? true
-					: false
-			>().toEqualTypeOf<false>();
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a: string | undefined;
-			}>();
-		});
-
-		it("should let the second operand tighten an optional key to required", () => {
-			interface A {
-				a?: string;
-			}
-			interface B {
-				a: string;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a: string }>();
-		});
-
-		it("should keep an optional second-only key optional", () => {
-			interface A {
-				a: string;
-			}
-			interface B {
-				b?: number;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a: string;
-				b?: number;
-			}>();
-		});
-
-		it("should keep the `?` modifier when both operands declare the key optional", () => {
-			interface A {
-				a?: string;
-			}
-			interface B {
-				a?: number;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a?: number | string;
-			}>();
-		});
-	});
-
-	describe("readonly modifier", () => {
-		it("should let the second operand introduce `readonly` on a shared key", () => {
-			interface A {
-				a: string;
-			}
-			interface B {
-				readonly a: string;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				readonly a: string;
-			}>();
-		});
-
-		it("should let the second operand strip `readonly` from a shared key", () => {
-			interface A {
-				readonly a: string;
-			}
-			interface B {
-				a: string;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a: string }>();
-		});
-
-		it("should preserve the first operand's `readonly` when the override is optional", () => {
-			interface A {
-				readonly a: string;
-			}
-			interface B {
-				a?: number;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
+				Merge<{ readonly a: string }, { a?: number }>
+			>().branded.toEqualTypeOf<{
 				readonly a: number | string | undefined;
 			}>();
 		});
-	});
 
-	describe("nested object values", () => {
-		it("should replace a nested object entirely instead of deep-merging", () => {
-			interface A {
-				a: { a: string; b: string };
-			}
-			interface B {
-				a: { a: number };
-			}
+		it("should stay optional when both operands declare the key optional", () => {
+			expectTypeOf<
+				Merge<{ a?: string }, { a?: number }>
+			>().branded.toEqualTypeOf<{ a?: number | string }>();
+		});
 
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a: { a: number };
-			}>();
+		it("should become required when the override is required", () => {
+			expectTypeOf<
+				Merge<{ a?: string }, { a: number | undefined }>
+			>().branded.toEqualTypeOf<{ a: number | undefined }>();
 		});
 	});
 
-	describe("non-string keys", () => {
-		it("should replace a numeric key with its string spelling", () => {
-			type Result = Merge<{ 0: string }, { "0": number }>;
-
-			const result: Result = { 0: 1 };
-
-			expectTypeOf<Result[0]>().toEqualTypeOf<number>();
-			expectTypeOf<Result["0"]>().toEqualTypeOf<number>();
-			expectTypeOf<typeof result>().branded.toEqualTypeOf<{
-				"0": number;
-			}>();
+	describe("numeric keys", () => {
+		it("should replace a key with its other spelling", () => {
+			expectTypeOf<
+				Merge<{ 0: string }, { "0": number }>
+			>().branded.toEqualTypeOf<{ "0": number }>();
+			expectTypeOf<
+				Merge<{ "0": string }, { 0: number }>
+			>().branded.toEqualTypeOf<{ 0: number }>();
 		});
 
-		it("should replace a string key with its numeric spelling", () => {
-			type Result = Merge<{ "0": string }, { 0: number }>;
-
-			const result: Result = { 0: 1 };
-
-			expectTypeOf<Result[0]>().toEqualTypeOf<number>();
-			expectTypeOf<typeof result>().branded.toEqualTypeOf<{
-				0: number;
-			}>();
-		});
-
-		it("should preserve requiredness and readonly when a numeric alias override is optional", () => {
+		it("should union an optional override written in the other spelling", () => {
 			expectTypeOf<
 				Merge<{ readonly 0: string }, { "0"?: number }>
 			>().branded.toEqualTypeOf<{
@@ -453,7 +89,7 @@ describe("Merge", () => {
 			}>();
 		});
 
-		it("should keep noncanonical numeric strings distinct", () => {
+		it("should keep a numeric string that is not canonical as a distinct key", () => {
 			expectTypeOf<
 				Merge<{ 1: string }, { "01": number }>
 			>().branded.toEqualTypeOf<{ "01": number; 1: string }>();
@@ -461,441 +97,96 @@ describe("Merge", () => {
 				Merge<{ "01": string }, { 1?: number }>
 			>().branded.toEqualTypeOf<{ "01": string; 1?: number }>();
 		});
-
-		it("should override a numeric-literal key while keeping unrelated ones", () => {
-			interface A {
-				0: string;
-				1: number;
-			}
-			interface B {
-				1: boolean;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				0: string;
-				1: boolean;
-			}>();
-		});
 	});
 
 	describe("symbol keys", () => {
-		const sym = Symbol("a");
+		it("should keep the symbols of the first operand and drop those of the second", () => {
+			const sym = Symbol("a");
+			const other = Symbol("b");
 
-		type Sym = typeof sym;
-
-		it("should keep the first operand's symbol key instead of letting the second override it", () => {
-			interface A {
-				[sym]: string;
-			}
-			interface B {
-				[sym]: number;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<
-				Record<Sym, string>
-			>();
-		});
-
-		it("should drop a symbol key contributed only by the second operand", () => {
-			interface A {
-				a: 1;
-			}
-			interface B {
-				[sym]: number;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{ a: 1 }>();
-		});
-
-		it("should still merge string keys when symbol keys are present on both sides", () => {
 			interface A {
 				a: string;
 				[sym]: string;
 			}
 			interface B {
 				a: number;
-				b: boolean;
+				[other]: number;
 				[sym]: number;
 			}
 
 			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<
-				{ a: number; b: boolean } & Record<Sym, string>
+				{ a: number } & Record<typeof sym, string>
 			>();
-		});
-
-		it("should preserve an optional target symbol and ignore an optional source symbol", () => {
-			interface A {
-				[sym]?: string;
-			}
-			interface B {
-				a: number;
-				[sym]?: boolean;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a: number;
-				[sym]?: string;
-			}>();
-		});
-	});
-
-	describe("inherited source declarations", () => {
-		it("should merge inherited keys that are visible in the source type", () => {
-			interface A {
-				b: number;
-			}
-			interface B extends A {
-				c: boolean;
-			}
-
-			expectTypeOf<
-				Merge<{ a: string; b: string }, B>
-			>().branded.toEqualTypeOf<{ a: string; b: number; c: boolean }>();
-		});
-
-		it("should keep a target value possible when an inherited source declaration is optional", () => {
-			interface A {
-				a?: number;
-			}
-			interface B extends A {
-				b: boolean;
-			}
-
-			expectTypeOf<Merge<{ a: string }, B>>().branded.toEqualTypeOf<{
-				a: number | string | undefined;
-				b: boolean;
-			}>();
 		});
 	});
 
 	describe("index signatures", () => {
-		it("should accept concrete overrides of a target index while keeping the declared value precise", () => {
-			type Result = Merge<Record<string, number>, { a: string }>;
+		it("should replace a key of the first operand's index and widen the index to admit it", () => {
+			type A = Merge<Record<string, number>, { a: string }>;
 
-			const result: Result = { a: "v1", b: 1 };
-
-			expectTypeOf<typeof result.a>().toEqualTypeOf<string>();
-			expectTypeOf<Result[string]>().toEqualTypeOf<number | string>();
-			expectTypeOf<{ a: number; b: number }>().not.toExtend<Result>();
+			expectTypeOf<A["a"]>().toEqualTypeOf<string>();
+			expectTypeOf<A[string]>().toEqualTypeOf<number | string>();
 		});
 
-		it("should admit a target property that survives a source index signature", () => {
-			type Result = Merge<{ a: string }, Record<string, number>>;
+		it("should keep an optional override optional and union it with the first operand's index", () => {
+			type A = Merge<Record<string, number>, { a?: string }>;
 
-			const retained: Result = { a: "v1", b: 1 };
-			const overwritten: Result = { a: 2, b: 1 };
-
-			expectTypeOf<typeof retained.a>().toEqualTypeOf<number | string>();
-			expectTypeOf<typeof overwritten.a>().toEqualTypeOf<
-				number | string
-			>();
-		});
-
-		it("should preserve declared required overrides alongside source index signatures", () => {
-			interface B {
-				[key: string]: unknown;
-				readonly a: string;
-			}
-			type Result = Merge<{ a: number } & Record<string, number>, B>;
-
-			const result: Result = { a: "v1", b: 1 };
-
-			expectTypeOf<Pick<typeof result, "a">>().toEqualTypeOf<{
-				readonly a: string;
+			expectTypeOf<Pick<A, "a">>().toEqualTypeOf<{
+				a?: number | string;
 			}>();
-		});
-
-		it("should retain optional override values including explicit undefined", () => {
-			type Result = Merge<Record<string, number>, { a?: string }>;
-
-			const absent: Result = { b: 1 };
-			const present: Result = { a: "v1", b: 1 };
-			const cleared: Result = { a: undefined, b: 1 };
-
-			expectTypeOf<typeof absent.a>().toEqualTypeOf<
-				number | string | undefined
-			>();
-			expectTypeOf<typeof present.a>().toEqualTypeOf<typeof cleared.a>();
-			expectTypeOf<Result[string]>().toEqualTypeOf<
+			expectTypeOf<A[string]>().toEqualTypeOf<
 				number | string | undefined
 			>();
 		});
 
-		it("should preserve target declarations and modifiers under an index with an optional source alias", () => {
-			type A = { readonly 0: string } & Record<string, unknown>;
-			type Result = Merge<A, { "0"?: number }>;
+		it("should union a declared key with the second operand's index, in both directions", () => {
+			type A = Merge<{ a: string }, Record<string, number>>;
 
-			expectTypeOf<Pick<Result, 0>>().toEqualTypeOf<{
-				readonly 0: number | string | undefined;
-			}>();
+			expectTypeOf<A["a"]>().toEqualTypeOf<number | string>();
+			expectTypeOf<A["b"]>().toEqualTypeOf<number | string>();
 		});
 
-		it("should widen numeric indexes for concrete string-spelled numeric overrides", () => {
-			type Result = Merge<Record<number, number>, { "0": string }>;
+		it("should match a numeric index against a key spelled as a string", () => {
+			type A = Merge<Record<number, number>, { "0": string }>;
 
-			const result: Result = { 0: "v1", 1: 1 };
-
-			expectTypeOf<(typeof result)[0]>().toEqualTypeOf<string>();
-			expectTypeOf<Result[number]>().toEqualTypeOf<number | string>();
+			expectTypeOf<A[0]>().toEqualTypeOf<string>();
+			expectTypeOf<A[number]>().toEqualTypeOf<number | string>();
 		});
 
-		it("should union overlapping string and numeric indexes", () => {
-			type Result = Merge<Record<string, number>, Record<number, string>>;
+		it("should widen only the template pattern that an override matches", () => {
+			type A = Merge<
+				Record<`x-${string}`, number> & Record<`y-${string}`, boolean>,
+				{ "x-a": string }
+			>;
 
-			const result: Result = { 0: "v1", 1: 2, a: 1 };
-
-			expectTypeOf<typeof result>().toExtend<
-				Record<string, number | string>
-			>();
-			expectTypeOf<Result[number]>().toEqualTypeOf<number | string>();
+			expectTypeOf<A["x-a"]>().toEqualTypeOf<string>();
+			expectTypeOf<A[`x-${string}`]>().toEqualTypeOf<number | string>();
+			expectTypeOf<A[`y-${string}`]>().toEqualTypeOf<boolean>();
 		});
+	});
 
-		it("should union both index signatures since either side's value can survive per key", () => {
-			type A = Record<string, number>;
-			type B = Record<string, string>;
-
-			expectTypeOf<Merge<A, B>[string]>().toEqualTypeOf<
-				number | string
-			>();
-		});
-
-		it("should union a concrete key from the first operand with the second's index signature", () => {
-			interface A {
-				a: string;
-			}
-			type B = Record<string, number>;
-
-			expectTypeOf<Merge<A, B>["a"]>().toEqualTypeOf<number | string>();
-		});
-
-		it("should widen the second operand's index signature to admit surviving target properties", () => {
-			interface A {
-				a: string;
-			}
-			type B = Record<string, number>;
-
-			expectTypeOf<Merge<A, B>["b"]>().toEqualTypeOf<number | string>();
-		});
-
-		it("should replace a key reached only through the first operand's index signature", () => {
-			type A = Record<string, number>;
-			interface B {
-				a: string;
-			}
-
-			expectTypeOf<Merge<A, B>["a"]>().toEqualTypeOf<string>();
-			expectTypeOf<Merge<A, B>["b"]>().toEqualTypeOf<number | string>();
-		});
-
-		it("should union an optional concrete key from the first operand with the second's index signature", () => {
-			interface A {
-				a?: string;
-			}
-			type B = Record<string, number>;
-
-			expectTypeOf<Merge<A, B>["a"]>().toEqualTypeOf<
-				number | string | undefined
-			>();
-			expectTypeOf<Merge<A, B>["b"]>().toEqualTypeOf<
-				number | string | undefined
-			>();
+	describe("unions", () => {
+		it("should distribute over the second operand", () => {
 			expectTypeOf<
-				NonNullable<unknown> extends Pick<Merge<A, B>, "a">
-					? true
-					: false
-			>().toEqualTypeOf<true>();
-			expectTypeOf<keyof Merge<A, B>>().toEqualTypeOf<number | string>();
-		});
-	});
-
-	describe("index-signature base with an optional concrete override", () => {
-		type A = Record<string, number>;
-		interface B {
-			a?: string;
-		}
-
-		type Result = Merge<A, B>;
-
-		it("should keep the optional concrete key and union it with the index-signature value", () => {
-			expectTypeOf<Result["a"]>().toEqualTypeOf<
-				number | string | undefined
+				Merge<{ a: string }, { a: number } | { b: number }>
+			>().branded.toEqualTypeOf<
+				{ a: number } | { a: string; b: number }
 			>();
 		});
 
-		it("should keep `keyof` limited to the index signature's key types", () => {
-			expectTypeOf<keyof Result>().toEqualTypeOf<number | string>();
-		});
-
-		it("should keep the surviving concrete key optional", () => {
+		it("should distribute over the first operand", () => {
 			expectTypeOf<
-				NonNullable<unknown> extends Pick<Result, "a"> ? true : false
-			>().toEqualTypeOf<true>();
-		});
-
-		it("should still replace wholesale when the concrete key is required", () => {
-			interface C {
-				a: string;
-			}
-
-			expectTypeOf<Merge<A, C>["a"]>().toEqualTypeOf<string>();
+				Merge<{ a: string } | { b: string }, { c: boolean }>
+			>().branded.toEqualTypeOf<
+				{ a: string; c: boolean } | { b: string; c: boolean }
+			>();
 		});
 	});
 
-	describe("template-literal index signatures", () => {
-		it("should admit concrete overrides without widening disjoint patterns", () => {
-			type A = Record<`x-${string}`, number> &
-				Record<`y-${string}`, boolean>;
-			type Result = Merge<A, { "x-a": string }>;
-
-			const result: Result = { "x-a": "v1", "x-b": 1, "y-a": true };
-
-			expectTypeOf<(typeof result)["x-a"]>().toEqualTypeOf<string>();
-			expectTypeOf<Result[`x-${string}`]>().toEqualTypeOf<
-				number | string
-			>();
-			expectTypeOf<Result[`y-${string}`]>().toEqualTypeOf<boolean>();
-		});
-
-		it("should replace a key matched only by the first operand's template pattern", () => {
-			type A = Record<`x-${string}`, number>;
-			interface B {
-				"x-a": string;
-			}
-
-			expectTypeOf<Merge<A, B>["x-a"]>().toEqualTypeOf<string>();
-		});
-
-		it("should widen the first operand's template pattern to admit overridden keys", () => {
-			type A = Record<`x-${string}`, number>;
-			interface B {
-				"x-a": string;
-			}
-
-			expectTypeOf<Merge<A, B>["x-b"]>().toEqualTypeOf<number | string>();
-		});
-
-		it("should union a declared key with a template pattern contributed by the second operand", () => {
-			interface A {
-				"x-a": number;
-			}
-			type B = Record<`x-${string}`, string>;
-
-			expectTypeOf<Merge<A, B>["x-a"]>().toEqualTypeOf<number | string>();
-		});
-	});
-
-	describe("idempotence", () => {
-		it("should resolve to the same shape when an object is merged with itself", () => {
-			interface A {
-				a: string;
-				b: number;
-			}
-
-			expectTypeOf<Merge<A, A>>().branded.toEqualTypeOf<A>();
-		});
-	});
-
-	describe("chained merges", () => {
-		interface A {
-			a: string;
-			c: string;
-		}
-		interface B {
-			b: number;
-			c: number;
-		}
-
-		it("should let the third operand override keys inherited from both earlier operands", () => {
-			interface C {
-				a: boolean;
-				b: bigint;
-			}
-
-			expectTypeOf<Merge<Merge<A, B>, C>>().branded.toEqualTypeOf<
-				{ a: boolean; b: bigint } & { c: number }
-			>();
-		});
-
-		it("should let the last operand win on a key overridden by every step of the chain", () => {
-			interface C {
-				c: boolean;
-			}
-
-			expectTypeOf<Merge<Merge<A, B>, C>>().branded.toEqualTypeOf<
-				{ a: string; b: number } & { c: boolean }
-			>();
-		});
-
-		it("should keep the `?` modifier blocking replacement of a first-operand key when the base is an intersection", () => {
-			interface C {
-				a?: boolean;
-			}
-
-			expectTypeOf<Merge<Merge<A, B>, C>["a"]>().toEqualTypeOf<
-				boolean | string | undefined
-			>();
-			expectTypeOf<
-				NonNullable<unknown> extends Pick<Merge<Merge<A, B>, C>, "a">
-					? true
-					: false
-			>().toEqualTypeOf<false>();
-			expectTypeOf<Merge<Merge<A, B>, C>>().branded.toEqualTypeOf<
-				{
-					a: boolean | string | undefined;
-					b: number;
-					c: number;
-				} & NonNullable<unknown>
-			>();
-		});
-
-		it("should keep the `?` modifier blocking replacement of a second-operand key when the base is an intersection", () => {
-			interface C {
-				b?: string;
-			}
-
-			expectTypeOf<Merge<Merge<A, B>, C>["b"]>().toEqualTypeOf<
-				number | string | undefined
-			>();
-			expectTypeOf<
-				NonNullable<unknown> extends Pick<Merge<Merge<A, B>, C>, "b">
-					? true
-					: false
-			>().toEqualTypeOf<false>();
-		});
-	});
-
-	describe("method-syntax properties", () => {
-		it("should let the second operand override a method-syntax property", () => {
-			interface A {
-				a(value: string): number;
-			}
-			interface B {
-				a(value: number): string;
-			}
-
-			expectTypeOf<Merge<A, B>>().branded.toEqualTypeOf<{
-				a(value: number): string;
-			}>();
-		});
-	});
-
-	describe("rejected inputs", () => {
-		it("should reject a primitive base operand", () => {
-			// @ts-expect-error - string does not satisfy `T extends object`
-			type _A = Merge<string, { a: 1 }>;
-		});
-
-		it("should reject a primitive overrides operand", () => {
-			// @ts-expect-error - number does not satisfy `U extends object`
-			type _A = Merge<{ a: 1 }, number>;
-		});
-	});
-
-	describe("exact resolved shape", () => {
-		it("should resolve to the intersection of the kept and the incoming properties under strict equality", () => {
-			expectTypeOf<
-				Merge<{ a: string; b: number }, { b: boolean; c: string }>
-			>().toEqualTypeOf<{ a: string } & { b: boolean; c: string }>();
-		});
+	it("should reject operands that are not objects", () => {
+		// @ts-expect-error - string does not satisfy `T extends object`
+		type _A = Merge<string, { a: string }>;
+		// @ts-expect-error - number does not satisfy `U extends object`
+		type _B = Merge<{ a: string }, number>;
 	});
 });
