@@ -3,11 +3,8 @@ import { describe, expect, it } from "bun:test";
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 
 const PARAM = String.raw`\/([^/\s?#]+)`;
-
 const REST = String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))`;
-
 const TERMINAL_WILDCARD = String.raw`\/[^\s?#]*`;
-
 const WILDCARD = String.raw`\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?`;
 
 const compile = (path: string): RegExp =>
