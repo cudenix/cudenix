@@ -21,7 +21,7 @@ export const cloneAppend = <T>(array: readonly T[], item: T): T[] => {
 		return [array[0]!, array[1]!, array[2]!, array[3]!, item];
 	}
 
-	const out = new Array<T>(length + 1);
+	const out: T[] = Array.from({ length: length + 1 });
 
 	for (let i = 0; i < length; i++) {
 		out[i] = array[i]!;

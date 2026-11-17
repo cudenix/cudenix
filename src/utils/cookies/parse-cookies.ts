@@ -1,7 +1,6 @@
 import { decodePathParam } from "@/utils/urls/decode-path-param";
 
 const NAME_CACHE_MAX_LENGTH = 64;
-
 const NAME_CACHE_SIZE = 1024;
 
 const nameCache = Array.from({ length: NAME_CACHE_SIZE }, () => "");

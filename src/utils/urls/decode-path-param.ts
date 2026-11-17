@@ -1,17 +1,11 @@
 import { HEX_VALUES } from "@/utils/urls/hex-values";
 
 const NATIVE_DECODE_MIN_LENGTH = 24;
-
 const NATIVE_DECODE_MIN_MIXED_LENGTH = 48;
-
 const NATIVE_DECODE_MIN_WIDE_LENGTH = 18;
-
 const NATIVE_DECODE_MIXED_ESCAPES = 4;
-
 const NATIVE_DECODE_MIXED_PREFIX = 16;
-
 const NATIVE_DECODE_MIXED_SUFFIX = 12;
-
 const NATIVE_DECODE_MIXED_WINDOW = 32;
 
 const hasDenseOpening = (
@@ -130,7 +124,6 @@ export const decodePathParam = (value: string): string => {
 
 		if (highNibble === -1 || lowNibble === -1) {
 			decoded += "�";
-
 			i += highCharCode > 127 ? 1 : lowCharCode > 127 ? 2 : 3;
 
 			continue;
