@@ -25,10 +25,9 @@ type JoinNormalized<
 	? Path
 	: Path extends "/"
 		? Prefix
-		:
-				| ("/" extends Path ? Prefix : never)
-				| ("/" extends Prefix ? Path : never)
-				| `${Prefix}${Path}`;
+		: | ("/" extends Path ? Prefix : never)
+			| ("/" extends Prefix ? Path : never)
+			| `${Prefix}${Path}`;
 
 type Normalize<Path extends `/${string}`> = `/${NormalizeBody<Path>}`;
 

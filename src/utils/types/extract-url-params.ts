@@ -36,9 +36,8 @@ type CollectParams<
 > = Path extends `${string}/:${string}` | `${string}/...${string}`
 	? Prettify<NextCapture<Path, Accumulated>>
 	: 0 extends 1 & (Path extends `/${infer Body}` ? Body : never)
-		?
-				| Accumulated
-				| Override<Accumulated, string, [string, ...string[]] | string>
+		? | Accumulated
+			| Override<Accumulated, string, [string, ...string[]] | string>
 		: Accumulated;
 
 type NextCapture<
