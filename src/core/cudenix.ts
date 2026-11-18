@@ -1,211 +1,108 @@
-import { compile, type MethodDispatch } from "@/core/compile";
+import { compile } from "@/core/compile";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
-import type { CompiledMount } from "@/core/mount";
+import { NOT_FOUND } from "@/core/response";
 import type { AnyRoute } from "@/core/route";
 import type { AnyStore } from "@/core/store";
 import type { AnyValidator } from "@/core/validator";
 import { pushAll } from "@/utils/arrays/push-all";
-import { Empty } from "@/utils/objects/empty";
 import type { HttpMethod } from "@/utils/types/http-method";
 import type { MaybePromise } from "@/utils/types/maybe-promise";
 
-const NOT_FOUND = new Response(undefined, { status: 404 });
+export interface CompiledCudenix extends CudenixState {
+	fetch(request: Request): MaybePromise<Response>;
+	listen(options?: ListenOptions): ListeningCudenix;
+}
 
-/**
- * Groups the processing components applied to an {@link Endpoint}.
- *
- * @example
- * ```typescript
- * const a: EndpointChain = [];
- * ```
- */
-export type EndpointChain = (AnyMiddleware | AnyStore | AnyValidator)[];
+export interface Cudenix extends CudenixState {
+	compile(): CompiledCudenix;
+	listen(options?: ListenOptions): ListeningCudenix;
+	plugins(plugins: Plugin[]): Cudenix;
+}
 
-/**
- * Describes a compiled route used for request matching and dispatch.
- *
- * @example
- * ```typescript
- * const a: Endpoint = {
- *   chain: [],
- *   dispatch,
- *   markerOffset: 1,
- *   matchOffset: 1,
- *   paramFlags: [],
- *   paramKeys: [],
- *   path: "/a",
- *   restKeys: [],
- *   route,
- * };
- * ```
- */
+export interface CudenixState {
+	memory: Record<PropertyKey, unknown>;
+	methods: Record<HttpMethod, MethodData>;
+	routes: Record<string, Bun.Serve.Routes<unknown, string>>;
+	server?: Bun.Server<unknown>;
+}
+
 export interface Endpoint {
 	chain: EndpointChain;
-	dispatch: (
-		request: Request,
-		match?: RegExpExecArray,
-	) => MaybePromise<Response>;
+	dispatch(request: Request, match?: RegExpExecArray): MaybePromise<Response>;
 	markerOffset: number;
 	matchOffset: number;
-	paramFlags?: number[];
+	paramFlags: number[];
 	paramKeys: string[];
 	path: string;
 	response?: Response;
-	restKeys: string[];
 	route: AnyRoute;
 }
 
-/**
- * Stores compiled routing data for an HTTP method.
- *
- * @example
- * ```typescript
- * const a: MethodData = {
- *   dispatch,
- *   endpoints: [endpoint],
- *   firstMarker: 1,
- *   regexp,
- *   table,
- * };
- * ```
- */
-export interface MethodData {
-	dispatch?: MethodDispatch;
-	endpoints: Endpoint[];
-	firstMarker: number;
-	regexp: RegExp;
-	table: Endpoint[];
+export type EndpointChain = (AnyMiddleware | AnyStore | AnyValidator)[];
+
+export interface ListeningCudenix extends CudenixState {
+	server: Bun.Server<unknown>;
 }
 
-/**
- * Defines a setup hook that runs while compiling an app.
- *
- * @example
- * ```typescript
- * const a: Plugin = function () {
- *   this.memory.validator = someValidator;
- * };
- *
- * const b: Plugin = function () {
- *   return () => {
- *     this.memory.paths = Object.keys(this.methods);
- *   };
- * };
- * ```
- */
-export type Plugin = (this: Cudenix, ...options: any[]) => void | (() => void);
+export interface MethodData {
+	endpoints: Endpoint[];
+	regexp: RegExp;
+}
 
-/**
- * Defines the options accepted when starting the application server.
- */
+export type Plugin = (this: CudenixState) => (() => void) | void;
+
+interface CudenixConstructor {
+	new (module: AnyModule): Cudenix;
+	prototype: CudenixInstance;
+}
+
+type CudenixInstance = CompiledCudenix & Cudenix;
+
 type ListenOptions = Omit<
 	Extract<Bun.Serve.Options<unknown>, { websocket?: never }>,
 	"fetch" | "routes" | "unix"
 >;
 
-/**
- * Defines the public API of a Cudenix application.
- *
- * @example
- * ```typescript
- * const a: Cudenix = new Cudenix(new Module());
- * ```
- */
-export interface Cudenix {
-	compile(): void;
-	fetch(request: Request): MaybePromise<Response>;
-	listen(options?: ListenOptions): Omit<Cudenix, "listen">;
-	memory: Record<PropertyKey, unknown>;
-	methods: Record<HttpMethod, MethodData>;
-	mounts?: CompiledMount[];
-	plugins(plugins: Plugin[]): Cudenix;
-	rootMount?: CompiledMount;
-	routes: Record<string, Bun.Serve.Routes<unknown, string>>;
-	server?: Bun.Server<unknown>;
-}
-
-/**
- * Defines the constructor for creating a {@link Cudenix} application.
- */
-interface CudenixConstructor {
-	new (module: AnyModule): Cudenix;
-}
-
-/**
- * Creates a {@link Cudenix} application from a root {@link AnyModule}.
- *
- * @example
- * ```typescript
- * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
- * ```
- */
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- We are asserting the function as CudenixConstructor which is safe in this context
 export const Cudenix = function (this: Cudenix, module: AnyModule) {
-	this.memory = new Empty();
-	this.methods = new Empty() as Cudenix["methods"];
-	this.routes = new Empty() as Cudenix["routes"];
-
-	this.memory.module = module;
+	this.memory = { module };
+	this.methods = {} as Cudenix["methods"];
+	this.routes = {};
 } as unknown as CudenixConstructor;
 
-/**
- * Compiles the application for request handling.
- *
- * @example
- * ```typescript
- * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
- *
- * a.compile();
- * ```
- */
-Cudenix.prototype.compile = function (this: Cudenix): void {
-	if (!("module" in this.memory)) {
-		return;
+Cudenix.prototype.compile = function (this: CudenixInstance): CompiledCudenix {
+	if (this.memory.module === undefined) {
+		throw new Error("Cudenix is already compiled");
 	}
 
-	let compiled: (() => void)[] | undefined;
+	const plugins = this.memory.plugins as Plugin[] | undefined;
+	const deferredPlugins: (() => void)[] = [];
 
-	if ("plugins" in this.memory) {
-		const plugins = this.memory.plugins as Plugin[];
-
+	if (plugins) {
 		for (let i = 0; i < plugins.length; i++) {
 			const returned = plugins[i]!.call(this);
 
-			// a plugin that reads the route table defers until it exists
 			if (typeof returned === "function") {
-				compiled ??= [];
-
-				compiled.push(returned);
+				deferredPlugins.push(returned);
 			}
 		}
 	}
 
 	compile(this);
 
-	if (compiled) {
-		for (let i = 0; i < compiled.length; i++) {
-			compiled[i]!();
-		}
+	for (let i = 0; i < deferredPlugins.length; i++) {
+		deferredPlugins[i]!();
 	}
 
-	delete this.memory.module;
-	delete this.memory.plugins;
+	this.memory.module = undefined;
+	this.memory.plugins = undefined;
+
+	return this;
 };
 
-/**
- * Routes an incoming request through the application.
- *
- * @example
- * ```typescript
- * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
- *
- * a.compile();
- *
- * (await a.fetch(new Request("http://localhost/a"))).status; // 200
- * ```
- */
 Cudenix.prototype.fetch = function (
-	this: Cudenix,
+	this: CudenixInstance,
 	request: Request,
 ): MaybePromise<Response> {
 	const methodData = this.methods[request.method as HttpMethod];
@@ -214,130 +111,53 @@ Cudenix.prototype.fetch = function (
 		const match = methodData.regexp.exec(request.url);
 
 		if (match) {
-			// the marker of the highest-priority endpoint, past its own captures
-			const firstMarker = methodData.firstMarker;
+			const { endpoints } = methodData;
 
-			if (match[firstMarker] !== undefined) {
-				return methodData.table[firstMarker]!.dispatch(request, match);
-			}
+			for (let i = 0; i < endpoints.length; i++) {
+				const endpoint = endpoints[i]!;
 
-			const compiledDispatch = methodData.dispatch;
-
-			// unrolled resolver for the remaining markers
-			if (compiledDispatch) {
-				return compiledDispatch(request, match);
-			}
-		}
-	}
-
-	const mounts = this.mounts;
-
-	// unmatched requests fall back to the mounts
-	if (mounts) {
-		const url = request.url;
-		// "/" (47) first is an origin-less url, else the pathname follows the authority
-		const pathnameStart =
-			url.charCodeAt(0) === 47 ? -1 : url.indexOf("/", 8);
-		// prefixed mounts skip an origin-less url
-		const mountCount = pathnameStart === -1 ? 0 : mounts.length;
-
-		for (let i = 0; i < mountCount; i++) {
-			const mount = mounts[i]!;
-			const mountPath = mount.path;
-
-			if (!url.startsWith(mountPath, pathnameStart)) {
-				continue;
-			}
-
-			const prefixEnd = pathnameStart + mountPath.length;
-
-			// path handed to the mount once its prefix is stripped
-			let mountedPath: string | undefined;
-
-			if (prefixEnd === url.length) {
-				mountedPath = "/";
-			} else {
-				const boundaryCode = url.charCodeAt(prefixEnd);
-
-				// "/" (47) continues the mounted path
-				if (boundaryCode === 47) {
-					mountedPath = url.slice(prefixEnd);
-				} else if (
-					// "?" (63) or "#" (35) follows the mount root
-					boundaryCode === 63 ||
-					boundaryCode === 35
-				) {
-					mountedPath = `/${url.slice(prefixEnd)}`;
+				if (match[endpoint.markerOffset] !== undefined) {
+					return endpoint.dispatch(request, match);
 				}
 			}
-
-			if (mountedPath !== undefined) {
-				return mount.fetch(
-					new Request(
-						`${url.slice(0, pathnameStart)}${mountedPath}`,
-						request,
-					),
-				);
-			}
 		}
 	}
 
-	return this.rootMount?.fetch(request) ?? NOT_FOUND;
+	return NOT_FOUND;
 };
 
-/**
- * Compiles and starts the application server.
- *
- * @example
- * ```typescript
- * const a = new Cudenix(new Module().route("GET", "/a", () => ok("v1")));
- *
- * a.listen({ port: 3000 }); // a.server?.port is now 3000
- * ```
- */
 Cudenix.prototype.listen = function (
-	this: Cudenix,
+	this: CudenixInstance,
 	options?: ListenOptions,
-): Cudenix {
+): ListeningCudenix {
+	if (this.server !== undefined && this.server.port !== 0) {
+		throw new Error("Cudenix is already listening");
+	}
+
 	this.compile();
 
 	this.server = Bun.serve<unknown, string>({
 		development: false,
 		...options,
+		// oxlint-disable-next-line typescript/promise-function-async -- fetch is not async but returns a MaybePromise<Response>
 		fetch: (request) => this.fetch(request),
 		routes: this.routes,
 	});
 
-	process.once("beforeExit", () => {
-		this.server?.stop();
-	});
-
 	Bun.gc();
 
-	return this;
+	return this as ListeningCudenix;
 };
 
-/**
- * Registers {@link Plugin} setup hooks for application compilation.
- *
- * @example
- * ```typescript
- * const a = new Cudenix(new Module());
- *
- * a.plugins([
- *   function () {
- *     this.memory.validator = someValidator;
- *   },
- * ]);
- * ```
- */
 Cudenix.prototype.plugins = function (
-	this: Cudenix,
+	this: CudenixInstance,
 	plugins: Plugin[],
 ): Cudenix {
-	if (!("plugins" in this.memory)) {
-		this.memory.plugins = [];
+	if (this.memory.module === undefined) {
+		throw new Error("Cudenix is already compiled");
 	}
+
+	this.memory.plugins ??= [];
 
 	pushAll(this.memory.plugins as Plugin[], plugins);
 
