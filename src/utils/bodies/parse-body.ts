@@ -32,7 +32,8 @@ const parseFormBody = async (
 const parseUrlencodedBody = (text: string): Record<string, unknown> =>
 	parseUrlencoded(text, 0, text.length, false);
 
-export const parseBody = async (request: Request): Promise<unknown> => {
+// oxlint-disable-next-line typescript/promise-function-async -- The function returns a promise without being async to avoid extra ticks per request
+export const parseBody = (request: Request): Promise<unknown> => {
 	const contentType = request.headers.get("content-type");
 
 	if (contentType === null || contentType === "") {
