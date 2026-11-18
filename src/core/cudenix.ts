@@ -1,3 +1,4 @@
+import { dispatchMethod } from "@/core/chain";
 import { compile } from "@/core/compile";
 import type { AnyMiddleware } from "@/core/middleware";
 import type { AnyModule } from "@/core/module";
@@ -107,23 +108,7 @@ Cudenix.prototype.fetch = function (
 ): MaybePromise<Response> {
 	const methodData = this.methods[request.method as HttpMethod];
 
-	if (methodData) {
-		const match = methodData.regexp.exec(request.url);
-
-		if (match) {
-			const { endpoints } = methodData;
-
-			for (let i = 0; i < endpoints.length; i++) {
-				const endpoint = endpoints[i]!;
-
-				if (match[endpoint.markerOffset] !== undefined) {
-					return endpoint.dispatch(request, match);
-				}
-			}
-		}
-	}
-
-	return NOT_FOUND;
+	return methodData ? dispatchMethod(methodData, request) : NOT_FOUND;
 };
 
 Cudenix.prototype.listen = function (
@@ -134,13 +119,21 @@ Cudenix.prototype.listen = function (
 		throw new Error("Cudenix is already listening");
 	}
 
-	this.compile();
+	if (this.memory.module !== undefined) {
+		this.compile();
+	}
+
+	const served = this.memory.serverMethods as Cudenix["methods"];
 
 	this.server = Bun.serve<unknown, string>({
 		development: false,
 		...options,
 		// oxlint-disable-next-line typescript/promise-function-async -- fetch is not async but returns a MaybePromise<Response>
-		fetch: (request) => this.fetch(request),
+		fetch: (request) => {
+			const methodData = served[request.method as HttpMethod];
+
+			return methodData ? dispatchMethod(methodData, request) : NOT_FOUND;
+		},
 		routes: this.routes,
 	});
 
