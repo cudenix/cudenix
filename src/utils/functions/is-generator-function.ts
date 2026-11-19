@@ -7,7 +7,9 @@ const GENERATOR_FUNCTION_PROTOTYPE = Object.getPrototypeOf(function* () {
 	// empty generator function to get its prototype
 }) as unknown;
 
-export const isGenerator = (fn: (...args: any[]) => unknown): boolean => {
+export const isGeneratorFunction = (
+	fn: (...args: any[]) => unknown,
+): boolean => {
 	const prototype = Object.getPrototypeOf(fn) as unknown;
 
 	return (

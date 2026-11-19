@@ -1,4 +1,4 @@
-import { decodePathParam } from "@/utils/urls/decode-path-param";
+import { percentDecode } from "@/utils/encodings/percent-decode";
 
 const NAME_CACHE_MAX_LENGTH = 64;
 const NAME_CACHE_SIZE = 1024;
@@ -116,7 +116,7 @@ export const parseCookies = (header: string): Record<string, string> => {
 
 				cookies[name] ??=
 					percentIndex !== -1 && percentIndex < valueEnd
-						? decodePathParam(header.slice(valueStart, valueEnd))
+						? percentDecode(header.slice(valueStart, valueEnd))
 						: header.slice(valueStart, valueEnd);
 			}
 		}

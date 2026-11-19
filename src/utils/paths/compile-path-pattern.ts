@@ -29,7 +29,7 @@ const escapeStaticCharacter = (character: string): string => {
 		: encodeURIComponent(character.toWellFormed());
 };
 
-export const pathToRegexp = (
+export const compilePathPattern = (
 	path: string,
 ): {
 	bare: string;
@@ -37,7 +37,6 @@ export const pathToRegexp = (
 	paramKeys: string[];
 	pattern: string;
 	ranks: number[];
-	restKeys: string[];
 } => {
 	if (path === "/") {
 		return {
@@ -47,7 +46,6 @@ export const pathToRegexp = (
 			// the trailing "()" marks which route matched
 			pattern: String.raw`\/()`,
 			ranks: [],
-			restKeys: [],
 		};
 	}
 
@@ -57,7 +55,6 @@ export const pathToRegexp = (
 	const paramFlags: number[] = [];
 	const paramKeys: string[] = [];
 	const ranks: number[] = [];
-	const restKeys: string[] = [];
 
 	let last = parts.length - 1;
 
@@ -103,14 +100,11 @@ export const pathToRegexp = (
 			part.charCodeAt(1) === 46 &&
 			part.charCodeAt(2) === 46
 		) {
-			const name = part.slice(3, contentEnd);
-
 			paramFlags.push(
 				PARAM_FLAG_REST + (isOptional ? PARAM_FLAG_OPTIONAL : 0),
 			);
-			paramKeys.push(name);
+			paramKeys.push(part.slice(3, contentEnd));
 			ranks.push(REST_RANK);
-			restKeys.push(name);
 
 			bareSegment = REST_BARE;
 			segment = REST_CAPTURE;
@@ -146,5 +140,5 @@ export const pathToRegexp = (
 		pattern = `${segments}()`;
 	}
 
-	return { bare, paramFlags, paramKeys, pattern, ranks, restKeys };
+	return { bare, paramFlags, paramKeys, pattern, ranks };
 };

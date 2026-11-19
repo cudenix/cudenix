@@ -1,4 +1,4 @@
-import { HEX_VALUES } from "@/utils/urls/hex-values";
+import { HEX_VALUES } from "@/utils/encodings/hex-values";
 
 const NATIVE_DECODE_MIN_LENGTH = 24;
 const NATIVE_DECODE_MIN_MIXED_LENGTH = 48;
@@ -37,7 +37,7 @@ const hasDenseOpening = (
 	return false;
 };
 
-export const decodePathParam = (value: string): string => {
+export const percentDecode = (value: string): string => {
 	const firstPercentIndex = value.indexOf("%");
 
 	if (firstPercentIndex === -1) {

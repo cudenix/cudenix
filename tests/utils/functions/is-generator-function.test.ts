@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 
-import { isGenerator } from "@/utils/functions/is-generator";
+import { isGeneratorFunction } from "@/utils/functions/is-generator-function";
 
-type Fn = Parameters<typeof isGenerator>[0];
+type Fn = Parameters<typeof isGeneratorFunction>[0];
 
 class A {
 	*a(this: void): Generator<number, void, unknown> {
@@ -22,7 +22,7 @@ function* generator(): Generator<number, void, unknown> {
 	yield 1;
 }
 
-describe("isGenerator", () => {
+describe("isGeneratorFunction", () => {
 	it.each<[string, Fn]>([
 		["a generator function", generator],
 		["an async generator function", asyncGenerator],
@@ -30,7 +30,7 @@ describe("isGenerator", () => {
 		["an async generator method", new A().b],
 		["a bound generator function", generator.bind(undefined)],
 	])("should return true for %s", (_, fn) => {
-		expect(isGenerator(fn)).toBe(true);
+		expect(isGeneratorFunction(fn)).toBe(true);
 	});
 
 	it.each<[string, unknown]>([
@@ -49,6 +49,6 @@ describe("isGenerator", () => {
 		],
 		["a class", A],
 	])("should return false for %s", (_, fn) => {
-		expect(isGenerator(fn as Fn)).toBe(false);
+		expect(isGeneratorFunction(fn as Fn)).toBe(false);
 	});
 });

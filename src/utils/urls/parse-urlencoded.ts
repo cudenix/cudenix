@@ -1,4 +1,4 @@
-import { HEX_VALUES } from "@/utils/urls/hex-values";
+import { HEX_VALUES } from "@/utils/encodings/hex-values";
 
 const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 const encoder = new TextEncoder();

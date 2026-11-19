@@ -1,8 +1,8 @@
 import type { AnyFail, AnyOk } from "@/core/reply";
 
-export type AnyGeneratorSSE = GeneratorSSE<AnyFail | AnyOk, string>;
+export type AnySSEFrame = SSEFrame<AnyFail | AnyOk, string>;
 
-export interface GeneratorSSE<
+export interface SSEFrame<
 	Data extends AnyFail | AnyOk,
 	Event extends string = "message",
 > {

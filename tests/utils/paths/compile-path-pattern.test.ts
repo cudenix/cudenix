@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
+import { compilePathPattern } from "@/utils/paths/compile-path-pattern";
 
 const PARAM_BARE = String.raw`\/[^/\s?#]+`;
 const REST_BARE = String.raw`\/(?:[^/\s?#]+/)*[^/\s?#]+`;
@@ -10,9 +10,9 @@ const TERMINAL_WILDCARD = String.raw`\/[^\s?#]*`;
 const WILDCARD = String.raw`\/(?:[^/\s?#]+/)*(?:[^/\s?#]+)?`;
 
 const compile = (path: string): RegExp =>
-	new RegExp(`^${pathToRegexp(path).pattern}$`, "u");
+	new RegExp(`^${compilePathPattern(path).pattern}$`, "u");
 
-describe("pathToRegexp", () => {
+describe("compilePathPattern", () => {
 	describe("output", () => {
 		it.each<
 			[
@@ -22,22 +22,13 @@ describe("pathToRegexp", () => {
 				paramKeys: string[],
 				paramFlags: number[],
 				ranks: number[],
-				restKeys: string[],
 			]
 		>([
-			["/", String.raw`\/()`, String.raw`\/`, [], [], [], []],
-			["", "()", "", [], [], [], []],
-			["//", String.raw`\/()`, String.raw`\/`, [], [], [], []],
-			["\\", String.raw`\/()`, String.raw`\/`, [], [], [], []],
-			[
-				"a/b",
-				String.raw`\/a\/b()`,
-				String.raw`\/a\/b`,
-				[],
-				[],
-				[0, 0],
-				[],
-			],
+			["/", String.raw`\/()`, String.raw`\/`, [], [], []],
+			["", "()", "", [], [], []],
+			["//", String.raw`\/()`, String.raw`\/`, [], [], []],
+			["\\", String.raw`\/()`, String.raw`\/`, [], [], []],
+			["a/b", String.raw`\/a\/b()`, String.raw`\/a\/b`, [], [], [0, 0]],
 			[
 				"//a//b//",
 				String.raw`\/a\/b()`,
@@ -45,7 +36,6 @@ describe("pathToRegexp", () => {
 				[],
 				[],
 				[0, 0],
-				[],
 			],
 			[
 				String.raw`\a\b`,
@@ -54,9 +44,8 @@ describe("pathToRegexp", () => {
 				[],
 				[],
 				[0, 0],
-				[],
 			],
-			["/:p1", `${PARAM}()`, PARAM_BARE, ["p1"], [0], [1], []],
+			["/:p1", `${PARAM}()`, PARAM_BARE, ["p1"], [0], [1]],
 			[
 				"/a/:p1?",
 				String.raw`\/a(?:${PARAM})?()`,
@@ -64,9 +53,8 @@ describe("pathToRegexp", () => {
 				["p1"],
 				[1],
 				[0, 1],
-				[],
 			],
-			["/...r1", `${REST}()`, REST_BARE, ["r1"], [2], [3], ["r1"]],
+			["/...r1", `${REST}()`, REST_BARE, ["r1"], [2], [3]],
 			[
 				"/a/...r1?",
 				String.raw`\/a(?:${REST})?()`,
@@ -74,17 +62,8 @@ describe("pathToRegexp", () => {
 				["r1"],
 				[3],
 				[0, 3],
-				["r1"],
 			],
-			[
-				"/..a",
-				String.raw`\/\.\.a()`,
-				String.raw`\/\.\.a`,
-				[],
-				[],
-				[0],
-				[],
-			],
+			["/..a", String.raw`\/\.\.a()`, String.raw`\/\.\.a`, [], [], [0]],
 			[
 				"/a/*",
 				String.raw`\/a${TERMINAL_WILDCARD}()`,
@@ -92,7 +71,6 @@ describe("pathToRegexp", () => {
 				[],
 				[],
 				[0, 4],
-				[],
 			],
 			[
 				"/a/*/",
@@ -101,7 +79,6 @@ describe("pathToRegexp", () => {
 				[],
 				[],
 				[0, 4],
-				[],
 			],
 			[
 				"/a/*?",
@@ -110,7 +87,6 @@ describe("pathToRegexp", () => {
 				[],
 				[],
 				[0, 4],
-				[],
 			],
 			[
 				"/a/*/b",
@@ -119,9 +95,8 @@ describe("pathToRegexp", () => {
 				[],
 				[],
 				[0, 2, 0],
-				[],
 			],
-			["/*a", String.raw`\/\*a()`, String.raw`\/\*a`, [], [], [0], []],
+			["/*a", String.raw`\/\*a()`, String.raw`\/\*a`, [], [], [0]],
 			[
 				"/a/b?",
 				String.raw`\/a(?:\/b)?()`,
@@ -129,7 +104,6 @@ describe("pathToRegexp", () => {
 				[],
 				[],
 				[0, 0],
-				[],
 			],
 			[
 				"/a?/:p1?",
@@ -138,7 +112,6 @@ describe("pathToRegexp", () => {
 				["p1"],
 				[1],
 				[0, 1],
-				[],
 			],
 			[
 				"/a/:p1/*/...r1",
@@ -147,18 +120,16 @@ describe("pathToRegexp", () => {
 				["p1", "r1"],
 				[0, 2],
 				[0, 1, 2, 3],
-				["r1"],
 			],
 		])(
 			"should compile %j",
-			(path, pattern, bare, paramKeys, paramFlags, ranks, restKeys) => {
-				expect(pathToRegexp(path)).toEqual({
+			(path, pattern, bare, paramKeys, paramFlags, ranks) => {
+				expect(compilePathPattern(path)).toEqual({
 					bare,
 					paramFlags,
 					paramKeys,
 					pattern,
 					ranks,
-					restKeys,
 				});
 			},
 		);
@@ -174,7 +145,7 @@ describe("pathToRegexp", () => {
 			["/😀", String.raw`\/%F0%9F%98%80()`],
 			["/a\uD800", String.raw`\/a%EF%BF%BD()`],
 		])("should compile %j to %j", (path, pattern) => {
-			expect(pathToRegexp(path).pattern).toBe(pattern);
+			expect(compilePathPattern(path).pattern).toBe(pattern);
 		});
 
 		it.each([

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { HEX_VALUES } from "@/utils/urls/hex-values";
+import { HEX_VALUES } from "@/utils/encodings/hex-values";
 
 describe("HEX_VALUES", () => {
 	it("should map '0'-'9' to 0-9", () => {

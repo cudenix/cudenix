@@ -1,6 +1,6 @@
 import { describe, expect, it, spyOn } from "bun:test";
 
-import { decodePathParam } from "@/utils/urls/decode-path-param";
+import { percentDecode } from "@/utils/encodings/percent-decode";
 
 const CJK = "%E6%97%A5%E6%9C%AC%E8%AA%9E";
 
@@ -10,7 +10,7 @@ const countNativeCalls = (
 	const spy = spyOn(globalThis, "decodeURIComponent");
 
 	try {
-		const decoded = decodePathParam(value);
+		const decoded = percentDecode(value);
 
 		return { calls: spy.mock.calls.length, decoded };
 	} finally {
@@ -18,10 +18,10 @@ const countNativeCalls = (
 	}
 };
 
-describe("decodePathParam", () => {
+describe("percentDecode", () => {
 	describe("valid escapes", () => {
 		it("should return a value without escapes unchanged", () => {
-			expect(decodePathParam("a+b/é")).toBe("a+b/é");
+			expect(percentDecode("a+b/é")).toBe("a+b/é");
 		});
 
 		it.each([
@@ -41,7 +41,7 @@ describe("decodePathParam", () => {
 			["%41xyz%42", "AxyzB"],
 			["é%20☕", "é ☕"],
 		] as const)("should decode %j as %j", (encoded, expected) => {
-			expect(decodePathParam(encoded)).toBe(expected);
+			expect(percentDecode(encoded)).toBe(expected);
 		});
 	});
 
@@ -59,7 +59,7 @@ describe("decodePathParam", () => {
 		] as const)(
 			"should replace the invalid UTF-8 %j with %j",
 			(encoded, expected) => {
-				expect(decodePathParam(encoded)).toBe(expected);
+				expect(percentDecode(encoded)).toBe(expected);
 			},
 		);
 
@@ -77,7 +77,7 @@ describe("decodePathParam", () => {
 		] as const)(
 			"should replace the truncated sequence %j with %j",
 			(encoded, expected) => {
-				expect(decodePathParam(encoded)).toBe(expected);
+				expect(percentDecode(encoded)).toBe(expected);
 			},
 		);
 
@@ -91,7 +91,7 @@ describe("decodePathParam", () => {
 		] as const)(
 			"should replace the broken escape %j with %j",
 			(encoded, expected) => {
-				expect(decodePathParam(encoded)).toBe(expected);
+				expect(percentDecode(encoded)).toBe(expected);
 			},
 		);
 
@@ -103,7 +103,7 @@ describe("decodePathParam", () => {
 		] as const)(
 			"should replace the broken escape %j with %j without dropping the non-ASCII character after it",
 			(encoded, expected) => {
-				expect(decodePathParam(encoded)).toBe(expected);
+				expect(percentDecode(encoded)).toBe(expected);
 			},
 		);
 	});
