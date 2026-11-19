@@ -1,8 +1,10 @@
+const PARAM_BARE = String.raw`\/[^/\s?#]+`;
 const PARAM_CAPTURE = String.raw`\/([^/\s?#]+)`;
 const PARAM_FLAG_OPTIONAL = 1;
 const PARAM_FLAG_REST = 2;
 const PARAM_RANK = 1;
 
+const REST_BARE = String.raw`\/(?:[^/\s?#]+/)*[^/\s?#]+`;
 const REST_CAPTURE = String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))`;
 const REST_RANK = 3;
 
@@ -30,6 +32,7 @@ const escapeStaticCharacter = (character: string): string => {
 export const pathToRegexp = (
 	path: string,
 ): {
+	bare: string;
 	paramFlags: number[];
 	paramKeys: string[];
 	pattern: string;
@@ -38,6 +41,7 @@ export const pathToRegexp = (
 } => {
 	if (path === "/") {
 		return {
+			bare: String.raw`\/`,
 			paramFlags: [],
 			paramKeys: [],
 			// the trailing "()" marks which route matched
@@ -62,6 +66,7 @@ export const pathToRegexp = (
 	}
 
 	let areAllSegmentsOptional = true;
+	let bareSegments = "";
 	let segments = "";
 
 	for (let i = 0; i <= last; i++) {
@@ -76,6 +81,7 @@ export const pathToRegexp = (
 		const contentEnd = isOptional ? partLength - 1 : partLength;
 		const firstCharCode = part.charCodeAt(0);
 
+		let bareSegment: string;
 		let segment: string;
 
 		if (firstCharCode === 58) {
@@ -83,6 +89,7 @@ export const pathToRegexp = (
 			paramKeys.push(part.slice(1, contentEnd));
 			ranks.push(PARAM_RANK);
 
+			bareSegment = PARAM_BARE;
 			segment = PARAM_CAPTURE;
 		} else if (firstCharCode === 42 && contentEnd === 1) {
 			const isTerminal = i === last;
@@ -90,6 +97,7 @@ export const pathToRegexp = (
 			ranks.push(isTerminal ? TERMINAL_WILDCARD_RANK : WILDCARD_RANK);
 
 			segment = isTerminal ? TERMINAL_WILDCARD : WILDCARD;
+			bareSegment = segment;
 		} else if (
 			firstCharCode === 46 &&
 			part.charCodeAt(1) === 46 &&
@@ -104,31 +112,39 @@ export const pathToRegexp = (
 			ranks.push(REST_RANK);
 			restKeys.push(name);
 
+			bareSegment = REST_BARE;
 			segment = REST_CAPTURE;
 		} else {
 			ranks.push(STATIC_RANK);
 
 			segment = `\\/${(isOptional ? part.slice(0, contentEnd) : part).replaceAll(STATIC_SEGMENT_SYNTAX, escapeStaticCharacter)}`;
+			bareSegment = segment;
 		}
 
 		if (isOptional) {
+			bareSegment = `(?:${bareSegment})?`;
 			segment = `(?:${segment})?`;
 		} else {
 			areAllSegmentsOptional = false;
 		}
 
+		bareSegments += bareSegment;
 		segments += segment;
 	}
 
+	let bare: string;
 	let pattern: string;
 
-	if (segments) {
-		pattern = areAllSegmentsOptional
-			? `(?:${segments}|\\/)()`
-			: `${segments}()`;
+	if (!segments) {
+		bare = path.length > 0 ? String.raw`\/` : "";
+		pattern = `${bare}()`;
+	} else if (areAllSegmentsOptional) {
+		bare = `(?:${bareSegments}|\\/)`;
+		pattern = `(?:${segments}|\\/)()`;
 	} else {
-		pattern = path.length > 0 ? String.raw`\/()` : "()";
+		bare = bareSegments;
+		pattern = `${segments}()`;
 	}
 
-	return { paramFlags, paramKeys, pattern, ranks, restKeys };
+	return { bare, paramFlags, paramKeys, pattern, ranks, restKeys };
 };

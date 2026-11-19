@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 
 import { pathToRegexp } from "@/utils/regexps/path-to-regexp";
 
+const PARAM_BARE = String.raw`\/[^/\s?#]+`;
+const REST_BARE = String.raw`\/(?:[^/\s?#]+/)*[^/\s?#]+`;
 const PARAM = String.raw`\/([^/\s?#]+)`;
 const REST = String.raw`\/((?:[^/\s?#]+/)*(?:[^/\s?#]+))`;
 const TERMINAL_WILDCARD = String.raw`\/[^\s?#]*`;
@@ -16,42 +18,86 @@ describe("pathToRegexp", () => {
 			[
 				path: string,
 				pattern: string,
+				bare: string,
 				paramKeys: string[],
 				paramFlags: number[],
 				ranks: number[],
 				restKeys: string[],
 			]
 		>([
-			["/", String.raw`\/()`, [], [], [], []],
-			["", "()", [], [], [], []],
-			["//", String.raw`\/()`, [], [], [], []],
-			["\\", String.raw`\/()`, [], [], [], []],
-			["a/b", String.raw`\/a\/b()`, [], [], [0, 0], []],
-			["//a//b//", String.raw`\/a\/b()`, [], [], [0, 0], []],
-			[String.raw`\a\b`, String.raw`\/a\/b()`, [], [], [0, 0], []],
-			["/:p1", `${PARAM}()`, ["p1"], [0], [1], []],
+			["/", String.raw`\/()`, String.raw`\/`, [], [], [], []],
+			["", "()", "", [], [], [], []],
+			["//", String.raw`\/()`, String.raw`\/`, [], [], [], []],
+			["\\", String.raw`\/()`, String.raw`\/`, [], [], [], []],
+			[
+				"a/b",
+				String.raw`\/a\/b()`,
+				String.raw`\/a\/b`,
+				[],
+				[],
+				[0, 0],
+				[],
+			],
+			[
+				"//a//b//",
+				String.raw`\/a\/b()`,
+				String.raw`\/a\/b`,
+				[],
+				[],
+				[0, 0],
+				[],
+			],
+			[
+				String.raw`\a\b`,
+				String.raw`\/a\/b()`,
+				String.raw`\/a\/b`,
+				[],
+				[],
+				[0, 0],
+				[],
+			],
+			["/:p1", `${PARAM}()`, PARAM_BARE, ["p1"], [0], [1], []],
 			[
 				"/a/:p1?",
 				String.raw`\/a(?:${PARAM})?()`,
+				String.raw`\/a(?:${PARAM_BARE})?`,
 				["p1"],
 				[1],
 				[0, 1],
 				[],
 			],
-			["/...r1", `${REST}()`, ["r1"], [2], [3], ["r1"]],
+			["/...r1", `${REST}()`, REST_BARE, ["r1"], [2], [3], ["r1"]],
 			[
 				"/a/...r1?",
 				String.raw`\/a(?:${REST})?()`,
+				String.raw`\/a(?:${REST_BARE})?`,
 				["r1"],
 				[3],
 				[0, 3],
 				["r1"],
 			],
-			["/..a", String.raw`\/\.\.a()`, [], [], [0], []],
-			["/a/*", String.raw`\/a${TERMINAL_WILDCARD}()`, [], [], [0, 4], []],
+			[
+				"/..a",
+				String.raw`\/\.\.a()`,
+				String.raw`\/\.\.a`,
+				[],
+				[],
+				[0],
+				[],
+			],
+			[
+				"/a/*",
+				String.raw`\/a${TERMINAL_WILDCARD}()`,
+				String.raw`\/a${TERMINAL_WILDCARD}`,
+				[],
+				[],
+				[0, 4],
+				[],
+			],
 			[
 				"/a/*/",
 				String.raw`\/a${TERMINAL_WILDCARD}()`,
+				String.raw`\/a${TERMINAL_WILDCARD}`,
 				[],
 				[],
 				[0, 4],
@@ -60,17 +106,35 @@ describe("pathToRegexp", () => {
 			[
 				"/a/*?",
 				String.raw`\/a(?:${TERMINAL_WILDCARD})?()`,
+				String.raw`\/a(?:${TERMINAL_WILDCARD})?`,
 				[],
 				[],
 				[0, 4],
 				[],
 			],
-			["/a/*/b", String.raw`\/a${WILDCARD}\/b()`, [], [], [0, 2, 0], []],
-			["/*a", String.raw`\/\*a()`, [], [], [0], []],
-			["/a/b?", String.raw`\/a(?:\/b)?()`, [], [], [0, 0], []],
+			[
+				"/a/*/b",
+				String.raw`\/a${WILDCARD}\/b()`,
+				String.raw`\/a${WILDCARD}\/b`,
+				[],
+				[],
+				[0, 2, 0],
+				[],
+			],
+			["/*a", String.raw`\/\*a()`, String.raw`\/\*a`, [], [], [0], []],
+			[
+				"/a/b?",
+				String.raw`\/a(?:\/b)?()`,
+				String.raw`\/a(?:\/b)?`,
+				[],
+				[],
+				[0, 0],
+				[],
+			],
 			[
 				"/a?/:p1?",
 				String.raw`(?:(?:\/a)?(?:${PARAM})?|\/)()`,
+				String.raw`(?:(?:\/a)?(?:${PARAM_BARE})?|\/)`,
 				["p1"],
 				[1],
 				[0, 1],
@@ -79,6 +143,7 @@ describe("pathToRegexp", () => {
 			[
 				"/a/:p1/*/...r1",
 				String.raw`\/a${PARAM}${WILDCARD}${REST}()`,
+				String.raw`\/a${PARAM_BARE}${WILDCARD}${REST_BARE}`,
 				["p1", "r1"],
 				[0, 2],
 				[0, 1, 2, 3],
@@ -86,8 +151,9 @@ describe("pathToRegexp", () => {
 			],
 		])(
 			"should compile %j",
-			(path, pattern, paramKeys, paramFlags, ranks, restKeys) => {
+			(path, pattern, bare, paramKeys, paramFlags, ranks, restKeys) => {
 				expect(pathToRegexp(path)).toEqual({
+					bare,
 					paramFlags,
 					paramKeys,
 					pattern,
